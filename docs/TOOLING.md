@@ -273,8 +273,21 @@ order (gate, then lint) did not pass. Now ignored in the shared config; lint is 
 - **Linux/CI behaviour unverified.** All three audits ran on macOS. The two Playwright defects are
   platform-independent, but the attacks were not executed elsewhere.
 
-The runtime verdict is void at each repaired SHA by its own terms, and the gate must be re-run
-against the current one before Phase 2 is authorized.
+### Phase 1 closed here — by decision, not by a clean audit
+
+A fourth audit round was offered and **declined**; Phase 1 is committed as-is. Recording that
+plainly so nobody later reads this file as a clean bill of health:
+
+- The **artifact** passed every audit at every SHA — source and runtime, three rounds, all
+  independently reproduced.
+- The **gate** carries no independent GREEN at the final SHA `a24fcaa`. Its last independent verdict
+  was BLOCK at `a0e2d30`. The third repair was verified by me against that auditor's own canonical
+  reproducer and its stated falsifier, but it has not itself been independently audited.
+- The residuals above (font assertion proves a name not a typeface; ambient interception never
+  concluded; Linux/CI never exercised) remain **open**.
+
+Before Phase 2's own gate is trusted, the runtime audit should be re-run against the then-current
+SHA.
 
 ## Commands used to verify
 
