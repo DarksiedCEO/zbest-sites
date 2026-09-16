@@ -6,7 +6,9 @@
  * Tailwind's theme. The brand token VALUES live in @zbest/ui (styles/tokens.css)
  * so the design system stays the single source of truth (Brief SS1.2).
  *
- * Type scale, spacing scale and motion primitives land here in Phase 2.
+ * The type scale lives in @zbest/ui (styles/type.css) alongside the tokens it
+ * depends on; this file wires the spacing rhythm and motion tokens into
+ * Tailwind's theme so utilities can reach them.
  */
 
 @import "tailwindcss";
@@ -31,4 +33,34 @@
   --font-kinetic: var(--font-bricolage);
   --font-sans: var(--font-plex-sans);
   --font-mono: var(--font-plex-mono);
+}
+
+@theme {
+  /*
+   * Spacing rhythm (Brief §3.2). Tailwind's numeric scale stays available for
+   * component-level work; these are the section-level intervals, named so a
+   * page cannot quietly invent a seventh vertical gap.
+   *
+   * NAME THESE CAREFULLY. Tailwind v4 generates a utility per spacing key in
+   * several namespaces, including `inline-<key>` for inline-size. A key named
+   * `block` therefore emits `.inline-block { inline-size: ... }`, which shadows
+   * the built-in display utility of the same name — every `inline-block`
+   * element silently became 2.5rem wide, with no rule a devtools width lookup
+   * would attribute to it. Avoid keys that collide with a core utility suffix.
+   */
+  --spacing-gutter: 1.5rem; /* 390 side gutter */
+  --spacing-gutter-wide: 4rem; /* 1440 side gutter */
+  --spacing-section: 4.5rem; /* between sections, mobile */
+  --spacing-section-lg: 7.5rem; /* between sections, desktop */
+  --spacing-stack: 2.5rem; /* between blocks inside a section */
+  --spacing-ledger: 1.125rem; /* ledger row padding */
+
+  /*
+   * Motion. One signature moment per page and stillness elsewhere (§A1, §B1),
+   * so this is deliberately a short list — there is no hover-transition token
+   * because hover effects on everything are an anti-reference (§2.2).
+   */
+  --ease-ledger: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --duration-tick: 1100ms; /* counter tick-up */
+  --duration-reveal: 420ms; /* accordion / consent entry */
 }

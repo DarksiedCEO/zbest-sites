@@ -121,8 +121,24 @@ one company.
 
 ### Hierarchy
 
-Not yet established. The type scale is **Phase 2** work (§3.2) and is recorded here
-once built. Do not invent sizes before then.
+Built in Phase 2 as semantic classes in `packages/ui/src/styles/type.css`. Reach for
+the **role**, not a size — `text-4xl` picks a number, `.type-display` picks a role and
+keeps the contrast. Every value is mobile-first: the clamp minimum is the 390 value.
+
+| Class | Size | Line height | Purpose |
+|---|---|---|---|
+| `.type-display` | `clamp(2.75rem, 7.5vw, 6.25rem)` | 0.95 | Monumental editorial display — one per page |
+| `.type-headline` | `clamp(1.875rem, 4vw, 3rem)` | 1.05 | Section headline |
+| `.type-title` | `clamp(1.25rem, 1.8vw, 1.5rem)` | 1.2 | Card and row titles |
+| `.type-body-lead` | `clamp(1.0625rem, 1.35vw, 1.25rem)` | 1.55 | Lead paragraph, max 62ch |
+| `.type-body` | `1rem` | 1.65 | Body copy, max 68ch |
+| `.type-small` | `0.875rem` | 1.55 | Captions and notes |
+| `.type-label` | `0.75rem` | 1.2 | Mono, uppercase, `0.08em` tracking |
+| `.type-stat` | `clamp(1.5rem, 2.6vw, 2.125rem)` | 1.1 | Mono figures, tabular |
+| `.type-mono` | `0.9375rem` | 1.5 | Mono inline values |
+
+The display-to-title ratio is deliberately over 2×; the Phase 2 gate asserts it,
+because a gentle ramp is what makes a page read as generic SaaS.
 
 ### Variable-font axes — set in Phase 2, with the type scale
 
@@ -162,7 +178,27 @@ content is genuinely sequential. On mobile the scrubber becomes a vertical timel
 **Mobile-first is literal here.** Build every page at 390 first, then widen. Both
 viewports are screenshotted at 1440 and 390 before a phase can close (§3, §9).
 
-The spacing scale is **Phase 2** work (§3.2).
+**Spacing rhythm** (Phase 2, in `packages/config/tailwind/preset.css`). Named so a
+page cannot quietly invent a seventh vertical gap. Tailwind's numeric scale stays
+available for component-level work.
+
+| Token | Value | Use |
+|---|---|---|
+| `--spacing-gutter` | `1.5rem` | Side gutter at 390 |
+| `--spacing-gutter-wide` | `4rem` | Side gutter at 1440 |
+| `--spacing-section` | `4.5rem` | Between sections, mobile |
+| `--spacing-section-lg` | `7.5rem` | Between sections, desktop |
+| `--spacing-stack` | `2.5rem` | Between blocks inside a section |
+| `--spacing-ledger` | `1.125rem` | Ledger row padding |
+
+**Name spacing keys carefully.** Tailwind v4 emits a utility per key across several
+namespaces, including `inline-<key>`. A key named `block` therefore emits
+`.inline-block { inline-size: … }`, which silently shadows the display utility — see
+`docs/TOOLING.md` for what that cost.
+
+**Motion tokens:** `--ease-ledger` `cubic-bezier(0.22, 0.61, 0.36, 1)`,
+`--duration-tick` `1100ms`, `--duration-reveal` `420ms`. There is deliberately no
+hover-transition token; hover effects on everything is an anti-reference (§2.2).
 
 ## Elevation & Depth
 
@@ -178,11 +214,12 @@ ruled line in a ledger, not as a decorative separator.
 
 ## Components
 
-Owned by `packages/ui` (§1.2) and built in **Phase 2** (§3.2), not before:
-`LedgerRule`, `Counter`, `StatBlock`, `Nav`, `Footer`, `Card`, `FAQ`,
-`CookieConsent`, `IllustrativeBadge`.
+Owned by `packages/ui` (§1.2) and built in Phase 2 (§3.2): `LedgerRule`, `Counter`,
+`StatBlock`, `Nav`, `Footer`, `Card`, `FAQ`, `CookieConsent`, `IllustrativeBadge`.
+All of them render together on the unlinked, noindex `/dev/system` route in both
+apps — the §3.2 gallery option.
 
-Behavior already locked by the brief:
+Behavior locked by the brief and implemented:
 
 - **Counter** — ticks up **once** on viewport entry. Not on hover, not on a loop.
   Fully disabled under `prefers-reduced-motion`.

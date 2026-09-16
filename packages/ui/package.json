@@ -8,7 +8,9 @@
     "./fonts/zbm": "./src/fonts/zbm.ts",
     "./fonts/zbc": "./src/fonts/zbc.ts",
     "./styles/tokens.css": "./src/styles/tokens.css",
-    "./gate": "./src/gate.tsx"
+    "./gate": "./src/gate.tsx",
+    "./styles/type.css": "./src/styles/type.css",
+    "./dev/system-gallery": "./src/dev/system-gallery.tsx"
   },
   "scripts": {
     "lint": "eslint .",

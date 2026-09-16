@@ -1,0 +1,117 @@
+/*
+ * Type scale and spacing rhythm (Brief §3.2).
+ *
+ * Semantic classes rather than raw utilities, because §A1 requires "real scale
+ * contrast" and that only holds if the jumps are decided once. A page that
+ * reaches for text-4xl picks a size; a page that reaches for .type-display
+ * picks a ROLE, and the scale keeps the contrast.
+ *
+ * Mobile-first (§A1): every clamp starts at its 390 value and widens.
+ */
+
+@layer components {
+  /*
+   * Monumental editorial display — one of the two lead techniques (§A1).
+   * The jump from display to headline is deliberately large; a gentle ramp is
+   * what makes a page read as generic SaaS.
+   */
+  .type-display {
+    font-family: var(--font-display, var(--font-fraunces));
+    font-size: clamp(2.75rem, 7.5vw, 6.25rem);
+    line-height: 0.95;
+    letter-spacing: -0.03em;
+    font-weight: 600;
+    text-wrap: balance;
+  }
+
+  .type-headline {
+    font-family: var(--font-display, var(--font-fraunces));
+    font-size: clamp(1.875rem, 4vw, 3rem);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    font-weight: 600;
+    text-wrap: balance;
+  }
+
+  .type-title {
+    font-family: var(--font-display, var(--font-fraunces));
+    font-size: clamp(1.25rem, 1.8vw, 1.5rem);
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    font-weight: 600;
+  }
+
+  .type-body-lead {
+    font-family: var(--font-plex-sans);
+    font-size: clamp(1.0625rem, 1.35vw, 1.25rem);
+    line-height: 1.55;
+    max-width: 62ch;
+  }
+
+  .type-body {
+    font-family: var(--font-plex-sans);
+    font-size: 1rem;
+    line-height: 1.65;
+    max-width: 68ch;
+  }
+
+  .type-small {
+    font-family: var(--font-plex-sans);
+    font-size: 0.875rem;
+    line-height: 1.55;
+  }
+
+  /*
+   * Labels and every number. Mono is the sibling link between the two brands
+   * (§B1), and tabular alignment is a requirement, not a preference (§A1).
+   */
+  .type-label {
+    font-family: var(--font-plex-mono);
+    font-size: 0.75rem;
+    line-height: 1.2;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .type-stat {
+    font-family: var(--font-plex-mono);
+    font-size: clamp(1.5rem, 2.6vw, 2.125rem);
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+  }
+
+  .type-mono {
+    font-family: var(--font-plex-mono);
+    font-size: 0.9375rem;
+    line-height: 1.5;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/*
+ * Z Best Clips headline face — founder decision at Phase 1 close:
+ * wght 700-800, opsz 96, wdth 100. Display takes the top of the band, the
+ * smaller roles the bottom, so the contrast is weight as well as size.
+ */
+/*
+ * Applied to the raw `font-kinetic` utility as well as the type roles. The axes
+ * are what give Bricolage its character — loaded but unapplied, it renders as an
+ * ordinary grotesque, which is exactly how the Phase 1 boot page looked after
+ * the axes landed. Anything reaching for the kinetic face should get the face,
+ * not a neutral fallback of it.
+ */
+[data-brand="zbc"] :is(.font-kinetic, .type-display, .type-headline, .type-title) {
+  font-family: var(--font-kinetic, var(--font-bricolage));
+  font-variation-settings:
+    "opsz" 96,
+    "wdth" 100;
+  font-weight: 700;
+}
+
+[data-brand="zbc"] .type-display {
+  font-weight: 800;
+  letter-spacing: -0.035em;
+}

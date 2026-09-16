@@ -107,14 +107,18 @@ unstored as Impeccable's default. That is superseded.)
    apps emit all four families (27 woff2 files each); split, each emits 24 — 21 shared IBM Plex,
    3 brand-specific.
 
-## Open items carried into Phase 2
+## Open items carried into Phase 3
 
-- **Bricolage headline axes — decided, apply in Phase 2 with the type scale.** `wght` 700–800,
-  `opsz` 96, `wdth` 100 (founder decision at Phase 1 close). next/font loads only `wght` by default,
-  which is why Bricolage currently renders as a fairly neutral grotesque rather than the "kinetic,
-  distinctive" face §B1 describes. Recorded in root `DESIGN.md`. Fraunces' optional axes are not
-  decided; leave them at defaults unless the type scale work shows a reason.
-- **Type scale and spacing scale** (§3.2) — not started; the brief locks neither.
+- **Fraunces' optional axes** (`SOFT`, `WONK`, `opsz`) are still undecided and left at defaults.
+  Raise only if a page shows a reason; the brief locks the family, not the axes.
+- **`/dev/system` must stay out of `sitemap.xml`** when Phase 3 builds one, alongside Search
+  Intelligence. Two unlisted routes now, for different reasons.
+- **The cookie consent choice is stored but nothing reads it.** There are no analytics or
+  advertising tags on either site yet. Whoever adds the first tag must read
+  `localStorage["zbest-cookie-consent"]` before loading anything non-essential, or the banner
+  becomes decoration.
+- **Legal shells do not exist yet** (Phase 3). The consent banner links to `/legal/cookie-policy`,
+  which 404s until then.
 
 ## Phase 1 AEGIS audit (Brief §3, §9)
 
@@ -292,6 +296,48 @@ plainly so nobody later reads this file as a clean bill of health:
 
 Before Phase 2's own gate is trusted, the runtime audit should be re-run against the then-current
 SHA.
+
+## Phase 2 — design system (Brief §3.2)
+
+Built: type scale and spacing rhythm, motion tokens, and the nine reusable pieces — `LedgerRule`,
+`Counter`, `StatBlock`, `Nav`, `Footer`, `Card`, `FAQ`, `CookieConsent`, `IllustrativeBadge` — plus
+the `/dev/system` gallery route in both apps and the Bricolage axes from founder decision 4.
+
+`/dev/system` is **unlinked and noindex** in both apps, the same discoverability posture as Search
+Intelligence (§A4) for a different reason: it is a development surface, not a staged reveal. It must
+be kept out of `sitemap.xml` when Phase 3 builds one.
+
+Gate: `e2e/tests/phase-2.spec.ts`, 16 tests across both apps and both viewports. It operates things
+rather than locating them — the accordion is driven by keyboard, the consent banner is actually
+rejected and the choice re-checked after reload, and the counter is asserted to tick once, to not
+restart on re-entry, and to be disabled under `prefers-reduced-motion`.
+
+### Three bugs the gate caught, all of which looked fine in code review
+
+1. **The counter froze partway.** `format` is a default parameter, so it was a new function identity
+   on every render; it was listed as an effect dependency, and every tick set state, so the effect
+   re-ran mid-animation, the cleanup stopped the tween and the once-only guard refused to restart.
+   It stopped on whatever number it had reached — 37,993 in the failing run. Fixed by holding
+   `format` in a ref.
+2. **A spacing token shadowed a core utility.** `--spacing-block: 2.5rem` made Tailwind v4 emit
+   `.inline-block { inline-size: 2.5rem }` in addition to the built-in
+   `.inline-block { display: inline-block }`. Every `inline-block` element became exactly 40px wide.
+   Devtools attributed the width to no rule at all, because both rules carry the same class name and
+   the collision is only visible by reading the compiled CSS. CTAs rendered as 40px boxes with their
+   labels stacked vertically. Tokens renamed to `--spacing-stack` and `--spacing-ledger`.
+3. **The Bricolage axes were loaded but not applied.** `font-variation-settings` was scoped to the
+   `.type-*` roles, so anything using the raw `font-kinetic` utility — including the Phase 1 boot
+   page — still rendered a neutral grotesque. Now applied to the utility as well.
+
+The Phase 1 ZBC screenshots changed as a result of (3), which is correct and not drift: decision 4
+deliberately changed that face. The Phase 1 gate still passes unmodified.
+
+A first version of the anti-wrap assertion measured only height, so it passed while the CTA was a
+40px box with its label overflowing — the fix had changed the symptom the test measured rather than
+the defect. It now checks `scrollWidth` against the rendered box as well.
+
+Impeccable's mechanical detector (`impeccable detect --json`) returns `[]` over
+`packages/ui/src`, `apps/zbm/app` and `apps/zbc/app`.
 
 ## Commands used to verify
 
