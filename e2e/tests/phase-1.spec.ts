@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
-import { ZBC_BASE_URL, ZBM_BASE_URL } from "../playwright.config";
+import { GATE_NONCE, ZBC_BASE_URL, ZBM_BASE_URL } from "../playwright.config";
 
 /**
  * Phase 1 gate (Brief §3.1). Deliverable under test: two blank pages rendering
@@ -146,11 +146,30 @@ for (const app of APPS) {
         "self-hosted woff2 served from /_next/static (proves the Next build is under test)",
       ).toBeGreaterThan(0);
 
-      // Proof this server is THE build the gate just produced, not merely some
-      // Next-shaped response. BUILD_ID is regenerated per build and cannot be
-      // guessed; the path 404s for any other value. Binding the server to the
-      // loopback address stops a second process stealing the port, and this
-      // stops anything that gets the port anyway from impersonating the build.
+      // THE check that the page under test came from the process this gate
+      // spawned. The nonce exists only in this run's memory and is passed to the
+      // server via env, so no other process can produce it — unlike a free port,
+      // which can be taken first, or an on-disk token, which any local process
+      // can read and replay.
+      //
+      // It is asserted on the DOCUMENT, not on an asset: an impostor can proxy
+      // /_next/static/** through to the real build while serving its own HTML,
+      // and the screenshot is of the HTML.
+      // Read directly rather than via a locator: a missing nonce is a hard
+      // failure, not something to wait 30s for.
+      const servedNonce = await page.evaluate(
+        () =>
+          document
+            .querySelector('meta[name="x-zbest-gate-nonce"]')
+            ?.getAttribute("content") ?? null,
+      );
+      expect(
+        servedNonce,
+        "served document carries this run's gate nonce — it is the server we spawned",
+      ).toBe(GATE_NONCE);
+
+      // Corroborating: the build served is the one the gate just produced.
+      // BUILD_ID is regenerated per build and 404s for any other value.
       const buildId = (
         await readFile(
           path.join(import.meta.dirname, "..", "..", "apps", app.slug, ".next", "BUILD_ID"),

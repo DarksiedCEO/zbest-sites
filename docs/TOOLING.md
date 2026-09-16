@@ -215,6 +215,64 @@ The vacuity of the old font check was reproduced too — on a page naming Fraunc
 evidence. What binds a screenshot to a commit is that captures are byte-reproducible — re-run the
 gate at a SHA and the hashes must match, which both runtime audits independently confirmed.
 
+### Third audit — F-09 still open, and the real invariant finally named
+
+The second repair was re-audited. It closed the *symptom* and left the *mechanism*. The auditor
+produced a **race-free** reproducer in which the real Next server never starts at all:
+
+An impostor takes the port **before the gate launches** and destroys the first connection.
+Playwright's `reuseExistingServer: false` is a single pre-spawn HTTP probe (`runner/index.js:857`),
+so one dropped connection defeats it permanently; readiness is then `Promise.race` on "does the URL
+answer", which never checks *who* is answering (`:936`). `next start` dies with `EADDRINUSE` — printed
+to the gate's own console — and the gate exits `0`. `PROVENANCE.txt` stamped `clean: yes` on the
+forgery.
+
+The invariant that had never held, across all three SHAs:
+
+> **The gate cannot tell that the thing answering the URL is the process it spawned.**
+
+`--hostname 127.0.0.1` only narrowed *when* the port has to be taken. It is not a window you wait
+for — you create it by taking the port first. The auditor also showed BUILD_ID proves only *"the
+responder can read the build output"*, not *"the responder is the build"* — its impostor proxied
+`/_next/static/**` straight through to the real `.next`, satisfying the 200, while serving its own
+HTML. And the screenshot is of the HTML.
+
+### Third repair — bind the document, not the port or the disk
+
+A nonce is generated per run in the gate process, passed to the spawned server via env, rendered
+into the served **document**, and asserted there. It exists only in that run's memory, so no other
+process can produce it — unlike a port, which can be taken first, or an on-disk token, which any
+local process can read and replay.
+
+`GateNonce` (`packages/ui/src/gate.tsx`) renders nothing unless `ZBEST_GATE_NONCE` is set, so it
+never reaches production. Verified both ways: a build without the variable emits **0** occurrences;
+a build with it emits the meta tag.
+
+**Both attacks re-run against the repaired gate:**
+
+| Attack | Before | After |
+|---|---|---|
+| Pre-bound impostor, drops probe #1, proxies real fonts (canonical E2.2) | `4 passed`, exit 0, screenshots forged | **4 failed**, exit 1, screenshots untouched |
+| Single-port hijack at t+2s (variant A′) | `4 passed`, exit 0, zbm screenshots forged | **exit 1**, screenshots untouched |
+
+The impostor defeats every other assertion — it serves real woff2 from the real build, so off-origin,
+self-hosted-font and BUILD_ID all pass. Only the nonce catches it.
+
+Also fixed from the same audit: `pnpm lint` failed with 3965 errors after any gate run, because
+`e2e/playwright-report/` is gitignored but was not eslint-ignored — the project's own documented
+order (gate, then lint) did not pass. Now ignored in the shared config; lint is 5/5 after a gate run.
+
+### Known residuals (not closed, stated plainly)
+
+- **The font assertion proves a family *name*, not a typeface.** `@font-face{font-family:"Fraunces"}`
+  serving Bricolage bytes passes. Only reachable by an attacker who already controls the response,
+  which the nonce now prevents — so it is not a backstop, and is not treated as one.
+- **Ambient interception** (`HTTP_PROXY`, hosts file, DNS) was never run to a conclusion by any audit.
+  Chromium bypasses proxies for loopback by default. Not proven safe, only not needed for the attacks
+  that were found.
+- **Linux/CI behaviour unverified.** All three audits ran on macOS. The two Playwright defects are
+  platform-independent, but the attacks were not executed elsewhere.
+
 The runtime verdict is void at each repaired SHA by its own terms, and the gate must be re-run
 against the current one before Phase 2 is authorized.
 

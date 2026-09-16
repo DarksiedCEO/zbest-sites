@@ -7,7 +7,8 @@
     ".": "./src/index.ts",
     "./fonts/zbm": "./src/fonts/zbm.ts",
     "./fonts/zbc": "./src/fonts/zbc.ts",
-    "./styles/tokens.css": "./src/styles/tokens.css"
+    "./styles/tokens.css": "./src/styles/tokens.css",
+    "./gate": "./src/gate.tsx"
   },
   "scripts": {
     "lint": "eslint .",
@@ -23,7 +24,8 @@
     "eslint": "9.39.5",
     "next": "16.3.5",
     "react": "19.3.0",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "@types/node": "20.19.9"
   },
   "peerDependencies": {
     "next": "^16.0.0",

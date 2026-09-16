@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
+import { randomUUID } from "node:crypto";
 
 /**
  * Phase gate harness (Brief §3, §9): every page is captured at desktop 1440 and
@@ -12,6 +13,19 @@ import { defineConfig, devices } from "@playwright/test";
  */
 export const ZBM_BASE_URL = "http://127.0.0.1:3000";
 export const ZBC_BASE_URL = "http://127.0.0.1:3001";
+
+/**
+ * Per-run secret proving the server answering a URL is the one this gate
+ * spawned. Generated in the runner and inherited by workers and by the server
+ * process, so it exists only in memory for the life of the run.
+ *
+ * This is the check that actually holds. Everything weaker was defeated: the
+ * port can be taken before the gate starts (Playwright's reuse guard is a
+ * single probe, and one dropped connection beats it), and any on-disk token can
+ * be read and replayed by any local process.
+ */
+process.env.ZBEST_GATE_NONCE ??= randomUUID();
+export const GATE_NONCE = process.env.ZBEST_GATE_NONCE;
 
 /**
  * Builds from the current source, then serves that build — never a stale .next.
@@ -57,6 +71,7 @@ export default defineConfig({
       command: serve("@zbest/zbm", 3000),
       url: ZBM_BASE_URL,
       cwd: "../",
+      env: { ZBEST_GATE_NONCE: GATE_NONCE },
       // Never adopt a pre-existing server: it may be a stale build, another
       // branch, or not this project at all.
       reuseExistingServer: false,
@@ -66,6 +81,7 @@ export default defineConfig({
       command: serve("@zbest/zbc", 3001),
       url: ZBC_BASE_URL,
       cwd: "../",
+      env: { ZBEST_GATE_NONCE: GATE_NONCE },
       reuseExistingServer: false,
       timeout: 180_000,
     },

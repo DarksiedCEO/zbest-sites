@@ -4,7 +4,14 @@ import tseslint from "typescript-eslint";
 /** Shared flat config for every workspace package. */
 export default tseslint.config(
   {
-    ignores: ["**/.next/**", "**/node_modules/**", "**/dist/**", "**/.turbo/**"],
+    ignores: [
+      "**/.next/**",
+      "**/node_modules/**",
+      "**/dist/**",
+      "**/.turbo/**",
+      "**/playwright-report/**",
+      "**/test-results/**",
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
