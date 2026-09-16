@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { mkdir } from "node:fs/promises";
+import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { ZBC_BASE_URL, ZBM_BASE_URL } from "../playwright.config";
 
@@ -91,9 +91,18 @@ for (const app of APPS) {
             el.remove();
             return width;
           };
+          // document.fonts lists only faces this DOCUMENT declared. A font
+          // installed on the host does not appear here, and neither does a
+          // family that was never declared at all — which is exactly what
+          // document.fonts.check() gets wrong: it returns true for any family
+          // on a page with no @font-face rules whatsoever.
+          const declaredFaces = [...document.fonts].filter(
+            (f) => f.family.replace(/["']/g, "") === family,
+          );
           return {
             declared: cs.fontFamily,
-            loaded: document.fonts.check(`${cs.fontSize} "${family}"`),
+            faceCount: declaredFaces.length,
+            loadedCount: declaredFaces.filter((f) => f.status === "loaded").length,
             withFace: measure(`"${family}"`),
             withoutFace: measure(`"${missing}"`),
           };
@@ -103,7 +112,14 @@ for (const app of APPS) {
 
       expect(face, "h1 must exist to measure").not.toBeNull();
       expect(face!.declared).toContain(app.headlineFamily);
-      expect(face!.loaded, `${app.headlineFamily} reports as loaded`).toBe(true);
+      expect(
+        face!.faceCount,
+        `${app.headlineFamily} is declared by this document via @font-face`,
+      ).toBeGreaterThan(0);
+      expect(
+        face!.loadedCount,
+        `${app.headlineFamily} has at least one face with status "loaded"`,
+      ).toBeGreaterThan(0);
       expect(
         Math.abs(face!.withFace - face!.withoutFace),
         `${app.headlineFamily} renders differently than the fallback ` +
@@ -129,6 +145,26 @@ for (const app of APPS) {
         selfHostedFonts.length,
         "self-hosted woff2 served from /_next/static (proves the Next build is under test)",
       ).toBeGreaterThan(0);
+
+      // Proof this server is THE build the gate just produced, not merely some
+      // Next-shaped response. BUILD_ID is regenerated per build and cannot be
+      // guessed; the path 404s for any other value. Binding the server to the
+      // loopback address stops a second process stealing the port, and this
+      // stops anything that gets the port anyway from impersonating the build.
+      const buildId = (
+        await readFile(
+          path.join(import.meta.dirname, "..", "..", "apps", app.slug, ".next", "BUILD_ID"),
+          "utf8",
+        )
+      ).trim();
+      expect(buildId, "BUILD_ID was produced by the gate's own build").not.toBe("");
+      const identity = await page.request.get(
+        `${origin}/_next/static/${buildId}/_buildManifest.js`,
+      );
+      expect(
+        identity.status(),
+        `server serves build ${buildId} — the one this gate built`,
+      ).toBe(200);
 
       await mkdir(SNAPSHOT_DIR, { recursive: true });
       await page.screenshot({

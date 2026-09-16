@@ -172,8 +172,51 @@ All five fixed in `e2e/playwright.config.ts` and `e2e/tests/phase-1.spec.ts`:
 | Impostor server on 3000/3001 | `4 passed`, screenshots overwritten | Refuses to run; screenshots untouched |
 | woff2 blocked | `toHaveCSS` passed | `loaded=false`, width delta `0.0px` → **FAILS** |
 
-The runtime verdict is void at the repaired SHA by its own terms, and the runtime gate must be
-re-run against it before Phase 2 is authorized.
+### Re-audit of the repair — F-09 was still open
+
+The repaired SHA was re-audited. F-10, F-11, F-12 and F-13 came back **CLOSED**, each confirmed by
+execution. **F-09 did not close**, and the second finding was sharper than the first:
+
+`next start` binds the **wildcard** address `*:3000`, which leaves the more specific
+`127.0.0.1:3000` socket free. BSD longest-prefix matching then routes every gate request to
+whichever process holds the loopback-specific socket. `reuseExistingServer: false` only rejects a
+server already bound at precheck time — it does not bind the gate to the build it started. The
+auditor took the port **six seconds after Playwright declared the real server healthy**, with no
+race at all, and got `4 passed` with the committed screenshots overwritten. Its impostor also
+defeated both new assertions by serving real font bytes from a hand-written `/_next/static/media/`
+path.
+
+Two further findings: `document.fonts.check()` returns **true for any family on a page with no
+`@font-face` rules at all** (R-03), so that assertion could not catch the original F-10 case; and
+`next build` builds the working tree, so a green gate is producible from uncommitted source (R-02).
+
+### Second repair
+
+| Fix | Closes |
+|---|---|
+| `next start --hostname 127.0.0.1` — binds the loopback address specifically, so a second bind fails `EADDRINUSE` | F-09 |
+| Assert `/_next/static/<BUILD_ID>/_buildManifest.js` returns 200, reading `BUILD_ID` from the build the gate just produced. It is regenerated per build, cannot be guessed, and any other value 404s | F-09 defence in depth, R-04 |
+| Font proof now requires a `document.fonts` entry for the family with `status === "loaded"`, instead of `document.fonts.check()` | R-03, and the host-dependence the auditor left UNVERIFIED — a system-installed font never appears in `document.fonts` |
+| `global-setup.ts` stamps commit, tree, clean/dirty and timestamp beside the artifacts, and warns loudly on a dirty run | R-02 |
+
+Measured directly, since the mechanism is the whole point:
+
+| Server binding | Loopback hijack |
+|---|---|
+| `*:3000` (Next default) | **SUCCEEDS** |
+| `--hostname 127.0.0.1` | **FAILS — EADDRINUSE** |
+
+Re-running the auditor's variant-B attack against the repaired gate: **blocked on both ports**, gate
+ran against the real build, and all four PNG hashes stayed byte-identical to the committed ones.
+The vacuity of the old font check was reproduced too — on a page naming Fraunces with no
+`@font-face`, `document.fonts.check()` returns `true` while the new assertion returns `0` and fails.
+
+`PROVENANCE.txt` is gitignored: it is an operator warning for the run in front of you, not committed
+evidence. What binds a screenshot to a commit is that captures are byte-reproducible — re-run the
+gate at a SHA and the hashes must match, which both runtime audits independently confirmed.
+
+The runtime verdict is void at each repaired SHA by its own terms, and the gate must be re-run
+against the current one before Phase 2 is authorized.
 
 ## Commands used to verify
 

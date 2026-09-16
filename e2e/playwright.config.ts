@@ -13,12 +13,24 @@ import { defineConfig, devices } from "@playwright/test";
 export const ZBM_BASE_URL = "http://127.0.0.1:3000";
 export const ZBC_BASE_URL = "http://127.0.0.1:3001";
 
-/** Builds from the current source, then serves that build — never a stale .next. */
+/**
+ * Builds from the current source, then serves that build — never a stale .next.
+ *
+ * `--hostname 127.0.0.1` is load-bearing, not tidiness. next start defaults to
+ * the wildcard address, which leaves the more specific 127.0.0.1:<port> socket
+ * free; BSD longest-prefix matching then routes the gate's requests to any
+ * process that binds it, at any time, even after the server is up and healthy.
+ * An audit hijacked the gate exactly that way and got a green 4/4 against a
+ * hand-written page. Binding the loopback address specifically makes that
+ * second bind fail with EADDRINUSE.
+ */
 const serve = (pkg: string, port: number) =>
-  `pnpm --filter ${pkg} exec next build && pnpm --filter ${pkg} exec next start --port ${port}`;
+  `pnpm --filter ${pkg} exec next build && ` +
+  `pnpm --filter ${pkg} exec next start --hostname 127.0.0.1 --port ${port}`;
 
 export default defineConfig({
   testDir: "./tests",
+  globalSetup: "./global-setup.ts",
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
