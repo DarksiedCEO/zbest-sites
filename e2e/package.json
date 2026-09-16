@@ -5,12 +5,15 @@
   "type": "module",
   "scripts": {
     "test": "playwright test",
-    "test:phase-1": "playwright test tests/phase-1.spec.ts"
+    "test:phase-1": "playwright test tests/phase-1.spec.ts",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@playwright/test": "1.63.0",
     "@types/node": "20.19.9",
     "typescript": "5.9.3",
-    "@zbest/config": "workspace:*"
+    "@zbest/config": "workspace:*",
+    "eslint": "9.39.5"
   }
 }

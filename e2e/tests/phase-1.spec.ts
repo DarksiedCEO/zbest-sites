@@ -9,6 +9,12 @@ import { ZBC_BASE_URL, ZBM_BASE_URL } from "../playwright.config";
  *
  * Screenshots land in e2e/snapshots/phase-1/ and are committed — a phase is not
  * complete without them (Brief §3, §9).
+ *
+ * Every assertion here has to be capable of failing. Two earlier ones were not:
+ * a computed `font-family` string matched whether or not a single byte of the
+ * face was ever fetched, and nothing checked that the page came from the Next
+ * build at all. Both were demonstrated by an audit, so font presence is now
+ * proven by measurement and the build is proven by its own asset requests.
  */
 
 const SNAPSHOT_DIR = path.join(import.meta.dirname, "..", "snapshots", "phase-1");
@@ -20,25 +26,32 @@ const APPS = [
     name: "Z Best Media",
     baseUrl: ZBM_BASE_URL,
     base: "rgb(14, 15, 18)", // #0E0F12
-    headlineFace: /Fraunces/i,
+    headlineFamily: "Fraunces",
   },
   {
     slug: "zbc",
     name: "Z Best Clips",
     baseUrl: ZBC_BASE_URL,
     base: "rgb(11, 13, 16)", // #0B0D10
-    headlineFace: /Bricolage/i,
+    headlineFamily: "Bricolage Grotesque",
   },
 ] as const;
 
 /** Brief §A1 / §B1 — shared across both brands. */
 const TEXT_PRIMARY = "rgb(237, 235, 230)"; // #EDEBE6
 
+/** A family that cannot resolve, so the browser must use its default face. */
+const NO_SUCH_FAMILY = "__zbest_no_such_family__";
+
 for (const app of APPS) {
   test.describe(app.name, () => {
-    test(`boots on the correct base color with its headline face`, async ({
+    test("boots on the correct base color with its headline face", async ({
       page,
     }, testInfo) => {
+      // Registered before the first navigation so nothing escapes observation.
+      const requested: string[] = [];
+      page.on("request", (request) => requested.push(request.url()));
+
       await page.goto(app.baseUrl, { waitUntil: "networkidle" });
 
       // The page renders at all.
@@ -50,19 +63,72 @@ for (const app of APPS) {
       await expect(page.locator("body")).toHaveCSS("background-color", app.base);
       await expect(page.locator("body")).toHaveCSS("color", TEXT_PRIMARY);
 
-      // Fonts actually loaded and self-hosted (Brief §1.1 — no runtime CDN).
       await page.evaluate(() => document.fonts.ready);
-      await expect(heading).toHaveCSS("font-family", app.headlineFace);
 
-      const thirdPartyFontRequests: string[] = [];
-      page.on("request", (request) => {
-        const url = request.url();
-        if (/fonts\.(googleapis|gstatic)\.com/.test(url)) {
-          thirdPartyFontRequests.push(url);
-        }
-      });
-      await page.reload({ waitUntil: "networkidle" });
-      expect(thirdPartyFontRequests).toEqual([]);
+      // Proof the face LOADED and is in use — not merely named in CSS. The same
+      // string is computed whether or not the font was ever fetched, so the
+      // headline is measured against a deliberately unresolvable family: if the
+      // real face is missing, both fall back to the default and the widths match.
+      const face = await page.evaluate(
+        ([family, missing]) => {
+          const h1 = document.querySelector("h1");
+          if (!h1) return null;
+          const cs = getComputedStyle(h1);
+          const measure = (fontFamily: string) => {
+            const el = document.createElement("span");
+            el.textContent = h1.textContent;
+            Object.assign(el.style, {
+              position: "absolute",
+              visibility: "hidden",
+              whiteSpace: "nowrap",
+              fontFamily,
+              fontSize: cs.fontSize,
+              fontWeight: cs.fontWeight,
+              letterSpacing: cs.letterSpacing,
+            });
+            document.body.appendChild(el);
+            const width = el.getBoundingClientRect().width;
+            el.remove();
+            return width;
+          };
+          return {
+            declared: cs.fontFamily,
+            loaded: document.fonts.check(`${cs.fontSize} "${family}"`),
+            withFace: measure(`"${family}"`),
+            withoutFace: measure(`"${missing}"`),
+          };
+        },
+        [app.headlineFamily, NO_SUCH_FAMILY] as const,
+      );
+
+      expect(face, "h1 must exist to measure").not.toBeNull();
+      expect(face!.declared).toContain(app.headlineFamily);
+      expect(face!.loaded, `${app.headlineFamily} reports as loaded`).toBe(true);
+      expect(
+        Math.abs(face!.withFace - face!.withoutFace),
+        `${app.headlineFamily} renders differently than the fallback ` +
+          `(${face!.withFace}px vs ${face!.withoutFace}px)`,
+      ).toBeGreaterThan(1);
+
+      const origin = new URL(app.baseUrl).origin;
+
+      // Brief §1.1 forbids third-party font CDN calls at runtime. Asserting zero
+      // off-origin requests rather than a Google-only pattern, because the rule
+      // names no vendor — Typekit or Bunny would violate it just as squarely.
+      const offOrigin = requested.filter(
+        (url) => !url.startsWith(origin) && !/^(data|blob):/.test(url),
+      );
+      expect(offOrigin, "no off-origin requests at runtime").toEqual([]);
+
+      // Proof this is the Next build and not some other server on the port:
+      // the self-hosted faces must arrive from the build's own asset pipeline.
+      const selfHostedFonts = requested.filter(
+        (url) => url.startsWith(`${origin}/_next/static/`) && url.endsWith(".woff2"),
+      );
+      expect(
+        selfHostedFonts.length,
+        "self-hosted woff2 served from /_next/static (proves the Next build is under test)",
+      ).toBeGreaterThan(0);
 
       await mkdir(SNAPSHOT_DIR, { recursive: true });
       await page.screenshot({

@@ -123,6 +123,58 @@ phase where it changes any output.
 - **The ZBM production domain is unnamed.** §1.1 says "its existing domain" without giving it.
   Not needed until Phase 3 (sitemap, canonical URLs, OG metadata).
 
+## Phase 1 AEGIS audit (Brief §3, §9)
+
+Two independent read-only auditors were run against commit `12750b9` — the build session could
+not certify its own output. Both were told Phases 2-6 are out of scope.
+
+**`aegis-source` — SOURCE_GREEN.** 44/44 in-scope files read in full. Every hex in `tokens.css` and
+root `DESIGN.md` diffed character-by-character against §A1/§B1: all 9 brief-specified values exact,
+no undisclosed invented value, `--zbc-panel` honestly marked in all three places. Layout matches
+§1.2. Per-app `DESIGN.md` files contain zero tokens. No suppressed checks. It also chased the
+font-CDN vacuity suspicion to an out-of-repo reproduction in both engines and **disproved it**,
+then declined to report the finding it had refuted.
+
+**`aegis-runtime` — RUNTIME_GREEN_FOR_SCOPE on the artifact, BLOCK on the harness.** All eight
+claims reproduced from a wiped build state. Screenshots regenerate byte-identical (SHA-256 stable
+across two full rebuilds), and the committer's own `.next` was byte-identical to an independent
+rebuild — the committed screenshots did come from the committed source. Versions: zero
+discrepancies against this file. Fonts: **zero off-origin requests of any kind**, stronger than
+§1.1 requires. It then found two HIGH defects in the gate harness:
+
+| ID | Defect | Demonstrated by |
+|---|---|---|
+| F-09 | `reuseExistingServer: !CI` + `next start` with no build → the suite adopted a hand-written static server with **no fonts at all**, reported `4 passed`, and overwrote all four committed screenshots | Executing it |
+| F-10 | `toHaveCSS("font-family", …)` is a string check that passes with zero font bytes fetched; `document.fonts.ready` was awaited but its result discarded | The same impostor page |
+
+Plus F-11 (listener attached after the first navigation — not vacuous, but blind to first load),
+F-12 (CDN check was Google-only; §1.1 names no vendor), F-13 (`e2e` and `@zbest/config` were the
+only workspaces neither linted nor typechecked).
+
+### Repaired, not restarted (§9)
+
+All five fixed in `e2e/playwright.config.ts` and `e2e/tests/phase-1.spec.ts`:
+
+1. `reuseExistingServer: false` unconditionally — the gate never adopts a server it did not start.
+2. The webServer command is now `next build && next start`, so the gate builds what it tests.
+3. Font presence proven by **measurement**: `document.fonts.check` plus the headline's rendered
+   width against a deliberately unresolvable family. If the face is missing both fall back to the
+   default and the widths converge.
+4. The request listener moved above the first `goto`, and the assertion is now **zero off-origin
+   requests** rather than a Google-only regex.
+5. A `/_next/static/**.woff2` assertion proves the Next build is what is under test.
+6. `e2e` and `@zbest/config` now have lint/typecheck; all **5** workspaces are checked.
+
+**Both attacks re-run against the repaired gate:**
+
+| Attack | Before | After |
+|---|---|---|
+| Impostor server on 3000/3001 | `4 passed`, screenshots overwritten | Refuses to run; screenshots untouched |
+| woff2 blocked | `toHaveCSS` passed | `loaded=false`, width delta `0.0px` → **FAILS** |
+
+The runtime verdict is void at the repaired SHA by its own terms, and the runtime gate must be
+re-run against it before Phase 2 is authorized.
+
 ## Commands used to verify
 
 ```
@@ -134,5 +186,5 @@ pnpm --filter @zbest/zbc exec next build          # ✅
 pnpm typecheck                                    # ✅ 3/3
 pnpm lint                                         # ✅ 3/3
 pnpm --filter e2e exec playwright install chromium webkit
-pnpm --filter e2e exec playwright test            # ✅ 4 passed
+pnpm --filter e2e exec playwright test            # ✅ 4 passed (builds inside the gate)
 ```

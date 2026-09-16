@@ -2,11 +2,20 @@ import { defineConfig, devices } from "@playwright/test";
 
 /**
  * Phase gate harness (Brief §3, §9): every page is captured at desktop 1440 and
- * mobile 390 before a phase can be marked complete. Both apps are built and
- * served for the run so screenshots reflect production output, not dev overlays.
+ * mobile 390 before a phase can be marked complete.
+ *
+ * The gate builds the apps itself and refuses to adopt a server it did not
+ * start. An earlier revision did neither, and an audit demonstrated the
+ * consequence: a hand-written static server on these ports passed all four
+ * tests and overwrote the committed phase screenshots. A gate that can be
+ * satisfied by something other than the build under test is not a gate.
  */
 export const ZBM_BASE_URL = "http://127.0.0.1:3000";
 export const ZBC_BASE_URL = "http://127.0.0.1:3001";
+
+/** Builds from the current source, then serves that build — never a stale .next. */
+const serve = (pkg: string, port: number) =>
+  `pnpm --filter ${pkg} exec next build && pnpm --filter ${pkg} exec next start --port ${port}`;
 
 export default defineConfig({
   testDir: "./tests",
@@ -33,18 +42,20 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: "pnpm --filter @zbest/zbm exec next start --port 3000",
+      command: serve("@zbest/zbm", 3000),
       url: ZBM_BASE_URL,
       cwd: "../",
-      reuseExistingServer: !process.env.CI,
-      timeout: 120_000,
+      // Never adopt a pre-existing server: it may be a stale build, another
+      // branch, or not this project at all.
+      reuseExistingServer: false,
+      timeout: 180_000,
     },
     {
-      command: "pnpm --filter @zbest/zbc exec next start --port 3001",
+      command: serve("@zbest/zbc", 3001),
       url: ZBC_BASE_URL,
       cwd: "../",
-      reuseExistingServer: !process.env.CI,
-      timeout: 120_000,
+      reuseExistingServer: false,
+      timeout: 180_000,
     },
   ],
 });
