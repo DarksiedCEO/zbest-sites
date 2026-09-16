@@ -1,0 +1,10 @@
+@import "@zbest/config/tailwind/preset.css";
+@import "@zbest/ui/styles/tokens.css";
+
+@layer base {
+  /* Set on the root element too, so there is no light flash before paint. */
+  html {
+    background-color: var(--base);
+    color-scheme: dark;
+  }
+}

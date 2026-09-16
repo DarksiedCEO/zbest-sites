@@ -1,0 +1,69 @@
+/*
+ * Brand color tokens — the single source of truth for both sites (Brief §1.2).
+ *
+ * Raw brand values are declared once, then bound to semantic names under a
+ * [data-brand] scope. Components consume the semantic names only, so a
+ * component written for one brand renders correctly under the other.
+ */
+
+:root {
+  /* Z Best Media (Brief §A1) */
+  --zbm-base: #0e0f12;
+  --zbm-panel: #16181d;
+  --zbm-accent: #c99a4b;
+  --zbm-accent-2: #4c8c88;
+
+  /* Z Best Clips (Brief §B1) — base is a sibling of ZBM's, distinct value */
+  --zbc-base: #0b0d10;
+  --zbc-ent: #ff6b5b;
+  --zbc-brand: #4c8cff;
+
+  /* DERIVED, NOT FROM THE BRIEF. §B1 specifies no panel/card surface for ZBC,
+     but Card is a shared primitive (§1.2) and needs one under both brands.
+     This holds the same base-to-panel step as ZBM (+8 on each channel).
+     Confirm or replace in Phase 2 — do not treat as locked. */
+  --zbc-panel: #13151a;
+
+  /* Shared across both brands (Brief §A1, §B1) */
+  --text-primary: #edebe6;
+  --text-secondary: #8b8f98;
+}
+
+[data-brand="zbm"] {
+  --base: var(--zbm-base);
+  --panel: var(--zbm-panel);
+  --accent: var(--zbm-accent);
+  --accent-2: var(--zbm-accent-2);
+}
+
+/*
+ * Z Best Clips is color-coded by focus area rather than by a single accent:
+ * Entertainment and Brands are structurally different services and must read as
+ * visually distinct throughout (Brief §B1). The page default is Entertainment;
+ * [data-focus] overrides it per page, nav dropdown, CTA and card edge.
+ */
+[data-brand="zbc"] {
+  --base: var(--zbc-base);
+  --panel: var(--zbc-panel);
+  --accent: var(--zbc-ent);
+  --accent-2: var(--zbc-brand);
+}
+
+[data-brand="zbc"][data-focus="brands"],
+[data-brand="zbc"] [data-focus="brands"] {
+  --accent: var(--zbc-brand);
+  --accent-2: var(--zbc-ent);
+}
+
+[data-brand="zbc"][data-focus="entertainment"],
+[data-brand="zbc"] [data-focus="entertainment"] {
+  --accent: var(--zbc-ent);
+  --accent-2: var(--zbc-brand);
+}
+
+/* Ledger alignment is a property of the numeric face, not of each call site
+   (Brief §A1). */
+.font-mono,
+[class*="font-mono"] {
+  font-variant-numeric: tabular-nums;
+}

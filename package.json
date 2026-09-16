@@ -1,0 +1,22 @@
+{
+  "name": "zbest-sites",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "dev:zbm": "turbo run dev --filter=@zbest/zbm",
+    "dev:zbc": "turbo run dev --filter=@zbest/zbc",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "e2e": "pnpm --filter e2e test"
+  },
+  "devDependencies": {
+    "turbo": "2.10.13",
+    "typescript": "5.9.3"
+  }
+}

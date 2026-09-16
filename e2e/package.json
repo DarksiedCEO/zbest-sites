@@ -1,0 +1,16 @@
+{
+  "name": "e2e",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "test:phase-1": "playwright test tests/phase-1.spec.ts"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@types/node": "20.19.9",
+    "typescript": "5.9.3",
+    "@zbest/config": "workspace:*"
+  }
+}
