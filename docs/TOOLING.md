@@ -80,16 +80,16 @@ If a value is needed that is not at root, it gets added at root. Verified mechan
 
 `impeccable context` now resolves `productPath`, `designPath` and `platform: web` from both apps.
 
-## Build path — asked, unanswered, not stored
+## Build path — code-first (founder decision)
 
 §2.1's init flow requires a one-time choice of **comp-first** (an image sets the bar before code) or
-**code-first** (build directly against a direction contract). It was asked and not answered, so per
-Impeccable's own rule **nothing was written to `.impeccable/config.json`.**
+**code-first** (build directly against a direction contract).
 
-Naming the path rather than quietly picking a different one: **this session's default is
-comp-first**, which is what new-work applies wherever image generation exists and nothing is
-recorded. It is not stored, so it can be set either way before Phase 4 begins — which is the first
-phase where it changes any output.
+**Decision at Phase 1 close: `code-first`.** Recorded in `.impeccable/config.json` as
+`{"buildPath": "code"}`, which is where Impeccable reads it. It first changes output at Phase 4.
+
+(An earlier revision of this file recorded the question as unanswered, with comp-first applying
+unstored as Impeccable's default. That is superseded.)
 
 ## Assumptions (stated per the §Appendix kickoff instruction)
 
@@ -109,19 +109,12 @@ phase where it changes any output.
 
 ## Open items carried into Phase 2
 
-- **Variable-font axes.** next/font loads only the `wght` axis by default. Fraunces ships `SOFT`,
-  `WONK` and `opsz`; Bricolage Grotesque ships `opsz` and `wdth`. §B1 calls Bricolage "kinetic,
-  distinctive", and at default axis values it renders as a fairly neutral grotesque. Decide in
-  Phase 2, alongside the type scale, whether to request extra axes — it is a payload/character
-  trade-off, and the brief locks the family, not the axes.
-- **Build path** must be set (comp-first / code-first) before Phase 4, or comp-first applies
-  unrecorded. See above.
-- **`--zbc-panel` (`#13151A`) is derived, not from the brief.** §B1 specifies no panel surface for
-  ZBC, but `Card` is a shared primitive (§1.2) and needs one under both brands. It holds the same
-  base-to-panel step as ZBM. Confirm or replace in Phase 2 — it is marked as derived in
-  `tokens.css` and in root `DESIGN.md` so it cannot silently become canon.
-- **The ZBM production domain is unnamed.** §1.1 says "its existing domain" without giving it.
-  Not needed until Phase 3 (sitemap, canonical URLs, OG metadata).
+- **Bricolage headline axes — decided, apply in Phase 2 with the type scale.** `wght` 700–800,
+  `opsz` 96, `wdth` 100 (founder decision at Phase 1 close). next/font loads only `wght` by default,
+  which is why Bricolage currently renders as a fairly neutral grotesque rather than the "kinetic,
+  distinctive" face §B1 describes. Recorded in root `DESIGN.md`. Fraunces' optional axes are not
+  decided; leave them at defaults unless the type scale work shows a reason.
+- **Type scale and spacing scale** (§3.2) — not started; the brief locks neither.
 
 ## Phase 1 AEGIS audit (Brief §3, §9)
 
@@ -262,7 +255,18 @@ Also fixed from the same audit: `pnpm lint` failed with 3965 errors after any ga
 `e2e/playwright-report/` is gitignored but was not eslint-ignored — the project's own documented
 order (gate, then lint) did not pass. Now ignored in the shared config; lint is 5/5 after a gate run.
 
-### Known residuals (not closed, stated plainly)
+### Known residuals — accepted out of scope (founder decision)
+
+**Founder decision at Phase 1 close: the three residuals below are accepted as out of scope for a
+single-machine marketing-site gate, and harness work stops here.** They are recorded rather than
+fixed, deliberately. The gate's job is to catch a stale or wrong build on this machine, which it now
+does; it is not a security boundary, and an attacker who can run processes on this machine can edit
+the repository directly.
+
+Do not reopen these as findings in later phases. If the project ever gains CI or a second machine,
+the Linux/CI item becomes live again and should be re-raised then.
+
+**The residuals, stated plainly:**
 
 - **The font assertion proves a family *name*, not a typeface.** `@font-face{font-family:"Fraunces"}`
   serving Bricolage bytes passes. Only reachable by an attacker who already controls the response,
@@ -283,8 +287,8 @@ plainly so nobody later reads this file as a clean bill of health:
 - The **gate** carries no independent GREEN at the final SHA `a24fcaa`. Its last independent verdict
   was BLOCK at `a0e2d30`. The third repair was verified by me against that auditor's own canonical
   reproducer and its stated falsifier, but it has not itself been independently audited.
-- The residuals above (font assertion proves a name not a typeface; ambient interception never
-  concluded; Linux/CI never exercised) remain **open**.
+- The residuals above are **accepted out of scope by founder decision**, not fixed. No further
+  harness work.
 
 Before Phase 2's own gate is trusted, the runtime audit should be re-run against the then-current
 SHA.

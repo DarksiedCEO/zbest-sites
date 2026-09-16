@@ -98,9 +98,17 @@ do not claim success. No CRM at launch. Secrets live only in Vercel env vars.
 before publishing. Page shells are built now and every one carries a visible banner:
 *"Draft — pending attorney review. Not yet in effect."*
 
+**Domains (founder decision at Phase 1 close):**
+- Z Best Media production domain is **zbestmedia.com**, canonical host
+  **www.zbestmedia.com**. Non-canonical hosts redirect to the canonical one. This
+  governs Phase 3 sitemap entries, canonical URLs and OG metadata.
+- Z Best Clips is **zbestclips.com** — its own domain, not a ZBM subdomain (§1.1).
+- **No DNS or Vercel changes in any build phase.** The domain is recorded here so
+  Phase 3 can generate correct URLs; wiring it up is not build work. This sits
+  alongside the standing rule that the existing `zbestmedia-ui` Vercel project is not
+  to be modified or deleted.
+
 **Undecided / not yet supplied:**
-- The Z Best Media production domain (§1.1 says "its existing domain" without naming
-  it). Needed for Phase 3 sitemap, canonical URLs and OG metadata.
 - The live Revenue Recovery leak-assessment tool's input schema — must be extracted
   from the live site before the real tool can be ported (Backend Spec §10).
 - `press@zbestclips.com` does not exist yet; create the alias before launch or

@@ -30,6 +30,11 @@ the featured section, but the page must not read as a single-service shop.
 
 ## Operating Context
 
+Production domain **zbestmedia.com**, canonical host **www.zbestmedia.com** (founder
+decision at Phase 1 close) — governs Phase 3 canonical URLs, `sitemap.xml` and OG
+metadata. No DNS or Vercel changes in any build phase.
+
+
 The buyer's entry point is the free assessment — an automated, on-page tool returning
 one quantified leak in about 60 seconds — which precedes any paid engagement. The
 commercial ladder the pages must support is: Assess (free) → Audit (paid, full

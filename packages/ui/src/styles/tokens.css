@@ -18,10 +18,9 @@
   --zbc-ent: #ff6b5b;
   --zbc-brand: #4c8cff;
 
-  /* DERIVED, NOT FROM THE BRIEF. §B1 specifies no panel/card surface for ZBC,
-     but Card is a shared primitive (§1.2) and needs one under both brands.
-     This holds the same base-to-panel step as ZBM (+8 on each channel).
-     Confirm or replace in Phase 2 — do not treat as locked. */
+  /* §B1 amendment, approved by the founder at Phase 1 close. §B1 as written
+     specifies no panel surface for ZBC, but Card is a shared primitive (§1.2)
+     and needs one under both brands. Holds the same base-to-panel step as ZBM. */
   --zbc-panel: #13151a;
 
   /* Shared across both brands (Brief §A1, §B1) */

@@ -31,8 +31,8 @@ typography:
 > needed that is not at root, **add it at root.**
 >
 > Every value below is transcribed from `docs/ZBM-ZBC-Build-Brief-v2.md` §A1, §B1
-> and §2.2, which are **locked**. Do not re-ideate them. The one exception is
-> `zbc-panel`, marked DERIVED below.
+> and §2.2, which are **locked**. Do not re-ideate them. The single amendment is
+> `zbc-panel`, approved by the founder at Phase 1 close and marked as such below.
 >
 > The implementation of these tokens is `packages/ui/src/styles/tokens.css`.
 
@@ -84,10 +84,10 @@ deliberate work. Nothing here is a gradient.
   distinct value rather than the same black.
 - **Entertainment accent — warm, energetic** (`#FF6B5B`).
 - **Brands accent — cool, trustworthy** (`#4C8CFF`).
-- **Panel** (`#13151A`): **DERIVED, NOT FROM THE BRIEF.** §B1 specifies no panel
-  surface for ZBC, but `Card` is a shared primitive (§1.2) and needs one under both
-  brands. Holds the same base-to-panel step as ZBM. **Confirm or replace in Phase 2;
-  do not treat as locked.**
+- **Panel** (`#13151A`): panel / card surface. **§B1 amendment, approved by the
+  founder at Phase 1 close.** §B1 as written specifies no panel surface for ZBC, but
+  `Card` is a shared primitive (§1.2) and needs one under both brands. Holds the same
+  base-to-panel step as ZBM.
 
 ### Neutral (shared by both brands — Brief §A1, §B1)
 
@@ -123,6 +123,22 @@ one company.
 
 Not yet established. The type scale is **Phase 2** work (§3.2) and is recorded here
 once built. Do not invent sizes before then.
+
+### Variable-font axes — set in Phase 2, with the type scale
+
+`next/font` loads only the `wght` axis by default, which is why Bricolage Grotesque
+currently renders as a fairly neutral grotesque rather than the "kinetic,
+distinctive" face §B1 calls for. Founder decision at Phase 1 close — apply these to
+the **headline** face when the type scale lands, not before:
+
+| Axis | Value |
+|---|---|
+| `wght` | 700–800 |
+| `opsz` | 96 |
+| `wdth` | 100 |
+
+Fraunces' own optional axes (`SOFT`, `WONK`, `opsz`) are not decided; leave them at
+their defaults unless the type scale work shows a reason.
 
 ### Named Rules
 
