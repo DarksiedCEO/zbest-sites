@@ -2622,3 +2622,32 @@ why these answers were only readable from `content/faq.ts` in the first place.
 The Revenue Recovery "What industries does Revenue Recovery work for?" answer omits
 eCommerce while the Industry Leak Patterns section on the same page includes an eCommerce
 row. Raised by the audit as low and explicitly excluded from this pass. Still open.
+
+### Capture zip regenerated at 831ad39
+
+The zip committed at `9a78d41` captured the pre-fix Digital Advertising PNGs and is stale.
+Regenerated from the same 16 files after the fix:
+
+```
+$ (cd e2e/snapshots/phase-4-zbm && ls *.png | sort | zip -X -q ../../../docs/phase-4-zbm-copy-revision-captures.zip -@)
+$ shasum -a 256 docs/phase-4-zbm-copy-revision-captures.zip e2e/snapshots/phase-4-zbm/*.png
+6251c39f25d7345c305a9f1bfd745e8798e0dabad4246fa349c19e8376c7e26f  docs/phase-4-zbm-copy-revision-captures.zip
+a8785f0f8d3ccd565e90c8c79958a3a965df61f35694e012d83ac29c95a94819  e2e/snapshots/phase-4-zbm/zbm-about-desktop-1440.png
+13f2321e040812a2861646f379fdde5816c1421ae63cde9365db7b3bed745573  e2e/snapshots/phase-4-zbm/zbm-about-mobile-390.png
+3edb0ffef0c356a1f5fb6c4a8f0bcf6ce93e6bb3ed28f0fe3f585318f840c985  e2e/snapshots/phase-4-zbm/zbm-contact-desktop-1440.png
+d3cf139d49a08d6a3e8505c5b66b0d083e99df275068756e5c295559f6d16550  e2e/snapshots/phase-4-zbm/zbm-contact-mobile-390.png
+9e0a5e8a52b90721977ad497ac1921fe870fdf62eadff67e125aadf0c30cd3af  e2e/snapshots/phase-4-zbm/zbm-digital-advertising-desktop-1440.png
+e59aee575f9c4b473143d6ebbcdc3a2eb0d70b8b2606912fae3ef50cecec028f  e2e/snapshots/phase-4-zbm/zbm-digital-advertising-mobile-390.png
+2cf9737e39239958ce1d5e11e5c9b852071289b9162b94052b104ad636a535b6  e2e/snapshots/phase-4-zbm/zbm-faq-desktop-1440.png
+da95ea0b9470c99798ed96f4cb9b9d750e2c903f9d8f76bbdd8e604e1ac5dd2a  e2e/snapshots/phase-4-zbm/zbm-faq-mobile-390.png
+eb8869da43fd4404406e6fe7a717d5b300f86942a748578c8c2519bf597f1428  e2e/snapshots/phase-4-zbm/zbm-home-desktop-1440.png
+62d9a827aed9499b671e7420c3a014f59348c15b13deb570750e23e3920ce692  e2e/snapshots/phase-4-zbm/zbm-home-mobile-390.png
+f0d983220c627b546adc0c23ce786c3b2b7f560a94892292beb7bb0085dd1d14  e2e/snapshots/phase-4-zbm/zbm-out-of-home-desktop-1440.png
+ab5bfa0a7f8c49554193d3bd8a18e70e16f7b569f095ad2fd41c60db5f536b02  e2e/snapshots/phase-4-zbm/zbm-out-of-home-mobile-390.png
+d992794418b1bea2bcafd0a58f7ff96a72fd2288730b422bdb5e4a5a925c2571  e2e/snapshots/phase-4-zbm/zbm-revenue-recovery-desktop-1440.png
+4df60c42a954475c498a1452ee43113ed8c3f6210aba605c9a1899d757703e32  e2e/snapshots/phase-4-zbm/zbm-revenue-recovery-mobile-390.png
+ad991f3a3b77c4fed2cd6c822902986e11cdc2274455245c3d37717a2fe399b5  e2e/snapshots/phase-4-zbm/zbm-search-intelligence-desktop-1440.png
+cdca7500d64b369919711f9308c6ec9a17f317f1a4ea4b0cab957908f81513e9  e2e/snapshots/phase-4-zbm/zbm-search-intelligence-mobile-390.png
+```
+
+Superseded zip sha256 (do not bind): `8e8cb146ced7ed5cc91f2c80b0f208d214d77d6a01b818f0ee96c24f0a64fd00`
