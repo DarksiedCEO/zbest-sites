@@ -539,6 +539,9 @@ test.describe("Copy revision (founder rulings, Sep 17 — audit at 1fc360f)", ()
     await visit(page, byPath("/digital-advertising"));
     const text = await mainText(page);
     for (const phrase of [
+      // The sentence before it ends flush against the <strong> unless the JSX
+      // carries an explicit {" "} — a newline adjacent to a tag is dropped.
+      "audience. Digital Advertising brings the traffic.",
       "Digital Advertising brings the traffic.",
       "Revenue Recovery makes sure it doesn’t leak.",
       "Run together, spend compounds instead of draining.",

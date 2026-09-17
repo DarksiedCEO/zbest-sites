@@ -21,7 +21,7 @@ export default function DigitalAdvertisingPage() {
       >
         <Lead>
           Digital Advertising is where the media runs — paid social, search, and
-          platform campaigns that put your business in front of the right audience.
+          platform campaigns that put your business in front of the right audience.{" "}
           <strong className="font-semibold text-text-primary">
             Digital Advertising brings the traffic. Revenue Recovery makes sure it
             doesn&rsquo;t leak.

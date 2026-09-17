@@ -71,7 +71,7 @@ export const REVENUE_RECOVERY_FAQ: FaqItem[] = [
   {
     question: "What counts as a “leak”?",
     answer:
-      "Any point where traffic arrives but doesn’t convert — identified with the interactive leak assessment, not assumed.",
+      "Any point where traffic arrives but doesn’t convert — identified in the assessment and audit, not assumed.",
   },
   {
     question: "What industries does Revenue Recovery work for?",
@@ -110,6 +110,7 @@ export const OUT_OF_HOME_FAQ: FaqItem[] = [
   },
   {
     question: "Can Out-of-Home work alongside Digital Advertising or Z Best Clips?",
-    answer: "Yes.",
+    answer:
+      "Yes. Most plans pair it with digital or clips so the board and the feed say the same thing.",
   },
 ];
