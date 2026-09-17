@@ -2530,3 +2530,95 @@ lint=0
 $ git status --porcelain e2e/snapshots/
 (no output — every PNG byte-identical to a5ce48e after the mutation churn)
 ```
+
+## Appended after the audit — CONDITIONAL fixes at 831ad39
+
+The audit of `a5ce48e` returned CONDITIONAL. Condition 1 was a real rendering defect;
+two FAQ answers were flagged alongside it. Fixed in `831ad39`. Condition 2 (founder
+ratification of item 4) is not a code change and item 4 is untouched.
+
+### The defect
+
+The Digital Advertising lead rendered `audience.Digital Advertising` with no space. The
+rewrite in change 6 deleted the line that had carried `{" "}` after the old "same one:"
+sentence; JSX strips whitespace containing a newline when it is adjacent to a tag, so the
+sentence ran flush into the `<strong>`. Restored as `audience.{" "}`.
+
+### M5 — the new assertion, verified by removing the fix again
+
+```
+$ # {" "} removed from apps/zbm/app/digital-advertising/page.tsx
+$ pnpm --filter e2e exec playwright test tests/phase-4-zbm.spec.ts
+  ✘  38 [desktop-1440] › tests/phase-4-zbm.spec.ts:538:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › Digital Advertising states the pairing without the agency framing (122ms)
+  ✘  81 [mobile-390] › tests/phase-4-zbm.spec.ts:538:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › Digital Advertising states the pairing without the agency framing (223ms)
+    Error: audience. Digital Advertising brings the traffic.
+    Error: audience. Digital Advertising brings the traffic.
+  2 failed
+  84 passed (26.9s)
+$ echo exit=$?
+exit=1
+```
+
+Caught on both viewports by `Copy revision … Digital Advertising states the pairing without
+the agency framing`, on the assertion `audience. Digital Advertising brings the traffic.`
+
+### Mechanical sweep for the same defect class
+
+Every `.tsx` in `apps/` and `packages/ui/src` was scanned for a text line running into an
+inline tag (`strong`, `em`, `b`, `i`, `span`, `a`, `Cite`, `code`) with no explicit space,
+and for an inline close followed directly by text. Results:
+
+```
+apps/zbm/app/out-of-home/page.tsx:55   third of that spend.  ||  <Cite href="https://oaaa.org/...
+apps/zbm/app/out-of-home/page.tsx:62   ...purchase intent.   ||  <Cite href="https://clearchannel...
+packages/ui/src/components/counter.tsx:66            </span>  ||  );
+packages/ui/src/components/illustrative-badge.tsx:23 </span>  ||  );
+packages/ui/src/page/furniture.tsx:117,146,208,210   </span>/</a>  ||  ) / {")"} / comment
+```
+
+The two Out-of-Home hits are deliberate: a citation marker sits flush against the sentence
+period, footnote style. Both are unchanged since `364abb8` and were certified in that audit.
+The `packages/ui` hits are closing tags before `)` or a comment, not text adjacency. No other
+instance of the defect exists in either app.
+
+### Disclosure — the fixes were reverted once, mid-verification
+
+The M5 restore used `git checkout -- apps/ e2e/snapshots/`, which reverted the three
+uncommitted fixes along with the mutation. They were re-applied from the same script and the
+full gate re-run from a wiped state before the commit. `831ad39` is that verified state; the
+gate numbers below are from the run after re-application, not before.
+
+### Gate after the fixes
+
+```
+build=0
+typecheck=0
+e2e=0
+lint=0
+DONE
+
+$ tail -3  # playwright
+
+  1 skipped
+  249 passed (1.2m)
+
+$ ~/.claude/skills/impeccable/scripts/impeccable detect --json packages/ui/src apps/zbm/app apps/zbc/app
+[]
+
+$ git status --porcelain   # before commit
+ M apps/zbm/app/digital-advertising/page.tsx
+ M apps/zbm/content/faq.ts
+ M e2e/snapshots/phase-4-zbm/zbm-digital-advertising-desktop-1440.png
+ M e2e/snapshots/phase-4-zbm/zbm-digital-advertising-mobile-390.png
+ M e2e/tests/phase-4-zbm.spec.ts
+```
+
+Two captures moved, Digital Advertising at both viewports, exactly as the audit predicted.
+The two FAQ answers move no pixels: every capture shows the accordions collapsed, which is
+why these answers were only readable from `content/faq.ts` in the first place.
+
+### Not fixed in this pass
+
+The Revenue Recovery "What industries does Revenue Recovery work for?" answer omits
+eCommerce while the Industry Leak Patterns section on the same page includes an eCommerce
+row. Raised by the audit as low and explicitly excluded from this pass. Still open.
