@@ -322,6 +322,16 @@ test.describe("Revenue Recovery (§A4, filtered live carry-over)", () => {
     expect(text).not.toMatch(/Revenue Intelligence/i);
   });
 
+  test("every engagement phase has a body; Phase 1 says exactly the approved line (audit F8)", async ({ page }) => {
+    await visit(page, byPath("/revenue-recovery"));
+    const cards = page.locator("main li", { has: page.locator("h3", { hasText: /^Revenue Recovery (Assessment|Audit|Implementation|Program)/ }) });
+    await expect(cards).toHaveCount(4);
+    for (let i = 0; i < 4; i++) {
+      await expect(cards.nth(i).locator("p.type-body")).toHaveCount(1);
+    }
+    await expect(cards.nth(0).locator("p.type-body")).toHaveText("Free. No payment, no obligation.");
+  });
+
   test("FAQ omits the held 60-second answer and keeps the other seven", async ({ page }) => {
     await visit(page, byPath("/revenue-recovery"));
     const questions = page.locator("#faq button[aria-expanded]");

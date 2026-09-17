@@ -149,7 +149,8 @@ export const COMPARISON = {
  * live 657–701, with every dollar figure removed (founder decision: no dollar
  * pricing on this page until current pricing is decided). Phase 1's live
  * description is held with the 60-second lines — it describes what the free
- * assessment returns. Phase 3 keeps its first sentence only; the second is the
+ * assessment returns — and replaced by "Free. No payment, no obligation."
+ * (audit F8: the card had no body). Phase 3 keeps its first sentence only; the second is the
  * dollar range.
  */
 export const ENGAGEMENTS = {
@@ -158,7 +159,13 @@ export const ENGAGEMENTS = {
   intro:
     "Start free. Pay for the deep-dive Audit™ only when you want the full prioritized picture and a live strategy session. Implementation and the ongoing Program™ are scoped personally from your Leak Report — never sold off a menu.",
   phases: [
-    { title: "Revenue Recovery Assessment™", body: "Phase 1 — Start free" },
+    {
+      title: "Revenue Recovery Assessment™",
+      body: "Phase 1 — Start free",
+      // Audit F8 fix (founder direction): exactly this, nothing describing
+      // what the assessment returns — that is the undecided Phase 5 question.
+      detail: "Free. No payment, no obligation.",
+    },
     {
       title: "Revenue Recovery Audit™",
       body: "Phase 2 — Diagnose",
