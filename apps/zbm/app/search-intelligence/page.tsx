@@ -141,7 +141,7 @@ export default function SearchIntelligencePage() {
             "Exact citation tracing, plus a Mentioned-Not-Cited flag most tools don’t track as its own category",
             "Competitor visibility that expands itself automatically as new competitors show up in your AI answers",
             "Every finding paired with the fix — a caught hallucination or content gap goes straight into a production queue, not a dashboard you have to staff yourself",
-            "Revenue attribution with an honest confidence band — most tools in this category admit they can’t tie AI visibility to revenue at all",
+            "Revenue attribution with an honest confidence band",
           ]}
         />
       </PageSection>

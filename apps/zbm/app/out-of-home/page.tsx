@@ -1,12 +1,12 @@
 import { ButtonLink, pageMetadata } from "@zbest/ui";
 import { Cite, CtaRow, FaqList, Lead, PageHeader, PageSection, RuledList } from "@/components/page";
 import { OUT_OF_HOME_FAQ } from "@/content/faq";
-import { ASSESSMENT_HREF, SITE } from "@/lib/site";
+import { SITE } from "@/lib/site";
 
 export const metadata = pageMetadata(SITE, {
   title: "Out-of-Home",
   description:
-    "Billboards, transit displays, and physical placements, planned and bought across Lamar, Clear Channel, OUTFRONT, and regional operators.",
+    "Billboards, transit displays, and physical placements, planned across Lamar, Clear Channel, OUTFRONT, and regional operators.",
   path: "/out-of-home",
   ogImage: "/out-of-home/opengraph-image",
 });
@@ -38,15 +38,12 @@ export default function OutOfHomePage() {
           button, no algorithm deciding whether it&rsquo;s shown.
         </Lead>
         <Lead>
-          We&rsquo;re not tied to one operator&rsquo;s inventory. We plan and buy across
+          We&rsquo;re not tied to one operator&rsquo;s inventory. We plan across
           Lamar, Clear Channel, OUTFRONT, and regional operators to find the strongest fit
           for your market and budget.
         </Lead>
         <CtaRow>
-          <ButtonLink href={ASSESSMENT_HREF}>Get an Assessment</ButtonLink>
-          <ButtonLink href="/contact" variant="secondary">
-            Talk to Us
-          </ButtonLink>
+          <ButtonLink href="/contact">Talk to Us</ButtonLink>
         </CtaRow>
       </PageHeader>
 
@@ -74,7 +71,7 @@ export default function OutOfHomePage() {
           items={[
             "Placement strategy — billboards, transit, other formats selected for where your audience lives, works, travels",
             "Static and digital placements — traditional bulletins and posters alongside digital billboards and programmatic-eligible screens",
-            "Cross-operator sourcing — evaluated across the market broadly",
+            "Cross-operator sourcing — the right board, not the operator we happen to know",
             "Creative built for the format — simple messaging, bold visuals, one clear call to action",
             "Campaign timing guidance — static needs 8–12 weeks to build frequency; digital allows shorter test rotations",
           ]}
@@ -93,10 +90,7 @@ export default function OutOfHomePage() {
           multi-location brands.
         </p>
         <CtaRow>
-          <ButtonLink href={ASSESSMENT_HREF}>Get an Assessment</ButtonLink>
-          <ButtonLink href="/contact" variant="secondary">
-            Talk to Us
-          </ButtonLink>
+          <ButtonLink href="/contact">Talk to Us</ButtonLink>
         </CtaRow>
       </PageSection>
 

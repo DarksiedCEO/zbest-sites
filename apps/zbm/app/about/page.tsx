@@ -1,6 +1,6 @@
 import { ButtonLink, pageMetadata } from "@zbest/ui";
 import { CtaRow, Lead, PageHeader, PageSection } from "@/components/page";
-import { ASSESSMENT_HREF, SITE } from "@/lib/site";
+import { SITE } from "@/lib/site";
 
 export const metadata = pageMetadata(SITE, {
   title: "About",
@@ -14,7 +14,7 @@ export const metadata = pageMetadata(SITE, {
 export default function AboutPage() {
   return (
     <main>
-      <PageHeader label="About" title="A media company built on evidence, not promises.">
+      <PageHeader label="About" title="An advertising agency built on evidence, not promises.">
         <Lead>
           Z Best Media runs across four disciplines — digital advertising, revenue
           recovery, out-of-home, and creator-powered content through Z Best Clips. What
@@ -34,10 +34,7 @@ export default function AboutPage() {
         </p>
         <p className="type-headline">One team, one standard, applied everywhere we work.</p>
         <CtaRow>
-          <ButtonLink href={ASSESSMENT_HREF}>Get an Assessment</ButtonLink>
-          <ButtonLink href="/contact" variant="secondary">
-            Talk to Us
-          </ButtonLink>
+          <ButtonLink href="/contact">Talk to Us</ButtonLink>
         </CtaRow>
       </PageSection>
     </main>

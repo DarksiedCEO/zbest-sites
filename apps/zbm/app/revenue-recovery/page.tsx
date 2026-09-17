@@ -13,12 +13,10 @@ import { LeadForm } from "@/components/lead-form";
 import { REVENUE_RECOVERY_FAQ } from "@/content/faq";
 import {
   AUDIT_DELIVERABLE,
-  COMPARISON,
   DEFINITION,
   ENGAGEMENTS,
   INDUSTRY_PATTERNS,
   LEAK_LIBRARY,
-  METHOD,
 } from "@/content/revenue-recovery";
 import { SITE } from "@/lib/site";
 
@@ -36,9 +34,11 @@ export const metadata = pageMetadata(SITE, {
  * Header and leak taxonomy: the brief's own Revenue Recovery copy (Home §3),
  * added because §A4 says to add the taxonomy if the live page lacks it — the
  * live page has a leak LIBRARY but not this taxonomy.
- * Everything from the Method to How Engagements Work: carried over verbatim
- * from the live page, filtered (see content/revenue-recovery.ts for what was
- * left out and why).
+ * The leak library through How Engagements Work: carried over from the live
+ * page, filtered, then revised Sep 17 by founder ruling — the Method and the
+ * traditional-agency comparison are removed, so this page has no "Why us"
+ * section and one process, not two (see content/revenue-recovery.ts for what
+ * was left out, what was rewritten, and why).
  * FAQ: §A4, with the founder-held 60-second answer omitted.
  */
 export default function RevenueRecoveryPage() {
@@ -75,10 +75,6 @@ export default function RevenueRecoveryPage() {
         />
       </PageSection>
 
-      <PageSection id="method" label="The Method" title={METHOD.name} intro={<Lead>{METHOD.tagline}</Lead>}>
-        <LedgerList numbered items={METHOD.steps} />
-      </PageSection>
-
       <PageSection id="leak-library" label={LEAK_LIBRARY.title} intro={<Lead>{LEAK_LIBRARY.intro}</Lead>}>
         <LedgerList items={LEAK_LIBRARY.leaks} />
       </PageSection>
@@ -95,28 +91,6 @@ export default function RevenueRecoveryPage() {
         intro={<Lead>{AUDIT_DELIVERABLE.intro}</Lead>}
       >
         <LedgerList items={AUDIT_DELIVERABLE.parts} />
-      </PageSection>
-
-      <PageSection label="Why us">
-        <div className="grid gap-stack md:grid-cols-2 md:gap-x-10">
-          {[COMPARISON.traditional, COMPARISON.recovery].map((side, i) => (
-            <div key={side.label}>
-              <p className={`type-label ${i === 1 ? "text-accent" : "text-text-secondary"}`}>{side.label}</p>
-              <h3 className="type-title mt-2">{side.title}</h3>
-              <ul className="mt-5">
-                {side.points.map((point, j) => (
-                  <li key={point}>
-                    <LedgerRule emphasis={j === 0} />
-                    <p className={`type-body py-3 ${i === 1 ? "text-text-primary" : "text-text-secondary"}`}>
-                      {point}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-              <LedgerRule emphasis />
-            </div>
-          ))}
-        </div>
       </PageSection>
 
       <PageSection label={ENGAGEMENTS.label} title={ENGAGEMENTS.title} intro={<Lead>{ENGAGEMENTS.intro}</Lead>}>
@@ -143,7 +117,7 @@ export default function RevenueRecoveryPage() {
       <PageSection
         id="assessment"
         label="Get an Assessment"
-        title="Tell us what’s actually going on."
+        title="Request your free assessment."
         intro={
           <FixtureNote>
             Fixture — the automated assessment is not live yet. This form requests an

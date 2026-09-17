@@ -1,7 +1,7 @@
 import { ButtonLink, pageMetadata } from "@zbest/ui";
 import { CtaRow, FaqList, LedgerList, Lead, PageHeader, PageSection, RuledList } from "@/components/page";
 import { DIGITAL_ADVERTISING_FAQ } from "@/content/faq";
-import { ASSESSMENT_HREF, SITE, ZBC_ORIGIN } from "@/lib/site";
+import { SITE, ZBC_ORIGIN } from "@/lib/site";
 
 export const metadata = pageMetadata(SITE, {
   title: "Digital Advertising",
@@ -22,21 +22,17 @@ export default function DigitalAdvertisingPage() {
         <Lead>
           Digital Advertising is where the media runs — paid social, search, and
           platform campaigns that put your business in front of the right audience.
-          It&rsquo;s not a separate philosophy from Revenue Recovery, it&rsquo;s the
-          other half of the same one:{" "}
           <strong className="font-semibold text-text-primary">
-            Digital Advertising drives the traffic. Revenue Recovery makes sure that
-            traffic doesn&rsquo;t leak out the bottom.
+            Digital Advertising brings the traffic. Revenue Recovery makes sure it
+            doesn&rsquo;t leak.
           </strong>{" "}
-          Running ads into a broken funnel wastes spend regardless of how well the
+          Run together, spend compounds instead of draining. Running ads into a
+          broken funnel wastes spend regardless of how well the
           campaign itself is built — which is exactly why the two disciplines work
           together here instead of being sold as competing options.
         </Lead>
         <CtaRow>
-          <ButtonLink href={ASSESSMENT_HREF}>Get an Assessment</ButtonLink>
-          <ButtonLink href="/contact" variant="secondary">
-            Talk to Us
-          </ButtonLink>
+          <ButtonLink href="/contact">Talk to Us</ButtonLink>
         </CtaRow>
       </PageHeader>
 
@@ -91,10 +87,7 @@ export default function DigitalAdvertisingPage() {
           campaign ever, or existing spend underperforming.
         </p>
         <CtaRow>
-          <ButtonLink href={ASSESSMENT_HREF}>Get an Assessment</ButtonLink>
-          <ButtonLink href="/contact" variant="secondary">
-            Talk to Us
-          </ButtonLink>
+          <ButtonLink href="/contact">Talk to Us</ButtonLink>
         </CtaRow>
       </PageSection>
 

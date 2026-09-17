@@ -46,7 +46,7 @@ const PAGES = [
   {
     slug: "about",
     path: "/about",
-    h1: "A media company built on evidence, not promises.",
+    h1: "An advertising agency built on evidence, not promises.",
     title: "About — Z Best Media",
   },
   {
@@ -201,13 +201,27 @@ test.describe("Home (§A4)", () => {
       ]),
     );
     expect(rows).toEqual([
-      ["Est.", "2011 · Los Angeles"],
       ["Disciplines", "4"],
-      ["Platforms bought across", "Google · Meta · TikTok · Lamar · Clear Channel · OUTFRONT"],
+      ["Platforms we plan across", "Google · Meta · TikTok · Lamar · Clear Channel · OUTFRONT"],
       ["Standard", "Audit first. Evidence. Then scale."],
     ]);
+    // Founder ruling Sep 17: no founding-year claim anywhere on the page.
+    expect(await mainText(page)).not.toMatch(/2011|Est\./);
     // The Counter is not wired to a claim until a verified figure exists (§6.3).
     expect(await page.locator("main [aria-label] > [aria-hidden='true']").count()).toBe(0);
+  });
+
+  test("How we work carries one process, capitalized, promising only priority and confidence", async ({ page }) => {
+    await visit(page, byPath("/"));
+    const bodies = await page
+      .locator("#how-we-work li p.type-body")
+      .evaluateAll((els) => els.map((el) => el.textContent?.trim() ?? ""));
+    expect(bodies).toEqual([
+      "A free look at where you’re likely losing revenue.",
+      "A paid, full diagnostic. Every finding comes with a priority and a confidence label.",
+      "Conversion repaired before a dollar more goes into spend.",
+      "Once it’s proven, we run the media: digital, out-of-home, clips.",
+    ]);
   });
 
   test("four disciplines link to their pages; See What We Do anchors to them", async ({ page }) => {
@@ -283,29 +297,49 @@ test.describe("Digital Advertising (§A4)", () => {
     expect(text).toContain("$1,500–$2,500/month");
     expect(text).toContain("flat management fee, not a percentage of spend");
     expect(text).toContain("first campaign ever, or existing spend underperforming");
-    await expect(page.locator("#faq button[aria-expanded]")).toHaveCount(5);
+    await expect(page.locator("#faq button[aria-expanded]")).toHaveCount(4);
+    await expect(page.locator("#faq")).not.toContainText("How many accounts does my strategist manage?");
   });
 });
 
 test.describe("Revenue Recovery (§A4, filtered live carry-over)", () => {
-  test("carries the Method, leak library, patterns, deliverable, comparison and engagements", async ({ page }) => {
+  test("carries the leak library, patterns, deliverable and engagements — not the Method or the agency comparison", async ({ page }) => {
     await visit(page, byPath("/revenue-recovery"));
     const text = await mainText(page);
     for (const phrase of [
       "Revenue Recovery is the process of identifying and fixing",
-      "The Z Best Revenue Recovery Method™",
-      "Diagnose", "Rebuild", "Optimize", "Scale",
+      "Eight ways revenue leaks, and what fixing each one looks like.",
       "Traffic Leak", "Conversion Leak", "Trust Leak", "Offer Leak",
       "Follow-Up Leak", "Tracking Leak", "Creative Leak", "Visibility Leak",
       "Typical leak patterns we often find during diagnostic reviews.",
       "See what you receive before you ever submit.",
-      "Tactics without a recovery system.",
-      "One path. Priced against recovered revenue — never hours.",
+      "One path. Start free, pay only for the deep dive.",
+      "every fix tied to the leak it closes",
       // Brief leak taxonomy, added because the live page lacks it.
       "Follow-up that dies after one touch",
     ]) {
       expect(text, phrase).toContain(phrase);
     }
+
+    // Founder rulings Sep 17: one process, no positioning against agencies, and
+    // no promise the Audit deliverable does not make. Asserted as absent so the
+    // removals cannot quietly come back.
+    for (const gone of [
+      "The Z Best Revenue Recovery Method™",
+      "A Disciplined, Measurable System",
+      "Traditional Agency",
+      "Revenue Recovery Partner",
+      "Tactics without a recovery system.",
+      "traditional advertising agency",
+      "Are your case studies real?",
+      "Priced against recovered revenue",
+      "dollars it recovers",
+      "tied to recovered revenue",
+    ]) {
+      expect(text, gone).not.toContain(gone);
+    }
+    // "Why us" was the comparison's only home; the section goes with it.
+    await expect(page.getByRole("heading", { name: "Why us" })).toHaveCount(0);
   });
 
   test("filtered out: dollar pricing, illustrative outcomes, scenarios, founder name, unverified claims", async ({
@@ -332,11 +366,12 @@ test.describe("Revenue Recovery (§A4, filtered live carry-over)", () => {
     await expect(cards.nth(0).locator("p.type-body")).toHaveText("Free. No payment, no obligation.");
   });
 
-  test("FAQ omits the held 60-second answer and keeps the other seven", async ({ page }) => {
+  test("FAQ omits the held 60-second answer and the case-study question withdrawn Sep 17", async ({ page }) => {
     await visit(page, byPath("/revenue-recovery"));
     const questions = page.locator("#faq button[aria-expanded]");
-    await expect(questions).toHaveCount(7);
+    await expect(questions).toHaveCount(6);
     await expect(page.locator("#faq")).not.toContainText("How does the process start?");
+    await expect(page.locator("#faq")).toContainText("Why audit before running ads?");
   });
 
   test("assessment form: fixture-labeled, stub-marked, validates, and never claims delivery", async ({ page }) => {
@@ -440,14 +475,14 @@ test.describe("Out-of-Home (§A4)", () => {
 });
 
 test.describe("About and Contact (§A4)", () => {
-  test("About carries the brief's standard and both CTAs", async ({ page }) => {
+  test("About carries the brief's standard and routes to Talk to Us, not the assessment", async ({ page }) => {
     await visit(page, byPath("/about"));
     const text = await mainText(page);
     expect(text).toContain("No fake urgency, no manufactured scarcity, no unverified proof");
     expect(text).toContain("One team, one standard, applied everywhere we work.");
-    await expect(page.locator("main").getByRole("link", { name: "Get an Assessment" })).toHaveAttribute(
+    await expect(page.locator("main").getByRole("link", { name: "Talk to Us" }).first()).toHaveAttribute(
       "href",
-      "/revenue-recovery#assessment",
+      "/contact",
     );
   });
 
@@ -474,12 +509,77 @@ test.describe("About and Contact (§A4)", () => {
   });
 });
 
+test.describe("Copy revision (founder rulings, Sep 17 — audit at 1fc360f)", () => {
+  test("the assessment is primary on Home and Revenue Recovery only", async ({ page }) => {
+    for (const path of ["/", "/revenue-recovery"]) {
+      await visit(page, byPath(path));
+      expect(
+        await page.locator("main").getByRole("link", { name: /assessment/i }).count(),
+        `${path} keeps its assessment CTA`,
+      ).toBeGreaterThan(0);
+    }
+    for (const path of ["/digital-advertising", "/out-of-home", "/about", "/contact"]) {
+      await visit(page, byPath(path));
+      await expect(
+        page.locator("main").getByRole("link", { name: /assessment/i }),
+        `${path} has no assessment CTA`,
+      ).toHaveCount(0);
+    }
+    // Contact is the destination, so it carries no Talk to Us button of its own.
+    for (const path of ["/digital-advertising", "/out-of-home", "/about"]) {
+      await visit(page, byPath(path));
+      await expect(
+        page.locator("main").getByRole("link", { name: "Talk to Us" }).first(),
+        `${path} leads with Talk to Us`,
+      ).toHaveAttribute("href", "/contact");
+    }
+  });
+
+  test("Digital Advertising states the pairing without the agency framing", async ({ page }) => {
+    await visit(page, byPath("/digital-advertising"));
+    const text = await mainText(page);
+    for (const phrase of [
+      "Digital Advertising brings the traffic.",
+      "Revenue Recovery makes sure it doesn’t leak.",
+      "Run together, spend compounds instead of draining.",
+    ]) {
+      expect(text, phrase).toContain(phrase);
+    }
+    expect(text).not.toContain("other half of the same one");
+  });
+
+  test("Out-of-Home plans across operators and claims no buying", async ({ page }) => {
+    await visit(page, byPath("/out-of-home"));
+    const text = await mainText(page);
+    expect(text).toContain("We plan across");
+    expect(text).toContain("Cross-operator sourcing — the right board, not the operator we happen to know");
+    expect(text).not.toMatch(/plan and buy|bought across/);
+    expect(await head(page, 'meta[name="description"]')).not.toMatch(/bought across/);
+  });
+
+  test("Search Intelligence drops the competitor-admission clause", async ({ page }) => {
+    await visit(page, byPath("/search-intelligence"));
+    const text = await mainText(page);
+    expect(text).toContain("Revenue attribution with an honest confidence band");
+    expect(text).not.toContain("most tools in this category admit");
+  });
+});
+
 test.describe("FAQ (§A4)", () => {
   test("aggregates the three discipline blocks, grouped, with no Search Intelligence questions", async ({ page }) => {
     await visit(page, byPath("/faq"));
     await expect(page.locator("main h2")).toHaveText(["Digital Advertising", "Revenue Recovery", "Out-of-Home"]);
-    await expect(page.locator("#digital-advertising button[aria-expanded]")).toHaveCount(5);
-    await expect(page.locator("#revenue-recovery button[aria-expanded]")).toHaveCount(7);
+    await expect(page.locator("#digital-advertising button[aria-expanded]")).toHaveCount(4);
+    await expect(page.locator("#revenue-recovery button[aria-expanded]")).toHaveCount(6);
+    // Withdrawn Sep 17 (founder rulings): no agency comparison, no case-study
+    // question until a real case study exists, no strategist-load claim.
+    for (const gone of [
+      "How is this different from a traditional advertising agency?",
+      "Are your case studies real?",
+      "How many accounts does my strategist manage?",
+    ]) {
+      await expect(page.locator("main")).not.toContainText(gone);
+    }
     await expect(page.locator("#out-of-home button[aria-expanded]")).toHaveCount(7);
     const html = await page.content();
     expect(html).not.toMatch(/AEO|GEO|LLMO|AI Visibility|confidence band|Search Intelligence/);

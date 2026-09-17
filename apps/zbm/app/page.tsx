@@ -36,16 +36,20 @@ export default function HomePage() {
 
           {/*
             Non-outcome facts only until a verified recovered-revenue figure
-            exists (§A4, §6.3). When one does, it replaces the top row and the
+            exists (§A4, §6.3). When one does, it becomes the top row and the
             Counter ticks it up once — the Counter is deliberately not used here.
+
+            Founder ruling Sep 17: §A4's "Est. | 2011 · Los Angeles" row is
+            removed and "Platforms bought across" is now "Platforms we plan
+            across" — neither the founding year nor the media buys are
+            literally true. Deliberate divergence from §A4:267/270, not drift.
           */}
           <div className="lg:col-span-5 lg:pt-4">
             <StatBlock
               rows={[
-                { label: "Est.", value: "2011 · Los Angeles" },
                 { label: "Disciplines", value: "4" },
                 {
-                  label: "Platforms bought across",
+                  label: "Platforms we plan across",
                   value: "Google · Meta · TikTok · Lamar · Clear Channel · OUTFRONT",
                 },
                 { label: "Standard", value: "Audit first. Evidence. Then scale." },
@@ -131,10 +135,10 @@ export default function HomePage() {
       <PageSection id="how-we-work" label="How we work" title="Audit first. Evidence. Then scale.">
         <ol className="grid gap-x-8 sm:grid-cols-2 lg:grid-cols-4">
           {[
-            ["Assess", "a free look at where you’re likely losing revenue."],
-            ["Audit", "a paid, full diagnostic. Every finding comes with a number."],
-            ["Fix", "conversion repaired before a dollar more goes into spend."],
-            ["Scale", "once it’s proven, we run the media: digital, out-of-home, clips."],
+            ["Assess", "A free look at where you’re likely losing revenue."],
+            ["Audit", "A paid, full diagnostic. Every finding comes with a priority and a confidence label."],
+            ["Fix", "Conversion repaired before a dollar more goes into spend."],
+            ["Scale", "Once it’s proven, we run the media: digital, out-of-home, clips."],
           ].map(([step, body], i) => (
             <li key={step} className="flex flex-col">
               <LedgerRule emphasis />

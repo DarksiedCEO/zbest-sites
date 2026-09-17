@@ -412,6 +412,29 @@ ZBC pages not started.
 5. FAQ page built in this chunk, after Contact (its absence from §3.4 was a brief error).
 6. OOH figures cited inline to primary sources or dropped — two kept, the 61% figure dropped
    (`docs/sources/README.md`).
+7. Home proof section (Brief homepage lock, Sep 13) deferred until a named client exists; How we
+   work stands in its place.
+8. **Copy revision, Sep 17**, from the independent copy audit at `1fc360f`. ZBM is positioned as an
+   advertising agency, not against one: the Revenue Recovery "Why us" comparison and the
+   traditional-agency FAQ are gone. One process, not two: the Revenue Recovery Method™ section is
+   removed with no replacement, leaving Home's Assess / Audit / Fix / Scale. Nothing promises what
+   the Audit deliverable does not, so recovered-revenue pricing language is gone from the
+   engagements headline, the Phase 3 Implementation body and the pricing FAQ. "Get an Assessment"
+   is primary on Home and Revenue Recovery only; Talk to Us leads Digital Advertising, Out-of-Home
+   and About. Two FAQ questions are withdrawn (case studies, strategist load). Revenue Recovery
+   therefore carries six sections: the hero plus Where revenue leaks, the Leak Library, Industry
+   Leak Patterns, the Audit Deliverable and How Engagements Work, with the FAQ and the assessment
+   form below them (seven `PageSection`s in the file, down from nine).
+9. **Neither the founding year nor the media buys are literally true** (founder, Sep 17). The hero
+   stat block's "Est. | 2011 · Los Angeles" row is removed, "Platforms bought across" is now
+   "Platforms we plan across", and Out-of-Home says "plan across" rather than "plan and buy across"
+   in its hero, its FAQ answer and its meta description. This diverges from the locked brief
+   §A4:267/270 and from `PRODUCT.md:66-68`, which still record the brief's wording — deliberate,
+   not drift. **Open, not fixed in this chunk:** Z Best Clips still asserts both at
+   `apps/zbc/app/media-kit/page.tsx:42` ("an advertising agency founded in 2011") and `:56`
+   ("Parent — Z Best Media, est. 2011, Los Angeles"), and the shared design-system gallery repeats
+   the stat row at `packages/ui/src/dev/system-gallery.tsx:172`. ZBC was explicitly out of scope
+   here; these three need a ZBC pass before ZBC ships.
 
 **Built alongside:** per-page OG images (`lib/og.tsx`, one `opengraph-image.tsx` per route),
 `ButtonLink` and `ScrollScrub` in `@zbest/ui` (the scroll-scrubbed hero, §A1, disabled under

@@ -5,12 +5,13 @@ import type { LedgerItem } from "@/components/page";
  * (Brief §A4: "extract it from the live site; do not rewrite").
  *
  * Source: docs/sources/live-zbestmedia-home-2026-09-16.txt, the rendered text
- * of the live page captured 2026-09-16. Every string below is verbatim from it;
- * line numbers are cited so each can be checked.
+ * of the live page captured 2026-09-16. Line numbers are cited so each string
+ * can be checked against it — see REVISED below for the ones that are now
+ * founder rewrites rather than carry-over.
  *
  * FILTERED CARRY-OVER (founder decision, Phase 4). Carried: the definition, the
- * Method, the leak library, industry leak patterns, the Audit deliverable, the
- * traditional-agency comparison, and how engagements work. NOT carried:
+ * leak library, industry leak patterns, the Audit deliverable, and how
+ * engagements work. NOT carried:
  *   - the illustrative revenue diagnostic ($2.4M+, +327%, …)        live 29–53
  *   - "representative scenario" case cards (+143% leads, …)        live 75–126
  *   - the named founder section and quote                          live 596–610
@@ -20,56 +21,30 @@ import type { LedgerItem } from "@/components/page";
  *   - every 60-second line (founder hold)                          live 25, 62, 669, 724…
  *   - unverified claims: "Proven System Real Results", "proven
  *     4-step system", "predictable", "Enterprise readiness"         live 21, 133, 18, 612
+ *
+ * REVISED Sep 17 (founder rulings, copy audit at 1fc360f). The strings below
+ * are no longer a verbatim carry-over. They are founder rewrites and diverge
+ * deliberately from both the live page and §A4's "extract it from the live
+ * site; do not rewrite" — recorded here so it does not read as drift:
+ *   - REMOVED the Z Best Revenue Recovery Method™ (Diagnose · Rebuild ·
+ *     Optimize · Scale) and its tagline. One process on the site, not two:
+ *     Home's Assess / Audit / Fix / Scale. No replacement section.
+ *   - REMOVED the Traditional Agency / Revenue Recovery Partner comparison.
+ *     ZBM is an advertising agency and does not position against one.
+ *   - REWRITTEN so nothing promises what the Audit deliverable does not: the
+ *     engagements headline (was "Priced against recovered revenue — never
+ *     hours"), the Phase 3 Implementation body (was "every fix tied to the
+ *     dollars it recovers"), and the leak library intro.
  */
 
 /** live 135 */
 export const DEFINITION =
   "Revenue Recovery is the process of identifying and fixing the marketing, website, advertising, conversion, follow-up, trust, and visibility issues that prevent a business from reaching its revenue potential.";
 
-/** live 131, 136, 139–173 */
-export const METHOD = {
-  name: "The Z Best Revenue Recovery Method™",
-  tagline: "A Disciplined, Measurable System — Not A Bag Of Tactics",
-  steps: [
-    {
-      title: "Diagnose",
-      body: "Find the leaks across traffic, conversion, trust, follow-up, analytics, and visibility.",
-      facts: [
-        { label: "Client receives", value: "Leak map, diagnostic findings, benchmark context" },
-        { label: "Measured by", value: "Leak severity, missed opportunity, diagnostic priority" },
-      ],
-    },
-    {
-      title: "Rebuild",
-      body: "Repair the highest-impact issues first: messaging, landing pages, tracking, offers, creative, and lead flow.",
-      facts: [
-        { label: "Client receives", value: "Prioritized action plan, revised offer and funnel direction" },
-        { label: "Measured by", value: "Trust lift, conversion lift, friction removal" },
-      ],
-    },
-    {
-      title: "Optimize",
-      body: "Improve campaigns, content, conversion paths, and follow-up systems using performance data.",
-      facts: [
-        { label: "Client receives", value: "Optimization roadmap and test sequence" },
-        { label: "Measured by", value: "Lead quality, booking rate, ROI clarity" },
-      ],
-    },
-    {
-      title: "Scale",
-      body: "Turn what works into predictable growth through paid media, content, automation, and proof.",
-      facts: [
-        { label: "Client receives", value: "Scale plan tied to what already converts" },
-        { label: "Measured by", value: "Recovered revenue, cost efficiency, repeatable growth" },
-      ],
-    },
-  ] satisfies LedgerItem[],
-};
-
 /** live 320–417 */
 export const LEAK_LIBRARY = {
   title: "Revenue Leak Library",
-  intro: "Make Revenue Recovery easy to understand before the audit even starts.",
+  intro: "Eight ways revenue leaks, and what fixing each one looks like.",
   leaks: [
     ["Traffic Leak", "Your business is not getting enough qualified visitors from search, ads, referrals, or social channels.", "Low qualified traffic or weak lead volume.", "Improve acquisition channels, targeting, offers, and visibility."],
     ["Conversion Leak", "Visitors arrive, but too few take the next step.", "High visits with low form fills, calls, or bookings.", "Tighten the CTA, simplify the path, and remove hesitation points."],
@@ -125,26 +100,6 @@ export const AUDIT_DELIVERABLE = {
   ] satisfies LedgerItem[],
 };
 
-/** live 638–654 */
-export const COMPARISON = {
-  traditional: {
-    label: "Traditional Agency",
-    title: "Tactics without a recovery system.",
-    points: ["Runs ads", "Builds websites", "Sends reports", "Focuses on tactics", "May miss revenue leaks"],
-  },
-  recovery: {
-    label: "Revenue Recovery Partner",
-    title: "Fix the leaks, recover the revenue, then scale what works.",
-    points: [
-      "Finds leaks before more spend is wasted",
-      "Prioritizes fixes that improve conversion",
-      "Tracks recovery and makes the next move obvious",
-      "Automates follow-up and turns wins into proof",
-      "Improves conversion across traffic, trust, offer, and follow-up",
-    ],
-  },
-};
-
 /**
  * live 657–701, with every dollar figure removed (founder decision: no dollar
  * pricing on this page until current pricing is decided). Phase 1's live
@@ -155,7 +110,7 @@ export const COMPARISON = {
  */
 export const ENGAGEMENTS = {
   label: "How Engagements Work",
-  title: "One path. Priced against recovered revenue — never hours.",
+  title: "One path. Start free, pay only for the deep dive.",
   intro:
     "Start free. Pay for the deep-dive Audit™ only when you want the full prioritized picture and a live strategy session. Implementation and the ongoing Program™ are scoped personally from your Leak Report — never sold off a menu.",
   phases: [
@@ -175,7 +130,7 @@ export const ENGAGEMENTS = {
     {
       title: "Revenue Recovery Implementation",
       body: "Phase 3 — Recover",
-      detail: "A fixed-scope project built from your Leak Report — every fix tied to the dollars it recovers.",
+      detail: "A fixed-scope project built from your Leak Report — every fix tied to the leak it closes.",
     },
     {
       title: "Revenue Recovery Program™",
