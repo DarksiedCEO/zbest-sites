@@ -31,6 +31,20 @@ a page that only recolors its heading has not implemented this.
 
 Token values for both accents are at root. Never pick one because it composes better.
 
+**Two scopes, implemented in Phase 3** (`packages/ui/src/styles/tokens.css`,
+`packages/ui/src/focus.ts`):
+
+- **Page scope — `data-page-focus` on a page's `<main>`.** Recolors the whole document
+  through `:has()`, including the nav CTA, consent banner and footer that live in the
+  root layout outside `<main>`. Server-rendered, no script, no flash. The Entertainment
+  and Brands pages (Phase 4) set this and nothing else.
+- **Subtree scope — `data-focus` on an element.** Recolors that element and its
+  descendants only, and wins over the page scope inside it. Dropdown entries and mixed
+  pages (How It Works shows both models) use this.
+
+Pages with neither keep the Entertainment default. Specimens of both scopes, unlinked
+and noindex, are at `/dev/system/focus/entertainment` and `/dev/system/focus/brands`.
+
 ## Page-level vernacular: the timeline / the scrubber
 
 Literal to what a clipping campaign actually is — video timelines, scrubbers,

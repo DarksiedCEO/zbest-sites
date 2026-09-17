@@ -339,6 +339,58 @@ the defect. It now checks `scrollWidth` against the rendered box as well.
 Impeccable's mechanical detector (`impeccable detect --json`) returns `[]` over
 `packages/ui/src`, `apps/zbm/app` and `apps/zbc/app`.
 
+## Phase 3 — shared scaffolding (Brief §3.3)
+
+Built, in both apps:
+
+- **Nav and footer in the root layout**, driven by `lib/site.ts` (§A2/§A3, §B2/§B3). The cookie
+  banner moved there too, so every route — the 404 included — carries all three. `/dev/system`
+  now takes its chrome from the layout instead of rendering its own; its Phase 2 captures stayed
+  byte-identical.
+- **Legal page shells** at `/legal/{privacy-policy,terms-of-service,cookie-policy}` with the §5
+  banner above the title. Structure only: section headings name the scope items of the Legal
+  Document Brief, each body is a marked placeholder, and the issuing entity is a placeholder.
+  Noindex and out of the sitemap while they are drafts. The Cookie Policy shell has a
+  "Change cookie settings" control that reopens the banner, so the footer's "Cookie Settings"
+  entry leads somewhere a choice can actually be changed.
+- **404** with site chrome and a way home; returns HTTP 404 and noindex.
+- **sitemap.xml** from `ROUTES` in `lib/site.ts`: a route is listed only when built AND
+  indexable. Today that is `/` on each site. Phase 4 flips `built` per page.
+- **robots.txt**: allow-all plus the sitemap. Search Intelligence and `/dev` are excluded by
+  *not being named* — a `Disallow` would publish the hidden path and stop crawlers reading its
+  noindex. They appear in no route list, link, sitemap or robots file.
+- **Metadata/OG defaults**: `metadataBase` on `https://www.zbestmedia.com` and
+  `https://zbestclips.com`; `pageMetadata()` sets canonical, OG and Twitter per page; a
+  statically generated `opengraph-image` per app (next/og, brand base color, brand faces from
+  `@fontsource` woff because next/og cannot read woff2).
+- **Entertainment/Brands system on ZBC**: page scope via `data-page-focus` + `:has()`, subtree
+  scope via `data-focus` (see `apps/zbc/DESIGN.md`), with specimens at `/dev/system/focus/*`.
+
+Gate: `e2e/tests/phase-3.spec.ts`. Expected nav, footer, hosts and colors are transcribed from the
+brief in the spec, not imported from `lib/site.ts`.
+
+### Defects found while building, and a test that could not fail
+
+1. **Nested routes lost og:image.** A page-level `openGraph` object replaces the file-based image —
+   including one from an `opengraph-image.tsx` in the page's own segment (checked). The homepage
+   kept its image, `/legal/*` had none. `pageMetadata()` now names the image; a page with its own
+   image passes it as `ogImage`. The gate asserts `og:image` per page.
+2. **Menus would stay open across navigations.** With the nav mounted in the layout it persists
+   between client navigations. It now closes on route change, link click, Escape and outside click.
+3. **The first nav-close test passed with the fix deleted.** It clicked a nav link to a Phase 4
+   page; Next cannot prefetch a 404, so it did a full reload, which reset the menu by itself. The
+   test now navigates client-side to a built route and asserts no reload happened. Found by a
+   mutation run: seven deliberate breaks (search-intelligence in sitemap and footer, `Disallow:
+   /dev/` in robots, `:has()` rule removed, og:image dropped, banner text changed, nav reset
+   removed). All seven are now caught; before the fix, six were.
+4. **Phase 1's `networkidle` wait timed out on desktop.** The nav's prefetches of Phase 4 routes
+   stay pending in the browser (the server answers 404 in ~5ms), so the network never idles. The
+   Phase 1 spec now waits for `load` and `document.fonts.ready`; its assertions are unchanged.
+   Its four screenshots changed, correctly: the home page now carries nav and footer.
+
+Impeccable's detector flagged the OG card's Satori font aliases (`Display`, `Mono`) as families
+outside DESIGN.md; they now use the declared names. `impeccable detect --json` returns `[]`.
+
 ## Commands used to verify
 
 ```

@@ -1,13 +1,15 @@
-import type { Metadata } from "next";
+import { CookieConsent, Footer, Nav, siteMetadata } from "@zbest/ui";
 import { GateNonce } from "@zbest/ui/gate";
 import { zbmFontVariables } from "@zbest/ui/fonts/zbm";
+import { FOOTER_COLUMNS, NAV_ITEMS, SITE } from "@/lib/site";
 import "./globals.css";
 
-export const metadata: Metadata = {
-  title: "Z Best Media",
-  description: "Advertising you can audit.",
-};
+export const metadata = siteMetadata(SITE);
 
+/**
+ * Shared scaffolding (Brief §3.3): nav, footer and the cookie banner wrap every
+ * route, the 404 included. Pages render their own <main>.
+ */
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
@@ -15,7 +17,10 @@ export default function RootLayout({
     <html lang="en" data-brand="zbm" className={zbmFontVariables}>
       <body className="bg-base font-sans text-text-primary antialiased">
         <GateNonce />
+        <Nav brandName={SITE.name} items={NAV_ITEMS} />
         {children}
+        <Footer brandName={SITE.name} columns={FOOTER_COLUMNS} />
+        <CookieConsent />
       </body>
     </html>
   );

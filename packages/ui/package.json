@@ -10,7 +10,8 @@
     "./styles/tokens.css": "./src/styles/tokens.css",
     "./gate": "./src/gate.tsx",
     "./styles/type.css": "./src/styles/type.css",
-    "./dev/system-gallery": "./src/dev/system-gallery.tsx"
+    "./dev/system-gallery": "./src/dev/system-gallery.tsx",
+    "./og": "./src/og.tsx"
   },
   "scripts": {
     "lint": "eslint .",

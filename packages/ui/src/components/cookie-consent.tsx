@@ -8,6 +8,9 @@ export type ConsentChoice = "accepted-all" | "rejected-non-essential";
 
 const STORAGE_KEY = "zbest-cookie-consent";
 
+/** Dispatched on window to bring the banner back so a choice can be changed. */
+const OPEN_EVENT = "zbest:cookie-settings";
+
 /**
  * Cookie consent banner (Brief §3.2, §5; Legal Brief Part One §C).
  *
@@ -42,6 +45,12 @@ export function CookieConsent({
     } catch {
       setVisible(true);
     }
+
+    // "Cookie Settings" (§A3, §B3) has to be able to reopen a choice that was
+    // already made — a consent that can be given but never changed is not one.
+    const reopen = () => setVisible(true);
+    window.addEventListener(OPEN_EVENT, reopen);
+    return () => window.removeEventListener(OPEN_EVENT, reopen);
   }, []);
 
   const choose = (choice: ConsentChoice) => {
@@ -140,5 +149,21 @@ export function CookieConsent({
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * Reopens the consent banner. Rendered on the Cookie Policy shell, which is
+ * where the footer's "Cookie Settings" entry leads (§A3, §B3).
+ */
+export function CookieSettingsButton({ className = "" }: { className?: string }) {
+  return (
+    <button
+      type="button"
+      onClick={() => window.dispatchEvent(new Event(OPEN_EVENT))}
+      className={`type-label border border-text-secondary/40 px-4 py-2.5 text-text-primary ${className}`}
+    >
+      Change cookie settings
+    </button>
   );
 }

@@ -1,3 +1,8 @@
+import { pageMetadata } from "@zbest/ui";
+import { SITE } from "@/lib/site";
+
+export const metadata = pageMetadata(SITE, { path: "/" });
+
 /**
  * Phase 1 boot page (Brief §3.1): proves the app renders on the correct base
  * color with its headline face loading. Replaced by the real homepage in

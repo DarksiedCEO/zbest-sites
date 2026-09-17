@@ -48,6 +48,28 @@
   --accent-2: var(--zbc-brand);
 }
 
+/*
+ * Page-level focus (Phase 3). A focus-area page marks its <main> with
+ * data-page-focus, and the whole document takes that accent — the nav CTA,
+ * consent banner and footer included, although they sit in the root layout
+ * outside <main>. :has() makes that true in the server-rendered HTML, so there
+ * is no flash of the wrong accent and no script involved.
+ *
+ * These set the accent on <html>. The subtree rules below set it on the
+ * data-focus element itself, which then inherits nothing from <html> for that
+ * property — so an explicit data-focus card or dropdown entry keeps its own
+ * accent on a page of the other focus.
+ */
+[data-brand="zbc"]:has(main[data-page-focus="brands"]) {
+  --accent: var(--zbc-brand);
+  --accent-2: var(--zbc-ent);
+}
+
+[data-brand="zbc"]:has(main[data-page-focus="entertainment"]) {
+  --accent: var(--zbc-ent);
+  --accent-2: var(--zbc-brand);
+}
+
 [data-brand="zbc"][data-focus="brands"],
 [data-brand="zbc"] [data-focus="brands"] {
   --accent: var(--zbc-brand);

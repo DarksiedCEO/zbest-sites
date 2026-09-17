@@ -52,7 +52,12 @@ for (const app of APPS) {
       const requested: string[] = [];
       page.on("request", (request) => requested.push(request.url()));
 
-      await page.goto(app.baseUrl, { waitUntil: "networkidle" });
+      // `load`, not `networkidle`: since Phase 3 the root layout renders the nav,
+      // whose links to Phase 4 pages are prefetched on desktop and stay pending
+      // in the browser (the server answers them with a 404 in ~5ms), so the
+      // network never idles. `load` covers the preloaded next/font faces, and
+      // document.fonts.ready is awaited below before anything is measured.
+      await page.goto(app.baseUrl, { waitUntil: "load" });
 
       // The page renders at all.
       const heading = page.getByRole("heading", { level: 1, name: app.name });

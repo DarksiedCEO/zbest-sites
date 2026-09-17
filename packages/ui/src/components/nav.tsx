@@ -1,14 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { useId, useState } from "react";
+import { usePathname } from "next/navigation";
+import { useEffect, useId, useRef, useState } from "react";
+import type { Focus } from "../focus";
 
-export type NavItem = {
-  label: string;
-  href: string;
-  /** Dropdown depth is exactly one layer (Brief §A2, decided Sep 7). */
-  children?: { label: string; href: string; focus?: "entertainment" | "brands" }[];
-};
+type NavChild = { label: string; href: string; focus?: Focus };
+
+export type NavItem =
+  | { label: string; href: string; children?: never }
+  /**
+   * A dropdown parent. It has no `href` of its own: Focus Areas (§B2) is a
+   * grouping, not a page, and a parent link would point at a route the brief
+   * never defines. Depth is exactly one layer (Brief §A2, decided Sep 7).
+   */
+  | { label: string; href?: never; children: NavChild[] };
 
 /**
  * Sticky top navigation with a short menu and a dropdown exactly one layer deep
@@ -20,6 +26,11 @@ export type NavItem = {
  *
  * `cta` renders the button-styled primary action Z Best Clips puts on "Launch a
  * Campaign" (§B2). Z Best Media has no nav CTA.
+ *
+ * Phase 3 mounts this in the root layout, where it persists across client
+ * navigations — so both menus close when the route changes, on Escape, and on
+ * a click outside. Without that, a menu opened on one page stays open over the
+ * next one.
  */
 export function Nav({
   brandName,
@@ -37,16 +48,60 @@ export function Nav({
   const baseId = useId();
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const headerRef = useRef<HTMLElement>(null);
+
+  // Reset during render rather than in an effect, so the page that was just
+  // navigated to never paints with the previous page's menu still open.
+  const pathname = usePathname();
+  const [menuPath, setMenuPath] = useState(pathname);
+  if (pathname !== menuPath) {
+    setMenuPath(pathname);
+    setOpenMenu(null);
+    setMobileOpen(false);
+  }
+
+  const anyOpen = openMenu !== null || mobileOpen;
+  useEffect(() => {
+    if (!anyOpen) return;
+    const close = () => {
+      setOpenMenu(null);
+      setMobileOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") close();
+    };
+    const onPointer = (e: PointerEvent) => {
+      if (!headerRef.current?.contains(e.target as Node)) close();
+    };
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("pointerdown", onPointer);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("pointerdown", onPointer);
+    };
+  }, [anyOpen]);
+
+  // Following a link to the page already open does not change the pathname,
+  // so it would not trip the reset above.
+  const closeAll = () => {
+    setOpenMenu(null);
+    setMobileOpen(false);
+  };
 
   return (
     <header
+      ref={headerRef}
       className={`sticky top-0 z-50 border-b border-text-secondary/20 bg-base/95 backdrop-blur-sm ${className}`}
     >
       <nav
         aria-label="Primary"
         className="mx-auto flex max-w-[90rem] items-center justify-between gap-6 px-gutter py-4 lg:px-gutter-wide"
       >
-        <Link href={brandHref} className="type-title shrink-0 whitespace-nowrap">
+        <Link
+          href={brandHref}
+          onClick={closeAll}
+          className="type-title shrink-0 whitespace-nowrap"
+        >
           {brandName}
         </Link>
 
@@ -79,11 +134,13 @@ export function Nav({
                         <li key={child.href} data-focus={child.focus}>
                           <Link
                             href={child.href}
+                            onClick={closeAll}
                             className="type-small flex items-center gap-2.5 px-3 py-2 text-text-secondary hover:text-text-primary"
                           >
                             {child.focus ? (
                               <span
                                 aria-hidden="true"
+                                data-focus-marker
                                 className="inline-block size-1.5 bg-accent"
                               />
                             ) : null}
@@ -96,6 +153,7 @@ export function Nav({
                 ) : (
                   <Link
                     href={item.href}
+                    onClick={closeAll}
                     className="type-small whitespace-nowrap text-text-secondary hover:text-text-primary"
                   >
                     {item.label}
@@ -110,6 +168,8 @@ export function Nav({
           {cta ? (
             <Link
               href={cta.href}
+              onClick={closeAll}
+              data-nav-cta
               className="type-label hidden shrink-0 whitespace-nowrap bg-accent px-4 py-2.5 text-base lg:inline-block"
             >
               {cta.label}
@@ -135,23 +195,30 @@ export function Nav({
         <ul className="flex flex-col gap-1">
           {items.map((item) => (
             <li key={item.label}>
-              <Link
-                href={item.href}
-                className="type-small block py-2 text-text-secondary"
-              >
-                {item.label}
-              </Link>
+              {item.children ? (
+                <p className="type-small py-2 text-text-secondary">{item.label}</p>
+              ) : (
+                <Link
+                  href={item.href}
+                  onClick={closeAll}
+                  className="type-small block py-2 text-text-secondary"
+                >
+                  {item.label}
+                </Link>
+              )}
               {item.children ? (
                 <ul className="mb-1 ml-4 flex flex-col gap-1">
                   {item.children.map((child) => (
                     <li key={child.href} data-focus={child.focus}>
                       <Link
                         href={child.href}
+                        onClick={closeAll}
                         className="type-small flex items-center gap-2.5 py-1.5 text-text-secondary"
                       >
                         {child.focus ? (
                           <span
                             aria-hidden="true"
+                            data-focus-marker
                             className="inline-block size-1.5 bg-accent"
                           />
                         ) : null}
@@ -167,6 +234,8 @@ export function Nav({
             <li className="mt-3">
               <Link
                 href={cta.href}
+                onClick={closeAll}
+                data-nav-cta
                 className="type-label inline-block whitespace-nowrap bg-accent px-4 py-2.5 text-base"
               >
                 {cta.label}
