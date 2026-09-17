@@ -15,6 +15,12 @@ export const SITE: SiteIdentity = {
 /** Z Best Clips lives on its own domain, not a subdomain (§1.1, decided Sep 7). */
 export const ZBC_ORIGIN = "https://zbestclips.com";
 
+/**
+ * Where every "Get an Assessment" CTA points: the §6.1 request form at the
+ * foot of Revenue Recovery (founder decision, Phase 4).
+ */
+export const ASSESSMENT_HREF = "/revenue-recovery#assessment";
+
 /** §A2. Work is removed until one named client exists (decided Sep 13). */
 export const NAV_ITEMS: NavItem[] = [
   { label: "Digital Advertising", href: "/digital-advertising" },
@@ -77,12 +83,12 @@ type Route = {
  */
 export const ROUTES: Route[] = [
   { path: "/", built: true, indexable: true },
-  { path: "/digital-advertising", built: false, indexable: true },
-  { path: "/revenue-recovery", built: false, indexable: true },
-  { path: "/out-of-home", built: false, indexable: true },
-  { path: "/about", built: false, indexable: true },
-  { path: "/contact", built: false, indexable: true },
-  { path: "/faq", built: false, indexable: true },
+  { path: "/digital-advertising", built: true, indexable: true },
+  { path: "/revenue-recovery", built: true, indexable: true },
+  { path: "/out-of-home", built: true, indexable: true },
+  { path: "/about", built: true, indexable: true },
+  { path: "/contact", built: true, indexable: true },
+  { path: "/faq", built: true, indexable: true },
   { path: "/legal/privacy-policy", built: true, indexable: false },
   { path: "/legal/terms-of-service", built: true, indexable: false },
   { path: "/legal/cookie-policy", built: true, indexable: false },

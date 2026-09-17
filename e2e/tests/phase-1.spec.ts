@@ -59,9 +59,14 @@ for (const app of APPS) {
       // document.fonts.ready is awaited below before anything is measured.
       await page.goto(app.baseUrl, { waitUntil: "load" });
 
-      // The page renders at all.
-      const heading = page.getByRole("heading", { level: 1, name: app.name });
-      await expect(heading).toBeVisible();
+      // The page renders at all. Since Phase 4 the ZBM homepage's h1 is the
+      // §A4 headline rather than the Phase 1 boot line, so the brand is checked
+      // on the nav wordmark and the headline face is measured on whatever h1
+      // the homepage carries.
+      await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+      await expect(
+        page.getByRole("banner").getByRole("link", { name: app.name, exact: true }),
+      ).toBeVisible();
 
       // Brand token resolved through [data-brand] -> Tailwind `bg-base`.
       await expect(page.locator("html")).toHaveAttribute("data-brand", app.slug);

@@ -5,6 +5,7 @@
  * (@zbest/ui/fonts/zbm | /zbc) so neither app self-hosts the other's headline
  * face.
  */
+export { ButtonLink } from "./components/button-link";
 export { Card } from "./components/card";
 export { CookieConsent, CookieSettingsButton } from "./components/cookie-consent";
 export type { ConsentChoice } from "./components/cookie-consent";
@@ -20,6 +21,7 @@ export type { LegalPart } from "./components/legal-shell";
 export { Nav } from "./components/nav";
 export type { NavItem } from "./components/nav";
 export { NotFoundContent } from "./components/not-found-content";
+export { ScrollScrub } from "./components/scroll-scrub";
 export { StatBlock } from "./components/stat-block";
 export type { StatRow } from "./components/stat-block";
 export { FOCUS_AREAS } from "./focus";

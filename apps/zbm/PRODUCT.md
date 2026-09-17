@@ -35,8 +35,11 @@ decision at Phase 1 close) — governs Phase 3 canonical URLs, `sitemap.xml` and
 metadata. No DNS or Vercel changes in any build phase.
 
 
-The buyer's entry point is the free assessment — an automated, on-page tool returning
-one quantified leak in about 60 seconds — which precedes any paid engagement. The
+The buyer's entry point is the free assessment, which precedes any paid engagement.
+**What the assessment returns, and how fast, is undecided** (founder hold, Phase 4): the brief's
+"one quantified leak in about 60 seconds" is not published anywhere on the site until the
+Phase 5 decision is made. Assessment CTAs are labeled fixtures and lead to the request form at
+`/revenue-recovery#assessment`. The
 commercial ladder the pages must support is: Assess (free) → Audit (paid, full
 diagnostic, every finding carries a number) → Fix (conversion repaired before more
 spend) → Scale (digital, out-of-home, clips).

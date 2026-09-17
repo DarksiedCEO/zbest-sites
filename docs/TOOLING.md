@@ -391,6 +391,50 @@ brief in the spec, not imported from `lib/site.ts`.
 Impeccable's detector flagged the OG card's Satori font aliases (`Display`, `Mono`) as families
 outside DESIGN.md; they now use the declared names. `impeccable detect --json` returns `[]`.
 
+## Phase 4 — Z Best Media chunk (Brief §3.4, §A4)
+
+Built in brief order, each captured at 1440 and 390 under `e2e/snapshots/phase-4-zbm/`: Home,
+Digital Advertising, Revenue Recovery, Out-of-Home, About, Contact, FAQ, Search Intelligence.
+ZBC pages not started.
+
+**Founder decisions this chunk** (given in the build window):
+
+1. Both "60-second" assessment lines are held — the Home CTA reads "Get a free assessment", and
+   the Revenue Recovery FAQ "How does the process start?" is omitted. The gate fails any page
+   containing "60 sec" or "one quantified leak".
+2. Forms post to a marked stub (`apps/zbm/app/api/lead/route.ts`): zod validation, §6.2 error
+   envelope, honeypot, `submission_id` — no Postgres, no Resend, no rate limit. Marked in the
+   response body, the `X-Zbest-Lead-Stub: no-delivery` header, and on the form itself.
+3. Assessment CTAs are labeled fixtures; all point to the request form at
+   `/revenue-recovery#assessment`.
+4. Revenue Recovery: filtered carry-over of the live page, no dollar pricing. Source text and
+   exclusions in `docs/sources/`.
+5. FAQ page built in this chunk, after Contact (its absence from §3.4 was a brief error).
+6. OOH figures cited inline to primary sources or dropped — two kept, the 61% figure dropped
+   (`docs/sources/README.md`).
+
+**Built alongside:** per-page OG images (`lib/og.tsx`, one `opengraph-image.tsx` per route),
+`ButtonLink` and `ScrollScrub` in `@zbest/ui` (the scroll-scrubbed hero, §A1, disabled under
+reduced motion), `zod` in `apps/zbm`. Every `ROUTES` entry is now `built: true`, so all seven
+public pages are in `sitemap.xml`; Search Intelligence is not.
+
+**Changed in earlier phases:** Home replaced the Phase 1 boot page, so the Phase 1 spec now
+checks the brand on the nav wordmark instead of an h1 named "Z Best Media" (face measurement,
+off-origin, nonce and build-identity checks unchanged), and the Phase 1 and Phase 3 home
+captures changed.
+
+**Judgment calls to review:** section labels such as "What we do", "Why us", "Managed, not
+metered", "Contact form" and the FAQ page's h1 "Frequently asked questions" are structural
+labels the brief does not supply. The live Method (Diagnose / Rebuild / Optimize / Scale) and
+the brief's Home steps (Assess / Audit / Fix / Scale) now both appear on the site. The RR FAQ
+answer "identified with the interactive leak assessment" was kept verbatim; it names the tool
+but not what it returns.
+
+Mutation run, output kept in the Phase 4 verification log: seven deliberate breaks (footer link
+to Search Intelligence, certifications rendered-but-hidden, held FAQ restored, Kantar cited to a
+non-primary URL, stub skipping validation, dollar pricing restored, scrub ignoring reduced
+motion) — all seven caught.
+
 ## Commands used to verify
 
 ```
