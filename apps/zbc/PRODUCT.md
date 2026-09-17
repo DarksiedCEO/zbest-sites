@@ -112,3 +112,9 @@ Clipper waitlist (Name · Email · Primary platform · Profile link optional).
    site does not pretend to a track record it does not have.
 4. **Nothing counts until a person reviews it.** The review gate is the product's
    actual differentiator and should read as such, not as fine print.
+
+## Routing decision (Phase 4)
+
+Z Best Clips has no separate Home page in Brief §B4. `/` serves How It Works (founder decision,
+Phase 4); `/how-it-works` redirects to `/` permanently, and the nav's How It Works entry links to
+`/`.

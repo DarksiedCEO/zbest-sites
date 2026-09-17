@@ -11,7 +11,9 @@
     "./gate": "./src/gate.tsx",
     "./styles/type.css": "./src/styles/type.css",
     "./dev/system-gallery": "./src/dev/system-gallery.tsx",
-    "./og": "./src/og.tsx"
+    "./og": "./src/og.tsx",
+    "./page": "./src/page/furniture.tsx",
+    "./lead": "./src/lead/lead-form.tsx"
   },
   "scripts": {
     "lint": "eslint .",

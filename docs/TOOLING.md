@@ -435,6 +435,51 @@ to Search Intelligence, certifications rendered-but-hidden, held FAQ restored, K
 non-primary URL, stub skipping validation, dollar pricing restored, scrub ignoring reduced
 motion) — all seven caught.
 
+## Phase 4 — audit F8 fix, and the Z Best Clips chunk (Brief §3.4, §B4)
+
+**F8 (Phase 4 ZBM audit, CONDITIONAL):** the Revenue Recovery "How Engagements Work" Phase 1
+card had no body. Set to exactly "Free. No payment, no obligation." (founder direction), with a
+gate test verified to fail against the unfixed content. Revenue Recovery re-captured; no other
+ZBM capture changed. Committed separately as `9342192`.
+
+**ZBC pages**, built strictly one at a time — each captured at 1440 and 390 under
+`e2e/snapshots/phase-4-zbc/` before the next page was written: How It Works, Entertainment,
+Brands, Pricing, Become a Clipper, Launch a Campaign, About, Media Kit, FAQ.
+
+**Founder decisions this chunk** (build window):
+
+1. `/` serves How It Works; `/how-it-works` redirects there permanently (308); the nav's
+   How It Works links to `/`. One canonical URL, one sitemap entry.
+2. Carry-overs from the ZBM chunk: Launch a Campaign and the Become a Clipper waitlist post to
+   the marked no-delivery stub; `press@zbestclips.com` is a labeled placeholder (plain text, no
+   mailto); "Assets available on request." as written.
+
+**Rules enforced by the gate on every ZBC page:** a real-company blocklist (platforms §B4 names
+are allowed); no dollar figure on any client-facing page, and the clipper starting rates only on
+Become a Clipper; focus pages carry `data-page-focus` and the nav CTA color follows it; badges on
+all three How It Works example cards, whose figures match §B4 exactly.
+
+**Shared code moved into `@zbest/ui`** so the two sites cannot drift: the page furniture
+(`@zbest/ui/page`) and the stub-marked lead form plus its typed adapter (`@zbest/ui/lead`). ZBM
+re-exports them; its gate and every ZBM capture were byte-identical after the move. The two
+apps' stub route handlers are deliberately still separate files with the same logic.
+
+**ZBC-only device:** `apps/zbc/components/timeline.tsx`, the §B1 scrubber — a ruled horizontal
+track at 1440, a vertical timeline at 390 — used on How It Works only.
+
+**Judgment calls to review:** structural labels the brief does not supply ("The Process",
+"Examples", "Step 01 — Levers", "Payouts", "Honesty note", "Where we come from", "Questions",
+card eyebrows "Your account" / "The client’s account"); How It Works' Step 1 levers rendered
+as rows beneath the timeline rather than inside its first column; "Browse Active Campaigns"
+kept as the CTA label (§B4) with a fixture note, opening the waitlist section; the Media Kit
+fact values wrap right-aligned at 390 (Phase 2 `StatBlock`, left unchanged to avoid moving
+certified ZBM captures).
+
+Mutation run, raw output in the ZBC verification log: seven breaks (a real company name, payout
+split on Pricing, badges dropped from the Brands examples, Brands page in the Entertainment
+focus, honesty note reworded, press mailbox as a mailto link, `/how-it-works` redirect removed)
+— all seven caught.
+
 ## Commands used to verify
 
 ```

@@ -31,7 +31,8 @@ export const NAV_ITEMS: NavItem[] = [
       { label: "Brands", href: "/brands", focus: "brands" },
     ],
   },
-  { label: "How It Works", href: "/how-it-works" },
+  // "/" serves How It Works (founder decision, Phase 4); /how-it-works redirects.
+  { label: "How It Works", href: "/" },
   { label: "Pricing", href: "/pricing" },
   { label: "Become a Clipper", href: "/become-a-clipper" },
 ];
@@ -84,16 +85,16 @@ type Route = {
  * effect" (§5) must not surface in search as the company's terms.
  */
 export const ROUTES: Route[] = [
+  // How It Works (founder decision, Phase 4: "/" serves it).
   { path: "/", built: true, indexable: true },
-  { path: "/how-it-works", built: false, indexable: true },
-  { path: "/entertainment", built: false, indexable: true },
-  { path: "/brands", built: false, indexable: true },
-  { path: "/pricing", built: false, indexable: true },
-  { path: "/become-a-clipper", built: false, indexable: true },
-  { path: "/launch-a-campaign", built: false, indexable: true },
-  { path: "/about", built: false, indexable: true },
-  { path: "/media-kit", built: false, indexable: true },
-  { path: "/faq", built: false, indexable: true },
+  { path: "/entertainment", built: true, indexable: true },
+  { path: "/brands", built: true, indexable: true },
+  { path: "/pricing", built: true, indexable: true },
+  { path: "/become-a-clipper", built: true, indexable: true },
+  { path: "/launch-a-campaign", built: true, indexable: true },
+  { path: "/about", built: true, indexable: true },
+  { path: "/media-kit", built: true, indexable: true },
+  { path: "/faq", built: true, indexable: true },
   { path: "/legal/privacy-policy", built: true, indexable: false },
   { path: "/legal/terms-of-service", built: true, indexable: false },
   { path: "/legal/cookie-policy", built: true, indexable: false },

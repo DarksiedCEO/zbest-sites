@@ -60,7 +60,4 @@ export const LEAD_ENVELOPE = z.object({
   company_url: z.string().optional(),
 });
 
-export type LeadResponse =
-  | { ok: true; stub: true; submission_id: string }
-  | { ok: false; error: { code: "validation"; fields: Record<string, string> } }
-  | { ok: false; error: { code: "bad_request" } };
+export type { LeadResponse } from "@zbest/ui/lead";

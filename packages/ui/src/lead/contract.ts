@@ -1,17 +1,25 @@
-import type { LeadForm, LeadResponse } from "./lead";
-
 /**
- * Typed adapter in front of the lead route (Backend Spec §9: every API call
- * behind a typed adapter). Components call this and never `fetch` directly, so
- * when the stub becomes the real handler only this file and the route change.
+ * Lead route wire contract (Brief §6.2), shared by both apps' route handlers,
+ * the typed adapter, and the form. Each app owns its own form names and zod
+ * field schemas; only the envelope shape is shared.
  */
+export type LeadResponse =
+  | { ok: true; stub: true; submission_id: string }
+  | { ok: false; error: { code: "validation"; fields: Record<string, string> } }
+  | { ok: false; error: { code: "bad_request" } };
+
 export type LeadResult =
   | { status: "accepted"; stub: boolean }
   | { status: "invalid"; fields: Record<string, string> }
   | { status: "failed" };
 
+/**
+ * Typed adapter in front of /api/lead (Backend Spec §9: every API call behind
+ * a typed adapter). The form calls this and never `fetch` directly, so when
+ * the stub becomes the real handler only this file and the route change.
+ */
 export async function submitLead(input: {
-  form: LeadForm;
+  form: string;
   submissionId: string;
   fields: Record<string, string>;
   honeypot: string;
