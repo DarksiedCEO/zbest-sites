@@ -769,10 +769,13 @@ $ git show faafe37:apps/zbm/app/revenue-recovery/page.tsx | grep -c "<PageSectio
    *replaced*, not removed, so only one question left that block. The spec was corrected and
    the entire gate re-run from a wiped state; the output above is that second run. The error
    was in the test expectation, not in the shipped copy, and the gate caught it.
-2. **No mutation run this round.** The Phase 4 ZBM and ZBC chunks each carried one; this
-   revision does not. The negative assertions added to `phase-4-zbm.spec.ts` (the ten-item
-   "gone" list, the FAQ withdrawals, the no-assessment-link checks) were verified only by
-   passing against the revised tree, not by deliberately reintroducing the removed copy.
+2. **Mutation run: four mutations, all caught** — see the raw output below. Added after the
+   founder read the first draft of this log and declined to accept negative assertions that had
+   never been shown to fail. The run happened AFTER `a5ce48e` was committed, against that
+   committed tree with each mutation applied on top and reverted afterwards, so the gate printed
+   a dirty-tree warning on each; the tree was restored with `git checkout -- apps/ e2e/snapshots/`
+   and the full gate re-run from a wiped state afterwards, green, with every PNG byte-identical
+   to `a5ce48e`. Each mutation was applied ALONE so every catch is attributable to one change.
 3. **The two founder facts behind change 4 cannot be verified from this repository.** There is
    no invoice, platform account, insertion order or any other artifact here that bears on
    whether ZBM bought media on those six platforms or was founded in 2011. Both claims
@@ -790,3 +793,1740 @@ $ git show faafe37:apps/zbm/app/revenue-recovery/page.tsx | grep -c "<PageSectio
    `docs/TOOLING.md` so it does not read as drift.
 6. **Legal pages, the backend contract and Phase 5 are untouched.** No ZBC file changed. The
    held-line checks ("60 sec", "one quantified leak") are unchanged and still enforced.
+
+### Mutation run — raw output
+
+Four mutations, each applied alone against the committed tree of `a5ce48e`, each followed by
+`pnpm --filter e2e exec playwright test tests/phase-4-zbm.spec.ts`, each reverted before the
+next. Every run exited 1. Mutation script: `mutate.py`, reproduced below the outputs.
+
+| # | Mutation | Caught by | Assertion that fired |
+|---|---|---|---|
+| M1 | Traditional Agency / Revenue Recovery Partner comparison reintroduced on Revenue Recovery | `Revenue Recovery … not the Method or the agency comparison` | `Error: Tactics without a recovery system.` — `expect(received).not.toContain(expected)` |
+| M2 | The Z Best Revenue Recovery Method™ section reintroduced | same test | `Error: The Z Best Revenue Recovery Method™` — `expect(received).not.toContain(expected)` |
+| M3 | Home step 02 body restored to "a paid, full diagnostic. Every finding comes with a number." | `Home … How we work carries one process, capitalized, promising only priority and confidence` | `expect(received).toEqual(expected)` deep-equality on the four step bodies |
+| M4 | Get an Assessment CTA restored to the Out-of-Home hero | `Copy revision … the assessment is primary on Home and Revenue Recovery only` | `Error: /out-of-home has no assessment CTA` — `toHaveCount(0)` received 1 |
+
+Each failed on BOTH viewports (desktop-1440 and mobile-390): 2 failed, 84 passed, per run.
+M3 also proves the capitalization half of change 12, and M1/M2 fail on the negative list before
+reaching the `Why us` heading check, so that assertion is belt-and-braces rather than the catch.
+
+#### M1
+```
+=== git diff --stat (the mutation) ===
+ apps/zbm/app/revenue-recovery/page.tsx | 23 +++++++++++++++++++++++
+ apps/zbm/content/revenue-recovery.ts   | 20 ++++++++++++++++++++
+ 2 files changed, 43 insertions(+)
+
+=== gate output ===
+
+  ⚠  Gate running against a DIRTY tree — screenshots will not match 9a78d41.
+
+
+Running 86 tests using 1 worker
+
+  ✓   1 [desktop-1440] › tests/phase-4-zbm.spec.ts:90:5 › / › renders, carries its metadata, holds the site rules, and is captured (374ms)
+  ✓   2 [desktop-1440] › tests/phase-4-zbm.spec.ts:90:5 › /digital-advertising › renders, carries its metadata, holds the site rules, and is captured (225ms)
+  ✓   3 [desktop-1440] › tests/phase-4-zbm.spec.ts:90:5 › /revenue-recovery › renders, carries its metadata, holds the site rules, and is captured (316ms)
+  ✓   4 [desktop-1440] › tests/phase-4-zbm.spec.ts:90:5 › /out-of-home › renders, carries its metadata, holds the site rules, and is captured (193ms)
+  ✓   5 [desktop-1440] › tests/phase-4-zbm.spec.ts:90:5 › /about › renders, carries its metadata, holds the site rules, and is captured (185ms)
+  ✓   6 [desktop-1440] › tests/phase-4-zbm.spec.ts:90:5 › /contact › renders, carries its metadata, holds the site rules, and is captured (170ms)
+  ✓   7 [desktop-1440] › tests/phase-4-zbm.spec.ts:90:5 › /faq › renders, carries its metadata, holds the site rules, and is captured (198ms)
+  ✓   8 [desktop-1440] › tests/phase-4-zbm.spec.ts:90:5 › /search-intelligence › renders, carries its metadata, holds the site rules, and is captured (228ms)
+  ✓   9 [desktop-1440] › tests/phase-4-zbm.spec.ts:168:3 › / — every same-site link resolves (148ms)
+  ✓  10 [desktop-1440] › tests/phase-4-zbm.spec.ts:168:3 › /digital-advertising — every same-site link resolves (115ms)
+  ✓  11 [desktop-1440] › tests/phase-4-zbm.spec.ts:168:3 › /revenue-recovery — every same-site link resolves (116ms)
+  ✓  12 [desktop-1440] › tests/phase-4-zbm.spec.ts:168:3 › /out-of-home — every same-site link resolves (101ms)
+  ✓  13 [desktop-1440] › tests/phase-4-zbm.spec.ts:168:3 › /about — every same-site link resolves (97ms)
+  ✓  14 [desktop-1440] › tests/phase-4-zbm.spec.ts:168:3 › /contact — every same-site link resolves (98ms)
+  ✓  15 [desktop-1440] › tests/phase-4-zbm.spec.ts:168:3 › /faq — every same-site link resolves (98ms)
+  ✓  16 [desktop-1440] › tests/phase-4-zbm.spec.ts:168:3 › /search-intelligence — every same-site link resolves (102ms)
+  ✓  17 [desktop-1440] › tests/phase-4-zbm.spec.ts:195:3 › Home (§A4) › hero stat block shows non-outcome facts only, no counter claim (111ms)
+  ✓  18 [desktop-1440] › tests/phase-4-zbm.spec.ts:214:3 › Home (§A4) › How we work carries one process, capitalized, promising only priority and confidence (104ms)
+  ✓  19 [desktop-1440] › tests/phase-4-zbm.spec.ts:227:3 › Home (§A4) › four disciplines link to their pages; See What We Do anchors to them (121ms)
+  ✓  20 [desktop-1440] › tests/phase-4-zbm.spec.ts:242:3 › Home (§A4) › featured Revenue Recovery carries the six leaks, a held CTA and its fixture label (122ms)
+  ✓  21 [desktop-1440] › tests/phase-4-zbm.spec.ts:260:3 › Home (§A4) › How we work carries no case study cards (110ms)
+  ✓  22 [desktop-1440] › tests/phase-4-zbm.spec.ts:267:3 › Home (§A4) › the scroll-scrubbed hero moves with scroll, and not at all with reduced motion (394ms)
+  ✓  23 [desktop-1440] › tests/phase-4-zbm.spec.ts:287:3 › Digital Advertising (§A4) › certifications block is not rendered — not merely hidden (64ms)
+  ✓  24 [desktop-1440] › tests/phase-4-zbm.spec.ts:294:3 › Digital Advertising (§A4) › pricing, audience and FAQ as written (99ms)
+  ✘  25 [desktop-1440] › tests/phase-4-zbm.spec.ts:306:3 › Revenue Recovery (§A4, filtered live carry-over) › carries the leak library, patterns, deliverable and engagements — not the Method or the agency comparison (131ms)
+  ✓  26 [desktop-1440] › tests/phase-4-zbm.spec.ts:345:3 › Revenue Recovery (§A4, filtered live carry-over) › filtered out: dollar pricing, illustrative outcomes, scenarios, founder name, unverified claims (114ms)
+  ✓  27 [desktop-1440] › tests/phase-4-zbm.spec.ts:359:3 › Revenue Recovery (§A4, filtered live carry-over) › every engagement phase has a body; Phase 1 says exactly the approved line (audit F8) (125ms)
+  ✓  28 [desktop-1440] › tests/phase-4-zbm.spec.ts:369:3 › Revenue Recovery (§A4, filtered live carry-over) › FAQ omits the held 60-second answer and the case-study question withdrawn Sep 17 (104ms)
+  ✓  29 [desktop-1440] › tests/phase-4-zbm.spec.ts:377:3 › Revenue Recovery (§A4, filtered live carry-over) › assessment form: fixture-labeled, stub-marked, validates, and never claims delivery (330ms)
+  ✓  30 [desktop-1440] › tests/phase-4-zbm.spec.ts:416:3 › Lead route stub (§6.2) › valid contact submission is acknowledged as a stub (39ms)
+  ✓  31 [desktop-1440] › tests/phase-4-zbm.spec.ts:427:3 › Lead route stub (§6.2) › invalid fields return the field-level error envelope (33ms)
+  ✓  32 [desktop-1440] › tests/phase-4-zbm.spec.ts:436:3 › Lead route stub (§6.2) › malformed envelope, unknown form and missing submission_id are rejected (36ms)
+  ✓  33 [desktop-1440] › tests/phase-4-zbm.spec.ts:447:3 › Lead route stub (§6.2) › a filled honeypot looks like success and is not validated (32ms)
+  ✓  34 [desktop-1440] › tests/phase-4-zbm.spec.ts:460:3 › Out-of-Home (§A4) › each kept figure is cited inline to its primary source; the untraceable one is dropped (101ms)
+  ✓  35 [desktop-1440] › tests/phase-4-zbm.spec.ts:478:3 › About and Contact (§A4) › About carries the brief's standard and routes to Talk to Us, not the assessment (85ms)
+  ✓  36 [desktop-1440] › tests/phase-4-zbm.spec.ts:489:3 › About and Contact (§A4) › Contact form has the §6.1 fields and posts to the stub (175ms)
+  ✓  37 [desktop-1440] › tests/phase-4-zbm.spec.ts:513:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › the assessment is primary on Home and Revenue Recovery only (366ms)
+  ✓  38 [desktop-1440] › tests/phase-4-zbm.spec.ts:538:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › Digital Advertising states the pairing without the agency framing (107ms)
+  ✓  39 [desktop-1440] › tests/phase-4-zbm.spec.ts:551:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › Out-of-Home plans across operators and claims no buying (94ms)
+  ✓  40 [desktop-1440] › tests/phase-4-zbm.spec.ts:560:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › Search Intelligence drops the competitor-admission clause (89ms)
+  ✓  41 [desktop-1440] › tests/phase-4-zbm.spec.ts:569:3 › FAQ (§A4) › aggregates the three discipline blocks, grouped, with no Search Intelligence questions (107ms)
+  ✓  42 [desktop-1440] › tests/phase-4-zbm.spec.ts:590:3 › Search Intelligence (§A4 — built, never linked) › exists, is noindex, carries its pricing and FAQ (97ms)
+  ✓  43 [desktop-1440] › tests/phase-4-zbm.spec.ts:598:3 › Search Intelligence (§A4 — built, never linked) › no built page links to it, and neither sitemap nor robots names it (56ms)
+  ✓  44 [mobile-390] › tests/phase-4-zbm.spec.ts:90:5 › / › renders, carries its metadata, holds the site rules, and is captured (662ms)
+  ✓  45 [mobile-390] › tests/phase-4-zbm.spec.ts:90:5 › /digital-advertising › renders, carries its metadata, holds the site rules, and is captured (344ms)
+  ✓  46 [mobile-390] › tests/phase-4-zbm.spec.ts:90:5 › /revenue-recovery › renders, carries its metadata, holds the site rules, and is captured (528ms)
+  ✓  47 [mobile-390] › tests/phase-4-zbm.spec.ts:90:5 › /out-of-home › renders, carries its metadata, holds the site rules, and is captured (322ms)
+  ✓  48 [mobile-390] › tests/phase-4-zbm.spec.ts:90:5 › /about › renders, carries its metadata, holds the site rules, and is captured (262ms)
+  ✓  49 [mobile-390] › tests/phase-4-zbm.spec.ts:90:5 › /contact › renders, carries its metadata, holds the site rules, and is captured (261ms)
+  ✓  50 [mobile-390] › tests/phase-4-zbm.spec.ts:90:5 › /faq › renders, carries its metadata, holds the site rules, and is captured (291ms)
+  ✓  51 [mobile-390] › tests/phase-4-zbm.spec.ts:90:5 › /search-intelligence › renders, carries its metadata, holds the site rules, and is captured (377ms)
+  ✓  52 [mobile-390] › tests/phase-4-zbm.spec.ts:168:3 › / — every same-site link resolves (230ms)
+  ✓  53 [mobile-390] › tests/phase-4-zbm.spec.ts:168:3 › /digital-advertising — every same-site link resolves (210ms)
+  ✓  54 [mobile-390] › tests/phase-4-zbm.spec.ts:168:3 › /revenue-recovery — every same-site link resolves (215ms)
+  ✓  55 [mobile-390] › tests/phase-4-zbm.spec.ts:168:3 › /out-of-home — every same-site link resolves (196ms)
+  ✓  56 [mobile-390] › tests/phase-4-zbm.spec.ts:168:3 › /about — every same-site link resolves (188ms)
+  ✓  57 [mobile-390] › tests/phase-4-zbm.spec.ts:168:3 › /contact — every same-site link resolves (190ms)
+  ✓  58 [mobile-390] › tests/phase-4-zbm.spec.ts:168:3 › /faq — every same-site link resolves (189ms)
+  ✓  59 [mobile-390] › tests/phase-4-zbm.spec.ts:168:3 › /search-intelligence — every same-site link resolves (196ms)
+  ✓  60 [mobile-390] › tests/phase-4-zbm.spec.ts:195:3 › Home (§A4) › hero stat block shows non-outcome facts only, no counter claim (228ms)
+  ✓  61 [mobile-390] › tests/phase-4-zbm.spec.ts:214:3 › Home (§A4) › How we work carries one process, capitalized, promising only priority and confidence (212ms)
+  ✓  62 [mobile-390] › tests/phase-4-zbm.spec.ts:227:3 › Home (§A4) › four disciplines link to their pages; See What We Do anchors to them (231ms)
+  ✓  63 [mobile-390] › tests/phase-4-zbm.spec.ts:242:3 › Home (§A4) › featured Revenue Recovery carries the six leaks, a held CTA and its fixture label (229ms)
+  ✓  64 [mobile-390] › tests/phase-4-zbm.spec.ts:260:3 › Home (§A4) › How we work carries no case study cards (217ms)
+  ✓  65 [mobile-390] › tests/phase-4-zbm.spec.ts:267:3 › Home (§A4) › the scroll-scrubbed hero moves with scroll, and not at all with reduced motion (619ms)
+  ✓  66 [mobile-390] › tests/phase-4-zbm.spec.ts:287:3 › Digital Advertising (§A4) › certifications block is not rendered — not merely hidden (179ms)
+  ✓  67 [mobile-390] › tests/phase-4-zbm.spec.ts:294:3 › Digital Advertising (§A4) › pricing, audience and FAQ as written (200ms)
+  ✘  68 [mobile-390] › tests/phase-4-zbm.spec.ts:306:3 › Revenue Recovery (§A4, filtered live carry-over) › carries the leak library, patterns, deliverable and engagements — not the Method or the agency comparison (219ms)
+  ✓  69 [mobile-390] › tests/phase-4-zbm.spec.ts:345:3 › Revenue Recovery (§A4, filtered live carry-over) › filtered out: dollar pricing, illustrative outcomes, scenarios, founder name, unverified claims (274ms)
+  ✓  70 [mobile-390] › tests/phase-4-zbm.spec.ts:359:3 › Revenue Recovery (§A4, filtered live carry-over) › every engagement phase has a body; Phase 1 says exactly the approved line (audit F8) (233ms)
+  ✓  71 [mobile-390] › tests/phase-4-zbm.spec.ts:369:3 › Revenue Recovery (§A4, filtered live carry-over) › FAQ omits the held 60-second answer and the case-study question withdrawn Sep 17 (211ms)
+  ✓  72 [mobile-390] › tests/phase-4-zbm.spec.ts:377:3 › Revenue Recovery (§A4, filtered live carry-over) › assessment form: fixture-labeled, stub-marked, validates, and never claims delivery (409ms)
+  ✓  73 [mobile-390] › tests/phase-4-zbm.spec.ts:416:3 › Lead route stub (§6.2) › valid contact submission is acknowledged as a stub (119ms)
+  ✓  74 [mobile-390] › tests/phase-4-zbm.spec.ts:427:3 › Lead route stub (§6.2) › invalid fields return the field-level error envelope (115ms)
+  ✓  75 [mobile-390] › tests/phase-4-zbm.spec.ts:436:3 › Lead route stub (§6.2) › malformed envelope, unknown form and missing submission_id are rejected (121ms)
+  ✓  76 [mobile-390] › tests/phase-4-zbm.spec.ts:447:3 › Lead route stub (§6.2) › a filled honeypot looks like success and is not validated (118ms)
+  ✓  77 [mobile-390] › tests/phase-4-zbm.spec.ts:460:3 › Out-of-Home (§A4) › each kept figure is cited inline to its primary source; the untraceable one is dropped (200ms)
+  ✓  78 [mobile-390] › tests/phase-4-zbm.spec.ts:478:3 › About and Contact (§A4) › About carries the brief's standard and routes to Talk to Us, not the assessment (191ms)
+  ✓  79 [mobile-390] › tests/phase-4-zbm.spec.ts:489:3 › About and Contact (§A4) › Contact form has the §6.1 fields and posts to the stub (262ms)
+  ✓  80 [mobile-390] › tests/phase-4-zbm.spec.ts:513:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › the assessment is primary on Home and Revenue Recovery only (553ms)
+  ✓  81 [mobile-390] › tests/phase-4-zbm.spec.ts:538:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › Digital Advertising states the pairing without the agency framing (193ms)
+  ✓  82 [mobile-390] › tests/phase-4-zbm.spec.ts:551:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › Out-of-Home plans across operators and claims no buying (185ms)
+  ✓  83 [mobile-390] › tests/phase-4-zbm.spec.ts:560:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › Search Intelligence drops the competitor-admission clause (180ms)
+  ✓  84 [mobile-390] › tests/phase-4-zbm.spec.ts:569:3 › FAQ (§A4) › aggregates the three discipline blocks, grouped, with no Search Intelligence questions (200ms)
+  ✓  85 [mobile-390] › tests/phase-4-zbm.spec.ts:590:3 › Search Intelligence (§A4 — built, never linked) › exists, is noindex, carries its pricing and FAQ (191ms)
+  ✓  86 [mobile-390] › tests/phase-4-zbm.spec.ts:598:3 › Search Intelligence (§A4 — built, never linked) › no built page links to it, and neither sitemap nor robots names it (148ms)
+
+
+  1) [desktop-1440] › tests/phase-4-zbm.spec.ts:306:3 › Revenue Recovery (§A4, filtered live carry-over) › carries the leak library, patterns, deliverable and engagements — not the Method or the agency comparison 
+
+    Error: Tactics without a recovery system.
+
+    expect(received).not.toContain(expected) // indexOf
+
+    Expected substring: not "Tactics without a recovery system."
+    Received string:        "REVENUE RECOVERY
+    
+    Find out where your revenue is going.
+    
+    Most businesses aren’t short on traffic. They’re losing the traffic they already paid for — at the phone, the form, the follow-up. We audit first, show you the leak with real numbers, fix it, then scale what’s proven.
+    
+    Revenue Recovery is the process of identifying and fixing the marketing, website, advertising, conversion, follow-up, trust, and visibility issues that prevent a business from reaching its revenue potential.
+    
+    GET AN ASSESSMENT
+    TALK TO US
+    
+    WHERE REVENUE LEAKS
+    
+    01
+    Missed and unreturned calls
+    02
+    Forms that break on mobile
+    03
+    Follow-up that dies after one touch
+    04
+    Pages that load too slowly to convert
+    05
+    Ad traffic landing on the wrong page
+    06
+    No retargeting on the people who almost bought
+    
+    REVENUE LEAK LIBRARY
+    
+    Eight ways revenue leaks, and what fixing each one looks like.
+    
+    Traffic Leak
+    Your business is not getting enough qualified visitors from search, ads, referrals, or social channels.
+    SYMPTOM
+    Low qualified traffic or weak lead volume.
+    FIX DIRECTION
+    Improve acquisition channels, targeting, offers, and visibility.
+    Conversion Leak
+    Visitors arrive, but too few take the next step.
+    SYMPTOM
+    High visits with low form fills, calls, or bookings.
+    FIX DIRECTION
+    Tighten the CTA, simplify the path, and remove hesitation points.
+    Trust Leak
+    The business does not establish enough authority fast enough.
+    SYMPTOM
+    People browse but do not commit.
+    FIX DIRECTION
+    Move proof, reviews, guarantees, and authority higher in the journey.
+    Offer Leak
+    The offer is present, but the value is not clear or compelling.
+    SYMPTOM
+    Traffic clicks through but does not convert.
+    FIX DIRECTION
+    Clarify the promise, sharpen the outcome, and reduce ambiguity.
+    Follow-Up Leak
+    Leads come in, but they are not contacted quickly or consistently enough.
+    SYMPTOM
+    Booked calls and close rates lag behind lead volume.
+    FIX DIRECTION
+    Automate follow-up, improve response speed, and tighten handoff rules.
+    Tracking Leak
+    You cannot clearly see which campaigns, pages, or sources generate revenue.
+    SYMPTOM
+    Spend decisions are based on guesswork.
+    FIX DIRECTION
+    Improve attribution, event tracking, and reporting clarity.
+    Creative Leak
+    Ads or visual assets get attention but do not create strong buying intent.
+    SYMPTOM
+    Clicks without meaningful downstream results.
+    FIX DIRECTION
+    Align creative with the offer, audience, and landing experience.
+    Visibility Leak
+    The business is harder to find or harder to trust across search, maps, and answer engines.
+    SYMPTOM
+    Low discovery, weak branded demand, or limited qualified reach.
+    FIX DIRECTION
+    Strengthen local visibility, content signals, and entity consistency.
+    
+    INDUSTRY LEAK PATTERNS
+    
+    Typical leak patterns we often find during diagnostic reviews.
+    
+    Home Services
+    COMMON AUDIT PATTERN
+    Follow-Up Leak
+    TYPICAL RISK AREA
+    Leads arrive, but call handling and handoff are inconsistent.
+    SAMPLE RECOVERY FOCUS
+    Speed-to-contact, trust signals, and clearer next-step offers.
+    HVAC
+    COMMON AUDIT PATTERN
+    Offer Leak
+    TYPICAL RISK AREA
+    Seasonal demand exists, but the landing experience does not convert urgency into booked jobs.
+    SAMPLE RECOVERY FOCUS
+    Sharper offer framing, financing clarity, and booking-first conversion paths.
+    Roofing
+    COMMON AUDIT PATTERN
+    Trust Leak
+    TYPICAL RISK AREA
+    Traffic lands, but proof, differentiation, and authority do not show up fast enough.
+    SAMPLE RECOVERY FOCUS
+    Proof placement, trust assets, and inspection-driven CTAs.
+    Restoration
+    COMMON AUDIT PATTERN
+    Conversion Leak
+    TYPICAL RISK AREA
+    Urgent intent is present, but the page creates hesitation instead of immediate action.
+    SAMPLE RECOVERY FOCUS
+    Emergency-first messaging, simplified contact flow, and friction removal.
+    Professional Services
+    COMMON AUDIT PATTERN
+    Messaging Leak
+    TYPICAL RISK AREA
+    The business sounds capable, but the value proposition is too abstract to move buyers.
+    SAMPLE RECOVERY FOCUS
+    Clearer positioning, stronger proof, and a more direct offer.
+    eCommerce
+    COMMON AUDIT PATTERN
+    Tracking Leak
+    TYPICAL RISK AREA
+    Spend is active, but attribution and funnel visibility are too weak to identify profitable growth.
+    SAMPLE RECOVERY FOCUS
+    Measurement clarity, creative diagnostics, and checkout-path optimization.
+    
+    THE AUDIT DELIVERABLE
+    
+    See what you receive before you ever submit.
+    
+    Executive summary, a prioritized leak report with an owner and priority against every action, an explicit confidence label, and the uncertainties we could not resolve — stated, not hidden. We report what we can evidence. We do not guess at dollar figures; we show the priority, confidence, and uncertainty behind each finding so you know what to fix first.
+    
+    Executive Summary
+    A concise view of the biggest revenue leaks, business impact, and what to fix first.
+    Leak Severity Matrix
+    A structured read on which issues are critical, high, moderate, or low impact.
+    Priority Roadmap
+    A practical recovery sequence that moves from diagnosis into rebuild and optimization.
+    Confidence & Uncertainty
+    Every finding carries an explicit confidence label, and anything we could not verify from the evidence is listed as an open question rather than quietly dropped.
+    Written Report
+    Delivered as a clear written report you can share with your team and act on immediately.
+    
+    WHY US
+    
+    TRADITIONAL AGENCY
+    
+    Tactics without a recovery system.
+    
+    Runs ads
+    
+    Builds websites
+    
+    Sends reports
+    
+    Focuses on tactics
+    
+    May miss revenue leaks
+    
+    REVENUE RECOVERY PARTNER
+    
+    Fix the leaks, recover the revenue, then scale what works.
+    
+    Finds leaks before more spend is wasted
+    
+    Prioritizes fixes that improve conversion
+    
+    Tracks recovery and makes the next move obvious
+    
+    Automates follow-up and turns wins into proof
+    
+    Improves conversion across traffic, trust, offer, and follow-up
+    
+    HOW ENGAGEMENTS WORK
+    
+    One path. Start free, pay only for the deep dive.
+    
+    Start free. Pay for the deep-dive Audit™ only when you want the full prioritized picture and a live strategy session. Implementation and the ongoing Program™ are scoped personally from your Leak Report — never sold off a menu.
+    
+    PHASE 1 — START FREE
+    
+    Revenue Recovery Assessment™
+    
+    Free. No payment, no obligation.
+    
+    PHASE 2 — DIAGNOSE
+    
+    Revenue Recovery Audit™
+    
+    The paid investigation: a reviewed evidence-grounded Assessment, a prioritized Revenue Leak Report with recommended fixes, an owner and priority against every action, an explicit confidence label, the uncertainties we could not resolve stated plainly, and a live strategy session with a human.
+    
+    PHASE 3 — RECOVER
+    
+    Revenue Recovery Implementation
+    
+    A fixed-scope project built from your Leak Report — every fix tied to the leak it closes.
+    
+    PHASE 4 — COMPOUND
+    
+    Revenue Recovery Program™
+    
+    Ongoing optimization once the leaks are plugged: monitoring, recovery sprints, and reporting. Offered at implementation handoff — not sold off the shelf.
+    
+    FAQ
+    
+    What is Revenue Recovery?
+    +
+    What happens after the free assessment?
+    +
+    How is pricing structured?
+    +
+    Why audit before running ads?
+    +
+    What counts as a “leak”?
+    +
+    What industries does Revenue Recovery work for?
+    +
+    
+    GET AN ASSESSMENT
+    
+    Request your free assessment.
+    
+    Fixture — the automated assessment is not live yet. This form requests an assessment instead.
+    
+    Stub — this form validates what you enter but is not connected yet. Nothing is stored or sent.
+    
+    NAME
+    BUSINESS
+    WEBSITE
+    BEST WAY TO REACH YOU
+    Leave this empty
+    GET AN ASSESSMENT"
+
+      337 |       "tied to recovered revenue",
+      338 |     ]) {
+    > 339 |       expect(text, gone).not.toContain(gone);
+          |                              ^
+      340 |     }
+      341 |     // "Why us" was the comparison's only home; the section goes with it.
+      342 |     await expect(page.getByRole("heading", { name: "Why us" })).toHaveCount(0);
+        at /Users/andrelove/WebstormProjects/zbest-sites/e2e/tests/phase-4-zbm.spec.ts:339:30
+
+    Error Context: test-results/phase-4-zbm-Revenue-Recove-2fd10-od-or-the-agency-comparison-desktop-1440/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/phase-4-zbm-Revenue-Recove-2fd10-od-or-the-agency-comparison-desktop-1440/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/phase-4-zbm-Revenue-Recove-2fd10-od-or-the-agency-comparison-desktop-1440/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [mobile-390] › tests/phase-4-zbm.spec.ts:306:3 › Revenue Recovery (§A4, filtered live carry-over) › carries the leak library, patterns, deliverable and engagements — not the Method or the agency comparison 
+
+    Error: Tactics without a recovery system.
+
+    expect(received).not.toContain(expected) // indexOf
+
+    Expected substring: not "Tactics without a recovery system."
+    Received string:        "REVENUE RECOVERY
+    
+    Find out where your revenue is going.
+    
+    Most businesses aren’t short on traffic. They’re losing the traffic they already paid for — at the phone, the form, the follow-up. We audit first, show you the leak with real numbers, fix it, then scale what’s proven.
+    
+    Revenue Recovery is the process of identifying and fixing the marketing, website, advertising, conversion, follow-up, trust, and visibility issues that prevent a business from reaching its revenue potential.
+    
+    GET AN ASSESSMENT
+    TALK TO US
+    
+    WHERE REVENUE LEAKS
+    
+    01
+    Missed and unreturned calls
+    02
+    Forms that break on mobile
+    03
+    Follow-up that dies after one touch
+    04
+    Pages that load too slowly to convert
+    05
+    Ad traffic landing on the wrong page
+    06
+    No retargeting on the people who almost bought
+    
+    REVENUE LEAK LIBRARY
+    
+    Eight ways revenue leaks, and what fixing each one looks like.
+    
+    Traffic Leak
+    Your business is not getting enough qualified visitors from search, ads, referrals, or social channels.
+    SYMPTOM
+    Low qualified traffic or weak lead volume.
+    FIX DIRECTION
+    Improve acquisition channels, targeting, offers, and visibility.
+    Conversion Leak
+    Visitors arrive, but too few take the next step.
+    SYMPTOM
+    High visits with low form fills, calls, or bookings.
+    FIX DIRECTION
+    Tighten the CTA, simplify the path, and remove hesitation points.
+    Trust Leak
+    The business does not establish enough authority fast enough.
+    SYMPTOM
+    People browse but do not commit.
+    FIX DIRECTION
+    Move proof, reviews, guarantees, and authority higher in the journey.
+    Offer Leak
+    The offer is present, but the value is not clear or compelling.
+    SYMPTOM
+    Traffic clicks through but does not convert.
+    FIX DIRECTION
+    Clarify the promise, sharpen the outcome, and reduce ambiguity.
+    Follow-Up Leak
+    Leads come in, but they are not contacted quickly or consistently enough.
+    SYMPTOM
+    Booked calls and close rates lag behind lead volume.
+    FIX DIRECTION
+    Automate follow-up, improve response speed, and tighten handoff rules.
+    Tracking Leak
+    You cannot clearly see which campaigns, pages, or sources generate revenue.
+    SYMPTOM
+    Spend decisions are based on guesswork.
+    FIX DIRECTION
+    Improve attribution, event tracking, and reporting clarity.
+    Creative Leak
+    Ads or visual assets get attention but do not create strong buying intent.
+    SYMPTOM
+    Clicks without meaningful downstream results.
+    FIX DIRECTION
+    Align creative with the offer, audience, and landing experience.
+    Visibility Leak
+    The business is harder to find or harder to trust across search, maps, and answer engines.
+    SYMPTOM
+    Low discovery, weak branded demand, or limited qualified reach.
+    FIX DIRECTION
+    Strengthen local visibility, content signals, and entity consistency.
+    
+    INDUSTRY LEAK PATTERNS
+    
+    Typical leak patterns we often find during diagnostic reviews.
+    
+    Home Services
+    COMMON AUDIT PATTERN
+    Follow-Up Leak
+    TYPICAL RISK AREA
+    Leads arrive, but call handling and handoff are inconsistent.
+    SAMPLE RECOVERY FOCUS
+    Speed-to-contact, trust signals, and clearer next-step offers.
+    HVAC
+    COMMON AUDIT PATTERN
+    Offer Leak
+    TYPICAL RISK AREA
+    Seasonal demand exists, but the landing experience does not convert urgency into booked jobs.
+    SAMPLE RECOVERY FOCUS
+    Sharper offer framing, financing clarity, and booking-first conversion paths.
+    Roofing
+    COMMON AUDIT PATTERN
+    Trust Leak
+    TYPICAL RISK AREA
+    Traffic lands, but proof, differentiation, and authority do not show up fast enough.
+    SAMPLE RECOVERY FOCUS
+    Proof placement, trust assets, and inspection-driven CTAs.
+    Restoration
+    COMMON AUDIT PATTERN
+    Conversion Leak
+    TYPICAL RISK AREA
+    Urgent intent is present, but the page creates hesitation instead of immediate action.
+    SAMPLE RECOVERY FOCUS
+    Emergency-first messaging, simplified contact flow, and friction removal.
+    Professional Services
+    COMMON AUDIT PATTERN
+    Messaging Leak
+    TYPICAL RISK AREA
+    The business sounds capable, but the value proposition is too abstract to move buyers.
+    SAMPLE RECOVERY FOCUS
+    Clearer positioning, stronger proof, and a more direct offer.
+    eCommerce
+    COMMON AUDIT PATTERN
+    Tracking Leak
+    TYPICAL RISK AREA
+    Spend is active, but attribution and funnel visibility are too weak to identify profitable growth.
+    SAMPLE RECOVERY FOCUS
+    Measurement clarity, creative diagnostics, and checkout-path optimization.
+    
+    THE AUDIT DELIVERABLE
+    
+    See what you receive before you ever submit.
+    
+    Executive summary, a prioritized leak report with an owner and priority against every action, an explicit confidence label, and the uncertainties we could not resolve — stated, not hidden. We report what we can evidence. We do not guess at dollar figures; we show the priority, confidence, and uncertainty behind each finding so you know what to fix first.
+    
+    Executive Summary
+    A concise view of the biggest revenue leaks, business impact, and what to fix first.
+    Leak Severity Matrix
+    A structured read on which issues are critical, high, moderate, or low impact.
+    Priority Roadmap
+    A practical recovery sequence that moves from diagnosis into rebuild and optimization.
+    Confidence & Uncertainty
+    Every finding carries an explicit confidence label, and anything we could not verify from the evidence is listed as an open question rather than quietly dropped.
+    Written Report
+    Delivered as a clear written report you can share with your team and act on immediately.
+    
+    WHY US
+    
+    TRADITIONAL AGENCY
+    
+    Tactics without a recovery system.
+    
+    Runs ads
+    
+    Builds websites
+    
+    Sends reports
+    
+    Focuses on tactics
+    
+    May miss revenue leaks
+    
+    REVENUE RECOVERY PARTNER
+    
+    Fix the leaks, recover the revenue, then scale what works.
+    
+    Finds leaks before more spend is wasted
+    
+    Prioritizes fixes that improve conversion
+    
+    Tracks recovery and makes the next move obvious
+    
+    Automates follow-up and turns wins into proof
+    
+    Improves conversion across traffic, trust, offer, and follow-up
+    
+    HOW ENGAGEMENTS WORK
+    
+    One path. Start free, pay only for the deep dive.
+    
+    Start free. Pay for the deep-dive Audit™ only when you want the full prioritized picture and a live strategy session. Implementation and the ongoing Program™ are scoped personally from your Leak Report — never sold off a menu.
+    
+    PHASE 1 — START FREE
+    
+    Revenue Recovery Assessment™
+    
+    Free. No payment, no obligation.
+    
+    PHASE 2 — DIAGNOSE
+    
+    Revenue Recovery Audit™
+    
+    The paid investigation: a reviewed evidence-grounded Assessment, a prioritized Revenue Leak Report with recommended fixes, an owner and priority against every action, an explicit confidence label, the uncertainties we could not resolve stated plainly, and a live strategy session with a human.
+    
+    PHASE 3 — RECOVER
+    
+    Revenue Recovery Implementation
+    
+    A fixed-scope project built from your Leak Report — every fix tied to the leak it closes.
+    
+    PHASE 4 — COMPOUND
+    
+    Revenue Recovery Program™
+    
+    Ongoing optimization once the leaks are plugged: monitoring, recovery sprints, and reporting. Offered at implementation handoff — not sold off the shelf.
+    
+    FAQ
+    
+    What is Revenue Recovery?
+    +
+    What happens after the free assessment?
+    +
+    How is pricing structured?
+    +
+    Why audit before running ads?
+    +
+    What counts as a “leak”?
+    +
+    What industries does Revenue Recovery work for?
+    +
+    
+    GET AN ASSESSMENT
+    
+    Request your free assessment.
+    
+    Fixture — the automated assessment is not live yet. This form requests an assessment instead.
+    
+    Stub — this form validates what you enter but is not connected yet. Nothing is stored or sent.
+    
+    NAME
+    BUSINESS
+    WEBSITE
+    BEST WAY TO REACH YOU
+    Leave this empty
+    GET AN ASSESSMENT"
+
+      337 |       "tied to recovered revenue",
+      338 |     ]) {
+    > 339 |       expect(text, gone).not.toContain(gone);
+          |                              ^
+      340 |     }
+      341 |     // "Why us" was the comparison's only home; the section goes with it.
+      342 |     await expect(page.getByRole("heading", { name: "Why us" })).toHaveCount(0);
+        at /Users/andrelove/WebstormProjects/zbest-sites/e2e/tests/phase-4-zbm.spec.ts:339:30
+
+    Error Context: test-results/phase-4-zbm-Revenue-Recove-2fd10-od-or-the-agency-comparison-mobile-390/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/phase-4-zbm-Revenue-Recove-2fd10-od-or-the-agency-comparison-mobile-390/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/phase-4-zbm-Revenue-Recove-2fd10-od-or-the-agency-comparison-mobile-390/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2 failed
+    [desktop-1440] › tests/phase-4-zbm.spec.ts:306:3 › Revenue Recovery (§A4, filtered live carry-over) › carries the leak library, patterns, deliverable and engagements — not the Method or the agency comparison 
+    [mobile-390] › tests/phase-4-zbm.spec.ts:306:3 › Revenue Recovery (§A4, filtered live carry-over) › carries the leak library, patterns, deliverable and engagements — not the Method or the agency comparison 
+  84 passed (26.9s)
+undefined
+/Users/andrelove/WebstormProjects/zbest-sites/e2e:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command failed with exit code 1: playwright test tests/phase-4-zbm.spec.ts
+```
+
+#### M2
+```
+=== git diff --stat (the mutation) ===
+ apps/zbm/app/revenue-recovery/page.tsx |  5 +++++
+ apps/zbm/content/revenue-recovery.ts   | 40 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 45 insertions(+)
+
+=== gate output ===
+
+  ⚠  Gate running against a DIRTY tree — screenshots will not match 9a78d41.
+
+
+Running 86 tests using 1 worker
+
+  ✓   1 [desktop-1440] › tests/phase-4-zbm.spec.ts:90:5 › / › renders, carries its metadata, holds the site rules, and is captured (244ms)
+  ✓   2 [desktop-1440] › tests/phase-4-zbm.spec.ts:90:5 › /digital-advertising › renders, carries its metadata, holds the site rules, and is captured (213ms)
+  ✓   3 [desktop-1440] › tests/phase-4-zbm.spec.ts:90:5 › /revenue-recovery › renders, carries its metadata, holds the site rules, and is captured (321ms)
+  ✓   4 [desktop-1440] › tests/phase-4-zbm.spec.ts:90:5 › /out-of-home › renders, carries its metadata, holds the site rules, and is captured (203ms)
+  ✓   5 [desktop-1440] › tests/phase-4-zbm.spec.ts:90:5 › /about › renders, carries its metadata, holds the site rules, and is captured (185ms)
+  ✓   6 [desktop-1440] › tests/phase-4-zbm.spec.ts:90:5 › /contact › renders, carries its metadata, holds the site rules, and is captured (164ms)
+  ✓   7 [desktop-1440] › tests/phase-4-zbm.spec.ts:90:5 › /faq › renders, carries its metadata, holds the site rules, and is captured (199ms)
+  ✓   8 [desktop-1440] › tests/phase-4-zbm.spec.ts:90:5 › /search-intelligence › renders, carries its metadata, holds the site rules, and is captured (216ms)
+  ✓   9 [desktop-1440] › tests/phase-4-zbm.spec.ts:168:3 › / — every same-site link resolves (136ms)
+  ✓  10 [desktop-1440] › tests/phase-4-zbm.spec.ts:168:3 › /digital-advertising — every same-site link resolves (117ms)
+  ✓  11 [desktop-1440] › tests/phase-4-zbm.spec.ts:168:3 › /revenue-recovery — every same-site link resolves (106ms)
+  ✓  12 [desktop-1440] › tests/phase-4-zbm.spec.ts:168:3 › /out-of-home — every same-site link resolves (97ms)
+  ✓  13 [desktop-1440] › tests/phase-4-zbm.spec.ts:168:3 › /about — every same-site link resolves (94ms)
+  ✓  14 [desktop-1440] › tests/phase-4-zbm.spec.ts:168:3 › /contact — every same-site link resolves (97ms)
+  ✓  15 [desktop-1440] › tests/phase-4-zbm.spec.ts:168:3 › /faq — every same-site link resolves (96ms)
+  ✓  16 [desktop-1440] › tests/phase-4-zbm.spec.ts:168:3 › /search-intelligence — every same-site link resolves (101ms)
+  ✓  17 [desktop-1440] › tests/phase-4-zbm.spec.ts:195:3 › Home (§A4) › hero stat block shows non-outcome facts only, no counter claim (114ms)
+  ✓  18 [desktop-1440] › tests/phase-4-zbm.spec.ts:214:3 › Home (§A4) › How we work carries one process, capitalized, promising only priority and confidence (106ms)
+  ✓  19 [desktop-1440] › tests/phase-4-zbm.spec.ts:227:3 › Home (§A4) › four disciplines link to their pages; See What We Do anchors to them (128ms)
+  ✓  20 [desktop-1440] › tests/phase-4-zbm.spec.ts:242:3 › Home (§A4) › featured Revenue Recovery carries the six leaks, a held CTA and its fixture label (123ms)
+  ✓  21 [desktop-1440] › tests/phase-4-zbm.spec.ts:260:3 › Home (§A4) › How we work carries no case study cards (116ms)
+  ✓  22 [desktop-1440] › tests/phase-4-zbm.spec.ts:267:3 › Home (§A4) › the scroll-scrubbed hero moves with scroll, and not at all with reduced motion (512ms)
+  ✓  23 [desktop-1440] › tests/phase-4-zbm.spec.ts:287:3 › Digital Advertising (§A4) › certifications block is not rendered — not merely hidden (67ms)
+  ✓  24 [desktop-1440] › tests/phase-4-zbm.spec.ts:294:3 › Digital Advertising (§A4) › pricing, audience and FAQ as written (105ms)
+  ✘  25 [desktop-1440] › tests/phase-4-zbm.spec.ts:306:3 › Revenue Recovery (§A4, filtered live carry-over) › carries the leak library, patterns, deliverable and engagements — not the Method or the agency comparison (121ms)
+  ✓  26 [desktop-1440] › tests/phase-4-zbm.spec.ts:345:3 › Revenue Recovery (§A4, filtered live carry-over) › filtered out: dollar pricing, illustrative outcomes, scenarios, founder name, unverified claims (121ms)
+  ✓  27 [desktop-1440] › tests/phase-4-zbm.spec.ts:359:3 › Revenue Recovery (§A4, filtered live carry-over) › every engagement phase has a body; Phase 1 says exactly the approved line (audit F8) (123ms)
+  ✓  28 [desktop-1440] › tests/phase-4-zbm.spec.ts:369:3 › Revenue Recovery (§A4, filtered live carry-over) › FAQ omits the held 60-second answer and the case-study question withdrawn Sep 17 (105ms)
+  ✓  29 [desktop-1440] › tests/phase-4-zbm.spec.ts:377:3 › Revenue Recovery (§A4, filtered live carry-over) › assessment form: fixture-labeled, stub-marked, validates, and never claims delivery (332ms)
+  ✓  30 [desktop-1440] › tests/phase-4-zbm.spec.ts:416:3 › Lead route stub (§6.2) › valid contact submission is acknowledged as a stub (37ms)
+  ✓  31 [desktop-1440] › tests/phase-4-zbm.spec.ts:427:3 › Lead route stub (§6.2) › invalid fields return the field-level error envelope (34ms)
+  ✓  32 [desktop-1440] › tests/phase-4-zbm.spec.ts:436:3 › Lead route stub (§6.2) › malformed envelope, unknown form and missing submission_id are rejected (35ms)
+  ✓  33 [desktop-1440] › tests/phase-4-zbm.spec.ts:447:3 › Lead route stub (§6.2) › a filled honeypot looks like success and is not validated (32ms)
+  ✓  34 [desktop-1440] › tests/phase-4-zbm.spec.ts:460:3 › Out-of-Home (§A4) › each kept figure is cited inline to its primary source; the untraceable one is dropped (97ms)
+  ✓  35 [desktop-1440] › tests/phase-4-zbm.spec.ts:478:3 › About and Contact (§A4) › About carries the brief's standard and routes to Talk to Us, not the assessment (83ms)
+  ✓  36 [desktop-1440] › tests/phase-4-zbm.spec.ts:489:3 › About and Contact (§A4) › Contact form has the §6.1 fields and posts to the stub (177ms)
+  ✓  37 [desktop-1440] › tests/phase-4-zbm.spec.ts:513:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › the assessment is primary on Home and Revenue Recovery only (402ms)
+  ✓  38 [desktop-1440] › tests/phase-4-zbm.spec.ts:538:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › Digital Advertising states the pairing without the agency framing (97ms)
+  ✓  39 [desktop-1440] › tests/phase-4-zbm.spec.ts:551:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › Out-of-Home plans across operators and claims no buying (98ms)
+  ✓  40 [desktop-1440] › tests/phase-4-zbm.spec.ts:560:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › Search Intelligence drops the competitor-admission clause (89ms)
+  ✓  41 [desktop-1440] › tests/phase-4-zbm.spec.ts:569:3 › FAQ (§A4) › aggregates the three discipline blocks, grouped, with no Search Intelligence questions (110ms)
+  ✓  42 [desktop-1440] › tests/phase-4-zbm.spec.ts:590:3 › Search Intelligence (§A4 — built, never linked) › exists, is noindex, carries its pricing and FAQ (96ms)
+  ✓  43 [desktop-1440] › tests/phase-4-zbm.spec.ts:598:3 › Search Intelligence (§A4 — built, never linked) › no built page links to it, and neither sitemap nor robots names it (58ms)
+  ✓  44 [mobile-390] › tests/phase-4-zbm.spec.ts:90:5 › / › renders, carries its metadata, holds the site rules, and is captured (511ms)
+  ✓  45 [mobile-390] › tests/phase-4-zbm.spec.ts:90:5 › /digital-advertising › renders, carries its metadata, holds the site rules, and is captured (375ms)
+  ✓  46 [mobile-390] › tests/phase-4-zbm.spec.ts:90:5 › /revenue-recovery › renders, carries its metadata, holds the site rules, and is captured (553ms)
+  ✓  47 [mobile-390] › tests/phase-4-zbm.spec.ts:90:5 › /out-of-home › renders, carries its metadata, holds the site rules, and is captured (321ms)
+  ✓  48 [mobile-390] › tests/phase-4-zbm.spec.ts:90:5 › /about › renders, carries its metadata, holds the site rules, and is captured (265ms)
+  ✓  49 [mobile-390] › tests/phase-4-zbm.spec.ts:90:5 › /contact › renders, carries its metadata, holds the site rules, and is captured (271ms)
+  ✓  50 [mobile-390] › tests/phase-4-zbm.spec.ts:90:5 › /faq › renders, carries its metadata, holds the site rules, and is captured (308ms)
+  ✓  51 [mobile-390] › tests/phase-4-zbm.spec.ts:90:5 › /search-intelligence › renders, carries its metadata, holds the site rules, and is captured (384ms)
+  ✓  52 [mobile-390] › tests/phase-4-zbm.spec.ts:168:3 › / — every same-site link resolves (235ms)
+  ✓  53 [mobile-390] › tests/phase-4-zbm.spec.ts:168:3 › /digital-advertising — every same-site link resolves (214ms)
+  ✓  54 [mobile-390] › tests/phase-4-zbm.spec.ts:168:3 › /revenue-recovery — every same-site link resolves (218ms)
+  ✓  55 [mobile-390] › tests/phase-4-zbm.spec.ts:168:3 › /out-of-home — every same-site link resolves (193ms)
+  ✓  56 [mobile-390] › tests/phase-4-zbm.spec.ts:168:3 › /about — every same-site link resolves (192ms)
+  ✓  57 [mobile-390] › tests/phase-4-zbm.spec.ts:168:3 › /contact — every same-site link resolves (191ms)
+  ✓  58 [mobile-390] › tests/phase-4-zbm.spec.ts:168:3 › /faq — every same-site link resolves (197ms)
+  ✓  59 [mobile-390] › tests/phase-4-zbm.spec.ts:168:3 › /search-intelligence — every same-site link resolves (200ms)
+  ✓  60 [mobile-390] › tests/phase-4-zbm.spec.ts:195:3 › Home (§A4) › hero stat block shows non-outcome facts only, no counter claim (224ms)
+  ✓  61 [mobile-390] › tests/phase-4-zbm.spec.ts:214:3 › Home (§A4) › How we work carries one process, capitalized, promising only priority and confidence (211ms)
+  ✓  62 [mobile-390] › tests/phase-4-zbm.spec.ts:227:3 › Home (§A4) › four disciplines link to their pages; See What We Do anchors to them (227ms)
+  ✓  63 [mobile-390] › tests/phase-4-zbm.spec.ts:242:3 › Home (§A4) › featured Revenue Recovery carries the six leaks, a held CTA and its fixture label (233ms)
+  ✓  64 [mobile-390] › tests/phase-4-zbm.spec.ts:260:3 › Home (§A4) › How we work carries no case study cards (215ms)
+  ✓  65 [mobile-390] › tests/phase-4-zbm.spec.ts:267:3 › Home (§A4) › the scroll-scrubbed hero moves with scroll, and not at all with reduced motion (517ms)
+  ✓  66 [mobile-390] › tests/phase-4-zbm.spec.ts:287:3 › Digital Advertising (§A4) › certifications block is not rendered — not merely hidden (162ms)
+  ✓  67 [mobile-390] › tests/phase-4-zbm.spec.ts:294:3 › Digital Advertising (§A4) › pricing, audience and FAQ as written (212ms)
+  ✘  68 [mobile-390] › tests/phase-4-zbm.spec.ts:306:3 › Revenue Recovery (§A4, filtered live carry-over) › carries the leak library, patterns, deliverable and engagements — not the Method or the agency comparison (225ms)
+  ✓  69 [mobile-390] › tests/phase-4-zbm.spec.ts:345:3 › Revenue Recovery (§A4, filtered live carry-over) › filtered out: dollar pricing, illustrative outcomes, scenarios, founder name, unverified claims (280ms)
+  ✓  70 [mobile-390] › tests/phase-4-zbm.spec.ts:359:3 › Revenue Recovery (§A4, filtered live carry-over) › every engagement phase has a body; Phase 1 says exactly the approved line (audit F8) (237ms)
+  ✓  71 [mobile-390] › tests/phase-4-zbm.spec.ts:369:3 › Revenue Recovery (§A4, filtered live carry-over) › FAQ omits the held 60-second answer and the case-study question withdrawn Sep 17 (213ms)
+  ✓  72 [mobile-390] › tests/phase-4-zbm.spec.ts:377:3 › Revenue Recovery (§A4, filtered live carry-over) › assessment form: fixture-labeled, stub-marked, validates, and never claims delivery (391ms)
+  ✓  73 [mobile-390] › tests/phase-4-zbm.spec.ts:416:3 › Lead route stub (§6.2) › valid contact submission is acknowledged as a stub (122ms)
+  ✓  74 [mobile-390] › tests/phase-4-zbm.spec.ts:427:3 › Lead route stub (§6.2) › invalid fields return the field-level error envelope (129ms)
+  ✓  75 [mobile-390] › tests/phase-4-zbm.spec.ts:436:3 › Lead route stub (§6.2) › malformed envelope, unknown form and missing submission_id are rejected (120ms)
+  ✓  76 [mobile-390] › tests/phase-4-zbm.spec.ts:447:3 › Lead route stub (§6.2) › a filled honeypot looks like success and is not validated (123ms)
+  ✓  77 [mobile-390] › tests/phase-4-zbm.spec.ts:460:3 › Out-of-Home (§A4) › each kept figure is cited inline to its primary source; the untraceable one is dropped (194ms)
+  ✓  78 [mobile-390] › tests/phase-4-zbm.spec.ts:478:3 › About and Contact (§A4) › About carries the brief's standard and routes to Talk to Us, not the assessment (186ms)
+  ✓  79 [mobile-390] › tests/phase-4-zbm.spec.ts:489:3 › About and Contact (§A4) › Contact form has the §6.1 fields and posts to the stub (267ms)
+  ✓  80 [mobile-390] › tests/phase-4-zbm.spec.ts:513:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › the assessment is primary on Home and Revenue Recovery only (551ms)
+  ✓  81 [mobile-390] › tests/phase-4-zbm.spec.ts:538:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › Digital Advertising states the pairing without the agency framing (198ms)
+  ✓  82 [mobile-390] › tests/phase-4-zbm.spec.ts:551:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › Out-of-Home plans across operators and claims no buying (187ms)
+  ✓  83 [mobile-390] › tests/phase-4-zbm.spec.ts:560:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › Search Intelligence drops the competitor-admission clause (191ms)
+  ✓  84 [mobile-390] › tests/phase-4-zbm.spec.ts:569:3 › FAQ (§A4) › aggregates the three discipline blocks, grouped, with no Search Intelligence questions (197ms)
+  ✓  85 [mobile-390] › tests/phase-4-zbm.spec.ts:590:3 › Search Intelligence (§A4 — built, never linked) › exists, is noindex, carries its pricing and FAQ (190ms)
+  ✓  86 [mobile-390] › tests/phase-4-zbm.spec.ts:598:3 › Search Intelligence (§A4 — built, never linked) › no built page links to it, and neither sitemap nor robots names it (140ms)
+
+
+  1) [desktop-1440] › tests/phase-4-zbm.spec.ts:306:3 › Revenue Recovery (§A4, filtered live carry-over) › carries the leak library, patterns, deliverable and engagements — not the Method or the agency comparison 
+
+    Error: The Z Best Revenue Recovery Method™
+
+    expect(received).not.toContain(expected) // indexOf
+
+    Expected substring: not "The Z Best Revenue Recovery Method™"
+    Received string:        "REVENUE RECOVERY
+    
+    Find out where your revenue is going.
+    
+    Most businesses aren’t short on traffic. They’re losing the traffic they already paid for — at the phone, the form, the follow-up. We audit first, show you the leak with real numbers, fix it, then scale what’s proven.
+    
+    Revenue Recovery is the process of identifying and fixing the marketing, website, advertising, conversion, follow-up, trust, and visibility issues that prevent a business from reaching its revenue potential.
+    
+    GET AN ASSESSMENT
+    TALK TO US
+    
+    WHERE REVENUE LEAKS
+    
+    01
+    Missed and unreturned calls
+    02
+    Forms that break on mobile
+    03
+    Follow-up that dies after one touch
+    04
+    Pages that load too slowly to convert
+    05
+    Ad traffic landing on the wrong page
+    06
+    No retargeting on the people who almost bought
+    
+    THE METHOD
+    
+    The Z Best Revenue Recovery Method™
+    
+    A Disciplined, Measurable System — Not A Bag Of Tactics
+    
+    01
+    Diagnose
+    Find the leaks across traffic, conversion, trust, follow-up, analytics, and visibility.
+    CLIENT RECEIVES
+    Leak map, diagnostic findings, benchmark context
+    MEASURED BY
+    Leak severity, missed opportunity, diagnostic priority
+    02
+    Rebuild
+    Repair the highest-impact issues first: messaging, landing pages, tracking, offers, creative, and lead flow.
+    CLIENT RECEIVES
+    Prioritized action plan, revised offer and funnel direction
+    MEASURED BY
+    Trust lift, conversion lift, friction removal
+    03
+    Optimize
+    Improve campaigns, content, conversion paths, and follow-up systems using performance data.
+    CLIENT RECEIVES
+    Optimization roadmap and test sequence
+    MEASURED BY
+    Lead quality, booking rate, ROI clarity
+    04
+    Scale
+    Turn what works into predictable growth through paid media, content, automation, and proof.
+    CLIENT RECEIVES
+    Scale plan tied to what already converts
+    MEASURED BY
+    Recovered revenue, cost efficiency, repeatable growth
+    
+    REVENUE LEAK LIBRARY
+    
+    Eight ways revenue leaks, and what fixing each one looks like.
+    
+    Traffic Leak
+    Your business is not getting enough qualified visitors from search, ads, referrals, or social channels.
+    SYMPTOM
+    Low qualified traffic or weak lead volume.
+    FIX DIRECTION
+    Improve acquisition channels, targeting, offers, and visibility.
+    Conversion Leak
+    Visitors arrive, but too few take the next step.
+    SYMPTOM
+    High visits with low form fills, calls, or bookings.
+    FIX DIRECTION
+    Tighten the CTA, simplify the path, and remove hesitation points.
+    Trust Leak
+    The business does not establish enough authority fast enough.
+    SYMPTOM
+    People browse but do not commit.
+    FIX DIRECTION
+    Move proof, reviews, guarantees, and authority higher in the journey.
+    Offer Leak
+    The offer is present, but the value is not clear or compelling.
+    SYMPTOM
+    Traffic clicks through but does not convert.
+    FIX DIRECTION
+    Clarify the promise, sharpen the outcome, and reduce ambiguity.
+    Follow-Up Leak
+    Leads come in, but they are not contacted quickly or consistently enough.
+    SYMPTOM
+    Booked calls and close rates lag behind lead volume.
+    FIX DIRECTION
+    Automate follow-up, improve response speed, and tighten handoff rules.
+    Tracking Leak
+    You cannot clearly see which campaigns, pages, or sources generate revenue.
+    SYMPTOM
+    Spend decisions are based on guesswork.
+    FIX DIRECTION
+    Improve attribution, event tracking, and reporting clarity.
+    Creative Leak
+    Ads or visual assets get attention but do not create strong buying intent.
+    SYMPTOM
+    Clicks without meaningful downstream results.
+    FIX DIRECTION
+    Align creative with the offer, audience, and landing experience.
+    Visibility Leak
+    The business is harder to find or harder to trust across search, maps, and answer engines.
+    SYMPTOM
+    Low discovery, weak branded demand, or limited qualified reach.
+    FIX DIRECTION
+    Strengthen local visibility, content signals, and entity consistency.
+    
+    INDUSTRY LEAK PATTERNS
+    
+    Typical leak patterns we often find during diagnostic reviews.
+    
+    Home Services
+    COMMON AUDIT PATTERN
+    Follow-Up Leak
+    TYPICAL RISK AREA
+    Leads arrive, but call handling and handoff are inconsistent.
+    SAMPLE RECOVERY FOCUS
+    Speed-to-contact, trust signals, and clearer next-step offers.
+    HVAC
+    COMMON AUDIT PATTERN
+    Offer Leak
+    TYPICAL RISK AREA
+    Seasonal demand exists, but the landing experience does not convert urgency into booked jobs.
+    SAMPLE RECOVERY FOCUS
+    Sharper offer framing, financing clarity, and booking-first conversion paths.
+    Roofing
+    COMMON AUDIT PATTERN
+    Trust Leak
+    TYPICAL RISK AREA
+    Traffic lands, but proof, differentiation, and authority do not show up fast enough.
+    SAMPLE RECOVERY FOCUS
+    Proof placement, trust assets, and inspection-driven CTAs.
+    Restoration
+    COMMON AUDIT PATTERN
+    Conversion Leak
+    TYPICAL RISK AREA
+    Urgent intent is present, but the page creates hesitation instead of immediate action.
+    SAMPLE RECOVERY FOCUS
+    Emergency-first messaging, simplified contact flow, and friction removal.
+    Professional Services
+    COMMON AUDIT PATTERN
+    Messaging Leak
+    TYPICAL RISK AREA
+    The business sounds capable, but the value proposition is too abstract to move buyers.
+    SAMPLE RECOVERY FOCUS
+    Clearer positioning, stronger proof, and a more direct offer.
+    eCommerce
+    COMMON AUDIT PATTERN
+    Tracking Leak
+    TYPICAL RISK AREA
+    Spend is active, but attribution and funnel visibility are too weak to identify profitable growth.
+    SAMPLE RECOVERY FOCUS
+    Measurement clarity, creative diagnostics, and checkout-path optimization.
+    
+    THE AUDIT DELIVERABLE
+    
+    See what you receive before you ever submit.
+    
+    Executive summary, a prioritized leak report with an owner and priority against every action, an explicit confidence label, and the uncertainties we could not resolve — stated, not hidden. We report what we can evidence. We do not guess at dollar figures; we show the priority, confidence, and uncertainty behind each finding so you know what to fix first.
+    
+    Executive Summary
+    A concise view of the biggest revenue leaks, business impact, and what to fix first.
+    Leak Severity Matrix
+    A structured read on which issues are critical, high, moderate, or low impact.
+    Priority Roadmap
+    A practical recovery sequence that moves from diagnosis into rebuild and optimization.
+    Confidence & Uncertainty
+    Every finding carries an explicit confidence label, and anything we could not verify from the evidence is listed as an open question rather than quietly dropped.
+    Written Report
+    Delivered as a clear written report you can share with your team and act on immediately.
+    
+    HOW ENGAGEMENTS WORK
+    
+    One path. Start free, pay only for the deep dive.
+    
+    Start free. Pay for the deep-dive Audit™ only when you want the full prioritized picture and a live strategy session. Implementation and the ongoing Program™ are scoped personally from your Leak Report — never sold off a menu.
+    
+    PHASE 1 — START FREE
+    
+    Revenue Recovery Assessment™
+    
+    Free. No payment, no obligation.
+    
+    PHASE 2 — DIAGNOSE
+    
+    Revenue Recovery Audit™
+    
+    The paid investigation: a reviewed evidence-grounded Assessment, a prioritized Revenue Leak Report with recommended fixes, an owner and priority against every action, an explicit confidence label, the uncertainties we could not resolve stated plainly, and a live strategy session with a human.
+    
+    PHASE 3 — RECOVER
+    
+    Revenue Recovery Implementation
+    
+    A fixed-scope project built from your Leak Report — every fix tied to the leak it closes.
+    
+    PHASE 4 — COMPOUND
+    
+    Revenue Recovery Program™
+    
+    Ongoing optimization once the leaks are plugged: monitoring, recovery sprints, and reporting. Offered at implementation handoff — not sold off the shelf.
+    
+    FAQ
+    
+    What is Revenue Recovery?
+    +
+    What happens after the free assessment?
+    +
+    How is pricing structured?
+    +
+    Why audit before running ads?
+    +
+    What counts as a “leak”?
+    +
+    What industries does Revenue Recovery work for?
+    +
+    
+    GET AN ASSESSMENT
+    
+    Request your free assessment.
+    
+    Fixture — the automated assessment is not live yet. This form requests an assessment instead.
+    
+    Stub — this form validates what you enter but is not connected yet. Nothing is stored or sent.
+    
+    NAME
+    BUSINESS
+    WEBSITE
+    BEST WAY TO REACH YOU
+    Leave this empty
+    GET AN ASSESSMENT"
+
+      337 |       "tied to recovered revenue",
+      338 |     ]) {
+    > 339 |       expect(text, gone).not.toContain(gone);
+          |                              ^
+      340 |     }
+      341 |     // "Why us" was the comparison's only home; the section goes with it.
+      342 |     await expect(page.getByRole("heading", { name: "Why us" })).toHaveCount(0);
+        at /Users/andrelove/WebstormProjects/zbest-sites/e2e/tests/phase-4-zbm.spec.ts:339:30
+
+    Error Context: test-results/phase-4-zbm-Revenue-Recove-2fd10-od-or-the-agency-comparison-desktop-1440/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/phase-4-zbm-Revenue-Recove-2fd10-od-or-the-agency-comparison-desktop-1440/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/phase-4-zbm-Revenue-Recove-2fd10-od-or-the-agency-comparison-desktop-1440/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [mobile-390] › tests/phase-4-zbm.spec.ts:306:3 › Revenue Recovery (§A4, filtered live carry-over) › carries the leak library, patterns, deliverable and engagements — not the Method or the agency comparison 
+
+    Error: The Z Best Revenue Recovery Method™
+
+    expect(received).not.toContain(expected) // indexOf
+
+    Expected substring: not "The Z Best Revenue Recovery Method™"
+    Received string:        "REVENUE RECOVERY
+    
+    Find out where your revenue is going.
+    
+    Most businesses aren’t short on traffic. They’re losing the traffic they already paid for — at the phone, the form, the follow-up. We audit first, show you the leak with real numbers, fix it, then scale what’s proven.
+    
+    Revenue Recovery is the process of identifying and fixing the marketing, website, advertising, conversion, follow-up, trust, and visibility issues that prevent a business from reaching its revenue potential.
+    
+    GET AN ASSESSMENT
+    TALK TO US
+    
+    WHERE REVENUE LEAKS
+    
+    01
+    Missed and unreturned calls
+    02
+    Forms that break on mobile
+    03
+    Follow-up that dies after one touch
+    04
+    Pages that load too slowly to convert
+    05
+    Ad traffic landing on the wrong page
+    06
+    No retargeting on the people who almost bought
+    
+    THE METHOD
+    
+    The Z Best Revenue Recovery Method™
+    
+    A Disciplined, Measurable System — Not A Bag Of Tactics
+    
+    01
+    Diagnose
+    Find the leaks across traffic, conversion, trust, follow-up, analytics, and visibility.
+    CLIENT RECEIVES
+    Leak map, diagnostic findings, benchmark context
+    MEASURED BY
+    Leak severity, missed opportunity, diagnostic priority
+    02
+    Rebuild
+    Repair the highest-impact issues first: messaging, landing pages, tracking, offers, creative, and lead flow.
+    CLIENT RECEIVES
+    Prioritized action plan, revised offer and funnel direction
+    MEASURED BY
+    Trust lift, conversion lift, friction removal
+    03
+    Optimize
+    Improve campaigns, content, conversion paths, and follow-up systems using performance data.
+    CLIENT RECEIVES
+    Optimization roadmap and test sequence
+    MEASURED BY
+    Lead quality, booking rate, ROI clarity
+    04
+    Scale
+    Turn what works into predictable growth through paid media, content, automation, and proof.
+    CLIENT RECEIVES
+    Scale plan tied to what already converts
+    MEASURED BY
+    Recovered revenue, cost efficiency, repeatable growth
+    
+    REVENUE LEAK LIBRARY
+    
+    Eight ways revenue leaks, and what fixing each one looks like.
+    
+    Traffic Leak
+    Your business is not getting enough qualified visitors from search, ads, referrals, or social channels.
+    SYMPTOM
+    Low qualified traffic or weak lead volume.
+    FIX DIRECTION
+    Improve acquisition channels, targeting, offers, and visibility.
+    Conversion Leak
+    Visitors arrive, but too few take the next step.
+    SYMPTOM
+    High visits with low form fills, calls, or bookings.
+    FIX DIRECTION
+    Tighten the CTA, simplify the path, and remove hesitation points.
+    Trust Leak
+    The business does not establish enough authority fast enough.
+    SYMPTOM
+    People browse but do not commit.
+    FIX DIRECTION
+    Move proof, reviews, guarantees, and authority higher in the journey.
+    Offer Leak
+    The offer is present, but the value is not clear or compelling.
+    SYMPTOM
+    Traffic clicks through but does not convert.
+    FIX DIRECTION
+    Clarify the promise, sharpen the outcome, and reduce ambiguity.
+    Follow-Up Leak
+    Leads come in, but they are not contacted quickly or consistently enough.
+    SYMPTOM
+    Booked calls and close rates lag behind lead volume.
+    FIX DIRECTION
+    Automate follow-up, improve response speed, and tighten handoff rules.
+    Tracking Leak
+    You cannot clearly see which campaigns, pages, or sources generate revenue.
+    SYMPTOM
+    Spend decisions are based on guesswork.
+    FIX DIRECTION
+    Improve attribution, event tracking, and reporting clarity.
+    Creative Leak
+    Ads or visual assets get attention but do not create strong buying intent.
+    SYMPTOM
+    Clicks without meaningful downstream results.
+    FIX DIRECTION
+    Align creative with the offer, audience, and landing experience.
+    Visibility Leak
+    The business is harder to find or harder to trust across search, maps, and answer engines.
+    SYMPTOM
+    Low discovery, weak branded demand, or limited qualified reach.
+    FIX DIRECTION
+    Strengthen local visibility, content signals, and entity consistency.
+    
+    INDUSTRY LEAK PATTERNS
+    
+    Typical leak patterns we often find during diagnostic reviews.
+    
+    Home Services
+    COMMON AUDIT PATTERN
+    Follow-Up Leak
+    TYPICAL RISK AREA
+    Leads arrive, but call handling and handoff are inconsistent.
+    SAMPLE RECOVERY FOCUS
+    Speed-to-contact, trust signals, and clearer next-step offers.
+    HVAC
+    COMMON AUDIT PATTERN
+    Offer Leak
+    TYPICAL RISK AREA
+    Seasonal demand exists, but the landing experience does not convert urgency into booked jobs.
+    SAMPLE RECOVERY FOCUS
+    Sharper offer framing, financing clarity, and booking-first conversion paths.
+    Roofing
+    COMMON AUDIT PATTERN
+    Trust Leak
+    TYPICAL RISK AREA
+    Traffic lands, but proof, differentiation, and authority do not show up fast enough.
+    SAMPLE RECOVERY FOCUS
+    Proof placement, trust assets, and inspection-driven CTAs.
+    Restoration
+    COMMON AUDIT PATTERN
+    Conversion Leak
+    TYPICAL RISK AREA
+    Urgent intent is present, but the page creates hesitation instead of immediate action.
+    SAMPLE RECOVERY FOCUS
+    Emergency-first messaging, simplified contact flow, and friction removal.
+    Professional Services
+    COMMON AUDIT PATTERN
+    Messaging Leak
+    TYPICAL RISK AREA
+    The business sounds capable, but the value proposition is too abstract to move buyers.
+    SAMPLE RECOVERY FOCUS
+    Clearer positioning, stronger proof, and a more direct offer.
+    eCommerce
+    COMMON AUDIT PATTERN
+    Tracking Leak
+    TYPICAL RISK AREA
+    Spend is active, but attribution and funnel visibility are too weak to identify profitable growth.
+    SAMPLE RECOVERY FOCUS
+    Measurement clarity, creative diagnostics, and checkout-path optimization.
+    
+    THE AUDIT DELIVERABLE
+    
+    See what you receive before you ever submit.
+    
+    Executive summary, a prioritized leak report with an owner and priority against every action, an explicit confidence label, and the uncertainties we could not resolve — stated, not hidden. We report what we can evidence. We do not guess at dollar figures; we show the priority, confidence, and uncertainty behind each finding so you know what to fix first.
+    
+    Executive Summary
+    A concise view of the biggest revenue leaks, business impact, and what to fix first.
+    Leak Severity Matrix
+    A structured read on which issues are critical, high, moderate, or low impact.
+    Priority Roadmap
+    A practical recovery sequence that moves from diagnosis into rebuild and optimization.
+    Confidence & Uncertainty
+    Every finding carries an explicit confidence label, and anything we could not verify from the evidence is listed as an open question rather than quietly dropped.
+    Written Report
+    Delivered as a clear written report you can share with your team and act on immediately.
+    
+    HOW ENGAGEMENTS WORK
+    
+    One path. Start free, pay only for the deep dive.
+    
+    Start free. Pay for the deep-dive Audit™ only when you want the full prioritized picture and a live strategy session. Implementation and the ongoing Program™ are scoped personally from your Leak Report — never sold off a menu.
+    
+    PHASE 1 — START FREE
+    
+    Revenue Recovery Assessment™
+    
+    Free. No payment, no obligation.
+    
+    PHASE 2 — DIAGNOSE
+    
+    Revenue Recovery Audit™
+    
+    The paid investigation: a reviewed evidence-grounded Assessment, a prioritized Revenue Leak Report with recommended fixes, an owner and priority against every action, an explicit confidence label, the uncertainties we could not resolve stated plainly, and a live strategy session with a human.
+    
+    PHASE 3 — RECOVER
+    
+    Revenue Recovery Implementation
+    
+    A fixed-scope project built from your Leak Report — every fix tied to the leak it closes.
+    
+    PHASE 4 — COMPOUND
+    
+    Revenue Recovery Program™
+    
+    Ongoing optimization once the leaks are plugged: monitoring, recovery sprints, and reporting. Offered at implementation handoff — not sold off the shelf.
+    
+    FAQ
+    
+    What is Revenue Recovery?
+    +
+    What happens after the free assessment?
+    +
+    How is pricing structured?
+    +
+    Why audit before running ads?
+    +
+    What counts as a “leak”?
+    +
+    What industries does Revenue Recovery work for?
+    +
+    
+    GET AN ASSESSMENT
+    
+    Request your free assessment.
+    
+    Fixture — the automated assessment is not live yet. This form requests an assessment instead.
+    
+    Stub — this form validates what you enter but is not connected yet. Nothing is stored or sent.
+    
+    NAME
+    BUSINESS
+    WEBSITE
+    BEST WAY TO REACH YOU
+    Leave this empty
+    GET AN ASSESSMENT"
+
+      337 |       "tied to recovered revenue",
+      338 |     ]) {
+    > 339 |       expect(text, gone).not.toContain(gone);
+          |                              ^
+      340 |     }
+      341 |     // "Why us" was the comparison's only home; the section goes with it.
+      342 |     await expect(page.getByRole("heading", { name: "Why us" })).toHaveCount(0);
+        at /Users/andrelove/WebstormProjects/zbest-sites/e2e/tests/phase-4-zbm.spec.ts:339:30
+
+    Error Context: test-results/phase-4-zbm-Revenue-Recove-2fd10-od-or-the-agency-comparison-mobile-390/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/phase-4-zbm-Revenue-Recove-2fd10-od-or-the-agency-comparison-mobile-390/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/phase-4-zbm-Revenue-Recove-2fd10-od-or-the-agency-comparison-mobile-390/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2 failed
+    [desktop-1440] › tests/phase-4-zbm.spec.ts:306:3 › Revenue Recovery (§A4, filtered live carry-over) › carries the leak library, patterns, deliverable and engagements — not the Method or the agency comparison 
+    [mobile-390] › tests/phase-4-zbm.spec.ts:306:3 › Revenue Recovery (§A4, filtered live carry-over) › carries the leak library, patterns, deliverable and engagements — not the Method or the agency comparison 
+  84 passed (26.6s)
+undefined
+/Users/andrelove/WebstormProjects/zbest-sites/e2e:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command failed with exit code 1: playwright test tests/phase-4-zbm.spec.ts
+```
+
+#### M3
+```
+=== git diff --stat (the mutation) ===
+ apps/zbm/app/page.tsx | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+=== gate output ===
+
+  ⚠  Gate running against a DIRTY tree — screenshots will not match 9a78d41.
+
+
+Running 86 tests using 1 worker
+
+  ✓   1 [desktop-1440] › tests/phase-4-zbm.spec.ts:90:5 › / › renders, carries its metadata, holds the site rules, and is captured (271ms)
+  ✓   2 [desktop-1440] › tests/phase-4-zbm.spec.ts:90:5 › /digital-advertising › renders, carries its metadata, holds the site rules, and is captured (228ms)
+  ✓   3 [desktop-1440] › tests/phase-4-zbm.spec.ts:90:5 › /revenue-recovery › renders, carries its metadata, holds the site rules, and is captured (301ms)
+  ✓   4 [desktop-1440] › tests/phase-4-zbm.spec.ts:90:5 › /out-of-home › renders, carries its metadata, holds the site rules, and is captured (205ms)
+  ✓   5 [desktop-1440] › tests/phase-4-zbm.spec.ts:90:5 › /about › renders, carries its metadata, holds the site rules, and is captured (184ms)
+  ✓   6 [desktop-1440] › tests/phase-4-zbm.spec.ts:90:5 › /contact › renders, carries its metadata, holds the site rules, and is captured (169ms)
+  ✓   7 [desktop-1440] › tests/phase-4-zbm.spec.ts:90:5 › /faq › renders, carries its metadata, holds the site rules, and is captured (206ms)
+  ✓   8 [desktop-1440] › tests/phase-4-zbm.spec.ts:90:5 › /search-intelligence › renders, carries its metadata, holds the site rules, and is captured (213ms)
+  ✓   9 [desktop-1440] › tests/phase-4-zbm.spec.ts:168:3 › / — every same-site link resolves (157ms)
+  ✓  10 [desktop-1440] › tests/phase-4-zbm.spec.ts:168:3 › /digital-advertising — every same-site link resolves (112ms)
+  ✓  11 [desktop-1440] › tests/phase-4-zbm.spec.ts:168:3 › /revenue-recovery — every same-site link resolves (110ms)
+  ✓  12 [desktop-1440] › tests/phase-4-zbm.spec.ts:168:3 › /out-of-home — every same-site link resolves (99ms)
+  ✓  13 [desktop-1440] › tests/phase-4-zbm.spec.ts:168:3 › /about — every same-site link resolves (100ms)
+  ✓  14 [desktop-1440] › tests/phase-4-zbm.spec.ts:168:3 › /contact — every same-site link resolves (100ms)
+  ✓  15 [desktop-1440] › tests/phase-4-zbm.spec.ts:168:3 › /faq — every same-site link resolves (99ms)
+  ✓  16 [desktop-1440] › tests/phase-4-zbm.spec.ts:168:3 › /search-intelligence — every same-site link resolves (102ms)
+  ✓  17 [desktop-1440] › tests/phase-4-zbm.spec.ts:195:3 › Home (§A4) › hero stat block shows non-outcome facts only, no counter claim (115ms)
+  ✘  18 [desktop-1440] › tests/phase-4-zbm.spec.ts:214:3 › Home (§A4) › How we work carries one process, capitalized, promising only priority and confidence (142ms)
+  ✓  19 [desktop-1440] › tests/phase-4-zbm.spec.ts:227:3 › Home (§A4) › four disciplines link to their pages; See What We Do anchors to them (147ms)
+  ✓  20 [desktop-1440] › tests/phase-4-zbm.spec.ts:242:3 › Home (§A4) › featured Revenue Recovery carries the six leaks, a held CTA and its fixture label (127ms)
+  ✓  21 [desktop-1440] › tests/phase-4-zbm.spec.ts:260:3 › Home (§A4) › How we work carries no case study cards (116ms)
+  ✓  22 [desktop-1440] › tests/phase-4-zbm.spec.ts:267:3 › Home (§A4) › the scroll-scrubbed hero moves with scroll, and not at all with reduced motion (507ms)
+  ✓  23 [desktop-1440] › tests/phase-4-zbm.spec.ts:287:3 › Digital Advertising (§A4) › certifications block is not rendered — not merely hidden (103ms)
+  ✓  24 [desktop-1440] › tests/phase-4-zbm.spec.ts:294:3 › Digital Advertising (§A4) › pricing, audience and FAQ as written (105ms)
+  ✓  25 [desktop-1440] › tests/phase-4-zbm.spec.ts:306:3 › Revenue Recovery (§A4, filtered live carry-over) › carries the leak library, patterns, deliverable and engagements — not the Method or the agency comparison (101ms)
+  ✓  26 [desktop-1440] › tests/phase-4-zbm.spec.ts:345:3 › Revenue Recovery (§A4, filtered live carry-over) › filtered out: dollar pricing, illustrative outcomes, scenarios, founder name, unverified claims (92ms)
+  ✓  27 [desktop-1440] › tests/phase-4-zbm.spec.ts:359:3 › Revenue Recovery (§A4, filtered live carry-over) › every engagement phase has a body; Phase 1 says exactly the approved line (audit F8) (113ms)
+  ✓  28 [desktop-1440] › tests/phase-4-zbm.spec.ts:369:3 › Revenue Recovery (§A4, filtered live carry-over) › FAQ omits the held 60-second answer and the case-study question withdrawn Sep 17 (103ms)
+  ✓  29 [desktop-1440] › tests/phase-4-zbm.spec.ts:377:3 › Revenue Recovery (§A4, filtered live carry-over) › assessment form: fixture-labeled, stub-marked, validates, and never claims delivery (315ms)
+  ✓  30 [desktop-1440] › tests/phase-4-zbm.spec.ts:416:3 › Lead route stub (§6.2) › valid contact submission is acknowledged as a stub (37ms)
+  ✓  31 [desktop-1440] › tests/phase-4-zbm.spec.ts:427:3 › Lead route stub (§6.2) › invalid fields return the field-level error envelope (32ms)
+  ✓  32 [desktop-1440] › tests/phase-4-zbm.spec.ts:436:3 › Lead route stub (§6.2) › malformed envelope, unknown form and missing submission_id are rejected (35ms)
+  ✓  33 [desktop-1440] › tests/phase-4-zbm.spec.ts:447:3 › Lead route stub (§6.2) › a filled honeypot looks like success and is not validated (34ms)
+  ✓  34 [desktop-1440] › tests/phase-4-zbm.spec.ts:460:3 › Out-of-Home (§A4) › each kept figure is cited inline to its primary source; the untraceable one is dropped (94ms)
+  ✓  35 [desktop-1440] › tests/phase-4-zbm.spec.ts:478:3 › About and Contact (§A4) › About carries the brief's standard and routes to Talk to Us, not the assessment (92ms)
+  ✓  36 [desktop-1440] › tests/phase-4-zbm.spec.ts:489:3 › About and Contact (§A4) › Contact form has the §6.1 fields and posts to the stub (175ms)
+  ✓  37 [desktop-1440] › tests/phase-4-zbm.spec.ts:513:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › the assessment is primary on Home and Revenue Recovery only (378ms)
+  ✓  38 [desktop-1440] › tests/phase-4-zbm.spec.ts:538:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › Digital Advertising states the pairing without the agency framing (108ms)
+  ✓  39 [desktop-1440] › tests/phase-4-zbm.spec.ts:551:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › Out-of-Home plans across operators and claims no buying (83ms)
+  ✓  40 [desktop-1440] › tests/phase-4-zbm.spec.ts:560:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › Search Intelligence drops the competitor-admission clause (83ms)
+  ✓  41 [desktop-1440] › tests/phase-4-zbm.spec.ts:569:3 › FAQ (§A4) › aggregates the three discipline blocks, grouped, with no Search Intelligence questions (104ms)
+  ✓  42 [desktop-1440] › tests/phase-4-zbm.spec.ts:590:3 › Search Intelligence (§A4 — built, never linked) › exists, is noindex, carries its pricing and FAQ (100ms)
+  ✓  43 [desktop-1440] › tests/phase-4-zbm.spec.ts:598:3 › Search Intelligence (§A4 — built, never linked) › no built page links to it, and neither sitemap nor robots names it (60ms)
+  ✓  44 [mobile-390] › tests/phase-4-zbm.spec.ts:90:5 › / › renders, carries its metadata, holds the site rules, and is captured (478ms)
+  ✓  45 [mobile-390] › tests/phase-4-zbm.spec.ts:90:5 › /digital-advertising › renders, carries its metadata, holds the site rules, and is captured (367ms)
+  ✓  46 [mobile-390] › tests/phase-4-zbm.spec.ts:90:5 › /revenue-recovery › renders, carries its metadata, holds the site rules, and is captured (532ms)
+  ✓  47 [mobile-390] › tests/phase-4-zbm.spec.ts:90:5 › /out-of-home › renders, carries its metadata, holds the site rules, and is captured (338ms)
+  ✓  48 [mobile-390] › tests/phase-4-zbm.spec.ts:90:5 › /about › renders, carries its metadata, holds the site rules, and is captured (286ms)
+  ✓  49 [mobile-390] › tests/phase-4-zbm.spec.ts:90:5 › /contact › renders, carries its metadata, holds the site rules, and is captured (297ms)
+  ✓  50 [mobile-390] › tests/phase-4-zbm.spec.ts:90:5 › /faq › renders, carries its metadata, holds the site rules, and is captured (320ms)
+  ✓  51 [mobile-390] › tests/phase-4-zbm.spec.ts:90:5 › /search-intelligence › renders, carries its metadata, holds the site rules, and is captured (406ms)
+  ✓  52 [mobile-390] › tests/phase-4-zbm.spec.ts:168:3 › / — every same-site link resolves (251ms)
+  ✓  53 [mobile-390] › tests/phase-4-zbm.spec.ts:168:3 › /digital-advertising — every same-site link resolves (230ms)
+  ✓  54 [mobile-390] › tests/phase-4-zbm.spec.ts:168:3 › /revenue-recovery — every same-site link resolves (219ms)
+  ✓  55 [mobile-390] › tests/phase-4-zbm.spec.ts:168:3 › /out-of-home — every same-site link resolves (192ms)
+  ✓  56 [mobile-390] › tests/phase-4-zbm.spec.ts:168:3 › /about — every same-site link resolves (201ms)
+  ✓  57 [mobile-390] › tests/phase-4-zbm.spec.ts:168:3 › /contact — every same-site link resolves (193ms)
+  ✓  58 [mobile-390] › tests/phase-4-zbm.spec.ts:168:3 › /faq — every same-site link resolves (201ms)
+  ✓  59 [mobile-390] › tests/phase-4-zbm.spec.ts:168:3 › /search-intelligence — every same-site link resolves (194ms)
+  ✓  60 [mobile-390] › tests/phase-4-zbm.spec.ts:195:3 › Home (§A4) › hero stat block shows non-outcome facts only, no counter claim (223ms)
+  ✘  61 [mobile-390] › tests/phase-4-zbm.spec.ts:214:3 › Home (§A4) › How we work carries one process, capitalized, promising only priority and confidence (254ms)
+  ✓  62 [mobile-390] › tests/phase-4-zbm.spec.ts:227:3 › Home (§A4) › four disciplines link to their pages; See What We Do anchors to them (331ms)
+  ✓  63 [mobile-390] › tests/phase-4-zbm.spec.ts:242:3 › Home (§A4) › featured Revenue Recovery carries the six leaks, a held CTA and its fixture label (252ms)
+  ✓  64 [mobile-390] › tests/phase-4-zbm.spec.ts:260:3 › Home (§A4) › How we work carries no case study cards (228ms)
+  ✓  65 [mobile-390] › tests/phase-4-zbm.spec.ts:267:3 › Home (§A4) › the scroll-scrubbed hero moves with scroll, and not at all with reduced motion (520ms)
+  ✓  66 [mobile-390] › tests/phase-4-zbm.spec.ts:287:3 › Digital Advertising (§A4) › certifications block is not rendered — not merely hidden (178ms)
+  ✓  67 [mobile-390] › tests/phase-4-zbm.spec.ts:294:3 › Digital Advertising (§A4) › pricing, audience and FAQ as written (204ms)
+  ✓  68 [mobile-390] › tests/phase-4-zbm.spec.ts:306:3 › Revenue Recovery (§A4, filtered live carry-over) › carries the leak library, patterns, deliverable and engagements — not the Method or the agency comparison (219ms)
+  ✓  69 [mobile-390] › tests/phase-4-zbm.spec.ts:345:3 › Revenue Recovery (§A4, filtered live carry-over) › filtered out: dollar pricing, illustrative outcomes, scenarios, founder name, unverified claims (195ms)
+  ✓  70 [mobile-390] › tests/phase-4-zbm.spec.ts:359:3 › Revenue Recovery (§A4, filtered live carry-over) › every engagement phase has a body; Phase 1 says exactly the approved line (audit F8) (234ms)
+  ✓  71 [mobile-390] › tests/phase-4-zbm.spec.ts:369:3 › Revenue Recovery (§A4, filtered live carry-over) › FAQ omits the held 60-second answer and the case-study question withdrawn Sep 17 (213ms)
+  ✓  72 [mobile-390] › tests/phase-4-zbm.spec.ts:377:3 › Revenue Recovery (§A4, filtered live carry-over) › assessment form: fixture-labeled, stub-marked, validates, and never claims delivery (420ms)
+  ✓  73 [mobile-390] › tests/phase-4-zbm.spec.ts:416:3 › Lead route stub (§6.2) › valid contact submission is acknowledged as a stub (129ms)
+  ✓  74 [mobile-390] › tests/phase-4-zbm.spec.ts:427:3 › Lead route stub (§6.2) › invalid fields return the field-level error envelope (121ms)
+  ✓  75 [mobile-390] › tests/phase-4-zbm.spec.ts:436:3 › Lead route stub (§6.2) › malformed envelope, unknown form and missing submission_id are rejected (131ms)
+  ✓  76 [mobile-390] › tests/phase-4-zbm.spec.ts:447:3 › Lead route stub (§6.2) › a filled honeypot looks like success and is not validated (122ms)
+  ✓  77 [mobile-390] › tests/phase-4-zbm.spec.ts:460:3 › Out-of-Home (§A4) › each kept figure is cited inline to its primary source; the untraceable one is dropped (198ms)
+  ✓  78 [mobile-390] › tests/phase-4-zbm.spec.ts:478:3 › About and Contact (§A4) › About carries the brief's standard and routes to Talk to Us, not the assessment (184ms)
+  ✓  79 [mobile-390] › tests/phase-4-zbm.spec.ts:489:3 › About and Contact (§A4) › Contact form has the §6.1 fields and posts to the stub (276ms)
+  ✓  80 [mobile-390] › tests/phase-4-zbm.spec.ts:513:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › the assessment is primary on Home and Revenue Recovery only (583ms)
+  ✓  81 [mobile-390] › tests/phase-4-zbm.spec.ts:538:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › Digital Advertising states the pairing without the agency framing (199ms)
+  ✓  82 [mobile-390] › tests/phase-4-zbm.spec.ts:551:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › Out-of-Home plans across operators and claims no buying (189ms)
+  ✓  83 [mobile-390] › tests/phase-4-zbm.spec.ts:560:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › Search Intelligence drops the competitor-admission clause (189ms)
+  ✓  84 [mobile-390] › tests/phase-4-zbm.spec.ts:569:3 › FAQ (§A4) › aggregates the three discipline blocks, grouped, with no Search Intelligence questions (205ms)
+  ✓  85 [mobile-390] › tests/phase-4-zbm.spec.ts:590:3 › Search Intelligence (§A4 — built, never linked) › exists, is noindex, carries its pricing and FAQ (187ms)
+  ✓  86 [mobile-390] › tests/phase-4-zbm.spec.ts:598:3 › Search Intelligence (§A4 — built, never linked) › no built page links to it, and neither sitemap nor robots names it (138ms)
+
+
+  1) [desktop-1440] › tests/phase-4-zbm.spec.ts:214:3 › Home (§A4) › How we work carries one process, capitalized, promising only priority and confidence 
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 1
+
+      Array [
+        "A free look at where you’re likely losing revenue.",
+    -   "A paid, full diagnostic. Every finding comes with a priority and a confidence label.",
+    +   "a paid, full diagnostic. Every finding comes with a number.",
+        "Conversion repaired before a dollar more goes into spend.",
+        "Once it’s proven, we run the media: digital, out-of-home, clips.",
+      ]
+
+      217 |       .locator("#how-we-work li p.type-body")
+      218 |       .evaluateAll((els) => els.map((el) => el.textContent?.trim() ?? ""));
+    > 219 |     expect(bodies).toEqual([
+          |                    ^
+      220 |       "A free look at where you’re likely losing revenue.",
+      221 |       "A paid, full diagnostic. Every finding comes with a priority and a confidence label.",
+      222 |       "Conversion repaired before a dollar more goes into spend.",
+        at /Users/andrelove/WebstormProjects/zbest-sites/e2e/tests/phase-4-zbm.spec.ts:219:20
+
+    Error Context: test-results/phase-4-zbm-Home-§A4-How-w-213be-nly-priority-and-confidence-desktop-1440/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/phase-4-zbm-Home-§A4-How-w-213be-nly-priority-and-confidence-desktop-1440/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/phase-4-zbm-Home-§A4-How-w-213be-nly-priority-and-confidence-desktop-1440/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [mobile-390] › tests/phase-4-zbm.spec.ts:214:3 › Home (§A4) › How we work carries one process, capitalized, promising only priority and confidence 
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 1
+
+      Array [
+        "A free look at where you’re likely losing revenue.",
+    -   "A paid, full diagnostic. Every finding comes with a priority and a confidence label.",
+    +   "a paid, full diagnostic. Every finding comes with a number.",
+        "Conversion repaired before a dollar more goes into spend.",
+        "Once it’s proven, we run the media: digital, out-of-home, clips.",
+      ]
+
+      217 |       .locator("#how-we-work li p.type-body")
+      218 |       .evaluateAll((els) => els.map((el) => el.textContent?.trim() ?? ""));
+    > 219 |     expect(bodies).toEqual([
+          |                    ^
+      220 |       "A free look at where you’re likely losing revenue.",
+      221 |       "A paid, full diagnostic. Every finding comes with a priority and a confidence label.",
+      222 |       "Conversion repaired before a dollar more goes into spend.",
+        at /Users/andrelove/WebstormProjects/zbest-sites/e2e/tests/phase-4-zbm.spec.ts:219:20
+
+    Error Context: test-results/phase-4-zbm-Home-§A4-How-w-213be-nly-priority-and-confidence-mobile-390/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/phase-4-zbm-Home-§A4-How-w-213be-nly-priority-and-confidence-mobile-390/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/phase-4-zbm-Home-§A4-How-w-213be-nly-priority-and-confidence-mobile-390/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2 failed
+    [desktop-1440] › tests/phase-4-zbm.spec.ts:214:3 › Home (§A4) › How we work carries one process, capitalized, promising only priority and confidence 
+    [mobile-390] › tests/phase-4-zbm.spec.ts:214:3 › Home (§A4) › How we work carries one process, capitalized, promising only priority and confidence 
+  84 passed (26.9s)
+undefined
+/Users/andrelove/WebstormProjects/zbest-sites/e2e:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command failed with exit code 1: playwright test tests/phase-4-zbm.spec.ts
+```
+
+#### M4
+```
+=== git diff --stat (the mutation) ===
+ apps/zbm/app/out-of-home/page.tsx | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+=== gate output ===
+
+  ⚠  Gate running against a DIRTY tree — screenshots will not match 9a78d41.
+
+
+Running 86 tests using 1 worker
+
+  ✓   1 [desktop-1440] › tests/phase-4-zbm.spec.ts:90:5 › / › renders, carries its metadata, holds the site rules, and is captured (235ms)
+  ✓   2 [desktop-1440] › tests/phase-4-zbm.spec.ts:90:5 › /digital-advertising › renders, carries its metadata, holds the site rules, and is captured (229ms)
+  ✓   3 [desktop-1440] › tests/phase-4-zbm.spec.ts:90:5 › /revenue-recovery › renders, carries its metadata, holds the site rules, and is captured (300ms)
+  ✓   4 [desktop-1440] › tests/phase-4-zbm.spec.ts:90:5 › /out-of-home › renders, carries its metadata, holds the site rules, and is captured (204ms)
+  ✓   5 [desktop-1440] › tests/phase-4-zbm.spec.ts:90:5 › /about › renders, carries its metadata, holds the site rules, and is captured (163ms)
+  ✓   6 [desktop-1440] › tests/phase-4-zbm.spec.ts:90:5 › /contact › renders, carries its metadata, holds the site rules, and is captured (163ms)
+  ✓   7 [desktop-1440] › tests/phase-4-zbm.spec.ts:90:5 › /faq › renders, carries its metadata, holds the site rules, and is captured (197ms)
+  ✓   8 [desktop-1440] › tests/phase-4-zbm.spec.ts:90:5 › /search-intelligence › renders, carries its metadata, holds the site rules, and is captured (225ms)
+  ✓   9 [desktop-1440] › tests/phase-4-zbm.spec.ts:168:3 › / — every same-site link resolves (126ms)
+  ✓  10 [desktop-1440] › tests/phase-4-zbm.spec.ts:168:3 › /digital-advertising — every same-site link resolves (106ms)
+  ✓  11 [desktop-1440] › tests/phase-4-zbm.spec.ts:168:3 › /revenue-recovery — every same-site link resolves (107ms)
+  ✓  12 [desktop-1440] › tests/phase-4-zbm.spec.ts:168:3 › /out-of-home — every same-site link resolves (95ms)
+  ✓  13 [desktop-1440] › tests/phase-4-zbm.spec.ts:168:3 › /about — every same-site link resolves (92ms)
+  ✓  14 [desktop-1440] › tests/phase-4-zbm.spec.ts:168:3 › /contact — every same-site link resolves (98ms)
+  ✓  15 [desktop-1440] › tests/phase-4-zbm.spec.ts:168:3 › /faq — every same-site link resolves (97ms)
+  ✓  16 [desktop-1440] › tests/phase-4-zbm.spec.ts:168:3 › /search-intelligence — every same-site link resolves (96ms)
+  ✓  17 [desktop-1440] › tests/phase-4-zbm.spec.ts:195:3 › Home (§A4) › hero stat block shows non-outcome facts only, no counter claim (111ms)
+  ✓  18 [desktop-1440] › tests/phase-4-zbm.spec.ts:214:3 › Home (§A4) › How we work carries one process, capitalized, promising only priority and confidence (103ms)
+  ✓  19 [desktop-1440] › tests/phase-4-zbm.spec.ts:227:3 › Home (§A4) › four disciplines link to their pages; See What We Do anchors to them (116ms)
+  ✓  20 [desktop-1440] › tests/phase-4-zbm.spec.ts:242:3 › Home (§A4) › featured Revenue Recovery carries the six leaks, a held CTA and its fixture label (120ms)
+  ✓  21 [desktop-1440] › tests/phase-4-zbm.spec.ts:260:3 › Home (§A4) › How we work carries no case study cards (106ms)
+  ✓  22 [desktop-1440] › tests/phase-4-zbm.spec.ts:267:3 › Home (§A4) › the scroll-scrubbed hero moves with scroll, and not at all with reduced motion (496ms)
+  ✓  23 [desktop-1440] › tests/phase-4-zbm.spec.ts:287:3 › Digital Advertising (§A4) › certifications block is not rendered — not merely hidden (62ms)
+  ✓  24 [desktop-1440] › tests/phase-4-zbm.spec.ts:294:3 › Digital Advertising (§A4) › pricing, audience and FAQ as written (98ms)
+  ✓  25 [desktop-1440] › tests/phase-4-zbm.spec.ts:306:3 › Revenue Recovery (§A4, filtered live carry-over) › carries the leak library, patterns, deliverable and engagements — not the Method or the agency comparison (93ms)
+  ✓  26 [desktop-1440] › tests/phase-4-zbm.spec.ts:345:3 › Revenue Recovery (§A4, filtered live carry-over) › filtered out: dollar pricing, illustrative outcomes, scenarios, founder name, unverified claims (84ms)
+  ✓  27 [desktop-1440] › tests/phase-4-zbm.spec.ts:359:3 › Revenue Recovery (§A4, filtered live carry-over) › every engagement phase has a body; Phase 1 says exactly the approved line (audit F8) (100ms)
+  ✓  28 [desktop-1440] › tests/phase-4-zbm.spec.ts:369:3 › Revenue Recovery (§A4, filtered live carry-over) › FAQ omits the held 60-second answer and the case-study question withdrawn Sep 17 (90ms)
+  ✓  29 [desktop-1440] › tests/phase-4-zbm.spec.ts:377:3 › Revenue Recovery (§A4, filtered live carry-over) › assessment form: fixture-labeled, stub-marked, validates, and never claims delivery (307ms)
+  ✓  30 [desktop-1440] › tests/phase-4-zbm.spec.ts:416:3 › Lead route stub (§6.2) › valid contact submission is acknowledged as a stub (31ms)
+  ✓  31 [desktop-1440] › tests/phase-4-zbm.spec.ts:427:3 › Lead route stub (§6.2) › invalid fields return the field-level error envelope (30ms)
+  ✓  32 [desktop-1440] › tests/phase-4-zbm.spec.ts:436:3 › Lead route stub (§6.2) › malformed envelope, unknown form and missing submission_id are rejected (32ms)
+  ✓  33 [desktop-1440] › tests/phase-4-zbm.spec.ts:447:3 › Lead route stub (§6.2) › a filled honeypot looks like success and is not validated (30ms)
+  ✓  34 [desktop-1440] › tests/phase-4-zbm.spec.ts:460:3 › Out-of-Home (§A4) › each kept figure is cited inline to its primary source; the untraceable one is dropped (93ms)
+  ✓  35 [desktop-1440] › tests/phase-4-zbm.spec.ts:478:3 › About and Contact (§A4) › About carries the brief's standard and routes to Talk to Us, not the assessment (78ms)
+  ✓  36 [desktop-1440] › tests/phase-4-zbm.spec.ts:489:3 › About and Contact (§A4) › Contact form has the §6.1 fields and posts to the stub (171ms)
+  ✘  37 [desktop-1440] › tests/phase-4-zbm.spec.ts:513:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › the assessment is primary on Home and Revenue Recovery only (5.2s)
+  ✓  38 [desktop-1440] › tests/phase-4-zbm.spec.ts:538:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › Digital Advertising states the pairing without the agency framing (108ms)
+  ✓  39 [desktop-1440] › tests/phase-4-zbm.spec.ts:551:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › Out-of-Home plans across operators and claims no buying (89ms)
+  ✓  40 [desktop-1440] › tests/phase-4-zbm.spec.ts:560:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › Search Intelligence drops the competitor-admission clause (80ms)
+  ✓  41 [desktop-1440] › tests/phase-4-zbm.spec.ts:569:3 › FAQ (§A4) › aggregates the three discipline blocks, grouped, with no Search Intelligence questions (100ms)
+  ✓  42 [desktop-1440] › tests/phase-4-zbm.spec.ts:590:3 › Search Intelligence (§A4 — built, never linked) › exists, is noindex, carries its pricing and FAQ (91ms)
+  ✓  43 [desktop-1440] › tests/phase-4-zbm.spec.ts:598:3 › Search Intelligence (§A4 — built, never linked) › no built page links to it, and neither sitemap nor robots names it (61ms)
+  ✓  44 [mobile-390] › tests/phase-4-zbm.spec.ts:90:5 › / › renders, carries its metadata, holds the site rules, and is captured (454ms)
+  ✓  45 [mobile-390] › tests/phase-4-zbm.spec.ts:90:5 › /digital-advertising › renders, carries its metadata, holds the site rules, and is captured (336ms)
+  ✓  46 [mobile-390] › tests/phase-4-zbm.spec.ts:90:5 › /revenue-recovery › renders, carries its metadata, holds the site rules, and is captured (494ms)
+  ✓  47 [mobile-390] › tests/phase-4-zbm.spec.ts:90:5 › /out-of-home › renders, carries its metadata, holds the site rules, and is captured (321ms)
+  ✓  48 [mobile-390] › tests/phase-4-zbm.spec.ts:90:5 › /about › renders, carries its metadata, holds the site rules, and is captured (256ms)
+  ✓  49 [mobile-390] › tests/phase-4-zbm.spec.ts:90:5 › /contact › renders, carries its metadata, holds the site rules, and is captured (255ms)
+  ✓  50 [mobile-390] › tests/phase-4-zbm.spec.ts:90:5 › /faq › renders, carries its metadata, holds the site rules, and is captured (285ms)
+  ✓  51 [mobile-390] › tests/phase-4-zbm.spec.ts:90:5 › /search-intelligence › renders, carries its metadata, holds the site rules, and is captured (377ms)
+  ✓  52 [mobile-390] › tests/phase-4-zbm.spec.ts:168:3 › / — every same-site link resolves (227ms)
+  ✓  53 [mobile-390] › tests/phase-4-zbm.spec.ts:168:3 › /digital-advertising — every same-site link resolves (210ms)
+  ✓  54 [mobile-390] › tests/phase-4-zbm.spec.ts:168:3 › /revenue-recovery — every same-site link resolves (208ms)
+  ✓  55 [mobile-390] › tests/phase-4-zbm.spec.ts:168:3 › /out-of-home — every same-site link resolves (208ms)
+  ✓  56 [mobile-390] › tests/phase-4-zbm.spec.ts:168:3 › /about — every same-site link resolves (180ms)
+  ✓  57 [mobile-390] › tests/phase-4-zbm.spec.ts:168:3 › /contact — every same-site link resolves (185ms)
+  ✓  58 [mobile-390] › tests/phase-4-zbm.spec.ts:168:3 › /faq — every same-site link resolves (184ms)
+  ✓  59 [mobile-390] › tests/phase-4-zbm.spec.ts:168:3 › /search-intelligence — every same-site link resolves (189ms)
+  ✓  60 [mobile-390] › tests/phase-4-zbm.spec.ts:195:3 › Home (§A4) › hero stat block shows non-outcome facts only, no counter claim (211ms)
+  ✓  61 [mobile-390] › tests/phase-4-zbm.spec.ts:214:3 › Home (§A4) › How we work carries one process, capitalized, promising only priority and confidence (209ms)
+  ✓  62 [mobile-390] › tests/phase-4-zbm.spec.ts:227:3 › Home (§A4) › four disciplines link to their pages; See What We Do anchors to them (219ms)
+  ✓  63 [mobile-390] › tests/phase-4-zbm.spec.ts:242:3 › Home (§A4) › featured Revenue Recovery carries the six leaks, a held CTA and its fixture label (229ms)
+  ✓  64 [mobile-390] › tests/phase-4-zbm.spec.ts:260:3 › Home (§A4) › How we work carries no case study cards (213ms)
+  ✓  65 [mobile-390] › tests/phase-4-zbm.spec.ts:267:3 › Home (§A4) › the scroll-scrubbed hero moves with scroll, and not at all with reduced motion (606ms)
+  ✓  66 [mobile-390] › tests/phase-4-zbm.spec.ts:287:3 › Digital Advertising (§A4) › certifications block is not rendered — not merely hidden (160ms)
+  ✓  67 [mobile-390] › tests/phase-4-zbm.spec.ts:294:3 › Digital Advertising (§A4) › pricing, audience and FAQ as written (189ms)
+  ✓  68 [mobile-390] › tests/phase-4-zbm.spec.ts:306:3 › Revenue Recovery (§A4, filtered live carry-over) › carries the leak library, patterns, deliverable and engagements — not the Method or the agency comparison (190ms)
+  ✓  69 [mobile-390] › tests/phase-4-zbm.spec.ts:345:3 › Revenue Recovery (§A4, filtered live carry-over) › filtered out: dollar pricing, illustrative outcomes, scenarios, founder name, unverified claims (185ms)
+  ✓  70 [mobile-390] › tests/phase-4-zbm.spec.ts:359:3 › Revenue Recovery (§A4, filtered live carry-over) › every engagement phase has a body; Phase 1 says exactly the approved line (audit F8) (217ms)
+  ✓  71 [mobile-390] › tests/phase-4-zbm.spec.ts:369:3 › Revenue Recovery (§A4, filtered live carry-over) › FAQ omits the held 60-second answer and the case-study question withdrawn Sep 17 (194ms)
+  ✓  72 [mobile-390] › tests/phase-4-zbm.spec.ts:377:3 › Revenue Recovery (§A4, filtered live carry-over) › assessment form: fixture-labeled, stub-marked, validates, and never claims delivery (370ms)
+  ✓  73 [mobile-390] › tests/phase-4-zbm.spec.ts:416:3 › Lead route stub (§6.2) › valid contact submission is acknowledged as a stub (118ms)
+  ✓  74 [mobile-390] › tests/phase-4-zbm.spec.ts:427:3 › Lead route stub (§6.2) › invalid fields return the field-level error envelope (112ms)
+  ✓  75 [mobile-390] › tests/phase-4-zbm.spec.ts:436:3 › Lead route stub (§6.2) › malformed envelope, unknown form and missing submission_id are rejected (116ms)
+  ✓  76 [mobile-390] › tests/phase-4-zbm.spec.ts:447:3 › Lead route stub (§6.2) › a filled honeypot looks like success and is not validated (113ms)
+  ✓  77 [mobile-390] › tests/phase-4-zbm.spec.ts:460:3 › Out-of-Home (§A4) › each kept figure is cited inline to its primary source; the untraceable one is dropped (190ms)
+  ✓  78 [mobile-390] › tests/phase-4-zbm.spec.ts:478:3 › About and Contact (§A4) › About carries the brief's standard and routes to Talk to Us, not the assessment (181ms)
+  ✓  79 [mobile-390] › tests/phase-4-zbm.spec.ts:489:3 › About and Contact (§A4) › Contact form has the §6.1 fields and posts to the stub (236ms)
+  ✘  80 [mobile-390] › tests/phase-4-zbm.spec.ts:513:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › the assessment is primary on Home and Revenue Recovery only (5.4s)
+  ✓  81 [mobile-390] › tests/phase-4-zbm.spec.ts:538:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › Digital Advertising states the pairing without the agency framing (266ms)
+  ✓  82 [mobile-390] › tests/phase-4-zbm.spec.ts:551:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › Out-of-Home plans across operators and claims no buying (195ms)
+  ✓  83 [mobile-390] › tests/phase-4-zbm.spec.ts:560:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › Search Intelligence drops the competitor-admission clause (179ms)
+  ✓  84 [mobile-390] › tests/phase-4-zbm.spec.ts:569:3 › FAQ (§A4) › aggregates the three discipline blocks, grouped, with no Search Intelligence questions (192ms)
+  ✓  85 [mobile-390] › tests/phase-4-zbm.spec.ts:590:3 › Search Intelligence (§A4 — built, never linked) › exists, is noindex, carries its pricing and FAQ (185ms)
+  ✓  86 [mobile-390] › tests/phase-4-zbm.spec.ts:598:3 › Search Intelligence (§A4 — built, never linked) › no built page links to it, and neither sitemap nor robots names it (143ms)
+
+
+  1) [desktop-1440] › tests/phase-4-zbm.spec.ts:513:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › the assessment is primary on Home and Revenue Recovery only 
+
+    Error: /out-of-home has no assessment CTA
+
+    expect(locator).toHaveCount(expected) failed
+
+    Locator:  locator('main').getByRole('link', { name: /assessment/i })
+    Expected: 0
+    Received: 1
+    Timeout:  5000ms
+
+    Call log:
+      - /out-of-home has no assessment CTA locator('main').getByRole('link', { name: /assessment/i }) with timeout 5000ms
+      - waiting for locator('main').getByRole('link', { name: /assessment/i })
+        14 × locator resolved to 1 element
+           - unexpected value "1"
+
+
+      524 |         page.locator("main").getByRole("link", { name: /assessment/i }),
+      525 |         `${path} has no assessment CTA`,
+    > 526 |       ).toHaveCount(0);
+          |         ^
+      527 |     }
+      528 |     // Contact is the destination, so it carries no Talk to Us button of its own.
+      529 |     for (const path of ["/digital-advertising", "/out-of-home", "/about"]) {
+        at /Users/andrelove/WebstormProjects/zbest-sites/e2e/tests/phase-4-zbm.spec.ts:526:9
+
+    Error Context: test-results/phase-4-zbm-Copy-revision--d243d-e-and-Revenue-Recovery-only-desktop-1440/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/phase-4-zbm-Copy-revision--d243d-e-and-Revenue-Recovery-only-desktop-1440/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/phase-4-zbm-Copy-revision--d243d-e-and-Revenue-Recovery-only-desktop-1440/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [mobile-390] › tests/phase-4-zbm.spec.ts:513:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › the assessment is primary on Home and Revenue Recovery only 
+
+    Error: /out-of-home has no assessment CTA
+
+    expect(locator).toHaveCount(expected) failed
+
+    Locator:  locator('main').getByRole('link', { name: /assessment/i })
+    Expected: 0
+    Received: 1
+    Timeout:  5000ms
+
+    Call log:
+      - /out-of-home has no assessment CTA locator('main').getByRole('link', { name: /assessment/i }) with timeout 5000ms
+      - waiting for locator('main').getByRole('link', { name: /assessment/i })
+        14 × locator resolved to 1 element
+           - unexpected value "1"
+
+
+      524 |         page.locator("main").getByRole("link", { name: /assessment/i }),
+      525 |         `${path} has no assessment CTA`,
+    > 526 |       ).toHaveCount(0);
+          |         ^
+      527 |     }
+      528 |     // Contact is the destination, so it carries no Talk to Us button of its own.
+      529 |     for (const path of ["/digital-advertising", "/out-of-home", "/about"]) {
+        at /Users/andrelove/WebstormProjects/zbest-sites/e2e/tests/phase-4-zbm.spec.ts:526:9
+
+    Error Context: test-results/phase-4-zbm-Copy-revision--d243d-e-and-Revenue-Recovery-only-mobile-390/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/phase-4-zbm-Copy-revision--d243d-e-and-Revenue-Recovery-only-mobile-390/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/phase-4-zbm-Copy-revision--d243d-e-and-Revenue-Recovery-only-mobile-390/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2 failed
+    [desktop-1440] › tests/phase-4-zbm.spec.ts:513:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › the assessment is primary on Home and Revenue Recovery only 
+    [mobile-390] › tests/phase-4-zbm.spec.ts:513:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › the assessment is primary on Home and Revenue Recovery only 
+  84 passed (35.5s)
+undefined
+/Users/andrelove/WebstormProjects/zbest-sites/e2e:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command failed with exit code 1: playwright test tests/phase-4-zbm.spec.ts
+```
+
+#### `mutate.py` — the mutation script, verbatim
+
+```python
+"""Apply one named mutation to the working tree, or restore from backup."""
+import re, subprocess, sys, pathlib
+ROOT = pathlib.Path("/Users/andrelove/WebstormProjects/zbest-sites")
+CONTENT = ROOT / "apps/zbm/content/revenue-recovery.ts"
+RRPAGE  = ROOT / "apps/zbm/app/revenue-recovery/page.tsx"
+HOME    = ROOT / "apps/zbm/app/page.tsx"
+OOH     = ROOT / "apps/zbm/app/out-of-home/page.tsx"
+BASE = "faafe37"   # the commit before this revision
+
+def show(path):
+    rel = str(path.relative_to(ROOT))
+    return subprocess.run(["git", "show", f"{BASE}:{rel}"], cwd=ROOT,
+                          capture_output=True, text=True, check=True).stdout
+
+def put(p, s): p.write_text(s)
+
+def m1():
+    """Reintroduce the Traditional Agency / Revenue Recovery Partner comparison."""
+    old = show(CONTENT)
+    block = re.search(r"/\*\* live 638–654 \*/\nexport const COMPARISON = \{.*?\n\};\n", old, re.DOTALL).group(0)
+    put(CONTENT, CONTENT.read_text() + "\n" + block)
+    src = RRPAGE.read_text()
+    src = src.replace("  AUDIT_DELIVERABLE,\n", "  AUDIT_DELIVERABLE,\n  COMPARISON,\n", 1)
+    oldpage = show(RRPAGE)
+    why = re.search(r'      <PageSection label="Why us">.*?\n      </PageSection>\n\n', oldpage, re.DOTALL).group(0)
+    anchor = "      <PageSection label={ENGAGEMENTS.label}"
+    assert anchor in src
+    put(RRPAGE, src.replace(anchor, why + anchor, 1))
+
+def m2():
+    """Reintroduce the Z Best Revenue Recovery Method™ section."""
+    old = show(CONTENT)
+    block = re.search(r"/\*\* live 131, 136, 139–173 \*/\nexport const METHOD = \{.*?\n\};\n", old, re.DOTALL).group(0)
+    put(CONTENT, CONTENT.read_text() + "\n" + block)
+    src = RRPAGE.read_text()
+    src = src.replace("  LEAK_LIBRARY,\n", "  LEAK_LIBRARY,\n  METHOD,\n", 1)
+    oldpage = show(RRPAGE)
+    meth = re.search(r'      <PageSection id="method".*?\n      </PageSection>\n\n', oldpage, re.DOTALL).group(0)
+    anchor = '      <PageSection id="leak-library"'
+    assert anchor in src
+    put(RRPAGE, src.replace(anchor, meth + anchor, 1))
+
+def m3():
+    """Restore one 'every finding comes with a number' promise on Home."""
+    src = HOME.read_text()
+    old = '["Audit", "A paid, full diagnostic. Every finding comes with a priority and a confidence label."],'
+    new = '["Audit", "a paid, full diagnostic. Every finding comes with a number."],'
+    assert old in src
+    put(HOME, src.replace(old, new, 1))
+
+def m4():
+    """Put a Get an Assessment CTA back on a discipline page (Out-of-Home)."""
+    src = OOH.read_text()
+    src = src.replace('import { SITE } from "@/lib/site";',
+                      'import { ASSESSMENT_HREF, SITE } from "@/lib/site";', 1)
+    old = """        <CtaRow>
+          <ButtonLink href="/contact">Talk to Us</ButtonLink>
+        </CtaRow>"""
+    new = """        <CtaRow>
+          <ButtonLink href={ASSESSMENT_HREF}>Get an Assessment</ButtonLink>
+          <ButtonLink href="/contact" variant="secondary">
+            Talk to Us
+          </ButtonLink>
+        </CtaRow>"""
+    assert src.count(old) == 2
+    put(OOH, src.replace(old, new, 1))
+
+if __name__ == "__main__":
+    {"M1": m1, "M2": m2, "M3": m3, "M4": m4}[sys.argv[1]]()
+    print(f"{sys.argv[1]} applied")
+```
+
+#### Tree restored
+
+```
+$ git checkout -- apps/ e2e/snapshots/
+$ git status --porcelain
+(no output)
+$ # full gate re-run from a wiped state afterwards:
+build=0
+typecheck=0
+e2e=0        # 249 passed, 1 skipped
+lint=0
+$ git status --porcelain e2e/snapshots/
+(no output — every PNG byte-identical to a5ce48e after the mutation churn)
+```
