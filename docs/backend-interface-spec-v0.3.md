@@ -338,6 +338,8 @@ Immutable after activation — the same pattern and the same reason as `RewardPo
 
 The eight categories and their display names are exactly those already published in the site's Revenue Leak Library: Traffic, Conversion, Trust, Offer, Follow-Up, Tracking, Creative, Visibility.
 
+**"Messaging Leak" is Offer, not a ninth category** (founder ruling, 2026-09-18). The Industry Leak Patterns section of the same page labels one pattern "Messaging Leak" — Professional Services, "the value proposition is too abstract to move buyers." That is an industry-specific name for the Offer category ("the value is not clear or compelling"), kept on the page as written. The taxonomy stays at eight. No result may return `messaging`; a Professional Services business whose leak is its value proposition receives `offer`.
+
 ### 11.3 AssessmentRequest — the free tier's input
 
 Extends the existing "Get an Assessment" form. The four contact fields are unchanged; `answers` is new.

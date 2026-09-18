@@ -656,6 +656,16 @@ Phase 4 ZBM chunk, and that tension is a decision to take deliberately, not to r
    build against, the auditor reviews v0.3 before approval and the backend author accepts it before
    implementing. `CLAUDE.md` still names v0.2 as the backend contract and should be pointed at v0.3
    only once it is approved, not before.
+
+   **Two founder rulings on v0.3, 2026-09-18, taken in the build window:**
+   - *"Messaging Leak" counts as Offer.* The Revenue Recovery page's Industry Leak Patterns names a
+     ninth leak, "Messaging Leak" (Professional Services), that is not in the eight-category Leak
+     Library. Found while staging the v0.3 review bundle. Ruled: keep the label on the certified page
+     as written, and state in v0.3 §11.2 that it is an industry name for Offer. The taxonomy stays at
+     eight; no result returns `messaging`. No capture moves.
+   - *The eight questions and the tie-break order stay PROPOSED* until the auditor has gated them —
+     the questions as customer-facing copy under the same standard as the sites, the order as the
+     rule that decides which leak a prospect sees. The founder approves or amends after that.
 2. **The gate holds.** One file, not two: `e2e/tests/phase-4-zbm.spec.ts:116-120`.
    `phase-4-zbc.spec.ts` never enforced them and should not start — the assessment is a ZBM surface.
    The two `not.toMatch` holds become positive assertions on the new wording.
