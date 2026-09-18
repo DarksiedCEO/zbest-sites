@@ -1,3 +1,7 @@
+import { ASSESSMENT_REQUEST, fieldErrors, type AssessmentResponse } from "@/lib/assessment/contract";
+import { RULE_SET_HASH } from "@/lib/assessment/hash";
+import { ACTIVE_RULE_SET } from "@/lib/assessment/rules";
+import { assess } from "@/lib/assessment/score";
 import { LEAD_ENVELOPE, LEAD_FIELDS, type LeadResponse } from "@/lib/lead";
 
 /**
@@ -15,11 +19,53 @@ import { LEAD_ENVELOPE, LEAD_FIELDS, type LeadResponse } from "@/lib/lead";
  * Nothing is stored, sent or logged. Every response says so: `stub: true` in
  * the body and the X-Zbest-Lead-Stub header, and the form shows it to the
  * visitor. When the real handler lands, both markers are removed with it.
+ *
+ * PHASE 5 — the free assessment (Backend Spec v0.3 §11, founder decision 10).
+ * form "assessment" now carries the §11.3 AssessmentRequest shape and is
+ * scored here against the FIXTURE rule set, returning a §11.5
+ * FreeAssessmentResult. Still a stub in every other respect: nothing is stored,
+ * sent or logged, and the same markers apply. Scoring is deterministic and uses
+ * no model, so running it in the stub fakes nothing about the result — only
+ * delivery and persistence are missing. form "contact" is unchanged.
  */
 const STUB_HEADERS = { "X-Zbest-Lead-Stub": "no-delivery" };
 
-const reply = (body: LeadResponse, status: number) =>
+const reply = (body: LeadResponse | AssessmentResponse, status: number) =>
   Response.json(body, { status, headers: STUB_HEADERS });
+
+/** §11.3 request -> §11.5 result, or the typed error that explains why not. */
+function handleAssessment(json: unknown) {
+  const request = ASSESSMENT_REQUEST.safeParse(json);
+  if (!request.success) {
+    const issues = request.error.issues;
+    // A request missing its envelope is malformed, not a form to correct.
+    const structural = issues.some((i) => i.path[0] === "form" || i.path[0] === "submission_id");
+    if (structural) return reply({ ok: false, error: { code: "bad_request" } }, 400);
+    return reply({ ok: false, error: { code: "validation", fields: fieldErrors(issues) } }, 422);
+  }
+  const { submission_id, rule_set_version, answers, company_url } = request.data;
+
+  // §11.3: never score against rules the respondent was not shown.
+  if (rule_set_version !== ACTIVE_RULE_SET.version) {
+    return reply(
+      { ok: false, error: { code: "rule_set_superseded", active_version: ACTIVE_RULE_SET.version } },
+      409,
+    );
+  }
+
+  const outcome = assess(answers, ACTIVE_RULE_SET);
+  const result = {
+    ...outcome,
+    tier: "free" as const,
+    submission_id,
+    rule_set_version: ACTIVE_RULE_SET.version,
+    rule_set_hash: RULE_SET_HASH,
+    produced_at: new Date().toISOString(),
+  };
+  // Honeypot: indistinguishable from a real success, and nothing happens either way.
+  void company_url;
+  return reply({ ok: true, stub: true, submission_id, result }, 200);
+}
 
 export async function POST(request: Request) {
   let json: unknown;
@@ -27,6 +73,10 @@ export async function POST(request: Request) {
     json = await request.json();
   } catch {
     return reply({ ok: false, error: { code: "bad_request" } }, 400);
+  }
+
+  if (json && typeof json === "object" && (json as { form?: unknown }).form === "assessment") {
+    return handleAssessment(json);
   }
 
   const envelope = LEAD_ENVELOPE.safeParse(json);

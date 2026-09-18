@@ -116,17 +116,20 @@ export default function HomePage() {
         />
         <div className="flex flex-col gap-4">
           {/*
-            FOUNDER HOLD (Phase 4): §A4's CTA reads "Get your free assessment —
-            one quantified leak, in about 60 seconds." That promises what the
-            assessment returns, which is the undecided Phase 5 question, so the
-            label is "Get a free assessment" until that decision is made.
+            Founder decision 10 (docs/TOOLING.md): the free assessment returns one
+            prioritized leak. §A4's "one quantified leak, in about 60 seconds" is
+            retired permanently, not held. The promise sits in the line under the
+            button rather than in the label, so the button stays short at 390.
           */}
           <CtaRow>
-            <ButtonLink href={ASSESSMENT_HREF}>Get a free assessment</ButtonLink>
+            <ButtonLink href={ASSESSMENT_HREF}>Get your free assessment</ButtonLink>
           </CtaRow>
+          <p className="type-body text-text-secondary">
+            One prioritized leak — the one we’d fix first — and what fixing it looks like.
+          </p>
           <FixtureNote>
-            Fixture — the automated assessment is not live yet. This opens the
-            assessment request form.
+            Fixture — the assessment is scored on fixture rules. Nothing you enter is stored
+            or sent.
           </FixtureNote>
         </div>
       </PageSection>

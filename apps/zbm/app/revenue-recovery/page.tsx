@@ -9,7 +9,7 @@ import {
   PageHeader,
   PageSection,
 } from "@/components/page";
-import { LeadForm } from "@/components/lead-form";
+import { AssessmentForm } from "@/components/assessment-form";
 import { REVENUE_RECOVERY_FAQ } from "@/content/faq";
 import {
   AUDIT_DELIVERABLE,
@@ -113,20 +113,26 @@ export default function RevenueRecoveryPage() {
         <FaqList items={REVENUE_RECOVERY_FAQ} />
       </PageSection>
 
-      {/* Every "Get an Assessment" CTA on the site lands here (founder decision, Phase 4). */}
+      {/*
+        Every "Get an Assessment" CTA on the site lands here (founder decision, Phase 4).
+        Phase 5: the assessment runs here — Backend Spec v0.3 §11, founder decision 10.
+        One prioritized leak, rule-based, no dollar figure. Title changed from
+        "Request your free assessment.", which stopped being true once the
+        assessment ran on the page instead of being requested.
+      */}
       <PageSection
         id="assessment"
         label="Get an Assessment"
-        title="Request your free assessment."
+        title="Get your free assessment."
         intro={
           <FixtureNote>
-            Fixture — the automated assessment is not live yet. This form requests an
-            assessment instead.
+            Fixture — eight questions return one prioritized leak, scored on fixture rules.
+            Nothing you enter is stored or sent.
           </FixtureNote>
         }
       >
-        <div className="max-w-2xl">
-          <LeadForm form="assessment" submitLabel="Get an Assessment" />
+        <div className="max-w-3xl">
+          <AssessmentForm />
         </div>
       </PageSection>
     </main>

@@ -9,7 +9,9 @@ import { ZBM_BASE_URL } from "../playwright.config";
  * Contact → FAQ → Search Intelligence (unlinked).
  *
  * Founder direction for this chunk, asserted below rather than trusted:
- *   - both "60-second" assessment lines are HELD (Home CTA, RR FAQ answer)
+ *   - both "60-second" assessment lines were HELD in Phase 4; founder decision 10
+ *     (Phase 5) resolved the hold: that wording is retired permanently and the
+ *     assessment promises "one prioritized leak" instead
  *   - forms post to a marked stub with no delivery
  *   - assessment CTAs are labeled fixtures
  *   - Revenue Recovery: filtered carry-over of the live page, NO dollar pricing
@@ -113,9 +115,15 @@ for (const p of PAGES) {
       if ("hidden" in p) expect(robots).toMatch(/noindex/);
       else expect(robots).not.toMatch(/noindex/);
 
-      // FOUNDER HOLD: no page promises a 60-second or "one quantified leak"
-      // assessment until the Phase 5 decision is made.
+      // Founder decision 10 (Phase 5) resolves the Phase 4 hold. The free
+      // assessment promises ONE PRIORITIZED LEAK, asserted wherever the
+      // assessment is offered. The old "60-second" / "one quantified leak"
+      // wording is retired PERMANENTLY, so its absence stays asserted on every
+      // page: without that check, "permanently" would be a comment, not a gate.
       const text = await mainText(page);
+      if (p.path === "/" || p.path === "/revenue-recovery") {
+        expect(text, "decision-10 wording").toMatch(/one prioritized leak/i);
+      }
       expect(text).not.toMatch(/60[- ]?sec/i);
       expect(text).not.toMatch(/one quantified leak/i);
 
@@ -252,8 +260,9 @@ test.describe("Home (§A4)", () => {
     ]) {
       await expect(section.getByRole("heading", { name: leak })).toBeVisible();
     }
-    const cta = section.getByRole("link", { name: "Get a free assessment" });
+    const cta = section.getByRole("link", { name: "Get your free assessment" });
     await expect(cta).toHaveAttribute("href", "/revenue-recovery#assessment");
+    await expect(section).toContainText("One prioritized leak — the one we’d fix first — and what fixing it looks like.");
     await expect(section.locator("[data-fixture-note]")).toContainText("Fixture");
   });
 
@@ -366,12 +375,17 @@ test.describe("Revenue Recovery (§A4, filtered live carry-over)", () => {
     await expect(cards.nth(0).locator("p.type-body")).toHaveText("Free. No payment, no obligation.");
   });
 
-  test("FAQ omits the held 60-second answer and the case-study question withdrawn Sep 17", async ({ page }) => {
+  test("FAQ restores 'How does the process start?' around decision 10, and keeps the Sep 17 withdrawals", async ({ page }) => {
     await visit(page, byPath("/revenue-recovery"));
     const questions = page.locator("#faq button[aria-expanded]");
-    await expect(questions).toHaveCount(6);
-    await expect(page.locator("#faq")).not.toContainText("How does the process start?");
+    await expect(questions).toHaveCount(7);
     await expect(page.locator("#faq")).toContainText("Why audit before running ads?");
+    await expect(page.locator("#faq")).not.toContainText("Are your case studies real?");
+    const start = page.locator("#faq button", { hasText: "How does the process start?" });
+    await start.click();
+    const panel = page.locator(`#${await start.getAttribute("aria-controls")}`);
+    await expect(panel).toContainText("one prioritized leak");
+    await expect(panel).not.toContainText(/60[- ]?sec|quantified/i);
   });
 
   test("assessment form: fixture-labeled, stub-marked, validates, and never claims delivery", async ({ page }) => {
@@ -384,7 +398,8 @@ test.describe("Revenue Recovery (§A4, filtered live carry-over)", () => {
       await expect(form.getByLabel(label, { exact: true })).toBeVisible();
     }
 
-    // Empty submit: field-level errors from the server envelope.
+    // Empty submit: field-level errors. Since Phase 5 they come from the shared
+    // schema before anything is sent (v0.3 §11.3, one schema, both sides).
     await form.getByRole("button", { name: "Get an Assessment" }).click();
     await expect(form.getByText("Enter your name.")).toBeVisible();
     await expect(form.getByLabel("Website", { exact: true })).toHaveAttribute("aria-invalid", "true");
@@ -397,6 +412,10 @@ test.describe("Revenue Recovery (§A4, filtered live carry-over)", () => {
     await expect(form.getByText("Enter a website address, like example.com.")).toBeVisible();
 
     await form.getByLabel("Website", { exact: true }).fill("example.com");
+    // Phase 5: the eight questions must be answered before the stub is reached.
+    for (const question of await form.locator("[data-assessment-question]").all()) {
+      await question.getByRole("radio", { name: "Somewhat true", exact: true }).check();
+    }
     const [response] = await Promise.all([
       page.waitForResponse((r) => r.url().endsWith("/api/lead")),
       form.getByRole("button", { name: "Get an Assessment" }).click(),
@@ -425,12 +444,15 @@ test.describe("Lead route stub (§6.2)", () => {
   });
 
   test("invalid fields return the field-level error envelope", async ({ page }) => {
-    const res = await post(page, { form: "assessment", submission_id: id, fields: { name: "A" } });
+    // Phase 5: the assessment left the §6.2 envelope for v0.3's AssessmentRequest
+    // (asserted in phase-5.spec.ts), so the §6.2 error envelope is checked on
+    // the contact form, which still uses it.
+    const res = await post(page, { form: "contact", submission_id: id, fields: { name: "A" } });
     expect(res.status()).toBe(422);
     const body = await res.json();
     expect(body.ok).toBe(false);
     expect(body.error.code).toBe("validation");
-    expect(Object.keys(body.error.fields).sort()).toEqual(["business", "reach", "website"]);
+    expect(Object.keys(body.error.fields).sort()).toEqual(["business", "problem", "reach"]);
   });
 
   test("malformed envelope, unknown form and missing submission_id are rejected", async ({ page }) => {
@@ -573,7 +595,7 @@ test.describe("FAQ (§A4)", () => {
     await visit(page, byPath("/faq"));
     await expect(page.locator("main h2")).toHaveText(["Digital Advertising", "Revenue Recovery", "Out-of-Home"]);
     await expect(page.locator("#digital-advertising button[aria-expanded]")).toHaveCount(4);
-    await expect(page.locator("#revenue-recovery button[aria-expanded]")).toHaveCount(6);
+    await expect(page.locator("#revenue-recovery button[aria-expanded]")).toHaveCount(7);
     // Withdrawn Sep 17 (founder rulings): no agency comparison, no case-study
     // question until a real case study exists, no strategist-load claim.
     for (const gone of [

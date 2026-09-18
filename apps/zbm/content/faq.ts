@@ -48,11 +48,16 @@ export const REVENUE_RECOVERY_FAQ: FaqItem[] = [
       "An audit-first approach that finds where your existing traffic and campaigns are losing conversions, fixes those leaks, then scales what’s proven to work.",
   },
   /*
-   * FOUNDER HOLD (Phase 4): "How does the process start?" — "A free 60-second
-   * assessment identifies likely leak points before you commit to anything
-   * paid." It promises what the assessment returns and how fast, which is the
-   * undecided Phase 5 question. Omitted until that decision is made.
+   * Held in Phase 4 ("A free 60-second assessment identifies likely leak
+   * points…") because it promised what the assessment returns and how fast.
+   * Restored in Phase 5, rewritten around founder decision 10: one prioritized
+   * leak, no timing claim, and no dollar figure.
    */
+  {
+    question: "How does the process start?",
+    answer:
+      "With the free assessment. Eight questions about your business return one prioritized leak — the one we’d fix first — and what fixing it looks like. It doesn’t put a dollar figure on it, because from eight answers that would be a guess.",
+  },
   {
     question: "What happens after the free assessment?",
     answer:
