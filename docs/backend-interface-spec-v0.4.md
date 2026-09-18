@@ -4,7 +4,7 @@ Reconciled with Phase 1 domain contracts — MINIMUM GOVERNED PILOT model
 
 **Status: DRAFT_FOR_BACKEND_AND_FRONTEND_RECONCILIATION.** This is not an approved API contract, not production-ready, and does not authorize any real money movement or live publication. Phase 1 uses simulated/fake adapters throughout. This supersedes v1 — v1's core entities were directionally right but under-specified on money integrity, fraud evidence, and tenancy; those corrections are incorporated below.
 
-**v0.4 changes (2026-09-18).** One addition: **§12 (new)**, the AI Visibility Readiness Check, carrying founder decision 11 (`docs/TOOLING.md`). Sections 1–11 are carried over from v0.3 **unchanged, byte for byte**, including §11 as amended after its certification. Most of §12 is **PROPOSED**: the eight categories, their tie-break order, the eight questions and the Visibility Gap Library copy. Those are gated by the auditor first and then approved by the founder, all together. Status is unchanged: DRAFT. Nothing in §12 is built until v0.4 is certified.
+**v0.4 changes (2026-09-18).** One addition: **§12 (new)**, the AI Visibility Readiness Check, carrying founder decision 11 (`docs/TOOLING.md`). Sections 1–11 are carried over from v0.3 **unchanged, byte for byte**, including §11 as amended after its certification. The auditor certified §12 at `b440211` with one condition, C3. The founder then approved every item first written as PROPOSED — the eight categories, their tie-break order, the eight questions and the Visibility Gap Library copy — with the business-profile wording changed and the routing decided (2026-09-18). C3 is applied in §12.8. Status is unchanged: DRAFT. Nothing in §12 is built until the founder gives the go for the build.
 
 **v0.3 changes (2026-09-18).** Written by the frontend build session under explicit founder delegation (2026-09-18), to carry the founder ruling of 2026-09-17 on the free assessment — recorded as founder decision 10 in `docs/TOOLING.md`. Sections 1–9 are carried over from v0.2 **unchanged, byte for byte**; only two things move:
 
@@ -505,7 +505,7 @@ VisibilityGapRuleSet {
 }
 
 VisibilityGapCategory = enum ["business_profile", "entity_consistency", "reviews", "crawlability",
-                              "structured_data", "answer_content", "brand_citations", "local_listings"]   // PROPOSED
+                              "structured_data", "answer_content", "brand_citations", "local_listings"]   // founder-approved 2026-09-18
 
 ReadinessQuestion {
   id: string                                // stable key; equal to its category
@@ -515,47 +515,49 @@ ReadinessQuestion {
 }
 ```
 
-### 12.4 The Visibility Gap Library — PROPOSED copy, the source the rule set derives from
+### 12.4 The Visibility Gap Library — founder-approved copy, the source the rule set derives from
 
-§11 could derive its copy because the Revenue Leak Library was already published, certified site copy before any rule set existed. **Nothing equivalent exists for §12.** So the library below is new customer-facing copy. It is written here as PROPOSED, gated as copy by the auditor, approved by the founder, then **published on the Search Intelligence page and certified there before any rule set derives from it.** The published page is the source; this table is only the proposal.
+§11 could derive its copy because the Revenue Leak Library was already published, certified site copy before any rule set existed. **Nothing equivalent exists for §12.** So the library below is new customer-facing copy. It was proposed here, gated as copy by the auditor and approved by the founder on 2026-09-18. It is still **published on the Search Intelligence page and certified there before any rule set derives from it.** The published page is the source; this table is the approved text to publish.
 
-Business Profile and Local Listings are hard to tell apart from the outside, since a business profile is itself a listing, so the library defines them apart. **Business Profile** is the business's own primary profile. **Local Listings** is its presence on the other directories and map apps beyond that profile. **Entity Consistency** is about whether details *match* everywhere, not whether they exist.
+**Business-profile wording (founder ruling, 2026-09-18, on the auditor's copy finding).** The proposal said "your own business profile", which a respondent who doesn't know the term would have to guess at. It now describes the profile rather than naming a vendor: **"business profile on maps and in search"**, used the same way in all four places the term appears (Business Profile's row and question, and Local Listings' row and question). Naming a vendor product was declined, since it would go out of date if the search landscape shifts.
+
+Business Profile and Local Listings are hard to tell apart from the outside, since a business profile is itself a listing, so the library defines them apart. **Business Profile** is the business's main profile on maps and in search. **Local Listings** is its presence on the other directories and map apps beyond that profile. **Entity Consistency** is about whether details *match* everywhere, not whether they exist.
 
 | Category | Name | Description (the `rationale`) | Fix direction (the `remediation`) |
 |---|---|---|---|
-| `business_profile` | Business Profile Gap | The basic facts about your business — what you do, where, and when you’re open — are incomplete or out of date on your own business profile. | Claim your business profile, complete every field, and keep it current. |
+| `business_profile` | Business Profile Gap | The basic facts about your business — what you do, where, and when you’re open — are incomplete or out of date on your business profile on maps and in search. | Claim your business profile on maps and in search, complete every field, and keep it current. |
 | `entity_consistency` | Entity Consistency Gap | Your business name, address, phone number or description reads differently from one place to the next. | Use one exact name, address, phone number and description everywhere your business appears. |
 | `reviews` | Reviews Gap | You have few recent reviews, or the reviews you get go unanswered. | Ask every satisfied customer for a review, and respond to the reviews you receive. |
 | `crawlability` | Crawlability Gap | Automated crawlers may not be able to reach or read the pages that matter most on your site. | Check your site’s crawler rules and sitemap so your key pages can be reached and read. |
 | `structured_data` | Structured Data Gap | Your website doesn’t label its key facts in a machine-readable way. | Add structured data for your business, your services and your most-asked questions. |
 | `answer_content` | Answer Content Gap | Your website doesn’t directly answer the questions customers actually ask. | Publish clear, specific answers to the questions your customers ask most. |
 | `brand_citations` | Brand Citations Gap | Few other credible websites mention or link to your business. | Earn mentions on credible local and industry websites. |
-| `local_listings` | Local Listings Gap | Your business is missing from the directories and map apps beyond your own business profile. | Get listed in the directories and map apps that matter for your area and industry. |
+| `local_listings` | Local Listings Gap | Your business is missing from the directories and map apps beyond your business profile on maps and in search. | Get listed in the directories and map apps that matter for your area and industry. |
 
 The descriptions state what a gap *is*, never that any engine currently misses the business. Consistent with §12.1, none of them claims an observed result.
 
-### 12.5 The eight questions — PROPOSED
+### 12.5 The eight questions — founder-approved
 
 One statement per category. A statement describes a problem, so "Very true" means the gap is present, as in §11.3. Each is written so a non-technical owner can answer from what they know. That matters most for Crawlability and Structured Data, which an owner cannot inspect. Those two are framed as *whether they have checked or added something*, which they do know, rather than as the technical state of their site, which they would only be guessing at.
 
 | id | Statement shown to the respondent |
 |---|---|
-| `business_profile` | Our business profile is incomplete, or hasn’t been updated in months. |
+| `business_profile` | Our business profile on maps and in search is incomplete, or hasn’t been updated in months. |
 | `entity_consistency` | Our business name, address or phone number isn’t written the same way everywhere. |
 | `reviews` | We have few recent reviews, or we don’t respond to the ones we get. |
 | `crawlability` | We haven’t checked whether search engines and AI crawlers can reach our key pages. |
 | `structured_data` | We haven’t added structured data (schema markup) to our website. |
 | `answer_content` | Our website doesn’t directly answer the questions customers ask us most. |
 | `brand_citations` | Few other websites mention or link to our business. |
-| `local_listings` | We’re missing from directories and map apps beyond our own business profile. |
+| `local_listings` | We’re missing from directories and map apps beyond our business profile on maps and in search. |
 
 Answered on one scale throughout: **Not true · Somewhat true · Very true**.
 
-### 12.6 The rule and the tie-break order — the order is PROPOSED
+### 12.6 The rule and the tie-break order — the order is founder-approved
 
 The rule is §11.4 exactly, applied to this taxonomy.
 
-**PROPOSED order:** Business Profile, Entity Consistency, Reviews, Crawlability, Structured Data, Answer Content, Brand Citations, Local Listings.
+**Order — founder-approved 2026-09-18, as proposed:** Business Profile, Entity Consistency, Reviews, Crawlability, Structured Data, Answer Content, Brand Citations, Local Listings.
 
 **Its principle is its own, not §11's.** §11.4 ranks leaks that lose traffic already paid for above anything that recommends buying more. That principle has no equivalent here, because none of these gaps is about spend. This order ranks by **highest leverage and cheapest to fix first**: a business profile is free and fast to complete and underpins most of the rest, while earning citations and listings takes the longest. Review it on that basis, not as a copy of §11's.
 
@@ -592,12 +594,18 @@ Invariants, by construction, in addition to everything inherited in §12.2:
 
 - **No field or string states or implies what any AI engine currently says, shows, cites or ranks for the business.** A result reports a readiness gap the prospect described. It is never an observation.
 - `rationale` and `remediation` equal the published Visibility Gap Library, character for character. The Phase 5 gate asserts it for all eight categories.
-- Both outcomes route to **Talk to Us**. `insufficient_signal` never invents a gap. Whether it also routes to the page's `#pricing` section is left to the founder with the questions.
+- **Routing (founder ruling, 2026-09-18).** `gap_identified` routes to **Talk to Us** and to the page's **`#pricing`** section: a found gap makes the paid product an honest next step. `insufficient_signal` routes to **Talk to Us only**, because sending "we found no gap" to pricing would be pressure, not a next step. It never invents a gap.
 
 ### 12.8 Gate conditions for the build
 
 - **Derivation, as C2:** the fixture rule set's strings equal the published Visibility Gap Library character for character, for all eight.
-- **Retirement, as decision 10's:** the gate fails any page carrying "whether and how your business currently shows up" or the retired "Free AI Visibility Check" framing, so the retired promise cannot return through a content edit. Until the build, the unlinked Search Intelligence page still carries that line, in its "Free AI Visibility Check" section and in one FAQ answer. The build removes it.
+- **Retirement, as decision 10's — condition C3, with exact strings.** The gate fails any rendered ZBM page whose text matches any of these, so the retired promise and the retired name cannot return through a content edit:
+  1. `whether and how your business currently shows up` — the retired promise;
+  2. `Free AI Visibility Check` — the retired section label;
+  3. `a free AI Visibility Check is available now` — the retired FAQ line;
+  4. `Free Visibility Check` — the two retired CTA buttons, "Get Your Free Visibility Check". This one is not in the auditor's three; without it both old buttons would pass the gate unchanged.
+
+  As one pattern: `/whether and how your business currently shows up|free (ai )?visibility check/i`. It does not match the new name, "AI Visibility Readiness Check", since "Readiness" sits between "Visibility" and "Check". **The FAQ answer is rewritten, not just stripped.** "A free AI Visibility Check is available now" is currently false, since nothing is available, so the build replaces the whole answer with one that is true. Until the build, the unlinked Search Intelligence page still carries all four; the build removes them.
 - **Separation:** no §12 type, field, status or rendered string contains "leak", and §11's and §12's rule sets share no taxonomy.
 
 ### 12.9 Not in this contract

@@ -751,6 +751,37 @@ eight questions and the Visibility Gap Library copy. That library has to be publ
 Search Intelligence page and certified as copy before any rule set derives from it. §11 had a
 certified library to derive from; §12 does not. Nothing is built until v0.4 is certified, and
 CLAUDE.md stays on v0.3 until then.
+
+**v0.4 gate at `b440211`: CERTIFIED** as the Phase 5 Visibility Check contract, with condition C3.
+The auditor accepted all three places §12 went past its draft (the library is published and
+certified before derivation; Business Profile and Local Listings defined apart; Crawlability and
+Structured Data asked as "have you checked / added"), and the correction to its framing of the
+order's principle.
+
+*C3, applied:* §12.8's retirement check names exact, regex-testable strings rather than
+"framing". The auditor gave three: the promise, the section label, and the FAQ line, which is
+also currently false and so must be rewritten, not stripped. The build session found a fourth
+before applying it: both CTA buttons read "Get Your Free Visibility Check", which none of the three
+strings match, so a gate on only those three would have passed with both old buttons in place.
+The founder chose C3 plus that fourth string.
+
+**Founder rulings on §12, 2026-09-18, taken in the build window:**
+- *Business-profile wording: described, not named*, in all four places the term appears. The
+  auditor's copy finding named two (Business Profile's question and library row). The build session
+  found the same undefined "own business profile" in Local Listings' row and question too, and the
+  founder ruled it changed in all four. Now "business profile on maps and in search". Naming Google
+  was declined as the first vendor product in customer-facing rule copy.
+- *Everything else first written as PROPOSED: approved as proposed* — the eight categories, the
+  tie-break order, and the remaining questions and library rows.
+- *Routing:* `gap_identified` goes to Talk to Us and `#pricing`; `insufficient_signal` goes to Talk
+  to Us only, so an empty result never pushes toward pricing.
+
+**Build, not started — each step needs its own go:** (1) publish the Visibility Gap Library on the
+Search Intelligence page, as its own small copy gate; (2) rule set, form and result against
+fixtures, pinning the expected `rules_hash` per version for both rule sets in one pass, as the
+auditor asked; (3) remove the four retired strings, rewrite the false FAQ answer, add the C3 gate;
+(4) bundle. The auditor's recommendation to add `check: "revenue_leak_assessment"` to §11.5 is for
+the next spec revision, since it changes certified assessment code and tests.
 2. **The gate holds.** One file, not two: `e2e/tests/phase-4-zbm.spec.ts:116-120`.
    `phase-4-zbc.spec.ts` never enforced them and should not start — the assessment is a ZBM surface.
    The two `not.toMatch` holds become positive assertions on the new wording.
