@@ -346,7 +346,7 @@ test.describe("Launch a Campaign (§B4)", () => {
   test("keeps the honesty note word for word", async ({ page }) => {
     await visit(page, byPath("/launch-a-campaign"));
     await expect(page.locator("[data-honesty-note]")).toHaveText(
-      "Z Best Clips is a new operation built on proven mechanics — the same clipping and distribution model driving results industry-wide. We’re building our own case studies now, one campaign at a time, and we’d rather be straight with you about that than pretend otherwise.",
+      "Z Best Clips is a new operation using an established model — the same clipping and distribution mechanics already in use across the industry. We’re building our own case studies now, one campaign at a time, and we’d rather be straight with you about that than pretend otherwise.",
     );
   });
 
@@ -478,6 +478,13 @@ test.describe("Copy revision (ZBC gate CONDITIONAL at c35ee1d — founder ruling
     expect(about).toContain("We’ve done the sales floor");
     await visit(page, byPath("/faq"));
     expect(await mainText(page)).not.toContain("proven industry-wide mechanics");
+    // Founder decision 5: the honesty note describes what exists, and claims no
+    // outcome nobody here has measured.
+    await visit(page, byPath("/launch-a-campaign"));
+    const note = await page.locator("[data-honesty-note]").innerText();
+    for (const gone of ["proven", "driving results"]) {
+      expect(note, `honesty note still says "${gone}"`).not.toContain(gone);
+    }
   });
 });
 

@@ -503,11 +503,20 @@ Brands, Pricing, Become a Clipper, Launch a Campaign, About, Media Kit, FAQ.
    `apps/zbc/app/about/page.tsx:16` ("no founder name"), so the founder chose removal. The About
    page keeps the background in company voice, which that same direction permits.
 
-**Open on ZBC, raised and deliberately not fixed:** the Launch a Campaign honesty note still says
-"built on proven mechanics — the same clipping and distribution model driving results
-industry-wide". That is the same unsupported "proven" the copy audit struck from the FAQ, but it
-was not in the fix list, the note is brief-mandated (§B4) and asserted word for word by the gate,
-and mutation M5 exists to stop it drifting. It needs a ruling; changing it changes the assertion.
+5. **Honesty note revised** (founder ruling, build window, Sep 17), closing the item raised and
+   held open one cycle earlier. It said "a new operation built on **proven** mechanics — the same
+   clipping and distribution model **driving results** industry-wide", which is the same
+   unsupported claim the copy audit struck from the FAQ two files away. It now reads "a new
+   operation using an established model — the same clipping and distribution mechanics already in
+   use across the industry"; the rest of the paragraph is unchanged. "Established" and "already in
+   use" describe what exists, where "proven" and "driving results" asserted an outcome nobody here
+   has measured — and the revised wording now agrees with the FAQ answer shipped in decision 3.
+
+   **This supersedes the §B4 wording.** The brief mandates that the honesty note exists and stays
+   on Launch a Campaign, which it does; it does not freeze wording against a founder ruling made
+   after the brief was written. The gate's word-for-word assertion and mutation M5 moved to the new
+   text in the same commit, and a negative check now fails the note if "proven" or "driving
+   results" ever returns.
 
 **Rules enforced by the gate on every ZBC page:** a real-company blocklist (platforms §B4 names
 are allowed); no dollar figure on any client-facing page, and the clipper starting rates only on

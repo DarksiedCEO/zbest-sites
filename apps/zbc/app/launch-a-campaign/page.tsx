@@ -38,8 +38,8 @@ export default function LaunchACampaignPage() {
       <PageSection id="honesty" label="Honesty note">
         <blockquote data-honesty-note className="border-l-2 border-accent pl-6">
           <p className="type-body-lead italic text-text-primary">
-            Z Best Clips is a new operation built on proven mechanics — the same clipping and
-            distribution model driving results industry-wide. We&rsquo;re building our own
+            Z Best Clips is a new operation using an established model — the same clipping and
+            distribution mechanics already in use across the industry. We&rsquo;re building our own
             case studies now, one campaign at a time, and we&rsquo;d rather be straight with
             you about that than pretend otherwise.
           </p>
