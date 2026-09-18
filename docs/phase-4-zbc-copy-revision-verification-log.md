@@ -2967,3 +2967,492 @@ That is the same unsupported "proven" the copy audit struck from the FAQ ("built
 industry-wide mechanics"), but it was not in the fix list, the note is brief-mandated (§B4) and
 asserted word for word by the gate, and M5 exists to stop it drifting. Left for a ruling rather
 than widened into unasked scope. If it should change, the gate assertion changes with it.
+
+## Appended after the founder ruling on the honesty note — 28ef158
+
+The item flagged above as "Flagged, not changed" was ruled on in the build window and is now
+closed. It is recorded as ZBC founder decision 5 in `docs/TOOLING.md`; the paragraph that
+recorded it as open has been replaced by that decision.
+
+### The change
+
+Was: "Z Best Clips is a new operation built on **proven** mechanics — the same clipping and
+distribution model **driving results** industry-wide."
+
+Now: "Z Best Clips is a new operation using an established model — the same clipping and
+distribution mechanics already in use across the industry."
+
+The rest of the paragraph is untouched. "Established" and "already in use" describe what
+exists; "proven" and "driving results" asserted an outcome nobody here has measured. The new
+wording also agrees with the FAQ answer shipped at `a411e72` ("The clipping model is
+established across the industry"), which the old note contradicted two files away.
+
+**This supersedes the §B4 wording deliberately.** The brief mandates that the note exists and
+stays on Launch a Campaign, which it does. It does not freeze wording against a founder ruling
+made after the brief was written. Recorded as such in TOOLING.md rather than left to look like
+drift.
+
+### Gate moved with it, and was proven to fail without it
+
+The word-for-word assertion now holds the new text, and a negative check was added that fails
+the note if "proven" or "driving results" returns. Two mutations, each applied alone against
+the committed tree of `28ef158`:
+
+| # | Mutation | Failing tests | Assertion |
+|---|---|---|---|
+| M5 | honesty note reworded away from the admission (the original mutation, retargeted) | `keeps the honesty note word for word` | `toHaveText` |
+| M12 | the retired outcome claim restored verbatim | `keeps the honesty note word for word` AND `ZBC does not position against agencies, and drops the unsupported 'proven'` | `toHaveText`, and `Error: honesty note still says "proven"` |
+
+M12 fails BOTH checks on BOTH viewports — four failures — so the old wording cannot return
+through either the exact-text assertion or the word-level one.
+
+```
+#### M5
+=== M5 diff ===
+ apps/zbc/app/launch-a-campaign/page.tsx | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+
+  ⚠  Gate running against a DIRTY tree — screenshots will not match 28ef158.
+
+
+Running 78 tests using 1 worker
+
+  ✓   1 [desktop-1440] › tests/phase-4-zbc.spec.ts:111:5 › / › renders, carries its metadata, holds the site rules, and is captured (237ms)
+  ✓   2 [desktop-1440] › tests/phase-4-zbc.spec.ts:111:5 › /entertainment › renders, carries its metadata, holds the site rules, and is captured (188ms)
+  ✓   3 [desktop-1440] › tests/phase-4-zbc.spec.ts:111:5 › /brands › renders, carries its metadata, holds the site rules, and is captured (193ms)
+  ✓   4 [desktop-1440] › tests/phase-4-zbc.spec.ts:111:5 › /pricing › renders, carries its metadata, holds the site rules, and is captured (185ms)
+  ✓   5 [desktop-1440] › tests/phase-4-zbc.spec.ts:111:5 › /become-a-clipper › renders, carries its metadata, holds the site rules, and is captured (218ms)
+  ✓   6 [desktop-1440] › tests/phase-4-zbc.spec.ts:111:5 › /launch-a-campaign › renders, carries its metadata, holds the site rules, and is captured (205ms)
+  ✓   7 [desktop-1440] › tests/phase-4-zbc.spec.ts:111:5 › /about › renders, carries its metadata, holds the site rules, and is captured (170ms)
+  ✓   8 [desktop-1440] › tests/phase-4-zbc.spec.ts:111:5 › /media-kit › renders, carries its metadata, holds the site rules, and is captured (173ms)
+  ✓   9 [desktop-1440] › tests/phase-4-zbc.spec.ts:111:5 › /faq › renders, carries its metadata, holds the site rules, and is captured (196ms)
+  ✓  10 [desktop-1440] › tests/phase-4-zbc.spec.ts:185:3 › / — every same-site link resolves (112ms)
+  ✓  11 [desktop-1440] › tests/phase-4-zbc.spec.ts:185:3 › /entertainment — every same-site link resolves (99ms)
+  ✓  12 [desktop-1440] › tests/phase-4-zbc.spec.ts:185:3 › /brands — every same-site link resolves (100ms)
+  ✓  13 [desktop-1440] › tests/phase-4-zbc.spec.ts:185:3 › /pricing — every same-site link resolves (96ms)
+  ✓  14 [desktop-1440] › tests/phase-4-zbc.spec.ts:185:3 › /become-a-clipper — every same-site link resolves (105ms)
+  ✓  15 [desktop-1440] › tests/phase-4-zbc.spec.ts:185:3 › /launch-a-campaign — every same-site link resolves (104ms)
+  ✓  16 [desktop-1440] › tests/phase-4-zbc.spec.ts:185:3 › /about — every same-site link resolves (98ms)
+  ✓  17 [desktop-1440] › tests/phase-4-zbc.spec.ts:185:3 › /media-kit — every same-site link resolves (99ms)
+  ✓  18 [desktop-1440] › tests/phase-4-zbc.spec.ts:185:3 › /faq — every same-site link resolves (98ms)
+  ✓  19 [desktop-1440] › tests/phase-4-zbc.spec.ts:202:3 › How It Works (§B4, served at /) › /how-it-works redirects permanently to / (30ms)
+  ✓  20 [desktop-1440] › tests/phase-4-zbc.spec.ts:208:3 › How It Works (§B4, served at /) › the process runs on the timeline: horizontal at 1440, vertical at 390 (110ms)
+  ✓  21 [desktop-1440] › tests/phase-4-zbc.spec.ts:231:3 › How It Works (§B4, served at /) › the two models carry their own focus colors (107ms)
+  ✓  22 [desktop-1440] › tests/phase-4-zbc.spec.ts:239:3 › How It Works (§B4, served at /) › three illustrative example cards: badged, accented, and exactly the §B4 figures (131ms)
+  ✓  23 [desktop-1440] › tests/phase-4-zbc.spec.ts:263:3 › How It Works (§B4, served at /) › view counters tick once on entry, and not at all with reduced motion (1.4s)
+  ✓  24 [desktop-1440] › tests/phase-4-zbc.spec.ts:275:3 › Pricing (§B4) › five client levers, bundled, and no clipper payout split (97ms)
+  ✓  25 [desktop-1440] › tests/phase-4-zbc.spec.ts:290:3 › Become a Clipper (§B4) › five steps, both payout models in their focus colors, and the disclosed starting rates (101ms)
+  ✓  26 [desktop-1440] › tests/phase-4-zbc.spec.ts:307:3 › Become a Clipper (§B4) › Browse Active Campaigns opens the labeled waitlist form, which posts to the stub (222ms)
+  ✘  27 [desktop-1440] › tests/phase-4-zbc.spec.ts:346:3 › Launch a Campaign (§B4) › keeps the honesty note word for word (5.1s)
+  ✓  28 [desktop-1440] › tests/phase-4-zbc.spec.ts:353:3 › Launch a Campaign (§B4) › four steps, both ways to start, and a form with the §6.1 fields posting to the stub (268ms)
+  ✓  29 [desktop-1440] › tests/phase-4-zbc.spec.ts:389:3 › Lead route stub (§6.2, ZBC) › rejects ZBM's form names and unknown focus or platform values (39ms)
+  ✓  30 [desktop-1440] › tests/phase-4-zbc.spec.ts:407:3 › Lead route stub (§6.2, ZBC) › valid submissions and a filled honeypot are acknowledged as a stub (38ms)
+  ✓  31 [desktop-1440] › tests/phase-4-zbc.spec.ts:421:3 › About (§B4) › company voice only: no name, no figures, both CTAs (90ms)
+  ✓  32 [desktop-1440] › tests/phase-4-zbc.spec.ts:434:3 › Copy revision (ZBC gate CONDITIONAL at c35ee1d — founder rulings, Sep 17) › no founding-year claim survives on any ZBC page or the shared dev gallery (359ms)
+  ✓  33 [desktop-1440] › tests/phase-4-zbc.spec.ts:445:3 › Copy revision (ZBC gate CONDITIONAL at c35ee1d — founder rulings, Sep 17) › clip volume says dozens everywhere, never hundreds (361ms)
+  ✓  34 [desktop-1440] › tests/phase-4-zbc.spec.ts:457:3 › Copy revision (ZBC gate CONDITIONAL at c35ee1d — founder rulings, Sep 17) › nothing claims creators are paid only on views — Brands carry a guaranteed per-post fee (177ms)
+  ✓  35 [desktop-1440] › tests/phase-4-zbc.spec.ts:474:3 › Copy revision (ZBC gate CONDITIONAL at c35ee1d — founder rulings, Sep 17) › ZBC does not position against agencies, and drops the unsupported 'proven' (145ms)
+  ✓  36 [desktop-1440] › tests/phase-4-zbc.spec.ts:492:3 › Media Kit (§B4) › facts as ledger rows, assets on request, press address a labeled non-link placeholder (94ms)
+  ✓  37 [desktop-1440] › tests/phase-4-zbc.spec.ts:510:3 › FAQ (§B4) › all ten questions, operable, and no payout rates (129ms)
+  ✓  38 [desktop-1440] › tests/phase-4-zbc.spec.ts:523:3 › Site-wide (ZBC chunk) › clipper payout rates appear on Become a Clipper and nowhere else (47ms)
+  ✓  39 [desktop-1440] › tests/phase-4-zbc.spec.ts:531:3 › Site-wide (ZBC chunk) › sitemap lists exactly the nine built public pages; /how-it-works is not a second URL (30ms)
+  ✓  40 [mobile-390] › tests/phase-4-zbc.spec.ts:111:5 › / › renders, carries its metadata, holds the site rules, and is captured (650ms)
+  ✓  41 [mobile-390] › tests/phase-4-zbc.spec.ts:111:5 › /entertainment › renders, carries its metadata, holds the site rules, and is captured (285ms)
+  ✓  42 [mobile-390] › tests/phase-4-zbc.spec.ts:111:5 › /brands › renders, carries its metadata, holds the site rules, and is captured (268ms)
+  ✓  43 [mobile-390] › tests/phase-4-zbc.spec.ts:111:5 › /pricing › renders, carries its metadata, holds the site rules, and is captured (276ms)
+  ✓  44 [mobile-390] › tests/phase-4-zbc.spec.ts:111:5 › /become-a-clipper › renders, carries its metadata, holds the site rules, and is captured (370ms)
+  ✓  45 [mobile-390] › tests/phase-4-zbc.spec.ts:111:5 › /launch-a-campaign › renders, carries its metadata, holds the site rules, and is captured (314ms)
+  ✓  46 [mobile-390] › tests/phase-4-zbc.spec.ts:111:5 › /about › renders, carries its metadata, holds the site rules, and is captured (264ms)
+  ✓  47 [mobile-390] › tests/phase-4-zbc.spec.ts:111:5 › /media-kit › renders, carries its metadata, holds the site rules, and is captured (302ms)
+  ✓  48 [mobile-390] › tests/phase-4-zbc.spec.ts:111:5 › /faq › renders, carries its metadata, holds the site rules, and is captured (273ms)
+  ✓  49 [mobile-390] › tests/phase-4-zbc.spec.ts:185:3 › / — every same-site link resolves (204ms)
+  ✓  50 [mobile-390] › tests/phase-4-zbc.spec.ts:185:3 › /entertainment — every same-site link resolves (187ms)
+  ✓  51 [mobile-390] › tests/phase-4-zbc.spec.ts:185:3 › /brands — every same-site link resolves (187ms)
+  ✓  52 [mobile-390] › tests/phase-4-zbc.spec.ts:185:3 › /pricing — every same-site link resolves (186ms)
+  ✓  53 [mobile-390] › tests/phase-4-zbc.spec.ts:185:3 › /become-a-clipper — every same-site link resolves (195ms)
+  ✓  54 [mobile-390] › tests/phase-4-zbc.spec.ts:185:3 › /launch-a-campaign — every same-site link resolves (195ms)
+  ✓  55 [mobile-390] › tests/phase-4-zbc.spec.ts:185:3 › /about — every same-site link resolves (189ms)
+  ✓  56 [mobile-390] › tests/phase-4-zbc.spec.ts:185:3 › /media-kit — every same-site link resolves (185ms)
+  ✓  57 [mobile-390] › tests/phase-4-zbc.spec.ts:185:3 › /faq — every same-site link resolves (190ms)
+  ✓  58 [mobile-390] › tests/phase-4-zbc.spec.ts:202:3 › How It Works (§B4, served at /) › /how-it-works redirects permanently to / (113ms)
+  ✓  59 [mobile-390] › tests/phase-4-zbc.spec.ts:208:3 › How It Works (§B4, served at /) › the process runs on the timeline: horizontal at 1440, vertical at 390 (210ms)
+  ✓  60 [mobile-390] › tests/phase-4-zbc.spec.ts:231:3 › How It Works (§B4, served at /) › the two models carry their own focus colors (210ms)
+  ✓  61 [mobile-390] › tests/phase-4-zbc.spec.ts:239:3 › How It Works (§B4, served at /) › three illustrative example cards: badged, accented, and exactly the §B4 figures (227ms)
+  ✓  62 [mobile-390] › tests/phase-4-zbc.spec.ts:263:3 › How It Works (§B4, served at /) › view counters tick once on entry, and not at all with reduced motion (1.5s)
+  ✓  63 [mobile-390] › tests/phase-4-zbc.spec.ts:275:3 › Pricing (§B4) › five client levers, bundled, and no clipper payout split (188ms)
+  ✓  64 [mobile-390] › tests/phase-4-zbc.spec.ts:290:3 › Become a Clipper (§B4) › five steps, both payout models in their focus colors, and the disclosed starting rates (196ms)
+  ✓  65 [mobile-390] › tests/phase-4-zbc.spec.ts:307:3 › Become a Clipper (§B4) › Browse Active Campaigns opens the labeled waitlist form, which posts to the stub (314ms)
+  ✘  66 [mobile-390] › tests/phase-4-zbc.spec.ts:346:3 › Launch a Campaign (§B4) › keeps the honesty note word for word (5.2s)
+  ✓  67 [mobile-390] › tests/phase-4-zbc.spec.ts:353:3 › Launch a Campaign (§B4) › four steps, both ways to start, and a form with the §6.1 fields posting to the stub (455ms)
+  ✓  68 [mobile-390] › tests/phase-4-zbc.spec.ts:389:3 › Lead route stub (§6.2, ZBC) › rejects ZBM's form names and unknown focus or platform values (126ms)
+  ✓  69 [mobile-390] › tests/phase-4-zbc.spec.ts:407:3 › Lead route stub (§6.2, ZBC) › valid submissions and a filled honeypot are acknowledged as a stub (120ms)
+  ✓  70 [mobile-390] › tests/phase-4-zbc.spec.ts:421:3 › About (§B4) › company voice only: no name, no figures, both CTAs (186ms)
+  ✓  71 [mobile-390] › tests/phase-4-zbc.spec.ts:434:3 › Copy revision (ZBC gate CONDITIONAL at c35ee1d — founder rulings, Sep 17) › no founding-year claim survives on any ZBC page or the shared dev gallery (504ms)
+  ✓  72 [mobile-390] › tests/phase-4-zbc.spec.ts:445:3 › Copy revision (ZBC gate CONDITIONAL at c35ee1d — founder rulings, Sep 17) › clip volume says dozens everywhere, never hundreds (508ms)
+  ✓  73 [mobile-390] › tests/phase-4-zbc.spec.ts:457:3 › Copy revision (ZBC gate CONDITIONAL at c35ee1d — founder rulings, Sep 17) › nothing claims creators are paid only on views — Brands carry a guaranteed per-post fee (284ms)
+  ✓  74 [mobile-390] › tests/phase-4-zbc.spec.ts:474:3 › Copy revision (ZBC gate CONDITIONAL at c35ee1d — founder rulings, Sep 17) › ZBC does not position against agencies, and drops the unsupported 'proven' (247ms)
+  ✓  75 [mobile-390] › tests/phase-4-zbc.spec.ts:492:3 › Media Kit (§B4) › facts as ledger rows, assets on request, press address a labeled non-link placeholder (198ms)
+  ✓  76 [mobile-390] › tests/phase-4-zbc.spec.ts:510:3 › FAQ (§B4) › all ten questions, operable, and no payout rates (217ms)
+  ✓  77 [mobile-390] › tests/phase-4-zbc.spec.ts:523:3 › Site-wide (ZBC chunk) › clipper payout rates appear on Become a Clipper and nowhere else (136ms)
+  ✓  78 [mobile-390] › tests/phase-4-zbc.spec.ts:531:3 › Site-wide (ZBC chunk) › sitemap lists exactly the nine built public pages; /how-it-works is not a second URL (118ms)
+
+
+  1) [desktop-1440] › tests/phase-4-zbc.spec.ts:346:3 › Launch a Campaign (§B4) › keeps the honesty note word for word 
+
+    Error: expect(locator).toHaveText(expected) failed
+
+    Locator:  locator('[data-honesty-note]')
+    Expected: "Z Best Clips is a new operation using an established model — the same clipping and distribution mechanics already in use across the industry. We’re building our own case studies now, one campaign at a time, and we’d rather be straight with you about that than pretend otherwise."
+    Received: "Z Best Clips is an established leader in short-form distribution — the same clipping and distribution mechanics already in use across the industry. We’re building our own case studies now, one campaign at a time, and we’d rather be straight with you about that than pretend otherwise."
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveText" locator('[data-honesty-note]') with timeout 5000ms
+      - waiting for locator('[data-honesty-note]')
+        14 × locator resolved to <blockquote data-honesty-note="true" class="border-l-2 border-accent pl-6">…</blockquote>
+           - unexpected value "Z Best Clips is an established leader in short-form distribution — the same clipping and distribution mechanics already in use across the industry. We’re building our own case studies now, one campaign at a time, and we’d rather be straight with you about that than pretend otherwise."
+
+
+      346 |   test("keeps the honesty note word for word", async ({ page }) => {
+      347 |     await visit(page, byPath("/launch-a-campaign"));
+    > 348 |     await expect(page.locator("[data-honesty-note]")).toHaveText(
+          |                                                       ^
+      349 |       "Z Best Clips is a new operation using an established model — the same clipping and distribution mechanics already in use across the industry. We’re building our own case studies now, one campaign at a time, and we’d rather be straight with you about that than pretend otherwise.",
+      350 |     );
+      351 |   });
+        at /Users/andrelove/WebstormProjects/zbest-sites/e2e/tests/phase-4-zbc.spec.ts:348:55
+
+    Error Context: test-results/phase-4-zbc-Launch-a-Campa-61eec--honesty-note-word-for-word-desktop-1440/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/phase-4-zbc-Launch-a-Campa-61eec--honesty-note-word-for-word-desktop-1440/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/phase-4-zbc-Launch-a-Campa-61eec--honesty-note-word-for-word-desktop-1440/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [mobile-390] › tests/phase-4-zbc.spec.ts:346:3 › Launch a Campaign (§B4) › keeps the honesty note word for word 
+
+    Error: expect(locator).toHaveText(expected) failed
+
+    Locator:  locator('[data-honesty-note]')
+    Expected: "Z Best Clips is a new operation using an established model — the same clipping and distribution mechanics already in use across the industry. We’re building our own case studies now, one campaign at a time, and we’d rather be straight with you about that than pretend otherwise."
+    Received: "Z Best Clips is an established leader in short-form distribution — the same clipping and distribution mechanics already in use across the industry. We’re building our own case studies now, one campaign at a time, and we’d rather be straight with you about that than pretend otherwise."
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveText" locator('[data-honesty-note]') with timeout 5000ms
+      - waiting for locator('[data-honesty-note]')
+        14 × locator resolved to <blockquote data-honesty-note="true" class="border-l-2 border-accent pl-6">…</blockquote>
+           - unexpected value "Z Best Clips is an established leader in short-form distribution — the same clipping and distribution mechanics already in use across the industry. We’re building our own case studies now, one campaign at a time, and we’d rather be straight with you about that than pretend otherwise."
+
+
+      346 |   test("keeps the honesty note word for word", async ({ page }) => {
+      347 |     await visit(page, byPath("/launch-a-campaign"));
+    > 348 |     await expect(page.locator("[data-honesty-note]")).toHaveText(
+          |                                                       ^
+      349 |       "Z Best Clips is a new operation using an established model — the same clipping and distribution mechanics already in use across the industry. We’re building our own case studies now, one campaign at a time, and we’d rather be straight with you about that than pretend otherwise.",
+      350 |     );
+      351 |   });
+        at /Users/andrelove/WebstormProjects/zbest-sites/e2e/tests/phase-4-zbc.spec.ts:348:55
+
+    Error Context: test-results/phase-4-zbc-Launch-a-Campa-61eec--honesty-note-word-for-word-mobile-390/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/phase-4-zbc-Launch-a-Campa-61eec--honesty-note-word-for-word-mobile-390/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/phase-4-zbc-Launch-a-Campa-61eec--honesty-note-word-for-word-mobile-390/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2 failed
+    [desktop-1440] › tests/phase-4-zbc.spec.ts:346:3 › Launch a Campaign (§B4) › keeps the honesty note word for word 
+    [mobile-390] › tests/phase-4-zbc.spec.ts:346:3 › Launch a Campaign (§B4) › keeps the honesty note word for word 
+  76 passed (37.3s)
+undefined
+/Users/andrelove/WebstormProjects/zbest-sites/e2e:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command failed with exit code 1: playwright test tests/phase-4-zbc.spec.ts
+
+#### M12
+=== M12 diff ===
+ apps/zbc/app/launch-a-campaign/page.tsx | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+
+  ⚠  Gate running against a DIRTY tree — screenshots will not match 28ef158.
+
+
+Running 78 tests using 1 worker
+
+  ✓   1 [desktop-1440] › tests/phase-4-zbc.spec.ts:111:5 › / › renders, carries its metadata, holds the site rules, and is captured (238ms)
+  ✓   2 [desktop-1440] › tests/phase-4-zbc.spec.ts:111:5 › /entertainment › renders, carries its metadata, holds the site rules, and is captured (184ms)
+  ✓   3 [desktop-1440] › tests/phase-4-zbc.spec.ts:111:5 › /brands › renders, carries its metadata, holds the site rules, and is captured (193ms)
+  ✓   4 [desktop-1440] › tests/phase-4-zbc.spec.ts:111:5 › /pricing › renders, carries its metadata, holds the site rules, and is captured (202ms)
+  ✓   5 [desktop-1440] › tests/phase-4-zbc.spec.ts:111:5 › /become-a-clipper › renders, carries its metadata, holds the site rules, and is captured (199ms)
+  ✓   6 [desktop-1440] › tests/phase-4-zbc.spec.ts:111:5 › /launch-a-campaign › renders, carries its metadata, holds the site rules, and is captured (203ms)
+  ✓   7 [desktop-1440] › tests/phase-4-zbc.spec.ts:111:5 › /about › renders, carries its metadata, holds the site rules, and is captured (171ms)
+  ✓   8 [desktop-1440] › tests/phase-4-zbc.spec.ts:111:5 › /media-kit › renders, carries its metadata, holds the site rules, and is captured (173ms)
+  ✓   9 [desktop-1440] › tests/phase-4-zbc.spec.ts:111:5 › /faq › renders, carries its metadata, holds the site rules, and is captured (161ms)
+  ✓  10 [desktop-1440] › tests/phase-4-zbc.spec.ts:185:3 › / — every same-site link resolves (115ms)
+  ✓  11 [desktop-1440] › tests/phase-4-zbc.spec.ts:185:3 › /entertainment — every same-site link resolves (97ms)
+  ✓  12 [desktop-1440] › tests/phase-4-zbc.spec.ts:185:3 › /brands — every same-site link resolves (97ms)
+  ✓  13 [desktop-1440] › tests/phase-4-zbc.spec.ts:185:3 › /pricing — every same-site link resolves (97ms)
+  ✓  14 [desktop-1440] › tests/phase-4-zbc.spec.ts:185:3 › /become-a-clipper — every same-site link resolves (106ms)
+  ✓  15 [desktop-1440] › tests/phase-4-zbc.spec.ts:185:3 › /launch-a-campaign — every same-site link resolves (101ms)
+  ✓  16 [desktop-1440] › tests/phase-4-zbc.spec.ts:185:3 › /about — every same-site link resolves (98ms)
+  ✓  17 [desktop-1440] › tests/phase-4-zbc.spec.ts:185:3 › /media-kit — every same-site link resolves (100ms)
+  ✓  18 [desktop-1440] › tests/phase-4-zbc.spec.ts:185:3 › /faq — every same-site link resolves (98ms)
+  ✓  19 [desktop-1440] › tests/phase-4-zbc.spec.ts:202:3 › How It Works (§B4, served at /) › /how-it-works redirects permanently to / (30ms)
+  ✓  20 [desktop-1440] › tests/phase-4-zbc.spec.ts:208:3 › How It Works (§B4, served at /) › the process runs on the timeline: horizontal at 1440, vertical at 390 (111ms)
+  ✓  21 [desktop-1440] › tests/phase-4-zbc.spec.ts:231:3 › How It Works (§B4, served at /) › the two models carry their own focus colors (109ms)
+  ✓  22 [desktop-1440] › tests/phase-4-zbc.spec.ts:239:3 › How It Works (§B4, served at /) › three illustrative example cards: badged, accented, and exactly the §B4 figures (130ms)
+  ✓  23 [desktop-1440] › tests/phase-4-zbc.spec.ts:263:3 › How It Works (§B4, served at /) › view counters tick once on entry, and not at all with reduced motion (1.4s)
+  ✓  24 [desktop-1440] › tests/phase-4-zbc.spec.ts:275:3 › Pricing (§B4) › five client levers, bundled, and no clipper payout split (101ms)
+  ✓  25 [desktop-1440] › tests/phase-4-zbc.spec.ts:290:3 › Become a Clipper (§B4) › five steps, both payout models in their focus colors, and the disclosed starting rates (103ms)
+  ✓  26 [desktop-1440] › tests/phase-4-zbc.spec.ts:307:3 › Become a Clipper (§B4) › Browse Active Campaigns opens the labeled waitlist form, which posts to the stub (221ms)
+  ✘  27 [desktop-1440] › tests/phase-4-zbc.spec.ts:346:3 › Launch a Campaign (§B4) › keeps the honesty note word for word (5.1s)
+  ✓  28 [desktop-1440] › tests/phase-4-zbc.spec.ts:353:3 › Launch a Campaign (§B4) › four steps, both ways to start, and a form with the §6.1 fields posting to the stub (271ms)
+  ✓  29 [desktop-1440] › tests/phase-4-zbc.spec.ts:389:3 › Lead route stub (§6.2, ZBC) › rejects ZBM's form names and unknown focus or platform values (44ms)
+  ✓  30 [desktop-1440] › tests/phase-4-zbc.spec.ts:407:3 › Lead route stub (§6.2, ZBC) › valid submissions and a filled honeypot are acknowledged as a stub (37ms)
+  ✓  31 [desktop-1440] › tests/phase-4-zbc.spec.ts:421:3 › About (§B4) › company voice only: no name, no figures, both CTAs (97ms)
+  ✓  32 [desktop-1440] › tests/phase-4-zbc.spec.ts:434:3 › Copy revision (ZBC gate CONDITIONAL at c35ee1d — founder rulings, Sep 17) › no founding-year claim survives on any ZBC page or the shared dev gallery (365ms)
+  ✓  33 [desktop-1440] › tests/phase-4-zbc.spec.ts:445:3 › Copy revision (ZBC gate CONDITIONAL at c35ee1d — founder rulings, Sep 17) › clip volume says dozens everywhere, never hundreds (357ms)
+  ✓  34 [desktop-1440] › tests/phase-4-zbc.spec.ts:457:3 › Copy revision (ZBC gate CONDITIONAL at c35ee1d — founder rulings, Sep 17) › nothing claims creators are paid only on views — Brands carry a guaranteed per-post fee (173ms)
+  ✘  35 [desktop-1440] › tests/phase-4-zbc.spec.ts:474:3 › Copy revision (ZBC gate CONDITIONAL at c35ee1d — founder rulings, Sep 17) › ZBC does not position against agencies, and drops the unsupported 'proven' (175ms)
+  ✓  36 [desktop-1440] › tests/phase-4-zbc.spec.ts:492:3 › Media Kit (§B4) › facts as ledger rows, assets on request, press address a labeled non-link placeholder (112ms)
+  ✓  37 [desktop-1440] › tests/phase-4-zbc.spec.ts:510:3 › FAQ (§B4) › all ten questions, operable, and no payout rates (144ms)
+  ✓  38 [desktop-1440] › tests/phase-4-zbc.spec.ts:523:3 › Site-wide (ZBC chunk) › clipper payout rates appear on Become a Clipper and nowhere else (54ms)
+  ✓  39 [desktop-1440] › tests/phase-4-zbc.spec.ts:531:3 › Site-wide (ZBC chunk) › sitemap lists exactly the nine built public pages; /how-it-works is not a second URL (33ms)
+  ✓  40 [mobile-390] › tests/phase-4-zbc.spec.ts:111:5 › / › renders, carries its metadata, holds the site rules, and is captured (653ms)
+  ✓  41 [mobile-390] › tests/phase-4-zbc.spec.ts:111:5 › /entertainment › renders, carries its metadata, holds the site rules, and is captured (281ms)
+  ✓  42 [mobile-390] › tests/phase-4-zbc.spec.ts:111:5 › /brands › renders, carries its metadata, holds the site rules, and is captured (276ms)
+  ✓  43 [mobile-390] › tests/phase-4-zbc.spec.ts:111:5 › /pricing › renders, carries its metadata, holds the site rules, and is captured (275ms)
+  ✓  44 [mobile-390] › tests/phase-4-zbc.spec.ts:111:5 › /become-a-clipper › renders, carries its metadata, holds the site rules, and is captured (365ms)
+  ✓  45 [mobile-390] › tests/phase-4-zbc.spec.ts:111:5 › /launch-a-campaign › renders, carries its metadata, holds the site rules, and is captured (316ms)
+  ✓  46 [mobile-390] › tests/phase-4-zbc.spec.ts:111:5 › /about › renders, carries its metadata, holds the site rules, and is captured (271ms)
+  ✓  47 [mobile-390] › tests/phase-4-zbc.spec.ts:111:5 › /media-kit › renders, carries its metadata, holds the site rules, and is captured (299ms)
+  ✓  48 [mobile-390] › tests/phase-4-zbc.spec.ts:111:5 › /faq › renders, carries its metadata, holds the site rules, and is captured (267ms)
+  ✓  49 [mobile-390] › tests/phase-4-zbc.spec.ts:185:3 › / — every same-site link resolves (208ms)
+  ✓  50 [mobile-390] › tests/phase-4-zbc.spec.ts:185:3 › /entertainment — every same-site link resolves (185ms)
+  ✓  51 [mobile-390] › tests/phase-4-zbc.spec.ts:185:3 › /brands — every same-site link resolves (192ms)
+  ✓  52 [mobile-390] › tests/phase-4-zbc.spec.ts:185:3 › /pricing — every same-site link resolves (184ms)
+  ✓  53 [mobile-390] › tests/phase-4-zbc.spec.ts:185:3 › /become-a-clipper — every same-site link resolves (193ms)
+  ✓  54 [mobile-390] › tests/phase-4-zbc.spec.ts:185:3 › /launch-a-campaign — every same-site link resolves (191ms)
+  ✓  55 [mobile-390] › tests/phase-4-zbc.spec.ts:185:3 › /about — every same-site link resolves (188ms)
+  ✓  56 [mobile-390] › tests/phase-4-zbc.spec.ts:185:3 › /media-kit — every same-site link resolves (190ms)
+  ✓  57 [mobile-390] › tests/phase-4-zbc.spec.ts:185:3 › /faq — every same-site link resolves (187ms)
+  ✓  58 [mobile-390] › tests/phase-4-zbc.spec.ts:202:3 › How It Works (§B4, served at /) › /how-it-works redirects permanently to / (111ms)
+  ✓  59 [mobile-390] › tests/phase-4-zbc.spec.ts:208:3 › How It Works (§B4, served at /) › the process runs on the timeline: horizontal at 1440, vertical at 390 (212ms)
+  ✓  60 [mobile-390] › tests/phase-4-zbc.spec.ts:231:3 › How It Works (§B4, served at /) › the two models carry their own focus colors (203ms)
+  ✓  61 [mobile-390] › tests/phase-4-zbc.spec.ts:239:3 › How It Works (§B4, served at /) › three illustrative example cards: badged, accented, and exactly the §B4 figures (241ms)
+  ✓  62 [mobile-390] › tests/phase-4-zbc.spec.ts:263:3 › How It Works (§B4, served at /) › view counters tick once on entry, and not at all with reduced motion (1.5s)
+  ✓  63 [mobile-390] › tests/phase-4-zbc.spec.ts:275:3 › Pricing (§B4) › five client levers, bundled, and no clipper payout split (194ms)
+  ✓  64 [mobile-390] › tests/phase-4-zbc.spec.ts:290:3 › Become a Clipper (§B4) › five steps, both payout models in their focus colors, and the disclosed starting rates (192ms)
+  ✓  65 [mobile-390] › tests/phase-4-zbc.spec.ts:307:3 › Become a Clipper (§B4) › Browse Active Campaigns opens the labeled waitlist form, which posts to the stub (319ms)
+  ✘  66 [mobile-390] › tests/phase-4-zbc.spec.ts:346:3 › Launch a Campaign (§B4) › keeps the honesty note word for word (5.2s)
+  ✓  67 [mobile-390] › tests/phase-4-zbc.spec.ts:353:3 › Launch a Campaign (§B4) › four steps, both ways to start, and a form with the §6.1 fields posting to the stub (430ms)
+  ✓  68 [mobile-390] › tests/phase-4-zbc.spec.ts:389:3 › Lead route stub (§6.2, ZBC) › rejects ZBM's form names and unknown focus or platform values (125ms)
+  ✓  69 [mobile-390] › tests/phase-4-zbc.spec.ts:407:3 › Lead route stub (§6.2, ZBC) › valid submissions and a filled honeypot are acknowledged as a stub (115ms)
+  ✓  70 [mobile-390] › tests/phase-4-zbc.spec.ts:421:3 › About (§B4) › company voice only: no name, no figures, both CTAs (186ms)
+  ✓  71 [mobile-390] › tests/phase-4-zbc.spec.ts:434:3 › Copy revision (ZBC gate CONDITIONAL at c35ee1d — founder rulings, Sep 17) › no founding-year claim survives on any ZBC page or the shared dev gallery (521ms)
+  ✓  72 [mobile-390] › tests/phase-4-zbc.spec.ts:445:3 › Copy revision (ZBC gate CONDITIONAL at c35ee1d — founder rulings, Sep 17) › clip volume says dozens everywhere, never hundreds (513ms)
+  ✓  73 [mobile-390] › tests/phase-4-zbc.spec.ts:457:3 › Copy revision (ZBC gate CONDITIONAL at c35ee1d — founder rulings, Sep 17) › nothing claims creators are paid only on views — Brands carry a guaranteed per-post fee (283ms)
+  ✘  74 [mobile-390] › tests/phase-4-zbc.spec.ts:474:3 › Copy revision (ZBC gate CONDITIONAL at c35ee1d — founder rulings, Sep 17) › ZBC does not position against agencies, and drops the unsupported 'proven' (269ms)
+  ✓  75 [mobile-390] › tests/phase-4-zbc.spec.ts:492:3 › Media Kit (§B4) › facts as ledger rows, assets on request, press address a labeled non-link placeholder (280ms)
+  ✓  76 [mobile-390] › tests/phase-4-zbc.spec.ts:510:3 › FAQ (§B4) › all ten questions, operable, and no payout rates (224ms)
+  ✓  77 [mobile-390] › tests/phase-4-zbc.spec.ts:523:3 › Site-wide (ZBC chunk) › clipper payout rates appear on Become a Clipper and nowhere else (140ms)
+  ✓  78 [mobile-390] › tests/phase-4-zbc.spec.ts:531:3 › Site-wide (ZBC chunk) › sitemap lists exactly the nine built public pages; /how-it-works is not a second URL (122ms)
+
+
+  1) [desktop-1440] › tests/phase-4-zbc.spec.ts:346:3 › Launch a Campaign (§B4) › keeps the honesty note word for word 
+
+    Error: expect(locator).toHaveText(expected) failed
+
+    Locator:  locator('[data-honesty-note]')
+    Expected: "Z Best Clips is a new operation using an established model — the same clipping and distribution mechanics already in use across the industry. We’re building our own case studies now, one campaign at a time, and we’d rather be straight with you about that than pretend otherwise."
+    Received: "Z Best Clips is a new operation built on proven mechanics — the same clipping and distribution model driving results industry-wide. We’re building our own case studies now, one campaign at a time, and we’d rather be straight with you about that than pretend otherwise."
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveText" locator('[data-honesty-note]') with timeout 5000ms
+      - waiting for locator('[data-honesty-note]')
+        14 × locator resolved to <blockquote data-honesty-note="true" class="border-l-2 border-accent pl-6">…</blockquote>
+           - unexpected value "Z Best Clips is a new operation built on proven mechanics — the same clipping and distribution model driving results industry-wide. We’re building our own case studies now, one campaign at a time, and we’d rather be straight with you about that than pretend otherwise."
+
+
+      346 |   test("keeps the honesty note word for word", async ({ page }) => {
+      347 |     await visit(page, byPath("/launch-a-campaign"));
+    > 348 |     await expect(page.locator("[data-honesty-note]")).toHaveText(
+          |                                                       ^
+      349 |       "Z Best Clips is a new operation using an established model — the same clipping and distribution mechanics already in use across the industry. We’re building our own case studies now, one campaign at a time, and we’d rather be straight with you about that than pretend otherwise.",
+      350 |     );
+      351 |   });
+        at /Users/andrelove/WebstormProjects/zbest-sites/e2e/tests/phase-4-zbc.spec.ts:348:55
+
+    Error Context: test-results/phase-4-zbc-Launch-a-Campa-61eec--honesty-note-word-for-word-desktop-1440/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/phase-4-zbc-Launch-a-Campa-61eec--honesty-note-word-for-word-desktop-1440/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/phase-4-zbc-Launch-a-Campa-61eec--honesty-note-word-for-word-desktop-1440/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [desktop-1440] › tests/phase-4-zbc.spec.ts:474:3 › Copy revision (ZBC gate CONDITIONAL at c35ee1d — founder rulings, Sep 17) › ZBC does not position against agencies, and drops the unsupported 'proven' 
+
+    Error: honesty note still says "proven"
+
+    expect(received).not.toContain(expected) // indexOf
+
+    Expected substring: not "proven"
+    Received string:        "Z Best Clips is a new operation built on proven mechanics — the same clipping and distribution model driving results industry-wide. We’re building our own case studies now, one campaign at a time, and we’d rather be straight with you about that than pretend otherwise."
+
+      484 |     const note = await page.locator("[data-honesty-note]").innerText();
+      485 |     for (const gone of ["proven", "driving results"]) {
+    > 486 |       expect(note, `honesty note still says "${gone}"`).not.toContain(gone);
+          |                                                             ^
+      487 |     }
+      488 |   });
+      489 | });
+        at /Users/andrelove/WebstormProjects/zbest-sites/e2e/tests/phase-4-zbc.spec.ts:486:61
+
+    Error Context: test-results/phase-4-zbc-Copy-revision--82f9a-ops-the-unsupported-proven--desktop-1440/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/phase-4-zbc-Copy-revision--82f9a-ops-the-unsupported-proven--desktop-1440/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/phase-4-zbc-Copy-revision--82f9a-ops-the-unsupported-proven--desktop-1440/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  3) [mobile-390] › tests/phase-4-zbc.spec.ts:346:3 › Launch a Campaign (§B4) › keeps the honesty note word for word 
+
+    Error: expect(locator).toHaveText(expected) failed
+
+    Locator:  locator('[data-honesty-note]')
+    Expected: "Z Best Clips is a new operation using an established model — the same clipping and distribution mechanics already in use across the industry. We’re building our own case studies now, one campaign at a time, and we’d rather be straight with you about that than pretend otherwise."
+    Received: "Z Best Clips is a new operation built on proven mechanics — the same clipping and distribution model driving results industry-wide. We’re building our own case studies now, one campaign at a time, and we’d rather be straight with you about that than pretend otherwise."
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveText" locator('[data-honesty-note]') with timeout 5000ms
+      - waiting for locator('[data-honesty-note]')
+        14 × locator resolved to <blockquote data-honesty-note="true" class="border-l-2 border-accent pl-6">…</blockquote>
+           - unexpected value "Z Best Clips is a new operation built on proven mechanics — the same clipping and distribution model driving results industry-wide. We’re building our own case studies now, one campaign at a time, and we’d rather be straight with you about that than pretend otherwise."
+
+
+      346 |   test("keeps the honesty note word for word", async ({ page }) => {
+      347 |     await visit(page, byPath("/launch-a-campaign"));
+    > 348 |     await expect(page.locator("[data-honesty-note]")).toHaveText(
+          |                                                       ^
+      349 |       "Z Best Clips is a new operation using an established model — the same clipping and distribution mechanics already in use across the industry. We’re building our own case studies now, one campaign at a time, and we’d rather be straight with you about that than pretend otherwise.",
+      350 |     );
+      351 |   });
+        at /Users/andrelove/WebstormProjects/zbest-sites/e2e/tests/phase-4-zbc.spec.ts:348:55
+
+    Error Context: test-results/phase-4-zbc-Launch-a-Campa-61eec--honesty-note-word-for-word-mobile-390/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/phase-4-zbc-Launch-a-Campa-61eec--honesty-note-word-for-word-mobile-390/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/phase-4-zbc-Launch-a-Campa-61eec--honesty-note-word-for-word-mobile-390/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  4) [mobile-390] › tests/phase-4-zbc.spec.ts:474:3 › Copy revision (ZBC gate CONDITIONAL at c35ee1d — founder rulings, Sep 17) › ZBC does not position against agencies, and drops the unsupported 'proven' 
+
+    Error: honesty note still says "proven"
+
+    expect(received).not.toContain(expected) // indexOf
+
+    Expected substring: not "proven"
+    Received string:        "Z Best Clips is a new operation built on proven mechanics — the same clipping and distribution model driving results industry-wide. We’re building our own case studies now, one campaign at a time, and we’d rather be straight with you about that than pretend otherwise."
+
+      484 |     const note = await page.locator("[data-honesty-note]").innerText();
+      485 |     for (const gone of ["proven", "driving results"]) {
+    > 486 |       expect(note, `honesty note still says "${gone}"`).not.toContain(gone);
+          |                                                             ^
+      487 |     }
+      488 |   });
+      489 | });
+        at /Users/andrelove/WebstormProjects/zbest-sites/e2e/tests/phase-4-zbc.spec.ts:486:61
+
+    Error Context: test-results/phase-4-zbc-Copy-revision--82f9a-ops-the-unsupported-proven--mobile-390/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/phase-4-zbc-Copy-revision--82f9a-ops-the-unsupported-proven--mobile-390/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/phase-4-zbc-Copy-revision--82f9a-ops-the-unsupported-proven--mobile-390/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  4 failed
+    [desktop-1440] › tests/phase-4-zbc.spec.ts:346:3 › Launch a Campaign (§B4) › keeps the honesty note word for word 
+    [desktop-1440] › tests/phase-4-zbc.spec.ts:474:3 › Copy revision (ZBC gate CONDITIONAL at c35ee1d — founder rulings, Sep 17) › ZBC does not position against agencies, and drops the unsupported 'proven' 
+    [mobile-390] › tests/phase-4-zbc.spec.ts:346:3 › Launch a Campaign (§B4) › keeps the honesty note word for word 
+    [mobile-390] › tests/phase-4-zbc.spec.ts:474:3 › Copy revision (ZBC gate CONDITIONAL at c35ee1d — founder rulings, Sep 17) › ZBC does not position against agencies, and drops the unsupported 'proven' 
+  74 passed (38.2s)
+undefined
+/Users/andrelove/WebstormProjects/zbest-sites/e2e:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command failed with exit code 1: playwright test tests/phase-4-zbc.spec.ts
+
+```
+
+### Captures and final state
+
+```
+$ git diff --name-only a411e72..HEAD -- e2e/snapshots/
+e2e/snapshots/phase-4-zbc/zbc-launch-a-campaign-desktop-1440.png
+e2e/snapshots/phase-4-zbc/zbc-launch-a-campaign-mobile-390.png
+
+$ # full gate from a wiped state, after the mutations were reverted:
+build=0
+typecheck=0
+e2e=0
+lint=0
+DONE
+$ git status --porcelain
+(no output — all 68 PNGs byte-identical to 28ef158)
+$ ~/.claude/skills/impeccable/scripts/impeccable detect --json packages/ui/src apps/zbm/app apps/zbc/app
+[]
+$ git rev-parse HEAD
+28ef1588d53c3410094d2cfefe579efcefed0e34
+```
+
+Two captures moved for this ruling: Launch a Campaign at both viewports. Nothing else.
+
+### Capture zip regenerated at 28ef158
+
+```
+$ shasum -a 256 docs/phase-4-zbc-copy-revision-captures.zip e2e/snapshots/phase-4-zbc/*.png
+f453ce64edb0c29b8f187a470cca947ae8585ba357a14994a9af2dbe1e32a253  docs/phase-4-zbc-copy-revision-captures.zip
+614f2e34fda55fa63abcac06d08c7776de7164dec300bc780d247913f5763150  e2e/snapshots/phase-4-zbc/zbc-about-desktop-1440.png
+d14a46cc577e2ab7df44f52076ae02a6694d59cfb9a68e51ec6d30f593473999  e2e/snapshots/phase-4-zbc/zbc-about-mobile-390.png
+d6f459a90e8c8075b23f4fccf4a2f1e4e334f2ca72b96f1504a23ac6d61e16f0  e2e/snapshots/phase-4-zbc/zbc-become-a-clipper-desktop-1440.png
+d3b32be8c0fb252b88ce358d45769da01417ca045d54cd70da56e4cd766a1149  e2e/snapshots/phase-4-zbc/zbc-become-a-clipper-mobile-390.png
+ff3e525d877ff180938c6f60aed0a62974b159a9f81290f80e21ec852bea53d6  e2e/snapshots/phase-4-zbc/zbc-brands-desktop-1440.png
+c05f1af693c1f56fca84655070832f989b3e3713d8b38b46db9a240e08ea8b7f  e2e/snapshots/phase-4-zbc/zbc-brands-mobile-390.png
+1953440edb4099dec067855f5fd4b24404e118a65dfe57aeb858ab744e6da068  e2e/snapshots/phase-4-zbc/zbc-entertainment-desktop-1440.png
+0baf9cc3ab39a94166577e3c77f6378753b66fa3d5e29d47a1f4b97cd4dd3cf3  e2e/snapshots/phase-4-zbc/zbc-entertainment-mobile-390.png
+bce3e4a19f1ae670c81f2f518888891fe899430c0d394758c5ed50ef12dae63d  e2e/snapshots/phase-4-zbc/zbc-faq-desktop-1440.png
+8a84c1a305766088feee9de84e71700bf6a1efcabe3b282fc9fef888e5d1ebc5  e2e/snapshots/phase-4-zbc/zbc-faq-mobile-390.png
+de084d370ab79dfdf6c2fc9b2f0faa49fafb92cebcb109e1b233d0d5aa271dcc  e2e/snapshots/phase-4-zbc/zbc-how-it-works-desktop-1440.png
+b27e1dde0adfb0293bfd9f29d1617a56bdb9b494182c030e4dfe07a778f14688  e2e/snapshots/phase-4-zbc/zbc-how-it-works-mobile-390.png
+d9ef0fe3d669ee33ae4fea805308813b442a52ebaf02e9d5220e6e48804cbca5  e2e/snapshots/phase-4-zbc/zbc-launch-a-campaign-desktop-1440.png
+32d64dc75f139cda1d4c09ad09791cd1ebba222bc5c2c88e53e55b7cc4e21a59  e2e/snapshots/phase-4-zbc/zbc-launch-a-campaign-mobile-390.png
+4e651de6bb0a3985d5cf258857282f3a62dc7354482c1e4a2950a1408145e102  e2e/snapshots/phase-4-zbc/zbc-media-kit-desktop-1440.png
+3b9c1f77431125d7b5ca93153cb62f85460113959a9ac3e195462cad669aa289  e2e/snapshots/phase-4-zbc/zbc-media-kit-mobile-390.png
+be4d2d233fa0e5950f008e1689e2a3464be5704a0019352cf279a05b3cc01a76  e2e/snapshots/phase-4-zbc/zbc-pricing-desktop-1440.png
+5616a2b3eeaa249cf2ccd9cf176f5c35e1469ba799f0e354d74357feef749644  e2e/snapshots/phase-4-zbc/zbc-pricing-mobile-390.png
+```
+
+Superseded zip sha256 (do not bind): `5eef24710c871a848a7a2ad3db5da571077abde2a00265aeb6fd026a9bfa5e2d`
+
+**No ZBC item is open after this ruling.**
