@@ -634,10 +634,20 @@ Phase 4 ZBM chunk, and that tension is a decision to take deliberately, not to r
    exactly once in v0.2, at line 283, inside §10 *Explicit Deferred Items — DEFER_UNTIL_EVIDENCE*,
    with no shape defined. It would be defined for the first time and promoted out of the deferred
    list. The spec's own precondition there — "the real input schema still needs to be pulled from
-   the live tool before `AssessmentResult` can be finalized" — is **dissolved** by this ruling
-   rather than satisfied: the free tier's input is the site's existing lead form, so nothing needs
-   pulling from the live tool. v0.2 was authored by the founder, not by a session; v0.3 should be
-   too, or be explicitly delegated.
+   the live tool before `AssessmentResult` can be finalized" — is **transformed, not dissolved**.
+
+   **Correction, same day.** This section first claimed the ruling dissolved that precondition
+   because "the free tier's input is the site's existing lead form". That was wrong and is
+   corrected here rather than edited away. The assessment form collects four fields and no
+   diagnostic answers at all — `apps/zbm/lib/lead.ts:44-49`: `name`, `business`, `website`,
+   `reach`. A rule-based mapping onto the leak taxonomy has nothing to read. So the ruling removes
+   the dependency on the live tool *as the deliverable*, while the input question stands open in a
+   new form: either the live tool's diagnostic questions are pulled after all, which is what line
+   283 asks for, or a new question set is designed for Phase 5. **`AssessmentResult` cannot be
+   specified until that is decided, because its input shape is undetermined.**
+
+   v0.2 was authored by the founder, not by a session; v0.3 should be too, or be explicitly
+   delegated.
 2. **The gate holds.** One file, not two: `e2e/tests/phase-4-zbm.spec.ts:116-120`.
    `phase-4-zbc.spec.ts` never enforced them and should not start — the assessment is a ZBM surface.
    The two `not.toMatch` holds become positive assertions on the new wording.
