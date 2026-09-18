@@ -39,7 +39,10 @@ export const metadata = pageMetadata(SITE, {
  * traditional-agency comparison are removed, so this page has no "Why us"
  * section and one process, not two (see content/revenue-recovery.ts for what
  * was left out, what was rewritten, and why).
- * FAQ: §A4, with the founder-held 60-second answer omitted.
+ * FAQ: §A4. "How does the process start?" was held in Phase 4 for its
+ * 60-second answer; Phase 5 restored it, rewritten around founder decision 10.
+ * Assessment: the free assessment itself runs in #assessment (Backend Spec
+ * v0.3 §11) — see components/assessment-form.tsx.
  */
 export default function RevenueRecoveryPage() {
   return (
