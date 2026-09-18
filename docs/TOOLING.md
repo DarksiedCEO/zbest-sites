@@ -647,7 +647,15 @@ Phase 4 ZBM chunk, and that tension is a decision to take deliberately, not to r
    specified until that is decided, because its input shape is undetermined.**
 
    v0.2 was authored by the founder, not by a session; v0.3 should be too, or be explicitly
-   delegated.
+   delegated. **Delegated, 2026-09-18:** the founder chose to have the build session write it
+   rather than the backend window or himself. Written to
+   `docs/backend-interface-spec-v0.3.md`, generated from v0.2 so that §§1–9 are byte-identical
+   (verified per section by SHA-256), with §10's assessment item promoted into a new §11. Two parts
+   are PROPOSED and need founder approval before build: the eight-question set (customer-facing
+   copy) and the tie-break priority order. Because the build session wrote the contract it will
+   build against, the auditor reviews v0.3 before approval and the backend author accepts it before
+   implementing. `CLAUDE.md` still names v0.2 as the backend contract and should be pointed at v0.3
+   only once it is approved, not before.
 2. **The gate holds.** One file, not two: `e2e/tests/phase-4-zbm.spec.ts:116-120`.
    `phase-4-zbc.spec.ts` never enforced them and should not start — the assessment is a ZBM surface.
    The two `not.toMatch` holds become positive assertions on the new wording.
