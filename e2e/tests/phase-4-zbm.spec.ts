@@ -247,7 +247,7 @@ test.describe("Home (§A4)", () => {
     await expect(page.getByRole("link", { name: "See What We Do" })).toHaveAttribute("href", "#what-we-do");
   });
 
-  test("featured Revenue Recovery carries the six leaks, a held CTA and its fixture label", async ({ page }) => {
+  test("featured Revenue Recovery carries the six leaks, the decision-10 assessment CTA and its fixture label", async ({ page }) => {
     await visit(page, byPath("/"));
     const section = page.locator("#revenue-recovery");
     for (const leak of [

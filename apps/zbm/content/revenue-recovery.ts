@@ -117,8 +117,11 @@ export const ENGAGEMENTS = {
     {
       title: "Revenue Recovery Assessment™",
       body: "Phase 1 — Start free",
-      // Audit F8 fix (founder direction): exactly this, nothing describing
-      // what the assessment returns — that is the undecided Phase 5 question.
+      // Audit F8 fix (founder direction): exactly this. It said nothing about
+      // what the assessment returns because that was undecided; founder
+      // decision 10 (Phase 5) has since settled it — one prioritized leak. The
+      // founder's F8 wording is kept as written; whether this card should now
+      // name what the assessment returns is his call, not a copy fix.
       detail: "Free. No payment, no obligation.",
     },
     {
