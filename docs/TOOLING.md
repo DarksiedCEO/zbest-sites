@@ -531,6 +531,49 @@ apps' stub route handlers are deliberately still separate files with the same lo
 **ZBC-only device:** `apps/zbc/components/timeline.tsx`, the §B1 scrubber — a ruled horizontal
 track at 1440, a vertical timeline at 390 — used on How It Works only.
 
+**Open on ZBC after certification at `28ef158`** — raised by the auditor in the certifying pass,
+ruled by the founder to batch with the pre-launch ZBC work (press mailbox, legal shells) rather
+than open another gate cycle for three lines. They are the same class as H2: Brands campaigns
+carry a guaranteed flat fee per approved post, so "views only" language is false for them.
+
+| # | Where | Now | Should read |
+|---|---|---|---|
+| O1 | `apps/zbc/app/page.tsx:118`, What's Included — client-facing | "Only eligible views billed" | "Nothing billed before you approve the post" |
+| O2 | `apps/zbc/app/become-a-clipper/page.tsx:9` (metadata) and `:49` (step 5) — clipper-facing | "Paid on verified views" / "Get paid on verified views" | "Paid on approved posts and verified views" |
+| O3 | `apps/zbc/app/media-kit/page.tsx:47-48`, long boilerplate | "clients pay only for approved posts with verified views" | "clients pay only for approved posts" |
+
+O3 is the subtle one: an approved Brands post with zero verified views still earns its flat fee,
+so the current wording understates what the client owes. When these are fixed, add the fourth
+negative assertion alongside the three from decision 3, and expect roughly ten captures to move —
+O1 is on the home page, which is captured in phase-1, phase-3 and phase-4-zbc.
+
+### Evidence bundle standard — from the E1/E2 findings at `28ef158`
+
+Two defects in the ZBC bundle's own evidence, both in artifacts this session generated. Neither
+changed a verdict; both are recorded because an audit bundle that misstates its own proof is worse
+than one that omits it.
+
+**E1. An annotation asserted output that the command above it contradicted.** `commit-history.txt`
+ran `git diff --name-only c35ee1d..HEAD -- apps/zbm/`, which printed eight ZBM files, and then
+printed a fixed line reading "(no output above = no ZBM source changed)". The range was wrong for
+the claim: `c35ee1d` predates the ZBM copy revision, so those files changed in the ZBM lane, not
+the ZBC one. The claim was true and the evidence for it was not.
+
+Rules, from now on:
+
+- An annotation may only restate what the command above it actually printed. Never `echo` a
+  conclusion unconditionally next to a command whose output could contradict it; if the claim is
+  "this is empty", the emptiness has to be visible.
+- Range a lane's diffs from the commit that lane started on, never from an older chunk's commit.
+  For the ZBC lane that was `96193db..1ab0d9e`, which is genuinely empty for `apps/zbm/`.
+- Prove a negative per commit as well as per range, so docs commits carrying no `--stat` in the
+  bundle are still covered: `git show --name-only --format= <sha> -- <path>` for each.
+
+**E2. A gate re-run was recorded as exit codes only.** The post-ruling run at `28ef158` logged
+`build=0 typecheck=0 e2e=0 lint=0`, and the MANIFEST's pass count for it was carried over from the
+earlier raw run. That is an inference, however safe. Every gate run recorded in a log or a MANIFEST
+carries its own raw counts.
+
 **Judgment calls to review:** structural labels the brief does not supply ("The Process",
 "Examples", "Step 01 — Levers", "Payouts", "Honesty note", "Where we come from", "Questions",
 card eyebrows "Your account" / "The client’s account"); How It Works' Step 1 levers rendered
