@@ -365,14 +365,16 @@ AssessmentRequest {
 
 | id | Statement shown to the respondent |
 |---|---|
-| `follow_up` | When a lead comes in, we don't always respond fast or follow up consistently. |
+| `follow_up` | When a lead comes in, we don’t always respond fast or follow up consistently. |
 | `conversion` | Our site or booking process makes it hard for people to take the next step. |
-| `offer` | People aren't sure what they get from us, or why it's worth it. |
-| `trust` | We don't have enough reviews, proof, or credentials in front of visitors. |
-| `tracking` | We can't tell which ads, pages, or channels actually bring in revenue. |
+| `offer` | People aren’t sure what they get from us, or why it’s worth it. |
+| `trust` | We don’t have enough reviews, proof, or credentials in front of visitors. |
+| `tracking` | We can’t tell which ads, pages, or channels actually bring in revenue. |
 | `creative` | Our ads get attention or clicks, but not many real buyers. |
-| `visibility` | We're hard to find in search results, map listings, or AI search. |
-| `traffic` | We don't get enough qualified visitors or inquiries in the first place. |
+| `visibility` | We’re hard to find in search results, map listings, or AI search. |
+| `traffic` | We don’t get enough qualified visitors or inquiries in the first place. |
+
+**Amended after certification, 2026-09-18 (founder ruling):** the six statements containing apostrophes use curly apostrophes (’, U+2019), matching the site's typography; they were first written with straight ones. The wording is unchanged. Under §11.2 a changed question is a new rule-set version, so the fixture moved from `fixture-2026-09-18.1` to `fixture-2026-09-18.2` with a new hash.
 
 Answered on one scale throughout: **Not true · Somewhat true · Very true** (founder ruling, 2026-09-18 — changed from the proposed "Not really · Somewhat · Very true" so that all three answers take the same form).
 

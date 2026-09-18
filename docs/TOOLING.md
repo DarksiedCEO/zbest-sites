@@ -689,6 +689,36 @@ Phase 4 ZBM chunk, and that tension is a decision to take deliberately, not to r
      Creative, Visibility, Traffic.
 
    v0.3 stays DRAFT and `CLAUDE.md` stays on v0.2 until the auditor clears the re-stage.
+
+   **Update:** the auditor certified v0.3 at `92cbf36` as the Phase 5 contract. Its own status stays
+   DRAFT until the backend author accepts it. `CLAUDE.md` names v0.3 from `beef78d` onward.
+
+   **Phase 5 assessment chunk: certified at `87c9ee9`** (auditor, 2026-09-18). Founder rulings on
+   the auditor's three open calls, taken in the build window the same day:
+   - *Apostrophes: curly, amended now.* The six approved questions containing apostrophes were
+     written with straight ones in v0.3 §11.3, while the site and every other string use curly.
+     They are amended to curly in the spec, `rules.ts` and `phase-5.spec.ts`. The wording is
+     unchanged. A changed question is a new rule-set version under §11.2, so the fixture moves
+     from `fixture-2026-09-18.1` to `.2` with a new hash; `.1` is not edited in place. The
+     auditor's line said to re-run the Phase 5 spec only, but the questions also appear in the
+     Revenue Recovery full-page captures of the Phase 4 suite, so the full gate runs.
+   - *RR Phase 1 engagement card: left as written.* "Free. No payment, no obligation." stays; the
+     section title above it and the Home CTA line already name the deliverable.
+   - *The retired-wording checks (60 sec, one quantified leak): kept*, as the only automated guard
+     against that wording returning through a content edit.
+
+   **Correction to the Phase 5 record.** The Phase 5 bundle, its MANIFEST, its log and the header
+   of `phase-5.spec.ts` listed ZBC's "Browse Active Campaigns" as a Phase 5 item not yet built. It
+   was built and certified in Phase 4 ZBC: `apps/zbc/app/become-a-clipper/page.tsx` sends it to
+   the waitlist, whose title is the Brief §B4 label word for word, and `phase-4-zbc.spec.ts` tests
+   it. The claim was made without checking the ZBC code. The founder then picked it as the next
+   item because of that claim. With it corrected, the only Phase 5 build item left is the Search
+   Intelligence AI Visibility Check, which no spec defines a result shape for. Under CLAUDE.md's
+   rule against guessed DTOs it needs a specified shape before any UI is built.
+
+   **Routed out of Phase 5:** the Phase 2 counter reduced-motion defect in
+   `packages/ui/src/components/counter.tsx` is its own small Phase 2 fix, with its own re-gate.
+   `packages/ui` is not touched inside Phase 5.
 2. **The gate holds.** One file, not two: `e2e/tests/phase-4-zbm.spec.ts:116-120`.
    `phase-4-zbc.spec.ts` never enforced them and should not start — the assessment is a ZBM surface.
    The two `not.toMatch` holds become positive assertions on the new wording.

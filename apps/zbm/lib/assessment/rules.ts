@@ -68,14 +68,14 @@ export type AnswerValue = (typeof SCALE)[number]["value"];
  * Shown in this order.
  */
 export const QUESTIONS = [
-  { id: "follow_up", category: "follow_up", statement: "When a lead comes in, we don't always respond fast or follow up consistently." },
+  { id: "follow_up", category: "follow_up", statement: "When a lead comes in, we don’t always respond fast or follow up consistently." },
   { id: "conversion", category: "conversion", statement: "Our site or booking process makes it hard for people to take the next step." },
-  { id: "offer", category: "offer", statement: "People aren't sure what they get from us, or why it's worth it." },
-  { id: "trust", category: "trust", statement: "We don't have enough reviews, proof, or credentials in front of visitors." },
-  { id: "tracking", category: "tracking", statement: "We can't tell which ads, pages, or channels actually bring in revenue." },
+  { id: "offer", category: "offer", statement: "People aren’t sure what they get from us, or why it’s worth it." },
+  { id: "trust", category: "trust", statement: "We don’t have enough reviews, proof, or credentials in front of visitors." },
+  { id: "tracking", category: "tracking", statement: "We can’t tell which ads, pages, or channels actually bring in revenue." },
   { id: "creative", category: "creative", statement: "Our ads get attention or clicks, but not many real buyers." },
-  { id: "visibility", category: "visibility", statement: "We're hard to find in search results, map listings, or AI search." },
-  { id: "traffic", category: "traffic", statement: "We don't get enough qualified visitors or inquiries in the first place." },
+  { id: "visibility", category: "visibility", statement: "We’re hard to find in search results, map listings, or AI search." },
+  { id: "traffic", category: "traffic", statement: "We don’t get enough qualified visitors or inquiries in the first place." },
 ] as const satisfies readonly { id: string; category: LeakCategory; statement: string }[];
 
 /** §11.4 — the tie-break order, founder-approved 2026-09-18 as proposed. */
@@ -92,7 +92,10 @@ export const PRIORITY_ORDER = [
 
 /** §11.2 `AssessmentRuleSet`, as the fixture the stub scores against. */
 export const ACTIVE_RULE_SET = {
-  version: "fixture-2026-09-18.1",
+  // .2: the six questions with apostrophes changed to curly (founder ruling,
+  // 2026-09-18). A question changed, so per §11.2 this is a new version with a
+  // new hash; .1 is not edited in place.
+  version: "fixture-2026-09-18.2",
   status: "active",
   taxonomy: LEAK_CATEGORIES,
   questions: QUESTIONS,

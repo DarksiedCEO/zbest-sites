@@ -5,9 +5,11 @@ import { ZBM_BASE_URL } from "../playwright.config";
 
 /**
  * Phase 5 gate — the free assessment chunk (Brief §6.3; Backend Spec v0.3 §11;
- * founder decision 10). Brief §6.3 also lists the Search Intelligence AI
- * Visibility Check and ZBC's "Browse Active Campaigns" CTA under Phase 5; they
- * are NOT in this chunk.
+ * founder decision 10). Brief §6.3 lists three other Phase 5 items: the
+ * recovered-revenue counter stays unwired by the brief's own rule; ZBC's
+ * "Browse Active Campaigns" CTA was already built and certified in Phase 4 ZBC
+ * (phase-4-zbc.spec.ts); the Search Intelligence AI Visibility Check is not
+ * built, pending a specified result shape.
  *
  * Asserted rather than trusted:
  *   - the eight approved questions, in order, on the approved scale
@@ -29,18 +31,18 @@ const CONSENT_KEY = "zbest-cookie-consent";
 const REPO = path.join(import.meta.dirname, "..", "..");
 
 /** The fixture rule set's version. A mismatch is a 409, by design (§11.3). */
-const RULE_SET_VERSION = "fixture-2026-09-18.1";
+const RULE_SET_VERSION = "fixture-2026-09-18.2";
 
 /** §11.3, verbatim and in display order. */
 const QUESTIONS: [string, string][] = [
-  ["follow_up", "When a lead comes in, we don't always respond fast or follow up consistently."],
+  ["follow_up", "When a lead comes in, we don’t always respond fast or follow up consistently."],
   ["conversion", "Our site or booking process makes it hard for people to take the next step."],
-  ["offer", "People aren't sure what they get from us, or why it's worth it."],
-  ["trust", "We don't have enough reviews, proof, or credentials in front of visitors."],
-  ["tracking", "We can't tell which ads, pages, or channels actually bring in revenue."],
+  ["offer", "People aren’t sure what they get from us, or why it’s worth it."],
+  ["trust", "We don’t have enough reviews, proof, or credentials in front of visitors."],
+  ["tracking", "We can’t tell which ads, pages, or channels actually bring in revenue."],
   ["creative", "Our ads get attention or clicks, but not many real buyers."],
-  ["visibility", "We're hard to find in search results, map listings, or AI search."],
-  ["traffic", "We don't get enough qualified visitors or inquiries in the first place."],
+  ["visibility", "We’re hard to find in search results, map listings, or AI search."],
+  ["traffic", "We don’t get enough qualified visitors or inquiries in the first place."],
 ];
 
 /** §11.3 scale, founder-approved wording. */
