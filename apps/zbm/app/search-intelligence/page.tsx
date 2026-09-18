@@ -1,5 +1,6 @@
 import { ButtonLink, LedgerRule, pageMetadata } from "@zbest/ui";
-import { CtaRow, FaqList, Lead, PageHeader, PageSection, RuledList } from "@/components/page";
+import { CtaRow, FaqList, LedgerList, Lead, PageHeader, PageSection, RuledList } from "@/components/page";
+import { VISIBILITY_GAP_LIBRARY } from "@/content/visibility-gaps";
 import { SITE } from "@/lib/site";
 
 /**
@@ -14,8 +15,14 @@ import { SITE } from "@/lib/site";
  * Its FAQ is deliberately NOT in content/faq.ts, so the site-level FAQ page
  * cannot aggregate it by accident (§A4: no Search Intelligence questions there).
  *
- * The Free AI Visibility Check is a Phase 5 fixture (§6.3); until then its CTA
- * goes to Contact.
+ * Phase 5, founder decision 11 (Backend Spec v0.4 §12): the free check is the
+ * AI Visibility Readiness Check — rule-based, one prioritized visibility gap, no
+ * claim about what any engine says. Its Visibility Gap Library is published
+ * below (§12.4, certified copy). The brief's "Free AI Visibility Check" and its
+ * promise to show "whether and how your business currently shows up…" are
+ * retired permanently, and the gate fails any page carrying them (§12.8, C3).
+ * The check itself is not built yet (build step 2), so no button names it;
+ * Talk to Us leads until it exists.
  */
 export const metadata = pageMetadata(SITE, {
   title: "Search Intelligence",
@@ -103,7 +110,7 @@ const FAQ_ITEMS = [
   {
     question: "Do you offer a free trial?",
     answer:
-      "Not yet — a free AI Visibility Check is available now. A self-serve trial mechanic is planned once the client dashboard itself is live.",
+      "Not yet. A self-serve trial mechanic is planned once the client dashboard itself is live.",
   },
   {
     question: "Is this a new offering?",
@@ -124,10 +131,7 @@ export default function SearchIntelligencePage() {
           page nobody scrolls anymore.
         </Lead>
         <CtaRow>
-          <ButtonLink href="/contact">Get Your Free Visibility Check</ButtonLink>
-          <ButtonLink href="/contact" variant="secondary">
-            Talk to Us
-          </ButtonLink>
+          <ButtonLink href="/contact">Talk to Us</ButtonLink>
         </CtaRow>
       </PageHeader>
 
@@ -222,11 +226,22 @@ export default function SearchIntelligencePage() {
         </p>
       </PageSection>
 
-      <PageSection label="Free AI Visibility Check">
-        <p className="type-body-lead text-text-primary">
-          See whether and how your business currently shows up when someone asks ChatGPT,
-          Gemini, or Perplexity a question relevant to it. No payment, no obligation.
-        </p>
+      {/*
+        §12.4: the Visibility Gap Library, certified copy. Replaces the retired
+        "Free AI Visibility Check" section and its promise (§12.1, §12.8 C3).
+      */}
+      <PageSection
+        id="visibility-gaps"
+        label={VISIBILITY_GAP_LIBRARY.title}
+        intro={<Lead>{VISIBILITY_GAP_LIBRARY.intro}</Lead>}
+      >
+        <LedgerList
+          items={VISIBILITY_GAP_LIBRARY.gaps.map((gap) => ({
+            title: gap.name,
+            body: gap.description,
+            facts: [{ label: "Fix direction", value: gap.fix }],
+          }))}
+        />
       </PageSection>
 
       <PageSection label="Who this is for">
@@ -235,10 +250,7 @@ export default function SearchIntelligencePage() {
           answers, not just a traditional results page.
         </p>
         <CtaRow>
-          <ButtonLink href="/contact">Get Your Free Visibility Check</ButtonLink>
-          <ButtonLink href="/contact" variant="secondary">
-            Talk to Us
-          </ButtonLink>
+          <ButtonLink href="/contact">Talk to Us</ButtonLink>
         </CtaRow>
       </PageSection>
 
