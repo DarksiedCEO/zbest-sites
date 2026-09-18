@@ -641,6 +641,30 @@ Phase 4 ZBM chunk, and that tension is a decision to take deliberately, not to r
 2. **The gate holds.** One file, not two: `e2e/tests/phase-4-zbm.spec.ts:116-120`.
    `phase-4-zbc.spec.ts` never enforced them and should not start — the assessment is a ZBM surface.
    The two `not.toMatch` holds become positive assertions on the new wording.
+
+   This was asserted loosely once before it was checked — a build-session message claimed the holds
+   were "still enforced by both gates", which was an assumption stated as fact. The grep, printed in
+   full so the claim is settled rather than repeated:
+
+   ```
+   $ grep -n "60 sec\|one quantified leak" e2e/tests/*.spec.ts
+   e2e/tests/phase-4-zbm.spec.ts:116:      // FOUNDER HOLD: no page promises a 60-second or "one quantified leak"
+   e2e/tests/phase-4-zbm.spec.ts:120:      expect(text).not.toMatch(/one quantified leak/i);
+   ```
+
+   Two matches, one file, both inside the per-page block at `phase-4-zbm.spec.ts:116-120`:
+
+   ```
+   // FOUNDER HOLD: no page promises a 60-second or "one quantified leak"
+   // assessment until the Phase 5 decision is made.
+   const text = await mainText(page);
+   expect(text).not.toMatch(/60[- ]?sec/i);
+   expect(text).not.toMatch(/one quantified leak/i);
+   ```
+
+   Note the second `not.toMatch` is what the grep's line 120 shows; the `60[- ]?sec` assertion on
+   line 119 does not contain the literal string "60 sec" and so does not appear in the grep output.
+   Anyone re-running it should expect two hits, not three.
 3. **Copy**: the Revenue Recovery FAQ and the Home CTA, both currently written around the hold.
 4. **Then** Phase 5 may open, under the usual rule — its own phase gate, and an audit in a session
    that did not build it.
