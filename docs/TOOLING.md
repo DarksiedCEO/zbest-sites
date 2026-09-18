@@ -486,6 +486,28 @@ Brands, Pricing, Become a Clipper, Launch a Campaign, About, Media Kit, FAQ.
 2. Carry-overs from the ZBM chunk: Launch a Campaign and the Become a Clipper waitlist post to
    the marked no-delivery stub; `press@zbestclips.com` is a labeled placeholder (plain text, no
    mailto); "Assets available on request." as written.
+3. **Copy revision, Sep 17**, from the ZBC gate's CONDITIONAL verdict at `c35ee1d` and the copy
+   audit folded into it. Founder decision 9 applied to ZBC: the Media Kit drops "founded in 2011"
+   from its long boilerplate and its Parent row becomes "Z Best Media, Los Angeles" — only the
+   year was retired, not the city — and `packages/ui/src/dev/system-gallery.tsx` drops the
+   retired Est. stat row. ZBC is then held to the ZBM rulings: About no longer positions against
+   marketing agencies; Pricing, the FAQ and the Media Kit short boilerplate no longer say
+   creators are paid only on views, which contradicted the guaranteed flat fee per approved post
+   that Brands campaigns carry; "dozens" replaces "hundreds" everywhere including
+   `lib/site.ts` `SITE.description`; the FAQ drops the unsupported "proven" and writes full
+   sentences. Four negative gate assertions lock each of these.
+4. **Media Kit "Founder" row removed** (founder ruling, build window, Sep 17). The row read "A
+   software engineer with a background in high-end automotive sales" with no name. The auditor
+   raised it as reading evasive in a press kit and offered name-it-or-remove-it; naming would
+   have contradicted the standing company-voice direction recorded at
+   `apps/zbc/app/about/page.tsx:16` ("no founder name"), so the founder chose removal. The About
+   page keeps the background in company voice, which that same direction permits.
+
+**Open on ZBC, raised and deliberately not fixed:** the Launch a Campaign honesty note still says
+"built on proven mechanics — the same clipping and distribution model driving results
+industry-wide". That is the same unsupported "proven" the copy audit struck from the FAQ, but it
+was not in the fix list, the note is brief-mandated (§B4) and asserted word for word by the gate,
+and mutation M5 exists to stop it drifting. It needs a ruling; changing it changes the assertion.
 
 **Rules enforced by the gate on every ZBC page:** a real-company blocklist (platforms §B4 names
 are allowed); no dollar figure on any client-facing page, and the clipper starting rates only on
