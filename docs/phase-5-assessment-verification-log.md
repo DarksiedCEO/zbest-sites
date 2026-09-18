@@ -4428,3 +4428,916 @@ The contact path keeps its Phase 4 short-circuit.
 Brief §6.3 lists these under Phase 5. They are not built here and are not claimed:
 - the Search Intelligence free AI Visibility Check (UI on fixtures, behind the unlinked page)
 - ZBC "Browse Active Campaigns" pointing to the clipper waitlist
+
+## Appended after certification at `87c9ee9` — the curly amendment, and a correction
+
+The auditor certified this chunk at `87c9ee9`. Everything above this heading is that record and
+is unchanged. What follows covers `fa34b40`.
+
+### Correction: ZBC "Browse Active Campaigns" was never outstanding
+
+This log (Scope, and disclosure 9), the MANIFEST at `87c9ee9`, and the header of
+`phase-5.spec.ts` all said ZBC's "Browse Active Campaigns" CTA was a Phase 5 item not built in
+this chunk. It was built and certified in Phase 4 ZBC. The claim was made without checking the
+ZBC code, and the founder chose it as the next item on the strength of it. The evidence:
+
+```
+$ grep -n 'Browse Active Campaigns' apps/zbc/app/become-a-clipper/page.tsx
+20: * "Browse Active Campaigns": until a real campaign exists it opens the clipper
+33:            <ButtonLink href="#waitlist">Browse Active Campaigns</ButtonLink>
+83:        label="Browse Active Campaigns"
+
+$ grep -n 'Browse Active Campaigns opens the labeled waitlist form' e2e/tests/phase-4-zbc.spec.ts
+307:  test("Browse Active Campaigns opens the labeled waitlist form, which posts to the stub", async ({ page }) => {
+
+$ sed -n '632p' docs/ZBM-ZBC-Build-Brief-v2.md
+**CTA:** Browse Active Campaigns → until a real campaign exists, this opens the clipper waitlist form (§6.1) with the label “Join the clipper list — we’ll notify you when the first campaigns open.”
+```
+
+So the only Phase 5 build item left is the Search Intelligence AI Visibility Check. No spec
+defines its result shape, and CLAUDE.md forbids building against guessed DTOs. The spec header
+is corrected in `fa34b40`.
+
+### The amendment — founder ruling, 2026-09-18
+
+Curly apostrophes in the six approved questions that contain one, across the spec, `rules.ts`
+and `phase-5.spec.ts`. The wording is unchanged. Under v0.3 §11.2 a changed question is a new
+rule-set version, so the fixture moves `.1` -> `.2` with a new hash.
+
+```
+$ git show --stat --format='%h %s' fa34b40
+fa34b40 Curly apostrophes in the assessment questions; rule set to fixture-2026-09-18.2
+
+ apps/zbm/lib/assessment/rules.ts                   |  17 +++++++-----
+ docs/TOOLING.md                                    |  30 +++++++++++++++++++++
+ docs/backend-interface-spec-v0.3.md                |  14 +++++-----
+ .../zbm-revenue-recovery-desktop-1440.png          | Bin 1002940 -> 1003599 bytes
+ .../zbm-revenue-recovery-mobile-390.png            | Bin 3451427 -> 3452488 bytes
+ .../phase-5/zbm-assessment-form-desktop-1440.png   | Bin 132981 -> 133634 bytes
+ .../phase-5/zbm-assessment-form-mobile-390.png     | Bin 668656 -> 669969 bytes
+ e2e/tests/phase-5.spec.ts                          |  22 ++++++++-------
+ 8 files changed, 60 insertions(+), 23 deletions(-)
+
+$ git diff fa34b40^ fa34b40 -- apps/zbm/lib/assessment/rules.ts | grep -E '^[-+][^-+]'
+-  { id: "follow_up", category: "follow_up", statement: "When a lead comes in, we don't always respond fast or follow up consistently." },
++  { id: "follow_up", category: "follow_up", statement: "When a lead comes in, we don’t always respond fast or follow up consistently." },
+-  { id: "offer", category: "offer", statement: "People aren't sure what they get from us, or why it's worth it." },
+-  { id: "trust", category: "trust", statement: "We don't have enough reviews, proof, or credentials in front of visitors." },
+-  { id: "tracking", category: "tracking", statement: "We can't tell which ads, pages, or channels actually bring in revenue." },
++  { id: "offer", category: "offer", statement: "People aren’t sure what they get from us, or why it’s worth it." },
++  { id: "trust", category: "trust", statement: "We don’t have enough reviews, proof, or credentials in front of visitors." },
++  { id: "tracking", category: "tracking", statement: "We can’t tell which ads, pages, or channels actually bring in revenue." },
+-  { id: "visibility", category: "visibility", statement: "We're hard to find in search results, map listings, or AI search." },
+-  { id: "traffic", category: "traffic", statement: "We don't get enough qualified visitors or inquiries in the first place." },
++  { id: "visibility", category: "visibility", statement: "We’re hard to find in search results, map listings, or AI search." },
++  { id: "traffic", category: "traffic", statement: "We don’t get enough qualified visitors or inquiries in the first place." },
+-  version: "fixture-2026-09-18.1",
++  // .2: the six questions with apostrophes changed to curly (founder ruling,
++  // 2026-09-18). A question changed, so per §11.2 this is a new version with a
++  // new hash; .1 is not edited in place.
++  version: "fixture-2026-09-18.2",
+```
+
+### Gate at `fa34b40` — raw counts
+
+Run against the working tree that became `fa34b40`, from a wiped state.
+
+```
+build=0
+typecheck=0
+e2e=0
+lint=0
+DONE
+  1 skipped
+  285 passed (1.4m)
+$ grep -H '^ Tasks:' gate-01-build.txt gate-02-typecheck.txt gate-04-lint.txt
+gate-01-build.txt: Tasks:    2 successful, 2 total
+gate-02-typecheck.txt: Tasks:    4 successful, 4 total
+gate-04-lint.txt: Tasks:    5 successful, 5 total
+$ ~/.claude/skills/impeccable/scripts/impeccable detect --json packages/ui/src apps/zbm/app apps/zbm/components apps/zbc/app
+[]
+
+$ git diff --name-status fa34b40^ fa34b40 -- e2e/snapshots/
+M	e2e/snapshots/phase-4-zbm/zbm-revenue-recovery-desktop-1440.png
+M	e2e/snapshots/phase-4-zbm/zbm-revenue-recovery-mobile-390.png
+M	e2e/snapshots/phase-5/zbm-assessment-form-desktop-1440.png
+M	e2e/snapshots/phase-5/zbm-assessment-form-mobile-390.png
+```
+
+Four captures moved: the Phase 5 form at both viewports, and the Revenue Recovery full page in
+the Phase 4 suite at both. The auditor's line said to re-run the Phase 5 spec only. That would
+have left the two Phase 4 captures stale.
+
+### Mutations for the amendment — each alone, against `fa34b40`
+
+| # | Mutation | Result |
+|---|---|---|
+| MC1 | one question reverted to a straight apostrophe | 2 failed, 0 build failures — `Error: follow_up` |
+| MC2 | the curly change made in place, without the §11.2 version bump | 14 failed, 0 build failures — `Error: {"ok":false,"error":{"code":"rule_set_superseded","active_version":"fixture-2026-09-18.1"}}` |
+
+**Gap, not closed here:** MC2 catches the version and the test disagreeing, not a version that
+was never bumped. If a question changed and the test's transcribed copy was updated too, both
+still on `.2`, the gate would pass. Pinning the expected `rules_hash` for each version in the
+spec would enforce §11.2 mechanically. Not added unasked.
+
+#### MC1
+```
+=== MC1 diff ===
+ apps/zbm/lib/assessment/rules.ts | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+
+  ⚠  Gate running against a DIRTY tree — screenshots will not match fa34b40.
+
+
+Running 114 tests using 1 worker
+
+  ✓    1 [desktop-1440] › tests/phase-4-zbm.spec.ts:92:5 › / › renders, carries its metadata, holds the site rules, and is captured (393ms)
+  ✓    2 [desktop-1440] › tests/phase-4-zbm.spec.ts:92:5 › /digital-advertising › renders, carries its metadata, holds the site rules, and is captured (240ms)
+  ✓    3 [desktop-1440] › tests/phase-4-zbm.spec.ts:92:5 › /revenue-recovery › renders, carries its metadata, holds the site rules, and is captured (418ms)
+  ✓    4 [desktop-1440] › tests/phase-4-zbm.spec.ts:92:5 › /out-of-home › renders, carries its metadata, holds the site rules, and is captured (218ms)
+  ✓    5 [desktop-1440] › tests/phase-4-zbm.spec.ts:92:5 › /about › renders, carries its metadata, holds the site rules, and is captured (192ms)
+  ✓    6 [desktop-1440] › tests/phase-4-zbm.spec.ts:92:5 › /contact › renders, carries its metadata, holds the site rules, and is captured (188ms)
+  ✓    7 [desktop-1440] › tests/phase-4-zbm.spec.ts:92:5 › /faq › renders, carries its metadata, holds the site rules, and is captured (199ms)
+  ✓    8 [desktop-1440] › tests/phase-4-zbm.spec.ts:92:5 › /search-intelligence › renders, carries its metadata, holds the site rules, and is captured (244ms)
+  ✓    9 [desktop-1440] › tests/phase-4-zbm.spec.ts:176:3 › / — every same-site link resolves (144ms)
+  ✓   10 [desktop-1440] › tests/phase-4-zbm.spec.ts:176:3 › /digital-advertising — every same-site link resolves (127ms)
+  ✓   11 [desktop-1440] › tests/phase-4-zbm.spec.ts:176:3 › /revenue-recovery — every same-site link resolves (135ms)
+  ✓   12 [desktop-1440] › tests/phase-4-zbm.spec.ts:176:3 › /out-of-home — every same-site link resolves (104ms)
+  ✓   13 [desktop-1440] › tests/phase-4-zbm.spec.ts:176:3 › /about — every same-site link resolves (103ms)
+  ✓   14 [desktop-1440] › tests/phase-4-zbm.spec.ts:176:3 › /contact — every same-site link resolves (105ms)
+  ✓   15 [desktop-1440] › tests/phase-4-zbm.spec.ts:176:3 › /faq — every same-site link resolves (105ms)
+  ✓   16 [desktop-1440] › tests/phase-4-zbm.spec.ts:176:3 › /search-intelligence — every same-site link resolves (100ms)
+  ✓   17 [desktop-1440] › tests/phase-4-zbm.spec.ts:203:3 › Home (§A4) › hero stat block shows non-outcome facts only, no counter claim (122ms)
+  ✓   18 [desktop-1440] › tests/phase-4-zbm.spec.ts:222:3 › Home (§A4) › How we work carries one process, capitalized, promising only priority and confidence (116ms)
+  ✓   19 [desktop-1440] › tests/phase-4-zbm.spec.ts:235:3 › Home (§A4) › four disciplines link to their pages; See What We Do anchors to them (141ms)
+  ✓   20 [desktop-1440] › tests/phase-4-zbm.spec.ts:250:3 › Home (§A4) › featured Revenue Recovery carries the six leaks, the decision-10 assessment CTA and its fixture label (141ms)
+  ✓   21 [desktop-1440] › tests/phase-4-zbm.spec.ts:269:3 › Home (§A4) › How we work carries no case study cards (120ms)
+  ✓   22 [desktop-1440] › tests/phase-4-zbm.spec.ts:276:3 › Home (§A4) › the scroll-scrubbed hero moves with scroll, and not at all with reduced motion (401ms)
+  ✓   23 [desktop-1440] › tests/phase-4-zbm.spec.ts:296:3 › Digital Advertising (§A4) › certifications block is not rendered — not merely hidden (67ms)
+  ✓   24 [desktop-1440] › tests/phase-4-zbm.spec.ts:303:3 › Digital Advertising (§A4) › pricing, audience and FAQ as written (109ms)
+  ✓   25 [desktop-1440] › tests/phase-4-zbm.spec.ts:315:3 › Revenue Recovery (§A4, filtered live carry-over) › carries the leak library, patterns, deliverable and engagements — not the Method or the agency comparison (121ms)
+  ✓   26 [desktop-1440] › tests/phase-4-zbm.spec.ts:354:3 › Revenue Recovery (§A4, filtered live carry-over) › filtered out: dollar pricing, illustrative outcomes, scenarios, founder name, unverified claims (114ms)
+  ✓   27 [desktop-1440] › tests/phase-4-zbm.spec.ts:368:3 › Revenue Recovery (§A4, filtered live carry-over) › every engagement phase has a body; Phase 1 says exactly the approved line (audit F8) (130ms)
+  ✓   28 [desktop-1440] › tests/phase-4-zbm.spec.ts:378:3 › Revenue Recovery (§A4, filtered live carry-over) › FAQ restores 'How does the process start?' around decision 10, and keeps the Sep 17 withdrawals (197ms)
+  ✓   29 [desktop-1440] › tests/phase-4-zbm.spec.ts:391:3 › Revenue Recovery (§A4, filtered live carry-over) › assessment form: fixture-labeled, stub-marked, validates, and never claims delivery (581ms)
+  ✓   30 [desktop-1440] › tests/phase-4-zbm.spec.ts:435:3 › Lead route stub (§6.2) › valid contact submission is acknowledged as a stub (36ms)
+  ✓   31 [desktop-1440] › tests/phase-4-zbm.spec.ts:446:3 › Lead route stub (§6.2) › invalid fields return the field-level error envelope (34ms)
+  ✓   32 [desktop-1440] › tests/phase-4-zbm.spec.ts:458:3 › Lead route stub (§6.2) › malformed envelope, unknown form and missing submission_id are rejected (35ms)
+  ✓   33 [desktop-1440] › tests/phase-4-zbm.spec.ts:469:3 › Lead route stub (§6.2) › a filled honeypot looks like success and is not validated (33ms)
+  ✓   34 [desktop-1440] › tests/phase-4-zbm.spec.ts:482:3 › Out-of-Home (§A4) › each kept figure is cited inline to its primary source; the untraceable one is dropped (104ms)
+  ✓   35 [desktop-1440] › tests/phase-4-zbm.spec.ts:500:3 › About and Contact (§A4) › About carries the brief's standard and routes to Talk to Us, not the assessment (82ms)
+  ✓   36 [desktop-1440] › tests/phase-4-zbm.spec.ts:511:3 › About and Contact (§A4) › Contact form has the §6.1 fields and posts to the stub (194ms)
+  ✓   37 [desktop-1440] › tests/phase-4-zbm.spec.ts:535:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › the assessment is primary on Home and Revenue Recovery only (432ms)
+  ✓   38 [desktop-1440] › tests/phase-4-zbm.spec.ts:560:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › Digital Advertising states the pairing without the agency framing (103ms)
+  ✓   39 [desktop-1440] › tests/phase-4-zbm.spec.ts:576:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › Out-of-Home plans across operators and claims no buying (88ms)
+  ✓   40 [desktop-1440] › tests/phase-4-zbm.spec.ts:585:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › Search Intelligence drops the competitor-admission clause (85ms)
+  ✓   41 [desktop-1440] › tests/phase-4-zbm.spec.ts:594:3 › FAQ (§A4) › aggregates the three discipline blocks, grouped, with no Search Intelligence questions (121ms)
+  ✓   42 [desktop-1440] › tests/phase-4-zbm.spec.ts:615:3 › Search Intelligence (§A4 — built, never linked) › exists, is noindex, carries its pricing and FAQ (98ms)
+  ✓   43 [desktop-1440] › tests/phase-4-zbm.spec.ts:623:3 › Search Intelligence (§A4 — built, never linked) › no built page links to it, and neither sitemap nor robots names it (53ms)
+  ✓   44 [desktop-1440] › tests/phase-5.spec.ts:139:3 › Free assessment — the rule (§11.4) and its copy (C2) › C2: every category's rationale and remediation equal the published Leak Library, character for character (51ms)
+  ✓   45 [desktop-1440] › tests/phase-5.spec.ts:150:3 › Free assessment — the rule (§11.4) and its copy (C2) › all answers 'Not true' is insufficient_signal — no category is invented (34ms)
+  ✓   46 [desktop-1440] › tests/phase-5.spec.ts:163:3 › Free assessment — the rule (§11.4) and its copy (C2) › the approved priority order decides every tie, all the way down (47ms)
+  ✓   47 [desktop-1440] › tests/phase-5.spec.ts:173:3 › Free assessment — the rule (§11.4) and its copy (C2) › the highest score wins before priority is consulted (34ms)
+  ✓   48 [desktop-1440] › tests/phase-5.spec.ts:184:3 › Free assessment — the rule (§11.4) and its copy (C2) › deterministic: the same answers return the same outcome and the same rule-set hash (36ms)
+  ✓   49 [desktop-1440] › tests/phase-5.spec.ts:192:3 › Free assessment — the rule (§11.4) and its copy (C2) › no free result carries a dollar figure, a currency or an estimate (42ms)
+  ✓   50 [desktop-1440] › tests/phase-5.spec.ts:202:3 › Free assessment — one schema, both sides (§11.3) › the stub rejects every malformed answer set, field by field, and stays a stub (40ms)
+  ✓   51 [desktop-1440] › tests/phase-5.spec.ts:221:3 › Free assessment — one schema, both sides (§11.3) › a superseded rule-set version is refused with a typed error, never scored (32ms)
+  ✓   52 [desktop-1440] › tests/phase-5.spec.ts:230:3 › Free assessment — one schema, both sides (§11.3) › a request without its envelope is malformed, not a form to correct (32ms)
+  ✘   53 [desktop-1440] › tests/phase-5.spec.ts:236:3 › Free assessment — the form and its result (§11.3, §11.5) › renders the eight approved questions, in order, each on the approved scale (5.2s)
+  ✓   54 [desktop-1440] › tests/phase-5.spec.ts:257:3 › Free assessment — the form and its result (§11.3, §11.5) › validates with the shared schema before sending — nothing reaches the stub (261ms)
+  ✓   55 [desktop-1440] › tests/phase-5.spec.ts:271:3 › Free assessment — the form and its result (§11.3, §11.5) › a leak: the leak, the because template, the fix, and both next steps (553ms)
+  ✓   56 [desktop-1440] › tests/phase-5.spec.ts:298:3 › Free assessment — the form and its result (§11.3, §11.5) › a tie says the order decided it (486ms)
+  ✓   57 [desktop-1440] › tests/phase-5.spec.ts:310:3 › Free assessment — the form and its result (§11.3, §11.5) › insufficient_signal: no leak is invented, and it routes to the Audit and Talk to Us (549ms)
+  ✓   58 [mobile-390] › tests/phase-4-zbm.spec.ts:92:5 › / › renders, carries its metadata, holds the site rules, and is captured (518ms)
+  ✓   59 [mobile-390] › tests/phase-4-zbm.spec.ts:92:5 › /digital-advertising › renders, carries its metadata, holds the site rules, and is captured (369ms)
+  ✓   60 [mobile-390] › tests/phase-4-zbm.spec.ts:92:5 › /revenue-recovery › renders, carries its metadata, holds the site rules, and is captured (639ms)
+  ✓   61 [mobile-390] › tests/phase-4-zbm.spec.ts:92:5 › /out-of-home › renders, carries its metadata, holds the site rules, and is captured (343ms)
+  ✓   62 [mobile-390] › tests/phase-4-zbm.spec.ts:92:5 › /about › renders, carries its metadata, holds the site rules, and is captured (287ms)
+  ✓   63 [mobile-390] › tests/phase-4-zbm.spec.ts:92:5 › /contact › renders, carries its metadata, holds the site rules, and is captured (287ms)
+  ✓   64 [mobile-390] › tests/phase-4-zbm.spec.ts:92:5 › /faq › renders, carries its metadata, holds the site rules, and is captured (315ms)
+  ✓   65 [mobile-390] › tests/phase-4-zbm.spec.ts:92:5 › /search-intelligence › renders, carries its metadata, holds the site rules, and is captured (409ms)
+  ✓   66 [mobile-390] › tests/phase-4-zbm.spec.ts:176:3 › / — every same-site link resolves (260ms)
+  ✓   67 [mobile-390] › tests/phase-4-zbm.spec.ts:176:3 › /digital-advertising — every same-site link resolves (228ms)
+  ✓   68 [mobile-390] › tests/phase-4-zbm.spec.ts:176:3 › /revenue-recovery — every same-site link resolves (257ms)
+  ✓   69 [mobile-390] › tests/phase-4-zbm.spec.ts:176:3 › /out-of-home — every same-site link resolves (215ms)
+  ✓   70 [mobile-390] › tests/phase-4-zbm.spec.ts:176:3 › /about — every same-site link resolves (209ms)
+  ✓   71 [mobile-390] › tests/phase-4-zbm.spec.ts:176:3 › /contact — every same-site link resolves (203ms)
+  ✓   72 [mobile-390] › tests/phase-4-zbm.spec.ts:176:3 › /faq — every same-site link resolves (215ms)
+  ✓   73 [mobile-390] › tests/phase-4-zbm.spec.ts:176:3 › /search-intelligence — every same-site link resolves (220ms)
+  ✓   74 [mobile-390] › tests/phase-4-zbm.spec.ts:203:3 › Home (§A4) › hero stat block shows non-outcome facts only, no counter claim (239ms)
+  ✓   75 [mobile-390] › tests/phase-4-zbm.spec.ts:222:3 › Home (§A4) › How we work carries one process, capitalized, promising only priority and confidence (226ms)
+  ✓   76 [mobile-390] › tests/phase-4-zbm.spec.ts:235:3 › Home (§A4) › four disciplines link to their pages; See What We Do anchors to them (257ms)
+  ✓   77 [mobile-390] › tests/phase-4-zbm.spec.ts:250:3 › Home (§A4) › featured Revenue Recovery carries the six leaks, the decision-10 assessment CTA and its fixture label (275ms)
+  ✓   78 [mobile-390] › tests/phase-4-zbm.spec.ts:269:3 › Home (§A4) › How we work carries no case study cards (239ms)
+  ✓   79 [mobile-390] › tests/phase-4-zbm.spec.ts:276:3 › Home (§A4) › the scroll-scrubbed hero moves with scroll, and not at all with reduced motion (632ms)
+  ✓   80 [mobile-390] › tests/phase-4-zbm.spec.ts:296:3 › Digital Advertising (§A4) › certifications block is not rendered — not merely hidden (195ms)
+  ✓   81 [mobile-390] › tests/phase-4-zbm.spec.ts:303:3 › Digital Advertising (§A4) › pricing, audience and FAQ as written (223ms)
+  ✓   82 [mobile-390] › tests/phase-4-zbm.spec.ts:315:3 › Revenue Recovery (§A4, filtered live carry-over) › carries the leak library, patterns, deliverable and engagements — not the Method or the agency comparison (233ms)
+  ✓   83 [mobile-390] › tests/phase-4-zbm.spec.ts:354:3 › Revenue Recovery (§A4, filtered live carry-over) › filtered out: dollar pricing, illustrative outcomes, scenarios, founder name, unverified claims (225ms)
+  ✓   84 [mobile-390] › tests/phase-4-zbm.spec.ts:368:3 › Revenue Recovery (§A4, filtered live carry-over) › every engagement phase has a body; Phase 1 says exactly the approved line (audit F8) (251ms)
+  ✓   85 [mobile-390] › tests/phase-4-zbm.spec.ts:378:3 › Revenue Recovery (§A4, filtered live carry-over) › FAQ restores 'How does the process start?' around decision 10, and keeps the Sep 17 withdrawals (286ms)
+  ✓   86 [mobile-390] › tests/phase-4-zbm.spec.ts:391:3 › Revenue Recovery (§A4, filtered live carry-over) › assessment form: fixture-labeled, stub-marked, validates, and never claims delivery (704ms)
+  ✓   87 [mobile-390] › tests/phase-4-zbm.spec.ts:435:3 › Lead route stub (§6.2) › valid contact submission is acknowledged as a stub (130ms)
+  ✓   88 [mobile-390] › tests/phase-4-zbm.spec.ts:446:3 › Lead route stub (§6.2) › invalid fields return the field-level error envelope (127ms)
+  ✓   89 [mobile-390] › tests/phase-4-zbm.spec.ts:458:3 › Lead route stub (§6.2) › malformed envelope, unknown form and missing submission_id are rejected (129ms)
+  ✓   90 [mobile-390] › tests/phase-4-zbm.spec.ts:469:3 › Lead route stub (§6.2) › a filled honeypot looks like success and is not validated (133ms)
+  ✓   91 [mobile-390] › tests/phase-4-zbm.spec.ts:482:3 › Out-of-Home (§A4) › each kept figure is cited inline to its primary source; the untraceable one is dropped (210ms)
+  ✓   92 [mobile-390] › tests/phase-4-zbm.spec.ts:500:3 › About and Contact (§A4) › About carries the brief's standard and routes to Talk to Us, not the assessment (199ms)
+  ✓   93 [mobile-390] › tests/phase-4-zbm.spec.ts:511:3 › About and Contact (§A4) › Contact form has the §6.1 fields and posts to the stub (279ms)
+  ✓   94 [mobile-390] › tests/phase-4-zbm.spec.ts:535:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › the assessment is primary on Home and Revenue Recovery only (605ms)
+  ✓   95 [mobile-390] › tests/phase-4-zbm.spec.ts:560:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › Digital Advertising states the pairing without the agency framing (213ms)
+  ✓   96 [mobile-390] › tests/phase-4-zbm.spec.ts:576:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › Out-of-Home plans across operators and claims no buying (196ms)
+  ✓   97 [mobile-390] › tests/phase-4-zbm.spec.ts:585:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › Search Intelligence drops the competitor-admission clause (195ms)
+  ✓   98 [mobile-390] › tests/phase-4-zbm.spec.ts:594:3 › FAQ (§A4) › aggregates the three discipline blocks, grouped, with no Search Intelligence questions (210ms)
+  ✓   99 [mobile-390] › tests/phase-4-zbm.spec.ts:615:3 › Search Intelligence (§A4 — built, never linked) › exists, is noindex, carries its pricing and FAQ (208ms)
+  ✓  100 [mobile-390] › tests/phase-4-zbm.spec.ts:623:3 › Search Intelligence (§A4 — built, never linked) › no built page links to it, and neither sitemap nor robots names it (147ms)
+  ✓  101 [mobile-390] › tests/phase-5.spec.ts:139:3 › Free assessment — the rule (§11.4) and its copy (C2) › C2: every category's rationale and remediation equal the published Leak Library, character for character (143ms)
+  ✓  102 [mobile-390] › tests/phase-5.spec.ts:150:3 › Free assessment — the rule (§11.4) and its copy (C2) › all answers 'Not true' is insufficient_signal — no category is invented (132ms)
+  ✓  103 [mobile-390] › tests/phase-5.spec.ts:163:3 › Free assessment — the rule (§11.4) and its copy (C2) › the approved priority order decides every tie, all the way down (144ms)
+  ✓  104 [mobile-390] › tests/phase-5.spec.ts:173:3 › Free assessment — the rule (§11.4) and its copy (C2) › the highest score wins before priority is consulted (126ms)
+  ✓  105 [mobile-390] › tests/phase-5.spec.ts:184:3 › Free assessment — the rule (§11.4) and its copy (C2) › deterministic: the same answers return the same outcome and the same rule-set hash (139ms)
+  ✓  106 [mobile-390] › tests/phase-5.spec.ts:192:3 › Free assessment — the rule (§11.4) and its copy (C2) › no free result carries a dollar figure, a currency or an estimate (134ms)
+  ✓  107 [mobile-390] › tests/phase-5.spec.ts:202:3 › Free assessment — one schema, both sides (§11.3) › the stub rejects every malformed answer set, field by field, and stays a stub (137ms)
+  ✓  108 [mobile-390] › tests/phase-5.spec.ts:221:3 › Free assessment — one schema, both sides (§11.3) › a superseded rule-set version is refused with a typed error, never scored (128ms)
+  ✓  109 [mobile-390] › tests/phase-5.spec.ts:230:3 › Free assessment — one schema, both sides (§11.3) › a request without its envelope is malformed, not a form to correct (130ms)
+  ✘  110 [mobile-390] › tests/phase-5.spec.ts:236:3 › Free assessment — the form and its result (§11.3, §11.5) › renders the eight approved questions, in order, each on the approved scale (5.3s)
+  ✓  111 [mobile-390] › tests/phase-5.spec.ts:257:3 › Free assessment — the form and its result (§11.3, §11.5) › validates with the shared schema before sending — nothing reaches the stub (478ms)
+  ✓  112 [mobile-390] › tests/phase-5.spec.ts:271:3 › Free assessment — the form and its result (§11.3, §11.5) › a leak: the leak, the because template, the fix, and both next steps (717ms)
+  ✓  113 [mobile-390] › tests/phase-5.spec.ts:298:3 › Free assessment — the form and its result (§11.3, §11.5) › a tie says the order decided it (588ms)
+  ✓  114 [mobile-390] › tests/phase-5.spec.ts:310:3 › Free assessment — the form and its result (§11.3, §11.5) › insufficient_signal: no leak is invented, and it routes to the Audit and Talk to Us (697ms)
+
+
+  1) [desktop-1440] › tests/phase-5.spec.ts:236:3 › Free assessment — the form and its result (§11.3, §11.5) › renders the eight approved questions, in order, each on the approved scale 
+
+    Error: follow_up
+
+    expect(locator).toHaveAttribute(expected) failed
+
+    Locator: locator('#assessment').getByRole('group', { name: 'When a lead comes in, we don’t always respond fast or follow up consistently.', exact: true })
+    Expected: "follow_up"
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - follow_up locator('#assessment').getByRole('group', { name: 'When a lead comes in, we don’t always respond fast or follow up consistently.', exact: true }) with timeout 5000ms
+      - waiting for locator('#assessment').getByRole('group', { name: 'When a lead comes in, we don’t always respond fast or follow up consistently.', exact: true })
+
+
+      246 |     for (const [id, statement] of QUESTIONS) {
+      247 |       const group = section.getByRole("group", { name: statement, exact: true });
+    > 248 |       await expect(group, id).toHaveAttribute("data-assessment-question", id);
+          |                               ^
+      249 |       for (const label of SCALE) {
+      250 |         await expect(group.getByRole("radio", { name: label, exact: true }), `${id}: ${label}`).toBeVisible();
+      251 |       }
+        at /Users/andrelove/WebstormProjects/zbest-sites/e2e/tests/phase-5.spec.ts:248:31
+
+    Error Context: test-results/phase-5-Free-assessment-—--1c032--each-on-the-approved-scale-desktop-1440/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/phase-5-Free-assessment-—--1c032--each-on-the-approved-scale-desktop-1440/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/phase-5-Free-assessment-—--1c032--each-on-the-approved-scale-desktop-1440/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [mobile-390] › tests/phase-5.spec.ts:236:3 › Free assessment — the form and its result (§11.3, §11.5) › renders the eight approved questions, in order, each on the approved scale 
+
+    Error: follow_up
+
+    expect(locator).toHaveAttribute(expected) failed
+
+    Locator: locator('#assessment').getByRole('group', { name: 'When a lead comes in, we don’t always respond fast or follow up consistently.', exact: true })
+    Expected: "follow_up"
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - follow_up locator('#assessment').getByRole('group', { name: 'When a lead comes in, we don’t always respond fast or follow up consistently.', exact: true }) with timeout 5000ms
+      - waiting for locator('#assessment').getByRole('group', { name: 'When a lead comes in, we don’t always respond fast or follow up consistently.', exact: true })
+
+
+      246 |     for (const [id, statement] of QUESTIONS) {
+      247 |       const group = section.getByRole("group", { name: statement, exact: true });
+    > 248 |       await expect(group, id).toHaveAttribute("data-assessment-question", id);
+          |                               ^
+      249 |       for (const label of SCALE) {
+      250 |         await expect(group.getByRole("radio", { name: label, exact: true }), `${id}: ${label}`).toBeVisible();
+      251 |       }
+        at /Users/andrelove/WebstormProjects/zbest-sites/e2e/tests/phase-5.spec.ts:248:31
+
+    Error Context: test-results/phase-5-Free-assessment-—--1c032--each-on-the-approved-scale-mobile-390/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/phase-5-Free-assessment-—--1c032--each-on-the-approved-scale-mobile-390/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/phase-5-Free-assessment-—--1c032--each-on-the-approved-scale-mobile-390/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2 failed
+    [desktop-1440] › tests/phase-5.spec.ts:236:3 › Free assessment — the form and its result (§11.3, §11.5) › renders the eight approved questions, in order, each on the approved scale 
+    [mobile-390] › tests/phase-5.spec.ts:236:3 › Free assessment — the form and its result (§11.3, §11.5) › renders the eight approved questions, in order, each on the approved scale 
+  112 passed (46.2s)
+undefined
+/Users/andrelove/WebstormProjects/zbest-sites/e2e:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command failed with exit code 1: playwright test tests/phase-5.spec.ts tests/phase-4-zbm.spec.ts
+```
+
+#### MC2
+```
+=== MC2 diff ===
+ apps/zbm/lib/assessment/rules.ts | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+
+  ⚠  Gate running against a DIRTY tree — screenshots will not match fa34b40.
+
+
+Running 114 tests using 1 worker
+
+  ✓    1 [desktop-1440] › tests/phase-4-zbm.spec.ts:92:5 › / › renders, carries its metadata, holds the site rules, and is captured (279ms)
+  ✓    2 [desktop-1440] › tests/phase-4-zbm.spec.ts:92:5 › /digital-advertising › renders, carries its metadata, holds the site rules, and is captured (235ms)
+  ✓    3 [desktop-1440] › tests/phase-4-zbm.spec.ts:92:5 › /revenue-recovery › renders, carries its metadata, holds the site rules, and is captured (411ms)
+  ✓    4 [desktop-1440] › tests/phase-4-zbm.spec.ts:92:5 › /out-of-home › renders, carries its metadata, holds the site rules, and is captured (222ms)
+  ✓    5 [desktop-1440] › tests/phase-4-zbm.spec.ts:92:5 › /about › renders, carries its metadata, holds the site rules, and is captured (196ms)
+  ✓    6 [desktop-1440] › tests/phase-4-zbm.spec.ts:92:5 › /contact › renders, carries its metadata, holds the site rules, and is captured (188ms)
+  ✓    7 [desktop-1440] › tests/phase-4-zbm.spec.ts:92:5 › /faq › renders, carries its metadata, holds the site rules, and is captured (224ms)
+  ✓    8 [desktop-1440] › tests/phase-4-zbm.spec.ts:92:5 › /search-intelligence › renders, carries its metadata, holds the site rules, and is captured (252ms)
+  ✓    9 [desktop-1440] › tests/phase-4-zbm.spec.ts:176:3 › / — every same-site link resolves (155ms)
+  ✓   10 [desktop-1440] › tests/phase-4-zbm.spec.ts:176:3 › /digital-advertising — every same-site link resolves (127ms)
+  ✓   11 [desktop-1440] › tests/phase-4-zbm.spec.ts:176:3 › /revenue-recovery — every same-site link resolves (137ms)
+  ✓   12 [desktop-1440] › tests/phase-4-zbm.spec.ts:176:3 › /out-of-home — every same-site link resolves (119ms)
+  ✓   13 [desktop-1440] › tests/phase-4-zbm.spec.ts:176:3 › /about — every same-site link resolves (109ms)
+  ✓   14 [desktop-1440] › tests/phase-4-zbm.spec.ts:176:3 › /contact — every same-site link resolves (112ms)
+  ✓   15 [desktop-1440] › tests/phase-4-zbm.spec.ts:176:3 › /faq — every same-site link resolves (109ms)
+  ✓   16 [desktop-1440] › tests/phase-4-zbm.spec.ts:176:3 › /search-intelligence — every same-site link resolves (111ms)
+  ✓   17 [desktop-1440] › tests/phase-4-zbm.spec.ts:203:3 › Home (§A4) › hero stat block shows non-outcome facts only, no counter claim (145ms)
+  ✓   18 [desktop-1440] › tests/phase-4-zbm.spec.ts:222:3 › Home (§A4) › How we work carries one process, capitalized, promising only priority and confidence (120ms)
+  ✓   19 [desktop-1440] › tests/phase-4-zbm.spec.ts:235:3 › Home (§A4) › four disciplines link to their pages; See What We Do anchors to them (145ms)
+  ✓   20 [desktop-1440] › tests/phase-4-zbm.spec.ts:250:3 › Home (§A4) › featured Revenue Recovery carries the six leaks, the decision-10 assessment CTA and its fixture label (148ms)
+  ✓   21 [desktop-1440] › tests/phase-4-zbm.spec.ts:269:3 › Home (§A4) › How we work carries no case study cards (136ms)
+  ✓   22 [desktop-1440] › tests/phase-4-zbm.spec.ts:276:3 › Home (§A4) › the scroll-scrubbed hero moves with scroll, and not at all with reduced motion (402ms)
+  ✓   23 [desktop-1440] › tests/phase-4-zbm.spec.ts:296:3 › Digital Advertising (§A4) › certifications block is not rendered — not merely hidden (66ms)
+  ✓   24 [desktop-1440] › tests/phase-4-zbm.spec.ts:303:3 › Digital Advertising (§A4) › pricing, audience and FAQ as written (106ms)
+  ✓   25 [desktop-1440] › tests/phase-4-zbm.spec.ts:315:3 › Revenue Recovery (§A4, filtered live carry-over) › carries the leak library, patterns, deliverable and engagements — not the Method or the agency comparison (122ms)
+  ✓   26 [desktop-1440] › tests/phase-4-zbm.spec.ts:354:3 › Revenue Recovery (§A4, filtered live carry-over) › filtered out: dollar pricing, illustrative outcomes, scenarios, founder name, unverified claims (125ms)
+  ✓   27 [desktop-1440] › tests/phase-4-zbm.spec.ts:368:3 › Revenue Recovery (§A4, filtered live carry-over) › every engagement phase has a body; Phase 1 says exactly the approved line (audit F8) (133ms)
+  ✓   28 [desktop-1440] › tests/phase-4-zbm.spec.ts:378:3 › Revenue Recovery (§A4, filtered live carry-over) › FAQ restores 'How does the process start?' around decision 10, and keeps the Sep 17 withdrawals (201ms)
+  ✓   29 [desktop-1440] › tests/phase-4-zbm.spec.ts:391:3 › Revenue Recovery (§A4, filtered live carry-over) › assessment form: fixture-labeled, stub-marked, validates, and never claims delivery (589ms)
+  ✓   30 [desktop-1440] › tests/phase-4-zbm.spec.ts:435:3 › Lead route stub (§6.2) › valid contact submission is acknowledged as a stub (45ms)
+  ✓   31 [desktop-1440] › tests/phase-4-zbm.spec.ts:446:3 › Lead route stub (§6.2) › invalid fields return the field-level error envelope (42ms)
+  ✓   32 [desktop-1440] › tests/phase-4-zbm.spec.ts:458:3 › Lead route stub (§6.2) › malformed envelope, unknown form and missing submission_id are rejected (44ms)
+  ✓   33 [desktop-1440] › tests/phase-4-zbm.spec.ts:469:3 › Lead route stub (§6.2) › a filled honeypot looks like success and is not validated (34ms)
+  ✓   34 [desktop-1440] › tests/phase-4-zbm.spec.ts:482:3 › Out-of-Home (§A4) › each kept figure is cited inline to its primary source; the untraceable one is dropped (105ms)
+  ✓   35 [desktop-1440] › tests/phase-4-zbm.spec.ts:500:3 › About and Contact (§A4) › About carries the brief's standard and routes to Talk to Us, not the assessment (94ms)
+  ✓   36 [desktop-1440] › tests/phase-4-zbm.spec.ts:511:3 › About and Contact (§A4) › Contact form has the §6.1 fields and posts to the stub (203ms)
+  ✓   37 [desktop-1440] › tests/phase-4-zbm.spec.ts:535:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › the assessment is primary on Home and Revenue Recovery only (451ms)
+  ✓   38 [desktop-1440] › tests/phase-4-zbm.spec.ts:560:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › Digital Advertising states the pairing without the agency framing (109ms)
+  ✓   39 [desktop-1440] › tests/phase-4-zbm.spec.ts:576:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › Out-of-Home plans across operators and claims no buying (94ms)
+  ✓   40 [desktop-1440] › tests/phase-4-zbm.spec.ts:585:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › Search Intelligence drops the competitor-admission clause (90ms)
+  ✓   41 [desktop-1440] › tests/phase-4-zbm.spec.ts:594:3 › FAQ (§A4) › aggregates the three discipline blocks, grouped, with no Search Intelligence questions (135ms)
+  ✓   42 [desktop-1440] › tests/phase-4-zbm.spec.ts:615:3 › Search Intelligence (§A4 — built, never linked) › exists, is noindex, carries its pricing and FAQ (105ms)
+  ✓   43 [desktop-1440] › tests/phase-4-zbm.spec.ts:623:3 › Search Intelligence (§A4 — built, never linked) › no built page links to it, and neither sitemap nor robots names it (60ms)
+  ✘   44 [desktop-1440] › tests/phase-5.spec.ts:139:3 › Free assessment — the rule (§11.4) and its copy (C2) › C2: every category's rationale and remediation equal the published Leak Library, character for character (51ms)
+  ✘   45 [desktop-1440] › tests/phase-5.spec.ts:150:3 › Free assessment — the rule (§11.4) and its copy (C2) › all answers 'Not true' is insufficient_signal — no category is invented (75ms)
+  ✘   46 [desktop-1440] › tests/phase-5.spec.ts:163:3 › Free assessment — the rule (§11.4) and its copy (C2) › the approved priority order decides every tie, all the way down (75ms)
+  ✘   47 [desktop-1440] › tests/phase-5.spec.ts:173:3 › Free assessment — the rule (§11.4) and its copy (C2) › the highest score wins before priority is consulted (71ms)
+  ✘   48 [desktop-1440] › tests/phase-5.spec.ts:184:3 › Free assessment — the rule (§11.4) and its copy (C2) › deterministic: the same answers return the same outcome and the same rule-set hash (73ms)
+  ✘   49 [desktop-1440] › tests/phase-5.spec.ts:192:3 › Free assessment — the rule (§11.4) and its copy (C2) › no free result carries a dollar figure, a currency or an estimate (76ms)
+  ✓   50 [desktop-1440] › tests/phase-5.spec.ts:202:3 › Free assessment — one schema, both sides (§11.3) › the stub rejects every malformed answer set, field by field, and stays a stub (64ms)
+  ✘   51 [desktop-1440] › tests/phase-5.spec.ts:221:3 › Free assessment — one schema, both sides (§11.3) › a superseded rule-set version is refused with a typed error, never scored (62ms)
+  ✓   52 [desktop-1440] › tests/phase-5.spec.ts:230:3 › Free assessment — one schema, both sides (§11.3) › a request without its envelope is malformed, not a form to correct (50ms)
+  ✓   53 [desktop-1440] › tests/phase-5.spec.ts:236:3 › Free assessment — the form and its result (§11.3, §11.5) › renders the eight approved questions, in order, each on the approved scale (386ms)
+  ✓   54 [desktop-1440] › tests/phase-5.spec.ts:257:3 › Free assessment — the form and its result (§11.3, §11.5) › validates with the shared schema before sending — nothing reaches the stub (244ms)
+  ✓   55 [desktop-1440] › tests/phase-5.spec.ts:271:3 › Free assessment — the form and its result (§11.3, §11.5) › a leak: the leak, the because template, the fix, and both next steps (558ms)
+  ✓   56 [desktop-1440] › tests/phase-5.spec.ts:298:3 › Free assessment — the form and its result (§11.3, §11.5) › a tie says the order decided it (496ms)
+  ✓   57 [desktop-1440] › tests/phase-5.spec.ts:310:3 › Free assessment — the form and its result (§11.3, §11.5) › insufficient_signal: no leak is invented, and it routes to the Audit and Talk to Us (548ms)
+  ✓   58 [mobile-390] › tests/phase-4-zbm.spec.ts:92:5 › / › renders, carries its metadata, holds the site rules, and is captured (532ms)
+  ✓   59 [mobile-390] › tests/phase-4-zbm.spec.ts:92:5 › /digital-advertising › renders, carries its metadata, holds the site rules, and is captured (375ms)
+  ✓   60 [mobile-390] › tests/phase-4-zbm.spec.ts:92:5 › /revenue-recovery › renders, carries its metadata, holds the site rules, and is captured (647ms)
+  ✓   61 [mobile-390] › tests/phase-4-zbm.spec.ts:92:5 › /out-of-home › renders, carries its metadata, holds the site rules, and is captured (361ms)
+  ✓   62 [mobile-390] › tests/phase-4-zbm.spec.ts:92:5 › /about › renders, carries its metadata, holds the site rules, and is captured (280ms)
+  ✓   63 [mobile-390] › tests/phase-4-zbm.spec.ts:92:5 › /contact › renders, carries its metadata, holds the site rules, and is captured (341ms)
+  ✓   64 [mobile-390] › tests/phase-4-zbm.spec.ts:92:5 › /faq › renders, carries its metadata, holds the site rules, and is captured (330ms)
+  ✓   65 [mobile-390] › tests/phase-4-zbm.spec.ts:92:5 › /search-intelligence › renders, carries its metadata, holds the site rules, and is captured (417ms)
+  ✓   66 [mobile-390] › tests/phase-4-zbm.spec.ts:176:3 › / — every same-site link resolves (259ms)
+  ✓   67 [mobile-390] › tests/phase-4-zbm.spec.ts:176:3 › /digital-advertising — every same-site link resolves (237ms)
+  ✓   68 [mobile-390] › tests/phase-4-zbm.spec.ts:176:3 › /revenue-recovery — every same-site link resolves (238ms)
+  ✓   69 [mobile-390] › tests/phase-4-zbm.spec.ts:176:3 › /out-of-home — every same-site link resolves (232ms)
+  ✓   70 [mobile-390] › tests/phase-4-zbm.spec.ts:176:3 › /about — every same-site link resolves (211ms)
+  ✓   71 [mobile-390] › tests/phase-4-zbm.spec.ts:176:3 › /contact — every same-site link resolves (206ms)
+  ✓   72 [mobile-390] › tests/phase-4-zbm.spec.ts:176:3 › /faq — every same-site link resolves (205ms)
+  ✓   73 [mobile-390] › tests/phase-4-zbm.spec.ts:176:3 › /search-intelligence — every same-site link resolves (208ms)
+  ✓   74 [mobile-390] › tests/phase-4-zbm.spec.ts:203:3 › Home (§A4) › hero stat block shows non-outcome facts only, no counter claim (239ms)
+  ✓   75 [mobile-390] › tests/phase-4-zbm.spec.ts:222:3 › Home (§A4) › How we work carries one process, capitalized, promising only priority and confidence (233ms)
+  ✓   76 [mobile-390] › tests/phase-4-zbm.spec.ts:235:3 › Home (§A4) › four disciplines link to their pages; See What We Do anchors to them (254ms)
+  ✓   77 [mobile-390] › tests/phase-4-zbm.spec.ts:250:3 › Home (§A4) › featured Revenue Recovery carries the six leaks, the decision-10 assessment CTA and its fixture label (276ms)
+  ✓   78 [mobile-390] › tests/phase-4-zbm.spec.ts:269:3 › Home (§A4) › How we work carries no case study cards (231ms)
+  ✓   79 [mobile-390] › tests/phase-4-zbm.spec.ts:276:3 › Home (§A4) › the scroll-scrubbed hero moves with scroll, and not at all with reduced motion (552ms)
+  ✓   80 [mobile-390] › tests/phase-4-zbm.spec.ts:296:3 › Digital Advertising (§A4) › certifications block is not rendered — not merely hidden (176ms)
+  ✓   81 [mobile-390] › tests/phase-4-zbm.spec.ts:303:3 › Digital Advertising (§A4) › pricing, audience and FAQ as written (242ms)
+  ✓   82 [mobile-390] › tests/phase-4-zbm.spec.ts:315:3 › Revenue Recovery (§A4, filtered live carry-over) › carries the leak library, patterns, deliverable and engagements — not the Method or the agency comparison (245ms)
+  ✓   83 [mobile-390] › tests/phase-4-zbm.spec.ts:354:3 › Revenue Recovery (§A4, filtered live carry-over) › filtered out: dollar pricing, illustrative outcomes, scenarios, founder name, unverified claims (240ms)
+  ✓   84 [mobile-390] › tests/phase-4-zbm.spec.ts:368:3 › Revenue Recovery (§A4, filtered live carry-over) › every engagement phase has a body; Phase 1 says exactly the approved line (audit F8) (271ms)
+  ✓   85 [mobile-390] › tests/phase-4-zbm.spec.ts:378:3 › Revenue Recovery (§A4, filtered live carry-over) › FAQ restores 'How does the process start?' around decision 10, and keeps the Sep 17 withdrawals (296ms)
+  ✓   86 [mobile-390] › tests/phase-4-zbm.spec.ts:391:3 › Revenue Recovery (§A4, filtered live carry-over) › assessment form: fixture-labeled, stub-marked, validates, and never claims delivery (838ms)
+  ✓   87 [mobile-390] › tests/phase-4-zbm.spec.ts:435:3 › Lead route stub (§6.2) › valid contact submission is acknowledged as a stub (138ms)
+  ✓   88 [mobile-390] › tests/phase-4-zbm.spec.ts:446:3 › Lead route stub (§6.2) › invalid fields return the field-level error envelope (138ms)
+  ✓   89 [mobile-390] › tests/phase-4-zbm.spec.ts:458:3 › Lead route stub (§6.2) › malformed envelope, unknown form and missing submission_id are rejected (139ms)
+  ✓   90 [mobile-390] › tests/phase-4-zbm.spec.ts:469:3 › Lead route stub (§6.2) › a filled honeypot looks like success and is not validated (128ms)
+  ✓   91 [mobile-390] › tests/phase-4-zbm.spec.ts:482:3 › Out-of-Home (§A4) › each kept figure is cited inline to its primary source; the untraceable one is dropped (232ms)
+  ✓   92 [mobile-390] › tests/phase-4-zbm.spec.ts:500:3 › About and Contact (§A4) › About carries the brief's standard and routes to Talk to Us, not the assessment (199ms)
+  ✓   93 [mobile-390] › tests/phase-4-zbm.spec.ts:511:3 › About and Contact (§A4) › Contact form has the §6.1 fields and posts to the stub (298ms)
+  ✓   94 [mobile-390] › tests/phase-4-zbm.spec.ts:535:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › the assessment is primary on Home and Revenue Recovery only (595ms)
+  ✓   95 [mobile-390] › tests/phase-4-zbm.spec.ts:560:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › Digital Advertising states the pairing without the agency framing (228ms)
+  ✓   96 [mobile-390] › tests/phase-4-zbm.spec.ts:576:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › Out-of-Home plans across operators and claims no buying (204ms)
+  ✓   97 [mobile-390] › tests/phase-4-zbm.spec.ts:585:3 › Copy revision (founder rulings, Sep 17 — audit at 1fc360f) › Search Intelligence drops the competitor-admission clause (199ms)
+  ✓   98 [mobile-390] › tests/phase-4-zbm.spec.ts:594:3 › FAQ (§A4) › aggregates the three discipline blocks, grouped, with no Search Intelligence questions (213ms)
+  ✓   99 [mobile-390] › tests/phase-4-zbm.spec.ts:615:3 › Search Intelligence (§A4 — built, never linked) › exists, is noindex, carries its pricing and FAQ (221ms)
+  ✓  100 [mobile-390] › tests/phase-4-zbm.spec.ts:623:3 › Search Intelligence (§A4 — built, never linked) › no built page links to it, and neither sitemap nor robots names it (178ms)
+  ✘  101 [mobile-390] › tests/phase-5.spec.ts:139:3 › Free assessment — the rule (§11.4) and its copy (C2) › C2: every category's rationale and remediation equal the published Leak Library, character for character (159ms)
+  ✘  102 [mobile-390] › tests/phase-5.spec.ts:150:3 › Free assessment — the rule (§11.4) and its copy (C2) › all answers 'Not true' is insufficient_signal — no category is invented (227ms)
+  ✘  103 [mobile-390] › tests/phase-5.spec.ts:163:3 › Free assessment — the rule (§11.4) and its copy (C2) › the approved priority order decides every tie, all the way down (234ms)
+  ✘  104 [mobile-390] › tests/phase-5.spec.ts:173:3 › Free assessment — the rule (§11.4) and its copy (C2) › the highest score wins before priority is consulted (229ms)
+  ✘  105 [mobile-390] › tests/phase-5.spec.ts:184:3 › Free assessment — the rule (§11.4) and its copy (C2) › deterministic: the same answers return the same outcome and the same rule-set hash (238ms)
+  ✘  106 [mobile-390] › tests/phase-5.spec.ts:192:3 › Free assessment — the rule (§11.4) and its copy (C2) › no free result carries a dollar figure, a currency or an estimate (237ms)
+  ✓  107 [mobile-390] › tests/phase-5.spec.ts:202:3 › Free assessment — one schema, both sides (§11.3) › the stub rejects every malformed answer set, field by field, and stays a stub (223ms)
+  ✘  108 [mobile-390] › tests/phase-5.spec.ts:221:3 › Free assessment — one schema, both sides (§11.3) › a superseded rule-set version is refused with a typed error, never scored (168ms)
+  ✓  109 [mobile-390] › tests/phase-5.spec.ts:230:3 › Free assessment — one schema, both sides (§11.3) › a request without its envelope is malformed, not a form to correct (207ms)
+  ✓  110 [mobile-390] › tests/phase-5.spec.ts:236:3 › Free assessment — the form and its result (§11.3, §11.5) › renders the eight approved questions, in order, each on the approved scale (609ms)
+  ✓  111 [mobile-390] › tests/phase-5.spec.ts:257:3 › Free assessment — the form and its result (§11.3, §11.5) › validates with the shared schema before sending — nothing reaches the stub (389ms)
+  ✓  112 [mobile-390] › tests/phase-5.spec.ts:271:3 › Free assessment — the form and its result (§11.3, §11.5) › a leak: the leak, the because template, the fix, and both next steps (732ms)
+  ✓  113 [mobile-390] › tests/phase-5.spec.ts:298:3 › Free assessment — the form and its result (§11.3, §11.5) › a tie says the order decided it (599ms)
+  ✓  114 [mobile-390] › tests/phase-5.spec.ts:310:3 › Free assessment — the form and its result (§11.3, §11.5) › insufficient_signal: no leak is invented, and it routes to the Audit and Talk to Us (785ms)
+
+
+  1) [desktop-1440] › tests/phase-5.spec.ts:139:3 › Free assessment — the rule (§11.4) and its copy (C2) › C2: every category's rationale and remediation equal the published Leak Library, character for character 
+
+    Error: {"ok":false,"error":{"code":"rule_set_superseded","active_version":"fixture-2026-09-18.1"}}
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 409
+
+      92 | async function score(page: Page, answers: Answers) {
+      93 |   const res = await post(page, request(answers));
+    > 94 |   expect(res.status(), await res.text()).toBe(200);
+         |                                          ^
+      95 |   return (await res.json()).result;
+      96 | }
+      97 |
+        at score (/Users/andrelove/WebstormProjects/zbest-sites/e2e/tests/phase-5.spec.ts:94:42)
+        at /Users/andrelove/WebstormProjects/zbest-sites/e2e/tests/phase-5.spec.ts:143:22
+
+    Error Context: test-results/phase-5-Free-assessment-—--43e17-ary-character-for-character-desktop-1440/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/phase-5-Free-assessment-—--43e17-ary-character-for-character-desktop-1440/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/phase-5-Free-assessment-—--43e17-ary-character-for-character-desktop-1440/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [desktop-1440] › tests/phase-5.spec.ts:150:3 › Free assessment — the rule (§11.4) and its copy (C2) › all answers 'Not true' is insufficient_signal — no category is invented 
+
+    Error: {"ok":false,"error":{"code":"rule_set_superseded","active_version":"fixture-2026-09-18.1"}}
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 409
+
+      92 | async function score(page: Page, answers: Answers) {
+      93 |   const res = await post(page, request(answers));
+    > 94 |   expect(res.status(), await res.text()).toBe(200);
+         |                                          ^
+      95 |   return (await res.json()).result;
+      96 | }
+      97 |
+        at score (/Users/andrelove/WebstormProjects/zbest-sites/e2e/tests/phase-5.spec.ts:94:42)
+        at /Users/andrelove/WebstormProjects/zbest-sites/e2e/tests/phase-5.spec.ts:151:20
+
+    Error Context: test-results/phase-5-Free-assessment-—--45c14-l-—-no-category-is-invented-desktop-1440/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/phase-5-Free-assessment-—--45c14-l-—-no-category-is-invented-desktop-1440/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/phase-5-Free-assessment-—--45c14-l-—-no-category-is-invented-desktop-1440/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  3) [desktop-1440] › tests/phase-5.spec.ts:163:3 › Free assessment — the rule (§11.4) and its copy (C2) › the approved priority order decides every tie, all the way down 
+
+    Error: {"ok":false,"error":{"code":"rule_set_superseded","active_version":"fixture-2026-09-18.1"}}
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 409
+
+      92 | async function score(page: Page, answers: Answers) {
+      93 |   const res = await post(page, request(answers));
+    > 94 |   expect(res.status(), await res.text()).toBe(200);
+         |                                          ^
+      95 |   return (await res.json()).result;
+      96 | }
+      97 |
+        at score (/Users/andrelove/WebstormProjects/zbest-sites/e2e/tests/phase-5.spec.ts:94:42)
+        at /Users/andrelove/WebstormProjects/zbest-sites/e2e/tests/phase-5.spec.ts:166:22
+
+    Error Context: test-results/phase-5-Free-assessment-—--f6eda--every-tie-all-the-way-down-desktop-1440/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/phase-5-Free-assessment-—--f6eda--every-tie-all-the-way-down-desktop-1440/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/phase-5-Free-assessment-—--f6eda--every-tie-all-the-way-down-desktop-1440/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  4) [desktop-1440] › tests/phase-5.spec.ts:173:3 › Free assessment — the rule (§11.4) and its copy (C2) › the highest score wins before priority is consulted 
+
+    Error: {"ok":false,"error":{"code":"rule_set_superseded","active_version":"fixture-2026-09-18.1"}}
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 409
+
+      92 | async function score(page: Page, answers: Answers) {
+      93 |   const res = await post(page, request(answers));
+    > 94 |   expect(res.status(), await res.text()).toBe(200);
+         |                                          ^
+      95 |   return (await res.json()).result;
+      96 | }
+      97 |
+        at score (/Users/andrelove/WebstormProjects/zbest-sites/e2e/tests/phase-5.spec.ts:94:42)
+        at /Users/andrelove/WebstormProjects/zbest-sites/e2e/tests/phase-5.spec.ts:175:18
+
+    Error Context: test-results/phase-5-Free-assessment-—--ff723-efore-priority-is-consulted-desktop-1440/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/phase-5-Free-assessment-—--ff723-efore-priority-is-consulted-desktop-1440/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/phase-5-Free-assessment-—--ff723-efore-priority-is-consulted-desktop-1440/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  5) [desktop-1440] › tests/phase-5.spec.ts:184:3 › Free assessment — the rule (§11.4) and its copy (C2) › deterministic: the same answers return the same outcome and the same rule-set hash 
+
+    Error: {"ok":false,"error":{"code":"rule_set_superseded","active_version":"fixture-2026-09-18.1"}}
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 409
+
+      92 | async function score(page: Page, answers: Answers) {
+      93 |   const res = await post(page, request(answers));
+    > 94 |   expect(res.status(), await res.text()).toBe(200);
+         |                                          ^
+      95 |   return (await res.json()).result;
+      96 | }
+      97 |
+        at score (/Users/andrelove/WebstormProjects/zbest-sites/e2e/tests/phase-5.spec.ts:94:42)
+        at /Users/andrelove/WebstormProjects/zbest-sites/e2e/tests/phase-5.spec.ts:186:21
+
+    Error Context: test-results/phase-5-Free-assessment-—--83d69--and-the-same-rule-set-hash-desktop-1440/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/phase-5-Free-assessment-—--83d69--and-the-same-rule-set-hash-desktop-1440/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/phase-5-Free-assessment-—--83d69--and-the-same-rule-set-hash-desktop-1440/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  6) [desktop-1440] › tests/phase-5.spec.ts:192:3 › Free assessment — the rule (§11.4) and its copy (C2) › no free result carries a dollar figure, a currency or an estimate 
+
+    Error: {"ok":false,"error":{"code":"rule_set_superseded","active_version":"fixture-2026-09-18.1"}}
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 409
+
+      92 | async function score(page: Page, answers: Answers) {
+      93 |   const res = await post(page, request(answers));
+    > 94 |   expect(res.status(), await res.text()).toBe(200);
+         |                                          ^
+      95 |   return (await res.json()).result;
+      96 | }
+      97 |
+        at score (/Users/andrelove/WebstormProjects/zbest-sites/e2e/tests/phase-5.spec.ts:94:42)
+        at /Users/andrelove/WebstormProjects/zbest-sites/e2e/tests/phase-5.spec.ts:194:22
+
+    Error Context: test-results/phase-5-Free-assessment-—--06080-e-a-currency-or-an-estimate-desktop-1440/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/phase-5-Free-assessment-—--06080-e-a-currency-or-an-estimate-desktop-1440/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/phase-5-Free-assessment-—--06080-e-a-currency-or-an-estimate-desktop-1440/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  7) [desktop-1440] › tests/phase-5.spec.ts:221:3 › Free assessment — one schema, both sides (§11.3) › a superseded rule-set version is refused with a typed error, never scored 
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 1
+
+      Object {
+        "error": Object {
+    -     "active_version": "fixture-2026-09-18.2",
+    +     "active_version": "fixture-2026-09-18.1",
+          "code": "rule_set_superseded",
+        },
+        "ok": false,
+      }
+
+      222 |     const res = await post(page, request(all(2), { rule_set_version: "fixture-2026-01-01.0" }));
+      223 |     expect(res.status()).toBe(409);
+    > 224 |     expect(await res.json()).toEqual({
+          |                              ^
+      225 |       ok: false,
+      226 |       error: { code: "rule_set_superseded", active_version: RULE_SET_VERSION },
+      227 |     });
+        at /Users/andrelove/WebstormProjects/zbest-sites/e2e/tests/phase-5.spec.ts:224:30
+
+    Error Context: test-results/phase-5-Free-assessment-—--33012--a-typed-error-never-scored-desktop-1440/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/phase-5-Free-assessment-—--33012--a-typed-error-never-scored-desktop-1440/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/phase-5-Free-assessment-—--33012--a-typed-error-never-scored-desktop-1440/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  8) [mobile-390] › tests/phase-5.spec.ts:139:3 › Free assessment — the rule (§11.4) and its copy (C2) › C2: every category's rationale and remediation equal the published Leak Library, character for character 
+
+    Error: {"ok":false,"error":{"code":"rule_set_superseded","active_version":"fixture-2026-09-18.1"}}
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 409
+
+      92 | async function score(page: Page, answers: Answers) {
+      93 |   const res = await post(page, request(answers));
+    > 94 |   expect(res.status(), await res.text()).toBe(200);
+         |                                          ^
+      95 |   return (await res.json()).result;
+      96 | }
+      97 |
+        at score (/Users/andrelove/WebstormProjects/zbest-sites/e2e/tests/phase-5.spec.ts:94:42)
+        at /Users/andrelove/WebstormProjects/zbest-sites/e2e/tests/phase-5.spec.ts:143:22
+
+    Error Context: test-results/phase-5-Free-assessment-—--43e17-ary-character-for-character-mobile-390/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/phase-5-Free-assessment-—--43e17-ary-character-for-character-mobile-390/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/phase-5-Free-assessment-—--43e17-ary-character-for-character-mobile-390/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  9) [mobile-390] › tests/phase-5.spec.ts:150:3 › Free assessment — the rule (§11.4) and its copy (C2) › all answers 'Not true' is insufficient_signal — no category is invented 
+
+    Error: {"ok":false,"error":{"code":"rule_set_superseded","active_version":"fixture-2026-09-18.1"}}
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 409
+
+      92 | async function score(page: Page, answers: Answers) {
+      93 |   const res = await post(page, request(answers));
+    > 94 |   expect(res.status(), await res.text()).toBe(200);
+         |                                          ^
+      95 |   return (await res.json()).result;
+      96 | }
+      97 |
+        at score (/Users/andrelove/WebstormProjects/zbest-sites/e2e/tests/phase-5.spec.ts:94:42)
+        at /Users/andrelove/WebstormProjects/zbest-sites/e2e/tests/phase-5.spec.ts:151:20
+
+    Error Context: test-results/phase-5-Free-assessment-—--45c14-l-—-no-category-is-invented-mobile-390/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/phase-5-Free-assessment-—--45c14-l-—-no-category-is-invented-mobile-390/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/phase-5-Free-assessment-—--45c14-l-—-no-category-is-invented-mobile-390/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  10) [mobile-390] › tests/phase-5.spec.ts:163:3 › Free assessment — the rule (§11.4) and its copy (C2) › the approved priority order decides every tie, all the way down 
+
+    Error: {"ok":false,"error":{"code":"rule_set_superseded","active_version":"fixture-2026-09-18.1"}}
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 409
+
+      92 | async function score(page: Page, answers: Answers) {
+      93 |   const res = await post(page, request(answers));
+    > 94 |   expect(res.status(), await res.text()).toBe(200);
+         |                                          ^
+      95 |   return (await res.json()).result;
+      96 | }
+      97 |
+        at score (/Users/andrelove/WebstormProjects/zbest-sites/e2e/tests/phase-5.spec.ts:94:42)
+        at /Users/andrelove/WebstormProjects/zbest-sites/e2e/tests/phase-5.spec.ts:166:22
+
+    Error Context: test-results/phase-5-Free-assessment-—--f6eda--every-tie-all-the-way-down-mobile-390/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/phase-5-Free-assessment-—--f6eda--every-tie-all-the-way-down-mobile-390/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/phase-5-Free-assessment-—--f6eda--every-tie-all-the-way-down-mobile-390/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  11) [mobile-390] › tests/phase-5.spec.ts:173:3 › Free assessment — the rule (§11.4) and its copy (C2) › the highest score wins before priority is consulted 
+
+    Error: {"ok":false,"error":{"code":"rule_set_superseded","active_version":"fixture-2026-09-18.1"}}
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 409
+
+      92 | async function score(page: Page, answers: Answers) {
+      93 |   const res = await post(page, request(answers));
+    > 94 |   expect(res.status(), await res.text()).toBe(200);
+         |                                          ^
+      95 |   return (await res.json()).result;
+      96 | }
+      97 |
+        at score (/Users/andrelove/WebstormProjects/zbest-sites/e2e/tests/phase-5.spec.ts:94:42)
+        at /Users/andrelove/WebstormProjects/zbest-sites/e2e/tests/phase-5.spec.ts:175:18
+
+    Error Context: test-results/phase-5-Free-assessment-—--ff723-efore-priority-is-consulted-mobile-390/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/phase-5-Free-assessment-—--ff723-efore-priority-is-consulted-mobile-390/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/phase-5-Free-assessment-—--ff723-efore-priority-is-consulted-mobile-390/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  12) [mobile-390] › tests/phase-5.spec.ts:184:3 › Free assessment — the rule (§11.4) and its copy (C2) › deterministic: the same answers return the same outcome and the same rule-set hash 
+
+    Error: {"ok":false,"error":{"code":"rule_set_superseded","active_version":"fixture-2026-09-18.1"}}
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 409
+
+      92 | async function score(page: Page, answers: Answers) {
+      93 |   const res = await post(page, request(answers));
+    > 94 |   expect(res.status(), await res.text()).toBe(200);
+         |                                          ^
+      95 |   return (await res.json()).result;
+      96 | }
+      97 |
+        at score (/Users/andrelove/WebstormProjects/zbest-sites/e2e/tests/phase-5.spec.ts:94:42)
+        at /Users/andrelove/WebstormProjects/zbest-sites/e2e/tests/phase-5.spec.ts:186:21
+
+    Error Context: test-results/phase-5-Free-assessment-—--83d69--and-the-same-rule-set-hash-mobile-390/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/phase-5-Free-assessment-—--83d69--and-the-same-rule-set-hash-mobile-390/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/phase-5-Free-assessment-—--83d69--and-the-same-rule-set-hash-mobile-390/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  13) [mobile-390] › tests/phase-5.spec.ts:192:3 › Free assessment — the rule (§11.4) and its copy (C2) › no free result carries a dollar figure, a currency or an estimate 
+
+    Error: {"ok":false,"error":{"code":"rule_set_superseded","active_version":"fixture-2026-09-18.1"}}
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 409
+
+      92 | async function score(page: Page, answers: Answers) {
+      93 |   const res = await post(page, request(answers));
+    > 94 |   expect(res.status(), await res.text()).toBe(200);
+         |                                          ^
+      95 |   return (await res.json()).result;
+      96 | }
+      97 |
+        at score (/Users/andrelove/WebstormProjects/zbest-sites/e2e/tests/phase-5.spec.ts:94:42)
+        at /Users/andrelove/WebstormProjects/zbest-sites/e2e/tests/phase-5.spec.ts:194:22
+
+    Error Context: test-results/phase-5-Free-assessment-—--06080-e-a-currency-or-an-estimate-mobile-390/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/phase-5-Free-assessment-—--06080-e-a-currency-or-an-estimate-mobile-390/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/phase-5-Free-assessment-—--06080-e-a-currency-or-an-estimate-mobile-390/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  14) [mobile-390] › tests/phase-5.spec.ts:221:3 › Free assessment — one schema, both sides (§11.3) › a superseded rule-set version is refused with a typed error, never scored 
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 1
+
+      Object {
+        "error": Object {
+    -     "active_version": "fixture-2026-09-18.2",
+    +     "active_version": "fixture-2026-09-18.1",
+          "code": "rule_set_superseded",
+        },
+        "ok": false,
+      }
+
+      222 |     const res = await post(page, request(all(2), { rule_set_version: "fixture-2026-01-01.0" }));
+      223 |     expect(res.status()).toBe(409);
+    > 224 |     expect(await res.json()).toEqual({
+          |                              ^
+      225 |       ok: false,
+      226 |       error: { code: "rule_set_superseded", active_version: RULE_SET_VERSION },
+      227 |     });
+        at /Users/andrelove/WebstormProjects/zbest-sites/e2e/tests/phase-5.spec.ts:224:30
+
+    Error Context: test-results/phase-5-Free-assessment-—--33012--a-typed-error-never-scored-mobile-390/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/phase-5-Free-assessment-—--33012--a-typed-error-never-scored-mobile-390/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/phase-5-Free-assessment-—--33012--a-typed-error-never-scored-mobile-390/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  14 failed
+    [desktop-1440] › tests/phase-5.spec.ts:139:3 › Free assessment — the rule (§11.4) and its copy (C2) › C2: every category's rationale and remediation equal the published Leak Library, character for character 
+    [desktop-1440] › tests/phase-5.spec.ts:150:3 › Free assessment — the rule (§11.4) and its copy (C2) › all answers 'Not true' is insufficient_signal — no category is invented 
+    [desktop-1440] › tests/phase-5.spec.ts:163:3 › Free assessment — the rule (§11.4) and its copy (C2) › the approved priority order decides every tie, all the way down 
+    [desktop-1440] › tests/phase-5.spec.ts:173:3 › Free assessment — the rule (§11.4) and its copy (C2) › the highest score wins before priority is consulted 
+    [desktop-1440] › tests/phase-5.spec.ts:184:3 › Free assessment — the rule (§11.4) and its copy (C2) › deterministic: the same answers return the same outcome and the same rule-set hash 
+    [desktop-1440] › tests/phase-5.spec.ts:192:3 › Free assessment — the rule (§11.4) and its copy (C2) › no free result carries a dollar figure, a currency or an estimate 
+    [desktop-1440] › tests/phase-5.spec.ts:221:3 › Free assessment — one schema, both sides (§11.3) › a superseded rule-set version is refused with a typed error, never scored 
+    [mobile-390] › tests/phase-5.spec.ts:139:3 › Free assessment — the rule (§11.4) and its copy (C2) › C2: every category's rationale and remediation equal the published Leak Library, character for character 
+    [mobile-390] › tests/phase-5.spec.ts:150:3 › Free assessment — the rule (§11.4) and its copy (C2) › all answers 'Not true' is insufficient_signal — no category is invented 
+    [mobile-390] › tests/phase-5.spec.ts:163:3 › Free assessment — the rule (§11.4) and its copy (C2) › the approved priority order decides every tie, all the way down 
+    [mobile-390] › tests/phase-5.spec.ts:173:3 › Free assessment — the rule (§11.4) and its copy (C2) › the highest score wins before priority is consulted 
+    [mobile-390] › tests/phase-5.spec.ts:184:3 › Free assessment — the rule (§11.4) and its copy (C2) › deterministic: the same answers return the same outcome and the same rule-set hash 
+    [mobile-390] › tests/phase-5.spec.ts:192:3 › Free assessment — the rule (§11.4) and its copy (C2) › no free result carries a dollar figure, a currency or an estimate 
+    [mobile-390] › tests/phase-5.spec.ts:221:3 › Free assessment — one schema, both sides (§11.3) › a superseded rule-set version is refused with a typed error, never scored 
+  100 passed (43.3s)
+undefined
+/Users/andrelove/WebstormProjects/zbest-sites/e2e:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command failed with exit code 1: playwright test tests/phase-5.spec.ts tests/phase-4-zbm.spec.ts
+```
+
+#### `curly-mutate.py`, verbatim
+```python
+"""Mutations for fa34b40, one per invocation."""
+import sys, pathlib
+R = pathlib.Path("/Users/andrelove/WebstormProjects/zbest-sites"); RULES = R / "apps/zbm/lib/assessment/rules.ts"
+def sub(old, new):
+    s = RULES.read_text(); assert s.count(old) == 1, old[:60]; RULES.write_text(s.replace(old, new))
+def MC1():  # one question reverted to a straight apostrophe
+    sub("When a lead comes in, we don’t always respond fast", "When a lead comes in, we don't always respond fast")
+def MC2():  # the curly change made in place, without the §11.2 version bump
+    sub('version: "fixture-2026-09-18.2",', 'version: "fixture-2026-09-18.1",')
+globals()[sys.argv[1]](); print(sys.argv[1], "applied")
+```
+
+### Capture zip regenerated
+
+```
+superseded (c884b4e, 87c9ee9 bundle): a0cff020423e9eb99e39af3f523aab1834e062edf4da52b8cfb5aa50b09b2b91
+current    (fa34b40)                 : 5c6b416fe547e6e2121f6aaeba63aa374bc174c50258db5025eef6f2416b412c
+$ shasum -a 256 e2e/snapshots/phase-5/*.png
+92375d4d6d6976016bbae171bd5d2f7a62e32953999a3e27dbc79aac3dc0ec54  e2e/snapshots/phase-5/zbm-assessment-form-desktop-1440.png
+146a50d592a4fb1ec95b9c23abaedab720083c68d199b4ba7dcb3321cb20bb32  e2e/snapshots/phase-5/zbm-assessment-form-mobile-390.png
+d742aa2de0e0a756a5bc7d22ff7db23f73673c1d3c442c82fc87cc82c9d5b2d9  e2e/snapshots/phase-5/zbm-assessment-insufficient-desktop-1440.png
+d790cfd5a00fc6a11895ac2837855753986f86149f51dd17bba147e93138c808  e2e/snapshots/phase-5/zbm-assessment-insufficient-mobile-390.png
+f76e78b891f6e8d046b5d1612b3454c2ac0523d9af35af00f2d09bb74c17b1fe  e2e/snapshots/phase-5/zbm-assessment-result-desktop-1440.png
+42aaf49378b67722e65159e6cd34da153076257703c1ad4bd8cfd5a89fb3cbbb  e2e/snapshots/phase-5/zbm-assessment-result-mobile-390.png
+```
