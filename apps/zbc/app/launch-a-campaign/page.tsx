@@ -52,7 +52,7 @@ export default function LaunchACampaignPage() {
             <p className="type-title">&ldquo;I have something to promote right now&rdquo;</p>
             <div className="mt-4">
               <CtaRow>
-                <ButtonLink href="#campaign-form">The form on this page</ButtonLink>
+                <ButtonLink href="#campaign-form">Use the form below</ButtonLink>
               </CtaRow>
             </div>
           </div>

@@ -5,7 +5,7 @@ import { NAV_CTA, SITE } from "@/lib/site";
 export const metadata = pageMetadata(SITE, {
   title: "Pricing",
   description:
-    "You fund a pool that pays creators only when their clips get real, verified views — and you only pay after you approve the post.",
+    "You fund a pool that pays creators for approved posts and verified views — nothing is billed before you approve the post.",
   path: "/pricing",
   ogImage: "/pricing/opengraph-image",
 });
@@ -24,8 +24,8 @@ export default function PricingPage() {
       <PageHeader label="Pricing" title="How a campaign is priced.">
         <Lead>
           You&rsquo;re not paying for hours or a retainer. You&rsquo;re funding a pool that
-          pays creators only when their clips get real, verified views — and you only pay
-          after you approve the post.
+          pays creators for approved posts and verified views — nothing is billed before you
+          approve the post.
         </Lead>
       </PageHeader>
 

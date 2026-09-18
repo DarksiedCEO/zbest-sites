@@ -20,12 +20,12 @@ const ITEMS = [
   {
     question: "What is a clipping campaign?",
     answer:
-      "Turns one piece of long-form content into dozens of short-form clips, posted across TikTok, Reels, and Shorts by our creator network.",
+      "Turns one piece of long-form content into dozens of short-form clips, posted across TikTok, Instagram Reels, and YouTube Shorts by our creator network.",
   },
   {
     question: "How much does a campaign cost?",
     answer:
-      "Set by target reach and budget, scoped individually before launch. No separate line-item fees.",
+      "Pricing is set by target reach and budget, scoped individually before launch, with no separate line-item fees.",
   },
   {
     question: "What’s the difference between Entertainment and Brands campaigns?",
@@ -33,16 +33,18 @@ const ITEMS = [
       "Entertainment = rented distribution (our network’s accounts, new-audience discovery). Brands = owned distribution (client’s own account, compounding local reach).",
   },
   {
-    question: "Do I only pay for views that actually happen?",
-    answer: "Yes — every submission reviewed before it counts.",
+    question: "What am I billed for?",
+    answer:
+      "Views are verified before they count, and nothing is paid before you approve the post. Brands campaigns also carry a guaranteed per-post fee, disclosed when the campaign is scoped.",
   },
   {
     question: "How fast can a campaign launch?",
-    answer: "Typically within a few days of the scoping call.",
+    answer: "Most campaigns launch within a few days of the scoping call.",
   },
   {
     question: "Is Z Best Clips a new company?",
-    answer: "Yes — built on proven industry-wide mechanics, building our own case studies now.",
+    answer:
+      "Yes. The clipping model is established across the industry; our own case studies are being built now, one campaign at a time.",
   },
   {
     question: "How do clippers get paid?",
@@ -51,7 +53,8 @@ const ITEMS = [
   },
   {
     question: "Do I need a large following to become a clipper?",
-    answer: "No — based on content quality and guideline adherence, not follower count.",
+    answer:
+      "No. Acceptance is based on content quality and guideline adherence, not follower count.",
   },
   {
     question: "What platforms do you post to?",

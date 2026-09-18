@@ -31,8 +31,7 @@ export default function AboutPage() {
           what&rsquo;s building Z Best Clips now.
         </p>
         <p className="type-body-lead text-text-secondary">
-          We&rsquo;re not a video editing shop that stumbled into marketing, and we&rsquo;re
-          not a marketing agency guessing at video. We&rsquo;ve done the sales floor, the
+          We&rsquo;ve done the sales floor, the
           client relationships, and the advertising work — now we&rsquo;re applying that same
           discipline to short-form content distribution.
         </p>

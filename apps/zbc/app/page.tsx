@@ -27,7 +27,7 @@ export default function HowItWorksPage() {
     <main>
       <PageHeader
         label="How It Works"
-        title="One source. Hundreds of clips. Real reach."
+        title="One source. Dozens of clips. Real reach."
         aside={
           <div className="flex flex-col gap-stack lg:pt-24">
             <Lead>

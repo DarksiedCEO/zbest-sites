@@ -5,7 +5,7 @@ import { NAV_CTA, SITE } from "@/lib/site";
 export const metadata = pageMetadata(SITE, {
   title: "Entertainment",
   description:
-    "Music, film, television, streaming content, sports — turned into hundreds of short-form clips built to travel. Rented distribution through the clipper network’s own accounts.",
+    "Music, film, television, streaming content, sports — turned into dozens of short-form clips built to travel. Rented distribution through the clipper network’s own accounts.",
   path: "/entertainment",
   ogImage: "/entertainment/opengraph-image",
 });
@@ -25,7 +25,7 @@ export default function EntertainmentPage() {
           Music, film, television, streaming content, sports — and the artists, creators,
           teams, and organizations behind them. Whether it&rsquo;s a release, a game, a
           match, a season, or a series, if there&rsquo;s long-form content and an audience
-          worth reaching, we turn it into hundreds of short-form clips built to travel.
+          worth reaching, we turn it into dozens of short-form clips built to travel.
         </Lead>
         <CtaRow>
           <ButtonLink href={NAV_CTA.href}>Launch a Campaign</ButtonLink>

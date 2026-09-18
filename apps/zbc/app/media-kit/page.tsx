@@ -32,14 +32,14 @@ export default function MediaKitPage() {
             Z Best Clips is a clipping and short-form distribution agency, by Z Best Media. It
             turns one piece of long-form content into dozens of short-form clips posted across
             TikTok, Instagram Reels, and YouTube Shorts by an independent creator network, with
-            every post reviewed and only verified views billed.
+            every post reviewed before it counts and nothing billed before the client approves it.
           </Lead>
         </div>
         <div className="flex flex-col gap-3">
           <p className="type-label text-text-secondary">Long</p>
           <Lead>
             Z Best Clips is the creator-powered distribution arm of Z Best Media, a Los Angeles
-            advertising agency founded in 2011. It runs two campaign models: rented distribution
+            advertising agency. It runs two campaign models: rented distribution
             for entertainment — music, film, streaming, sports, podcasts — where clips post from
             the creator network&rsquo;s own accounts to reach new audiences; and owned
             distribution for brands — auto dealerships, med spas, local businesses — where clips
@@ -53,9 +53,8 @@ export default function MediaKitPage() {
       <PageSection id="facts" label="Company facts">
         <StatBlock
           rows={[
-            { label: "Parent", value: "Z Best Media, est. 2011, Los Angeles" },
+            { label: "Parent", value: "Z Best Media, Los Angeles" },
             { label: "Launched", value: "2026" },
-            { label: "Founder", value: "A software engineer with a background in high-end automotive sales" },
             { label: "Models", value: "Rented distribution (Entertainment) · Owned distribution (Brands)" },
             { label: "Platforms", value: "TikTok · Instagram Reels · YouTube Shorts" },
             { label: "Payout basis", value: "Per 1,000 verified views; brand campaigns add a guaranteed per-post fee" },

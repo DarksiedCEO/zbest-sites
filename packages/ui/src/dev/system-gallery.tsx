@@ -169,7 +169,6 @@ export function SystemGallery({ brand }: { brand: "zbm" | "zbc" }) {
         <div className="max-w-xl">
           <StatBlock
             rows={[
-              { label: "Est.", value: "2011 · Los Angeles" },
               { label: "Disciplines", value: "4" },
               { label: "Standard", value: "Audit first. Evidence. Then scale." },
             ]}

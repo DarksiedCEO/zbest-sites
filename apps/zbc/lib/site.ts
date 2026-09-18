@@ -9,7 +9,7 @@ import type { FooterColumn, NavItem, SiteIdentity } from "@zbest/ui";
 export const SITE: SiteIdentity = {
   name: "Z Best Clips",
   origin: "https://zbestclips.com",
-  description: "One source. Hundreds of clips. Real reach.",
+  description: "One source. Dozens of clips. Real reach.",
 };
 
 /** Canonical ZBM host is www (founder decision 3, Phase 1 close). */

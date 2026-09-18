@@ -25,7 +25,7 @@ const ENT = "rgb(255, 107, 91)";
 const BRAND = "rgb(76, 140, 255)";
 
 export const PAGES = [
-  { slug: "how-it-works", path: "/", h1: "One source. Hundreds of clips. Real reach.", title: "Z Best Clips" },
+  { slug: "how-it-works", path: "/", h1: "One source. Dozens of clips. Real reach.", title: "Z Best Clips" },
   {
     slug: "entertainment",
     path: "/entertainment",
@@ -430,13 +430,64 @@ test.describe("About (§B4)", () => {
   });
 });
 
+test.describe("Copy revision (ZBC gate CONDITIONAL at c35ee1d — founder rulings, Sep 17)", () => {
+  test("no founding-year claim survives on any ZBC page or the shared dev gallery", async ({ page }) => {
+    for (const p of PAGES) {
+      await visit(page, p);
+      expect(await mainText(page), `${p.path} names a founding year`).not.toMatch(/2011/);
+    }
+    // The retired Est. row also lived in the shared @zbest/ui gallery, which both
+    // apps render at /dev/system. Checked here because ZBC owns this revision.
+    await page.goto(`${ZBC_BASE_URL}/dev/system`, { waitUntil: "domcontentloaded" });
+    expect(await page.locator("body").innerText()).not.toMatch(/2011/);
+  });
+
+  test("clip volume says dozens everywhere, never hundreds", async ({ page }) => {
+    for (const p of PAGES) {
+      await visit(page, p);
+      expect(await mainText(page), `${p.path} still claims hundreds`).not.toMatch(/[Hh]undreds of/);
+    }
+    await visit(page, byPath("/"));
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("One source. Dozens of clips. Real reach.");
+    // The site-wide default description feeds root OG/meta and said "Hundreds".
+    const desc = await page.evaluate(() => document.querySelector('meta[name="description"]')?.getAttribute("content"));
+    expect(desc).not.toMatch(/[Hh]undreds of/);
+  });
+
+  test("nothing claims creators are paid only on views — Brands carry a guaranteed per-post fee", async ({ page }) => {
+    for (const path of ["/pricing", "/faq"]) {
+      await visit(page, byPath(path));
+      const text = await mainText(page);
+      for (const gone of ["only when their clips get", "only pay for views", "only verified views billed"]) {
+        expect(text, `${path} still says "${gone}"`).not.toContain(gone);
+      }
+    }
+    await visit(page, byPath("/pricing"));
+    expect(await mainText(page)).toContain("pays creators for approved posts and verified views");
+    expect(
+      await head(page, 'meta[name="description"]'),
+    ).toContain("nothing is billed before you approve the post");
+    await visit(page, byPath("/media-kit"));
+    expect(await mainText(page)).not.toContain("only verified views billed");
+  });
+
+  test("ZBC does not position against agencies, and drops the unsupported 'proven'", async ({ page }) => {
+    await visit(page, byPath("/about"));
+    const about = await mainText(page);
+    expect(about).not.toContain("marketing agency guessing at video");
+    expect(about).toContain("We’ve done the sales floor");
+    await visit(page, byPath("/faq"));
+    expect(await mainText(page)).not.toContain("proven industry-wide mechanics");
+  });
+});
+
 test.describe("Media Kit (§B4)", () => {
   test("facts as ledger rows, assets on request, press address a labeled non-link placeholder", async ({ page }) => {
     await visit(page, byPath("/media-kit"));
     const rows = await page.evaluate(() =>
       [...document.querySelectorAll("#facts dt")].map((dt) => dt.textContent?.trim()),
     );
-    expect(rows).toEqual(["Parent", "Launched", "Founder", "Models", "Platforms", "Payout basis"]);
+    expect(rows).toEqual(["Parent", "Launched", "Models", "Platforms", "Payout basis"]);
     await expect(page.locator("#assets")).toContainText("Assets available on request.");
     const press = page.locator("#press");
     await expect(press).toContainText("press@zbestclips.com");
