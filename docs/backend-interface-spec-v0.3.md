@@ -446,6 +446,7 @@ Each transition is a separate authority — the same principle as §8, where edi
 - `awaiting_approval → approved | rejected` only by an admin, recorded in `approved_by`.
 - `approved → delivered` only from `approved`.
 - **`rejected` is terminal.** A redraft is a new `PaidAuditDocument` with a new `id` against the same `submission_id`. A rejected document is never edited back into `drafting`, so its record, its verifier report and its rejection stay intact for audit.
+- **`verifier_failed` is terminal.** A redraft is a new `PaidAuditDocument` with a new `id` against the same `submission_id`. A document that failed the verifier is never edited back into `drafting`, so its record and its verifier report stay intact for audit.
 
 No path reaches `delivered` without `approved`, and none reaches `approved` without a verifier pass. **Delivery is an explicit state with its own timestamp**, because the live tool records no delivery path to the lead at all; making it a state makes it auditable.
 

@@ -674,10 +674,11 @@ Phase 4 ZBM chunk, and that tension is a decision to take deliberately, not to r
      never authored into a rule set directly, and the Phase 5 gate asserts that the fixture rule
      set's strings equal `LEAK_LIBRARY` character for character, for all eight categories.
 
-   Noted beside C1 and deliberately not applied: `verifier_failed` is the other dead-end status in
-   §11.6 and has no stated exit either. By C1's own logic it should also be terminal, with a redraft
-   as a new document. C1 was written narrowly, so that is left for the auditor to rule on rather than
-   widened here.
+   *C1 extended to `verifier_failed`* (founder ruling, 2026-09-18). The build session raised it
+   beside C1 rather than widening the auditor's narrowly written condition: `verifier_failed` was the
+   other dead-end status in §11.6, with no stated exit. The founder ruled it terminal in the same
+   terms as `rejected` — a redraft is a new `PaidAuditDocument` with a new `id` against the same
+   `submission_id`. Both terminal statuses in §11.6 now read the same way.
 
    **Founder rulings on the two PROPOSED items, 2026-09-18, taken in the build window after the
    gate:**
