@@ -9,7 +9,7 @@ Reconciled with Phase 1 domain contracts — MINIMUM GOVERNED PILOT model
 - **§10** — the deferred Revenue Recovery assessment item is removed from the deferred list and promoted.
 - **§11 (new)** — the Revenue Recovery assessment: two tiers that differ in kind, their shapes, and the rule that connects them.
 
-Two parts of §11 are **PROPOSED, not settled**, and need founder approval before anything is built: the eight-question set in §11.3, which is customer-facing copy, and the tie-break priority order in §11.4. Because the build session wrote the contract it will later build against, this revision is reviewed by the auditor before approval, and the backend author accepts it before implementing it. Status is unchanged: DRAFT.
+The two parts of §11 first written as PROPOSED were approved by the founder on 2026-09-18, after the auditor's gate at `f6450b6`: the eight-question set in §11.3, with its answer scale changed to "Not true · Somewhat true · Very true", and the tie-break priority order in §11.4, as proposed. Because the build session wrote the contract it will later build against, this revision is reviewed by the auditor before approval, and the backend author accepts it before implementing it. Status is unchanged: DRAFT.
 
 **Governing principle:** build the minimum governed model — not maximum enterprise machinery, not a collapsed prototype. Authority, money, and evidence boundaries are not optional because the pilot is pre-revenue. Implementation depth can be deferred; correctness of boundaries cannot.
 
@@ -330,11 +330,13 @@ AssessmentQuestion {
   id: string                               // stable key; in v0.3 equal to its category
   category: LeakCategory                   // exactly one category per question in v0.3
   statement: string
-  scale: enum ["likert_3"]                 // 0 = Not really · 1 = Somewhat · 2 = Very true
+  scale: enum ["likert_3"]                 // 0 = Not true · 1 = Somewhat true · 2 = Very true
 }
 ```
 
 Immutable after activation — the same pattern and the same reason as `RewardPolicy` (§2). Changing a question, the priority order, or any copy creates a new version with a new hash; it never edits the rule set that produced results already returned. Every result records the version and hash that produced it. That is what makes "deterministic" checkable rather than asserted: the same answers under the same `rules_hash` always return the same result.
+
+**The rule set's copy is derived, not authored.** The active rule set's `copy` is derived from the published Revenue Leak Library: each category's `rationale` is that library's description of the category and its `remediation` is that library's "Fix direction", both character for character. Editing the copy means editing the published Leak Library, which is certified site copy, and then deriving a new rule set version from it — never writing different text into a rule set directly.
 
 The eight categories and their display names are exactly those already published in the site's Revenue Leak Library: Traffic, Conversion, Trust, Offer, Follow-Up, Tracking, Creative, Visibility.
 
@@ -359,7 +361,7 @@ AssessmentRequest {
 - **One schema, both sides.** Client and server validate from the same schema definition, not two hand-written ones. The live tool's extraction records four client/server validation mismatches; this requirement makes that class of defect impossible by construction rather than something review has to catch.
 - Submitting an assessment records the lead exactly as the current lead route does. v0.3 does not change lead recording.
 
-**PROPOSED question set — needs founder approval before build.** Customer-facing copy, so it is not settled by this spec. One statement per category, each written about the *cause* the business can observe rather than the symptom — because the symptoms of Conversion, Offer and Trust overlap heavily from the outside ("people visit but don't buy" fits all three), while their causes do not:
+**Question set — founder-approved, 2026-09-18.** Customer-facing copy, approved after the auditor's gate. One statement per category, each written about the *cause* the business can observe rather than the symptom — because the symptoms of Conversion, Offer and Trust overlap heavily from the outside ("people visit but don't buy" fits all three), while their causes do not:
 
 | id | Statement shown to the respondent |
 |---|---|
@@ -372,7 +374,7 @@ AssessmentRequest {
 | `visibility` | We're hard to find in search results, map listings, or AI search. |
 | `traffic` | We don't get enough qualified visitors or inquiries in the first place. |
 
-Answered on one scale throughout: **Not really · Somewhat · Very true**.
+Answered on one scale throughout: **Not true · Somewhat true · Very true** (founder ruling, 2026-09-18 — changed from the proposed "Not really · Somewhat · Very true" so that all three answers take the same form).
 
 ### 11.4 The rule
 
@@ -380,7 +382,7 @@ Answered on one scale throughout: **Not really · Somewhat · Very true**.
 2. If every score is 0, return `insufficient_signal`. **Do not pick a category.**
 3. Otherwise return the category with the highest score. Break ties by `priority_order`.
 
-**PROPOSED priority order — needs founder approval before build:** Follow-Up, Conversion, Offer, Trust, Tracking, Creative, Visibility, Traffic.
+**Priority order — founder-approved, 2026-09-18, as proposed:** Follow-Up, Conversion, Offer, Trust, Tracking, Creative, Visibility, Traffic.
 
 The reason is the site's own published thesis — "Most businesses aren't short on traffic. They're losing the traffic they already paid for — at the phone, the form, the follow-up," and "conversion repaired before a dollar more goes into spend." Leaks that lose traffic already paid for rank above anything that would recommend buying more of it, and Traffic ranks last. Note the consequence: because Conversion, Offer and Trust can plausibly all score 2 for the same business, the tie-break carries real weight for those three. That is a reason to review the order deliberately, not a defect in it.
 
@@ -398,7 +400,7 @@ FreeAssessmentResult {
     question_id: string
     statement: string
     value: 1 | 2
-    value_label: enum ["Somewhat", "Very true"]
+    value_label: enum ["Somewhat true", "Very true"]
   } | null
   tie_broken_by_priority: boolean
   rule_set_version: string
@@ -411,6 +413,7 @@ Invariants, by construction — enforced on the type, not merely true in practic
 
 - **No text in the free path is generated, assembled from free input, or model-written.** Every string is either copied verbatim from the active rule set or an enumerated label. Where the frontend shows a sentence joining them ("Because you said … is very true for you"), that sentence is a fixed template.
 - `rationale` is the published Revenue Leak Library description of `category`, verbatim. `remediation` is that library's published "Fix direction", verbatim. The free result introduces no new copy.
+- **The Phase 5 gate asserts it.** The gate checks that the fixture rule set's `rationale` and `remediation` strings equal the corresponding `LEAK_LIBRARY` strings character for character, for all eight categories. A mismatch fails the gate; it is never resolved by changing the assertion.
 - **No field may hold a currency, a monetary amount, or any numeric estimate of revenue lost or recovered.** A backend change that needs one is a change to this contract, not an implementation detail.
 - **No field is approval-gated.** A result that needs a human before release is not a free-tier result.
 - `insufficient_signal` is a first-class outcome, not an error. The frontend routes it to the paid Audit and to Talk to Us. A category is never invented to avoid returning it.
@@ -442,6 +445,7 @@ Each transition is a separate authority — the same principle as §8, where edi
 - `drafting → awaiting_approval` only on a verifier `pass`; a `fail` goes to `verifier_failed`.
 - `awaiting_approval → approved | rejected` only by an admin, recorded in `approved_by`.
 - `approved → delivered` only from `approved`.
+- **`rejected` is terminal.** A redraft is a new `PaidAuditDocument` with a new `id` against the same `submission_id`. A rejected document is never edited back into `drafting`, so its record, its verifier report and its rejection stay intact for audit.
 
 No path reaches `delivered` without `approved`, and none reaches `approved` without a verifier pass. **Delivery is an explicit state with its own timestamp**, because the live tool records no delivery path to the lead at all; making it a state makes it auditable.
 

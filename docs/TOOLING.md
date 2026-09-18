@@ -666,6 +666,28 @@ Phase 4 ZBM chunk, and that tension is a decision to take deliberately, not to r
    - *The eight questions and the tie-break order stay PROPOSED* until the auditor has gated them —
      the questions as customer-facing copy under the same standard as the sites, the order as the
      rule that decides which leak a prospect sees. The founder approves or amends after that.
+
+   **v0.3 gate at `f6450b6`: CONDITIONAL** (auditor, 2026-09-18). Two spec conditions, applied:
+   - *C1, §11.6:* `rejected` is terminal; a redraft is a new `PaidAuditDocument` with a new `id`
+     against the same `submission_id`, so a rejected record is never edited back into `drafting`.
+   - *C2, §11.2 and §11.5:* the active rule set's copy is derived from the published Leak Library,
+     never authored into a rule set directly, and the Phase 5 gate asserts that the fixture rule
+     set's strings equal `LEAK_LIBRARY` character for character, for all eight categories.
+
+   Noted beside C1 and deliberately not applied: `verifier_failed` is the other dead-end status in
+   §11.6 and has no stated exit either. By C1's own logic it should also be terminal, with a redraft
+   as a new document. C1 was written narrowly, so that is left for the auditor to rule on rather than
+   widened here.
+
+   **Founder rulings on the two PROPOSED items, 2026-09-18, taken in the build window after the
+   gate:**
+   - *The eight questions: approved, with the answer scale changed* from the proposed "Not really ·
+     Somewhat · Very true" to "Not true · Somewhat true · Very true", the auditor's alternative, so
+     that all three answers take the same form. The §11.5 `value_label` enum follows it.
+   - *The tie-break order: approved as proposed* — Follow-Up, Conversion, Offer, Trust, Tracking,
+     Creative, Visibility, Traffic.
+
+   v0.3 stays DRAFT and `CLAUDE.md` stays on v0.2 until the auditor clears the re-stage.
 2. **The gate holds.** One file, not two: `e2e/tests/phase-4-zbm.spec.ts:116-120`.
    `phase-4-zbc.spec.ts` never enforced them and should not start — the assessment is a ZBM surface.
    The two `not.toMatch` holds become positive assertions on the new wording.
