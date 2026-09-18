@@ -692,10 +692,10 @@ says so.
 
 | # | Control | What the gate has to prove | Already in Brief §3.6? | State at `ab6a480` |
 |---|---|---|---|---|
-| 1 | Accessibility — axe-core | Zero axe-core violations on every route, both apps, both viewports, run inside the Playwright gate | Partly: Lighthouse Accessibility ≥ 90 (a score, not a violation count) | Not installed; no gate asserts it |
-| 2 | Core Web Vitals | LCP, INP and CLS inside "good" thresholds, alongside the Lighthouse ≥ 90 scores | Partly: Lighthouse Performance ≥ 90 (lab score only; no CWV thresholds) | Not measured |
+| 1 | Accessibility — axe-core | Zero axe-core violations on every route, both apps, both viewports, run inside the Playwright gate. If the dark theme throws contrast noise on the dev-only gallery, exclude `/dev/*` from the scan. Don't lower the bar | Partly: Lighthouse Accessibility ≥ 90 (a score, not a violation count) | Not installed; no gate asserts it |
+| 2 | Core Web Vitals | Google's "good" thresholds as the gate line: **LCP ≤ 2.5 s, INP ≤ 200 ms, CLS ≤ 0.1**, both viewports, alongside the Lighthouse ≥ 90 scores. Lab measurement in the gate; RUM from Vercel Analytics after launch, held to the same numbers | Partly: Lighthouse Performance ≥ 90 (lab score only; no CWV thresholds) | Not measured |
 | 3 | Cross-browser + real device | Chromium, WebKit and Firefox pass the gate, plus a pass on at least one real iOS and one real Android device | No | Gate runs two projects (`e2e/playwright.config.ts:61-66`): Chromium at 1440 and WebKit (iPhone 14 profile) at 390. No Firefox project, no real-device pass |
-| 4 | Console cleanliness | No console errors, warnings or uncaught page errors on any route | No | No spec listens for `console` or `pageerror` |
+| 4 | Console cleanliness | **Zero console errors and zero hydration / React-key warnings** on every route, plus no uncaught page errors. Checking errors alone lets hydration mismatches through | No | No spec listens for `console` or `pageerror` |
 | 5 | Environment leakage | No dev routes, fixture labels, preview URLs, debug output or non-public env values in the production build | No | `/dev/system` gallery routes exist in both apps (Phase 2) and must be excluded or gated |
 | 6 | CSP / security headers | Content-Security-Policy, HSTS, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, frame-ancestors set and asserted | No | Neither `next.config.ts` sets `headers()` |
 | 7 | Consent gates scripts | No non-essential script loads or cookie is set before consent; reject keeps it that way | Partly: CookieConsent built in Phase 2 (§3.2) | Banner exists (`packages/ui/src/components/cookie-consent.tsx`); no third-party scripts exist yet to gate |
@@ -706,6 +706,12 @@ says so.
 | 12 | Release verification | The deployed build is the certified SHA, and the gate re-runs against the deployed URL, not only localhost | Partly: "forms deliver email end-to-end from the preview deployment" | Not built; no deployment exists for either app |
 
 "State" is from a grep of the tree at `ab6a480`, not from a run.
+
+**Thresholds corrected 2026-09-18 (founder), after `8e1b6ad`.** Rows 2 and 4 had no numbers
+first time round. Row 2 said "good" thresholds without stating them, and a CWV row with no
+number is monitoring, not a gate. Row 4 was not explicit that hydration and key warnings fail it.
+The thresholds written first time round stand: zero axe violations, one real iOS and one real
+Android device, Firefox added.
 
 ### (b) Doctrine items not in Build Brief v2
 
