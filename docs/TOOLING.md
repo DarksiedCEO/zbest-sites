@@ -678,3 +678,45 @@ Phase 4 ZBM chunk, and that tension is a decision to take deliberately, not to r
 3. **Copy**: the Revenue Recovery FAQ and the Home CTA, both currently written around the hold.
 4. **Then** Phase 5 may open, under the usual rule — its own phase gate, and an audit in a session
    that did not build it.
+
+## Phase 6 — launch-gate controls from the frontend production standard (recorded 2026-09-18)
+
+Recorded ahead of Phase 6; nothing here is built or started. Source list:
+[`docs/sources/frontend-production-standard.md`](sources/frontend-production-standard.md).
+
+### (a) The twelve controls
+
+Brief §3 step 6 ("Launch checklist") stays in force as written. These twelve are added to
+it, not substituted for it. Where a brief item already covers part of a control, the column
+says so.
+
+| # | Control | What the gate has to prove | Already in Brief §3.6? | State at `ab6a480` |
+|---|---|---|---|---|
+| 1 | Accessibility — axe-core | Zero axe-core violations on every route, both apps, both viewports, run inside the Playwright gate | Partly: Lighthouse Accessibility ≥ 90 (a score, not a violation count) | Not installed; no gate asserts it |
+| 2 | Core Web Vitals | LCP, INP and CLS inside "good" thresholds, alongside the Lighthouse ≥ 90 scores | Partly: Lighthouse Performance ≥ 90 (lab score only; no CWV thresholds) | Not measured |
+| 3 | Cross-browser + real device | Chromium, WebKit and Firefox pass the gate, plus a pass on at least one real iOS and one real Android device | No | Gate runs two projects (`e2e/playwright.config.ts:61-66`): Chromium at 1440 and WebKit (iPhone 14 profile) at 390. No Firefox project, no real-device pass |
+| 4 | Console cleanliness | No console errors, warnings or uncaught page errors on any route | No | No spec listens for `console` or `pageerror` |
+| 5 | Environment leakage | No dev routes, fixture labels, preview URLs, debug output or non-public env values in the production build | No | `/dev/system` gallery routes exist in both apps (Phase 2) and must be excluded or gated |
+| 6 | CSP / security headers | Content-Security-Policy, HSTS, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, frame-ancestors set and asserted | No | Neither `next.config.ts` sets `headers()` |
+| 7 | Consent gates scripts | No non-essential script loads or cookie is set before consent; reject keeps it that way | Partly: CookieConsent built in Phase 2 (§3.2) | Banner exists (`packages/ui/src/components/cookie-consent.tsx`); no third-party scripts exist yet to gate |
+| 8 | Analytics integrity | Every analytics event fires once, with the right name and payload, only after consent | No | No analytics installed |
+| 9 | Content resilience | Pages hold up under long strings, missing optional content, 200% zoom, and no-JS for core content | No | Anti-wrap and overflow assertions exist from Phase 2; the rest is not covered |
+| 10 | Image handling | Every image has explicit dimensions, correct alt, modern format, responsive sizes, lazy below the fold | No | No raster images in either app yet |
+| 11 | Production config | Canonical domains, sitemap and robots correct for production, `noindex` only where intended (Search Intelligence), OG and metadata resolve to production URLs | Partly: Search Intelligence exclusion (§A4) | Phase 3 built sitemap/robots/OG; not re-verified against a production config |
+| 12 | Release verification | The deployed build is the certified SHA, and the gate re-runs against the deployed URL, not only localhost | Partly: "forms deliver email end-to-end from the preview deployment" | Not built; no deployment exists for either app |
+
+"State" is from a grep of the tree at `ab6a480`, not from a run.
+
+### (b) Doctrine items not in Build Brief v2
+
+- **axe-core and Lighthouse / Core Web Vitals — restored via (a), controls 1 and 2.** Stated
+  precisely, because the brief is not silent on all of it: §3.6 already requires Lighthouse ≥ 90
+  on Performance, Accessibility and SEO at both viewports. What it lacks is axe-core (a zero-
+  violation check, not a score) and CWV thresholds (LCP / INP / CLS, not the Lighthouse
+  Performance number). Those two are what (a) brings back.
+- **Awesome DESIGN.md — completeness reference for DESIGN.md at Phase 6 start.** At Phase 6
+  start, check the root `DESIGN.md` and both app `DESIGN.md` files against it for missing
+  sections. It is a checklist of what a DESIGN.md should cover. It is not a style source, and
+  it does not override the brief's §2.2 anti-references or the Phase 2 tokens.
+- **Emil Design Engineering — disposition pending.** Not adopted, not rejected. No founder
+  ruling yet; nothing in the build depends on it until there is one.
