@@ -436,6 +436,16 @@ ZBC pages not started.
    the stat row at `packages/ui/src/dev/system-gallery.tsx:172`. ZBC was explicitly out of scope
    here; these three need a ZBC pass before ZBC ships.
 
+   **Provenance of this decision, as the build session witnessed it.** It was taken in the build
+   window on 2026-09-17, by explicit founder selection from four written options, twice. The
+   session put the question because it could not answer it: nothing in this repository bears on
+   whether the company transacted on those six platforms or was founded in 2011, and both claims
+   originate in the locked brief (§A4:267, :270, and :670/:674) and are carried into
+   `PRODUCT.md:66-68`. The first selection was "both real — delete item 4"; the founder then
+   corrected it, asked to see the options again, and selected "neither — apply item 4 in full",
+   which is what shipped. No copy change was made under the first selection. This paragraph
+   records what the session directly observed, not a later ratification it did not witness.
+
 **Built alongside:** per-page OG images (`lib/og.tsx`, one `opengraph-image.tsx` per route),
 `ButtonLink` and `ScrollScrub` in `@zbest/ui` (the scroll-scrubbed hero, §A1, disabled under
 reduced motion), `zod` in `apps/zbm`. Every `ROUTES` entry is now `built: true`, so all seven
