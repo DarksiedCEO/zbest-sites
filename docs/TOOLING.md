@@ -600,3 +600,47 @@ pnpm lint                                         # ✅ 3/3
 pnpm --filter e2e exec playwright install chromium webkit
 pnpm --filter e2e exec playwright test            # ✅ 4 passed (builds inside the gate)
 ```
+
+## Phase 5 — founder ruling on the free assessment (2026-09-17)
+
+This was the blocker on Phase 5 opening at all, and on the two copy holds enforced since Phase 4.
+
+**Ruled: a deterministic rule-based result for the free tier, the AI-drafted document for the paid
+Audit.** The free assessment runs the form's own answers through the Revenue Leak taxonomy and
+returns the single most likely leak category plus what fixing it looks like — no dollar figure, no
+human in the loop, immediate. The paid Revenue Recovery Audit remains the AI-drafted,
+founder-approved document that exists today.
+
+**What this retires.** Brief §6.3's automated tool returning "one quantified leak in about 60
+seconds" is retired for good, not held. The copy is rewritten around *one prioritized leak*, which
+is a promise the free tier can actually keep on day one. This is a deliberate supersession of §6.3,
+recorded the same way ZBC decision 5 supersedes the §B4 note wording.
+
+**Why not the other two.** Keeping the drafted document as the free deliverable puts founder time on
+every free lead and cannot scale. Building §6.3 literally would derive a dollar figure from form
+inputs with no access to the client's analytics, ad accounts or CRM — a fabricated number, which
+contradicts the Revenue Recovery Audit Deliverable copy certified at `831ad39`: "We do not guess at
+dollar figures."
+
+**Commercial context, founder-confirmed 2026-09-17:** the Sep 9 bridge plan is still live — a $497
+teardown leading to a $1,500/mo retainer. The free rule-based result therefore sits in front of an
+already-priced paid entry product. Any pricing copy written for Phase 5 has to reconcile with that;
+the Revenue Recovery page currently carries no dollar figure at all by founder decision 4 of the
+Phase 4 ZBM chunk, and that tension is a decision to take deliberately, not to resolve in passing.
+
+**What the ruling unblocks, none of it started.** Each needs its own go-ahead:
+
+1. **Backend spec v0.3.** Note that there is nothing to "correct": `AssessmentResult` appears
+   exactly once in v0.2, at line 283, inside §10 *Explicit Deferred Items — DEFER_UNTIL_EVIDENCE*,
+   with no shape defined. It would be defined for the first time and promoted out of the deferred
+   list. The spec's own precondition there — "the real input schema still needs to be pulled from
+   the live tool before `AssessmentResult` can be finalized" — is **dissolved** by this ruling
+   rather than satisfied: the free tier's input is the site's existing lead form, so nothing needs
+   pulling from the live tool. v0.2 was authored by the founder, not by a session; v0.3 should be
+   too, or be explicitly delegated.
+2. **The gate holds.** One file, not two: `e2e/tests/phase-4-zbm.spec.ts:116-120`.
+   `phase-4-zbc.spec.ts` never enforced them and should not start — the assessment is a ZBM surface.
+   The two `not.toMatch` holds become positive assertions on the new wording.
+3. **Copy**: the Revenue Recovery FAQ and the Home CTA, both currently written around the hold.
+4. **Then** Phase 5 may open, under the usual rule — its own phase gate, and an audit in a session
+   that did not build it.
