@@ -601,7 +601,7 @@ pnpm --filter e2e exec playwright install chromium webkit
 pnpm --filter e2e exec playwright test            # ✅ 4 passed (builds inside the gate)
 ```
 
-## Phase 5 — founder ruling on the free assessment (2026-09-17)
+## Founder decision 10 — Phase 5, the free assessment mechanic (2026-09-17)
 
 This was the blocker on Phase 5 opening at all, and on the two copy holds enforced since Phase 4.
 
