@@ -719,6 +719,38 @@ Phase 4 ZBM chunk, and that tension is a decision to take deliberately, not to r
    **Routed out of Phase 5:** the Phase 2 counter reduced-motion defect in
    `packages/ui/src/components/counter.tsx` is its own small Phase 2 fix, with its own re-gate.
    `packages/ui` is not touched inside Phase 5.
+
+## Founder decision 11 — Phase 5, the AI Visibility Readiness Check (2026-09-18)
+
+The last Phase 5 build item, and the same fork as decision 10: what the free check returns had to
+be settled before any UI, because no spec defined a result shape and CLAUDE.md forbids building
+against guessed DTOs.
+
+**Ruled: option (a), a deterministic rule-based readiness check.** The prospect rates eight
+statements about signals AI answer engines use; rules return one prioritized visibility gap with
+a because-line and a fix direction. No live engine queries, no AI drafting, no dollar figure, and
+no claim about what any engine currently says. Named **"AI Visibility Readiness Check"**.
+Vocabulary is "gap", never "leak", so nothing collides with the Revenue Leak Library.
+
+**Retired permanently from the free tier:** the brief's promise to show "whether and how your
+business currently shows up when someone asks ChatGPT, Gemini, or Perplexity", and any
+equivalent. Live engine observation moves to the paid Audit or the Search Intelligence backend,
+later. That is a deliberate supersession of Brief §A4 and §6.3, recorded the same way decision 10
+superseded "one quantified leak". The line is still printed on the unlinked Search Intelligence
+page — its "Free AI Visibility Check" section and one FAQ answer — and is removed at build time.
+
+**Provenance, as the build session witnessed it.** The options and the ruling were drafted by the
+auditor. The founder answered D1, D2 and the name to the auditor, and the session received the
+auditor's account of that. The session then asked the founder directly, in the build window, and
+he confirmed the settled parts "as written". On the one clause the auditor left open, he chose to
+approve the taxonomy and tie-break order **together with the questions**, not ahead of them.
+
+**Written as spec §12, v0.3 → v0.4,** with §§1–11 unchanged. PROPOSED, gated by the auditor first
+and then approved by the founder, all together: the eight categories, their tie-break order, the
+eight questions and the Visibility Gap Library copy. That library has to be published on the
+Search Intelligence page and certified as copy before any rule set derives from it. §11 had a
+certified library to derive from; §12 does not. Nothing is built until v0.4 is certified, and
+CLAUDE.md stays on v0.3 until then.
 2. **The gate holds.** One file, not two: `e2e/tests/phase-4-zbm.spec.ts:116-120`.
    `phase-4-zbc.spec.ts` never enforced them and should not start — the assessment is a ZBM surface.
    The two `not.toMatch` holds become positive assertions on the new wording.
