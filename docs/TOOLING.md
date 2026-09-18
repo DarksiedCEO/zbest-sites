@@ -782,6 +782,17 @@ fixtures, pinning the expected `rules_hash` per version for both rule sets in on
 auditor asked; (3) remove the four retired strings, rewrite the false FAQ answer, add the C3 gate;
 (4) bundle. The auditor's recommendation to add `check: "revenue_leak_assessment"` to §11.5 is for
 the next spec revision, since it changes certified assessment code and tests.
+
+**Build steps 1 and 3, run as one lane on the founder's ruling — built at `b67f62f`, not yet
+audited.** The founder merged them so the Search Intelligence page never shows the library beside
+the retired promise. The Visibility Gap Library is published from `apps/zbm/content/visibility-gaps.ts`,
+which is generated from the certified §12.4 table and gate-checked against it. The four retired
+strings are gone from every rendered page. The false FAQ line is rewritten. Talk to Us leads,
+because the check doesn't exist until step 2. CLAUDE.md names v0.4. Gated at the commit, twice,
+297 passed / 1 skipped; six mutations, each alone, all caught. Step 2 still needs its own go.
+Found and flagged, not fixed: decision 10's retirement check reads `innerText` and cannot see
+collapsed FAQ answers; the certified assessment captures at 390 have the sticky nav over their
+section label.
 2. **The gate holds.** One file, not two: `e2e/tests/phase-4-zbm.spec.ts:116-120`.
    `phase-4-zbc.spec.ts` never enforced them and should not start — the assessment is a ZBM surface.
    The two `not.toMatch` holds become positive assertions on the new wording.
