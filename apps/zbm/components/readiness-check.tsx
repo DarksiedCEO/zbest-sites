@@ -270,7 +270,7 @@ export function ReadinessCheck() {
         disabled={state.kind === "submitting"}
         className="type-label mt-stack inline-flex items-center whitespace-nowrap bg-accent px-5 py-3.5 text-base disabled:opacity-60"
       >
-        {state.kind === "submitting" ? "Checking…" : "Get My Readiness Check"}
+        {state.kind === "submitting" ? "Checking…" : "Get Your Readiness Check"}
       </button>
     </form>
   );

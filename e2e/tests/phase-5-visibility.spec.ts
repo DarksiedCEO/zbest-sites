@@ -369,7 +369,7 @@ test.describe("Readiness check — the form, the result and §12.7 routing", () 
         .getByRole("radio", { name: READINESS_SCALE[value], exact: true })
         .check();
     }
-    await section.getByRole("button", { name: "Get My Readiness Check" }).click();
+    await section.getByRole("button", { name: "Get Your Readiness Check" }).click();
     return section;
   }
 
@@ -381,7 +381,7 @@ test.describe("Readiness check — the form, the result and §12.7 routing", () 
     });
     await visit(page, "/search-intelligence#readiness-check");
     const section = page.locator("#readiness-check");
-    await section.getByRole("button", { name: "Get My Readiness Check" }).click();
+    await section.getByRole("button", { name: "Get Your Readiness Check" }).click();
     await expect(section.getByRole("alert")).toContainText("Some answers need attention");
     expect(sent, "an invalid request is never sent").toEqual([]);
   });

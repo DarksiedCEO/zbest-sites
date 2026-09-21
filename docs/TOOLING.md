@@ -858,7 +858,17 @@ for both outcomes, and VM-S5 fails against it. Recorded because a surviving muta
 evidence that the other five catches mean anything.
 
 The route is still the no-delivery stub: a third form discriminator on `/api/lead`, sharing the stub
-markers and nothing else. Gated twice at the same commit: build 2/2, typecheck 4/4, lint 5/5,
+markers and nothing else.
+
+**Copy gate on step 2, ruled 2026-09-20.** The lane authored five customer-facing sentences. Four
+approved as written: the section title "Eight questions. One prioritized gap to fix first."; the
+intro "Rate eight readiness signals. The check returns one prioritized gap, based on what you tell
+us — never on what any AI engine says." (the sentence that keeps §12.1 honest on the page); the
+"See Pricing" CTA; and the insufficient-view line "If something still isn't working, talk to us and
+we'll look at it with you.", which correctly does not point at pricing. The fifth, the submit
+button, was changed: **"Get My Readiness Check" → "Get Your Readiness Check"**, on the auditor's
+finding that it was the only first-person CTA on either site — every other one is second person
+("Get an Assessment", "Talk to Us", "See What the Audit Covers", "See Pricing"). Gated twice at the same commit: build 2/2, typecheck 4/4, lint 5/5,
 e2e **329 passed / 1 skipped** on both runs — 297 + 16 new tests x 2 viewports. Six new captures at
 both viewports (form, result, insufficient); the Search Intelligence full-page captures move, since
 the page gained a section.
