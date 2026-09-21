@@ -399,6 +399,12 @@ test.describe("Readiness check — the form, the result and §12.7 routing", () 
     await expect(section.locator("[data-readiness-because]")).toContainText("very true");
     await expect(section.locator("blockquote")).toContainText("We have few recent reviews");
 
+    // §12.8 separation applies to RENDERED strings, not just the payload: the
+    // whole result panel, as a visitor reads it, carries no §11 vocabulary.
+    // VM-S5 proved this needs its own assertion — the form-section sweep runs
+    // before submitting and never sees the result view.
+    expect((await result.textContent()) ?? "", "§12.1 vocabulary in the rendered result").not.toMatch(/leak/i);
+
     // §12.7: a found gap routes to the page's #pricing AND to Talk to Us.
     const next = section.locator('[data-readiness-next="gap_identified"]');
     await expect(next.getByRole("link", { name: "See Pricing" })).toHaveAttribute("href", "#pricing");
@@ -426,6 +432,11 @@ test.describe("Readiness check — the form, the result and §12.7 routing", () 
     );
     await expect(section.locator("h3")).toHaveText("No prioritized gap from these answers.");
     await expect(section.locator("[data-readiness-category]")).toHaveCount(0);
+    // §12.8, as above: the rendered insufficient view carries no §11 vocabulary.
+    expect(
+      (await section.locator("[data-readiness-result]").textContent()) ?? "",
+      "§12.1 vocabulary in the rendered result",
+    ).not.toMatch(/leak/i);
 
     // The whole point of the ruling: this outcome must NOT push toward pricing.
     const next = section.locator('[data-readiness-next="insufficient_signal"]');

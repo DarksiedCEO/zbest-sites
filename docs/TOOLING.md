@@ -849,6 +849,14 @@ from the app's own modules.
   dollar sign, a currency-ish field name, or any engine name; the rendered section carries none
   either. The C3 retirement gate continues to sweep every ZBM page, this new section included.
 
+**One mutation survived the first gate, and the gate was wrong, not the build.** VM-S5 changed the
+rendered result's label from "Your prioritized gap" to "Your prioritized leak" and all 44 tests
+passed. The vocabulary sweep ran over the form section in its idle state, and the separation
+assertions ran over the result PAYLOAD — neither sees the rendered result view, which is exactly
+where §12.8 says no rendered string may carry "leak". The gate now sweeps the rendered result panel
+for both outcomes, and VM-S5 fails against it. Recorded because a surviving mutant is the only
+evidence that the other five catches mean anything.
+
 The route is still the no-delivery stub: a third form discriminator on `/api/lead`, sharing the stub
 markers and nothing else. Gated twice at the same commit: build 2/2, typecheck 4/4, lint 5/5,
 e2e **329 passed / 1 skipped** on both runs — 297 + 16 new tests x 2 viewports. Six new captures at
