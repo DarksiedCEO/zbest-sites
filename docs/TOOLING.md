@@ -823,6 +823,37 @@ one evidence subject.
 Gated twice at the same commit: build 2/2, typecheck 4/4, lint 5/5, e2e 297 passed / 1 skipped on
 both runs. The three regenerated captures hash identically across the two runs. No source file in
 `apps/` or `packages/` changed in this lane — it touches two spec files and three PNGs.
+
+**Build step 2 — the readiness check itself, its own lane (2026-09-20).** The rule set, the
+contract, the form, the result and §12.7's routing. Everything the gate expects is read from the
+certified spec (§12.4 for the library, §12.5 for the questions) or from the published library, never
+from the app's own modules.
+
+- *The rule set* is `apps/zbm/lib/visibility/rules.ts`, `fixture-2026-09-20.1`, its copy DERIVED from
+  the certified Visibility Gap Library exactly as §11's is derived from the Leak Library. The gate
+  asserts all eight categories' rationale and remediation equal the library character for character
+  (C2), by driving one category to "Very true" at a time and reading the result back.
+- *Separation is enforced, not just intended* (§12.2: "neither rule set reads the other"). The §12
+  modules import nothing from `lib/assessment`, and the gate proves it by reading their import lines.
+  A second test proves the two rule sets share no question id. The cost is a duplicated `canonical()`
+  in `visibility/hash.ts`; sharing it would mean editing a certified §11 module from a §12 lane.
+  Disclosed, and left for its own lane.
+- *The §12 `rules_hash` is pinned per version* the same way §11's now is:
+  `fixture-2026-09-20.1` → `9fee199893864245cd6409d71f8c95e9ce0c25887e994ca87258afdb0345c093`.
+  Both rule sets are now pinned, which is what the auditor asked for.
+- *Routing, §12.7, asserted on both sides of the ruling.* `gap_identified` renders See Pricing
+  (`#pricing`) **and** Talk to Us; `insufficient_signal` renders Talk to Us **only**, and the gate
+  asserts that outcome has exactly one link and no `#pricing` anchor anywhere in the section —
+  because "we found no gap" pushed toward pricing would be pressure, not a next step.
+- *§12.1 is asserted as an invariant, not trusted.* No result carries §11's "leak" vocabulary, a
+  dollar sign, a currency-ish field name, or any engine name; the rendered section carries none
+  either. The C3 retirement gate continues to sweep every ZBM page, this new section included.
+
+The route is still the no-delivery stub: a third form discriminator on `/api/lead`, sharing the stub
+markers and nothing else. Gated twice at the same commit: build 2/2, typecheck 4/4, lint 5/5,
+e2e **329 passed / 1 skipped** on both runs — 297 + 16 new tests x 2 viewports. Six new captures at
+both viewports (form, result, insufficient); the Search Intelligence full-page captures move, since
+the page gained a section.
 2. **The gate holds.** One file, not two: `e2e/tests/phase-4-zbm.spec.ts:116-120`.
    `phase-4-zbc.spec.ts` never enforced them and should not start — the assessment is a ZBM surface.
    The two `not.toMatch` holds become positive assertions on the new wording.

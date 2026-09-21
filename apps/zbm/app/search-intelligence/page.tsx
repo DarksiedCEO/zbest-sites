@@ -1,5 +1,6 @@
 import { ButtonLink, LedgerRule, pageMetadata } from "@zbest/ui";
 import { CtaRow, FaqList, LedgerList, Lead, PageHeader, PageSection, RuledList } from "@/components/page";
+import { ReadinessCheck } from "@/components/readiness-check";
 import { VISIBILITY_GAP_LIBRARY } from "@/content/visibility-gaps";
 import { SITE } from "@/lib/site";
 
@@ -242,6 +243,30 @@ export default function SearchIntelligencePage() {
             facts: [{ label: "Fix direction", value: gap.fix }],
           }))}
         />
+      </PageSection>
+
+      {/*
+        §12: the AI Visibility Readiness Check (build step 2). It sits directly
+        under the library it derives from, so a respondent reads what the eight
+        gaps are before rating themselves against them.
+
+        §12.1 governs every word here: this is a readiness check on signals the
+        respondent reports, never a measurement of what an engine says. The
+        retired promise and the retired name cannot return — the C3 gate fails
+        any rendered page carrying them.
+      */}
+      <PageSection
+        id="readiness-check"
+        label="AI Visibility Readiness Check"
+        title="Eight questions. One prioritized gap to fix first."
+        intro={
+          <Lead>
+            Rate eight readiness signals. The check returns one prioritized gap, based on what you
+            tell us — never on what any AI engine says.
+          </Lead>
+        }
+      >
+        <ReadinessCheck />
       </PageSection>
 
       <PageSection label="Who this is for">
