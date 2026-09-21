@@ -84,7 +84,19 @@ const head = (page: Page, selector: string, attr = "content") =>
     [selector, attr] as const,
   );
 
-const mainText = (page: Page) => page.locator("main").innerText();
+/**
+ * §12.8 C3 repair (2026-09-20): textContent, NOT innerText.
+ *
+ * innerText reports only what is rendered, so a retired phrase sitting inside a
+ * collapsed FAQ answer — which stays in the DOM with `hidden` — is invisible to
+ * it. Phase 5's C3 gate proved the difference with VM3; decision 10's checks
+ * below carried the same blind spot. textContent sees hidden nodes.
+ *
+ * Whitespace is collapsed because textContent preserves JSX indentation and,
+ * unlike innerText, inserts no separator between block elements.
+ */
+const mainText = async (page: Page) =>
+  ((await page.locator("main").textContent()) ?? "").replace(/\s+/g, " ");
 
 /** Every page, both viewports: the checks that hold site-wide. */
 for (const p of PAGES) {

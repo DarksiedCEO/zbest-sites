@@ -793,6 +793,36 @@ because the check doesn't exist until step 2. CLAUDE.md names v0.4. Gated at the
 Found and flagged, not fixed: decision 10's retirement check reads `innerText` and cannot see
 collapsed FAQ answers; the certified assessment captures at 390 have the sticky nav over their
 section label.
+
+**Repairs lane — the three items above, fixed on their own gate (2026-09-20).** Separated from
+step 2 on the founder's ruling, so new construction and repairs to certified surfaces do not share
+one evidence subject.
+
+1. *`phase-4-zbm.spec.ts` `mainText` now reads `textContent`, not `innerText`* (`:87`), feeding all
+   eleven call sites including decision 10's holds. Whitespace is collapsed, because `textContent`
+   keeps JSX indentation and inserts no separator between block elements. Proven with a two-run
+   mutation, VM-R1: a retired phrase ("one quantified leak in 60 sec") placed inside a collapsed
+   FAQ answer on `/revenue-recovery`. Pre-repair, `innerText`: 86/86 passed — the blind spot,
+   reproduced. Post-repair, `textContent`: 4 failed, `/revenue-recovery` and `/faq` on both
+   viewports. Mutation reverted; `faq.ts` byte-identical to HEAD afterwards.
+2. *The §11 `rules_hash` is pinned per version* — `EXPECTED_RULE_SET_HASH` in `phase-5.spec.ts`,
+   `fixture-2026-09-18.2` → `d6a3674beca7d6d01a4cfaba573bd4641801091a62b92928d49bab90d27d4406`,
+   captured at 1dfe670 on a clean tree. A shape check (`/^[0-9a-f]{64}$/`) only proves something
+   hashed; the pin is what makes §11.2's "immutable after activation" checkable. Proven with
+   VM-R2: a question's copy edited in place with the version left alone — the pin failed it,
+   naming the version and saying a new version is required rather than an edit. Reverted.
+   The §12 rule set gets its own pin inside step 2; that is why this says "the §11 rule set"
+   and not "both".
+3. *The sticky nav is hidden for the assessment element captures*, the same treatment the
+   Visibility Gap Library captures already use — `style` applies during capture and nowhere else.
+   The lane brief said two captures; there are **three** at 390 (form, result, insufficient), and
+   leaving one of three carrying the artifact would be incoherent, so all three were regenerated.
+   All three 1440 captures are byte-identical afterwards, which confirms the nav never reached the
+   section at that viewport.
+
+Gated twice at the same commit: build 2/2, typecheck 4/4, lint 5/5, e2e 297 passed / 1 skipped on
+both runs. The three regenerated captures hash identically across the two runs. No source file in
+`apps/` or `packages/` changed in this lane — it touches two spec files and three PNGs.
 2. **The gate holds.** One file, not two: `e2e/tests/phase-4-zbm.spec.ts:116-120`.
    `phase-4-zbc.spec.ts` never enforced them and should not start — the assessment is a ZBM surface.
    The two `not.toMatch` holds become positive assertions on the new wording.

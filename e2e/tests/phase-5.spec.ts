@@ -33,6 +33,22 @@ const REPO = path.join(import.meta.dirname, "..", "..");
 /** The fixture rule set's version. A mismatch is a 409, by design (§11.3). */
 const RULE_SET_VERSION = "fixture-2026-09-18.2";
 
+/**
+ * §11.2 — the expected `rules_hash` per rule-set version, PINNED (the auditor's
+ * ask, recorded in TOOLING.md).
+ *
+ * Matching `/^[0-9a-f]{64}$/` only proves something hashed; it does not prove
+ * the rule set is the one that was certified. A question, the scale, the
+ * priority order or any copy could change and the shape assertion would still
+ * pass. Pinning the digest per version makes "immutable after activation"
+ * checkable: editing `.2` in place fails here, and a genuine change must arrive
+ * as a NEW version with its own pinned digest rather than as an edit.
+ */
+const EXPECTED_RULE_SET_HASH: Record<string, string> = {
+  // Captured at 1dfe670 on a clean tree, from the certified .2 rule set.
+  "fixture-2026-09-18.2": "d6a3674beca7d6d01a4cfaba573bd4641801091a62b92928d49bab90d27d4406",
+};
+
 /** §11.3, verbatim and in display order. */
 const QUESTIONS: [string, string][] = [
   ["follow_up", "When a lead comes in, we don’t always respond fast or follow up consistently."],
@@ -130,7 +146,16 @@ async function choose(section: Locator, choices: Record<string, (typeof SCALE)[n
 async function capture(section: Locator, name: string, project: string) {
   await mkdir(SNAPSHOT_DIR, { recursive: true });
   await section.page().evaluate(() => document.fonts.ready);
-  await section.screenshot({ path: path.join(SNAPSHOT_DIR, `zbm-assessment-${name}-${project}.png`) });
+  // Repair (2026-09-20): the site nav is sticky, and in an element capture it
+  // paints over the top of the section — at 390 it covers the "GET AN ASSESSMENT"
+  // label. It is not part of the section, so it is hidden for the screenshot only
+  // (Playwright's `style` applies during capture and nowhere else). This is the
+  // same treatment the Visibility Gap Library captures already use. At 1440 the
+  // nav does not reach the section, so those captures are unchanged.
+  await section.screenshot({
+    path: path.join(SNAPSHOT_DIR, `zbm-assessment-${name}-${project}.png`),
+    style: 'header:has(> nav[aria-label="Primary"]) { visibility: hidden !important; }',
+  });
 }
 
 const everyOther = (value: (typeof SCALE)[number]) => Object.fromEntries(PRIORITY.map((id) => [id, value]));
@@ -187,6 +212,11 @@ test.describe("Free assessment — the rule (§11.4) and its copy (C2)", () => {
     expect(omit(a, "submission_id", "produced_at")).toEqual(omit(b, "submission_id", "produced_at"));
     expect(a.rule_set_hash).toMatch(/^[0-9a-f]{64}$/);
     expect(a.rule_set_version).toBe(RULE_SET_VERSION);
+    // The pin: this version must still hash to the digest it was certified with.
+    expect(EXPECTED_RULE_SET_HASH[a.rule_set_version], `no pinned rules_hash for ${a.rule_set_version}`).toBeDefined();
+    expect(a.rule_set_hash, `rules_hash changed for ${a.rule_set_version} — a new version is required, not an edit`).toBe(
+      EXPECTED_RULE_SET_HASH[a.rule_set_version],
+    );
   });
 
   test("no free result carries a dollar figure, a currency or an estimate", async ({ page }) => {
