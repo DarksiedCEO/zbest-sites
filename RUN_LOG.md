@@ -129,3 +129,169 @@ What these numbers are not:
 - **The 404 route logs one console error** — the browser's own "Failed to load resource: 404"
   for the document itself, which is correct behavior for a 404 page. It is not counted against
   the threshold, and it is recorded here so that exclusion is visible rather than silent.
+
+---
+
+## Phase 2 — Cleanup
+
+### Item 5 — ZBC O1–O3 (done)
+
+Exact wording from `docs/TOOLING.md:541-543`, applied literally, one commit per item:
+
+| Commit | Item | File | Was | Now |
+|---|---|---|---|---|
+| `01a56b1` | tests | `e2e/tests/phase-4-zbc.spec.ts` | — | three new tests (O1, O2, O3) plus the five-steps test updated; all 8 runs failed on the old copy before any fix |
+| `2a63b88` | O1 | `apps/zbc/app/page.tsx:118` | "Only eligible views billed" | "Nothing billed before you approve the post" |
+| `aff806d` | O2 | `apps/zbc/app/become-a-clipper/page.tsx:9` and `:49` | "Paid on verified views" / "Get paid on verified views" | "Paid on approved posts and verified views" (both) |
+| `690a345` | O3 | `apps/zbc/app/media-kit/page.tsx:47-48` | "clients pay only for approved posts with verified views." | "clients pay only for approved posts." |
+
+**Gate on the fixed tree:** typecheck exit 0, lint exit 0, e2e **335 passed, 1 skipped, 0 failed**
+(the gate builds both apps itself). Exactly 10 captures moved, matching TOOLING.md's estimate:
+ZBC home in phase-1, phase-3 and phase-4-zbc (6), become-a-clipper (2), media-kit (2). Every
+other committed PNG was byte-identical after the run.
+
+**Mutations,** each applied alone to the fixed tree, running the three O-tests plus the
+five-steps test:
+
+| Mutation | Tests that failed (both viewports) | Everything else |
+|---|---|---|
+| M1: O1 reverted | O1 | passed |
+| M2a: O2 step title reverted | O2, five-steps | passed |
+| M2b: O2 meta description reverted | O2 | passed |
+| M3: O3 reverted | O3 | passed |
+
+Each failure was an assertion failure on a tree that built. The tree was restored from a backup
+after each one, and the final state is what the commits hold.
+
+### Item 6 — Legal text slots — BLOCKED, not run
+
+Defined only in `specs/FRONTEND_COMPLIANCE_HANDOFF_2026-09-23.md`, which does not exist in this
+repo or anywhere under the home directory to depth 6. With no definition, "wire the slots" (cookie
+banner, footer legal links, accessibility statement, form privacy links) would be new UI built from
+a guess. The legal shells as they stand are unchanged: all six carry the required draft banner and
+labeled placeholders (item 1).
+
+### Item 7 — Phase 2 counter fix (done, `9dfefda`)
+
+**What broke, and how it was observed.** It was not a regression: `packages/ui/src/components/counter.tsx`
+has not changed since Phase 2 (`cc512d9`), so the defect has been latent since certification.
+It surfaced on 2026-09-18, in a Phase 5 gate run, as a flake. `phase-2.spec.ts` "counter ticks
+once, and prefers-reduced-motion disables the tick" read "0" where it expected "1,240,000", and
+passed on re-run. It was routed out of Phase 5 at `TOOLING.md:719`.
+
+**Cause.** The server rendered `format(0)`, and only a client effect swapped in the final value.
+The server cannot know the visitor's motion preference, so:
+- a reduced-motion visitor saw 0 until hydration;
+- a visitor with JavaScript off saw 0 permanently, which fails §9 ("content fully readable with
+  motion off");
+- the test's immediate `textContent` read raced hydration.
+
+The same race showed up during this run. The first O1 test failure dumped the ZBC home `<main>`
+at 1440 with the example cards reading "Views0 Clips0".
+
+**Before.** A new deterministic test — no JavaScript, both `reducedMotion` values, `/dev/system`
+must serve "1,240,000" — failed 4/4 on the old component (Received: "0").
+
+**Fix.** The server renders the final value. A client that allows motion rewinds to 0 in a
+layout effect before the hydrated frame paints, so the tick still starts from zero. A
+reduced-motion client never shows 0.
+
+**After.** Typecheck 0, lint 0, e2e **339 passed, 1 skipped, 0 failed** (the 335 plus the 4 new
+runs). No capture moved: captures run with reduced motion, and those already settled on final
+values.
+
+**Mutations,** each alone:
+- The server `format(0)` restored: the new test fails 4/4.
+- The rewind removed: the Phase 2 tick test and the ZBC "view counters tick once on entry" test
+  both fail at both viewports (Expected "0", Received "1,240,000").
+
+### Item 8 — Fixture/Stub note merge — AMBIGUOUS, not done
+
+The brief frames this as "documentation only; must not touch rendered page content". The item
+it points at — "the stacked Fixture/Stub note merge" in the pre-launch batch (auditor + founder,
+2026-09-20) — is a rendered-UI change:
+- `apps/zbm/app/revenue-recovery/page.tsx:131` puts a `FixtureNote` ("Fixture — eight questions
+  return one prioritized leak… Nothing you enter is stored or sent.") directly above
+  `AssessmentForm`.
+- That form opens with its own notice (`apps/zbm/components/assessment-form.tsx:157-160`, "Stub —
+  this form scores your answers on fixture rules but is not connected yet…").
+
+The two notes stack and say overlapping things. The readiness check has the same form-level stub
+notice (`readiness-check.tsx:167`), and so does the shared `LeadForm` (`packages/ui/src/lead/lead-form.tsx:92`)
+used under the ZBC waitlist `FixtureNote`.
+
+Merging them changes copy on certified pages, and no wording for the merged note is recorded
+anywhere. The brief's own rule applies — stop on an ambiguous item and do not guess — so nothing
+was changed. **For Andre:** confirm the item is the rendered merge, and give or approve the
+merged wording.
+
+### Item 9 — Press mailbox — FLAGGED for Andre, nothing changed
+
+**What it is:** `apps/zbc/app/media-kit/page.tsx:69-73` shows `press@zbestclips.com` as plain
+text (not a `mailto:` link), marked `data-placeholder`, with the fixture note "Placeholder — this
+mailbox does not exist yet."
+
+**What cleanup means here:** the brief itself (`ZBM-ZBC-Build-Brief-v2.md:684`) says "create the
+alias before launch or replace with the founder's address". That is not a copy fix — it is **real
+inbox wiring**: a mailbox or alias at the zbestclips.com mail provider, outside this repo. Once it
+exists, the repo change is small: remove the placeholder marker and note, and make it a `mailto:`
+link.
+
+**Two decisions for Andre:**
+1. **Alias or founder address?** The founder-address option conflicts with the standing
+   no-founder-name direction (`apps/zbc/app/about/page.tsx:16`), unless the address is a role
+   address.
+2. **Who creates the mailbox?**
+
+---
+
+## Phase 3 — Structural
+
+### Item 10 — Branch protection on `main` — BLOCKED, not run
+
+The repo has no CI: no `.github/workflows`, so no status check exists. Protection requiring a
+build check would wait on a check that never reports, which blocks every push and merge to `main`,
+Andre's included. It is also a repository-settings change, outward of this branch. Ruled out of
+this run by Andre. The prerequisite is a CI workflow that runs the gate (the gate needs about 2
+minutes and builds both apps), followed by protection that requires that workflow's check.
+
+---
+
+## Seen during the run, outside its scope — not changed
+
+- **The same "views only" claim remains in the product doc.** `apps/zbc/PRODUCT.md:35` still says
+  "only approved posts with verified views are billed". The same claim also appears in the
+  brief's source copy (`ZBM-ZBC-Build-Brief-v2.md:623`, `:670`); the brief is the locked
+  handoff, so that is a note, not a fix. PRODUCT.md is not rendered, and it was not in O1–O3.
+- **O2's literal swap breaks the step list's voice.** How It Works on Become a Clipper now reads
+  "Join a campaign / Get the source material / Cut and post / Submit for review / **Paid on**
+  approved posts and verified views". The first four are imperatives. "Get paid on approved posts
+  and verified views" would match them. TOOLING.md gives the one replacement for both places, so
+  it was applied as written — Andre's call.
+- **A ZBC test name overclaims.** `phase-4-zbc.spec.ts:263`, "view counters tick once on entry,
+  and not at all with reduced motion", never exercises reduced motion. The Phase 2 tests cover
+  the component; the name is the only overclaim.
+- **A mislabeled SHA in the reviewer's note.** The note from the other reviewer calls `1fc360f`
+  "ZBC staged". It is "Add raw Phase 4 ZBM verification log and capture zip", the ZBM audit point.
+  ZBC is certified at `28ef158`.
+
+---
+
+## Summary
+
+| # | Item | Result | Commit(s) |
+|---|---|---|---|
+| 1 | Route audit | done — 50/50 loads 200 with content; 6 labeled legal placeholders; no stubs, blank, or broken pages | `6aab51b` |
+| 2 | axe scan | blocked — not installed; Phase 6 control 1 | — |
+| 3 | Dependency scan | done — 0 findings in 458 dependencies | `6aab51b` |
+| 4 | CWV / console | done — lab LCP ≤ 60 ms, CLS 0, INP proxy ≤ 56 ms; 0 console/page errors or hydration warnings | `6aab51b` |
+| 5 | ZBC O1–O3 | done — exact swaps, 10 captures, 4 mutations caught | `01a56b1`, `2a63b88`, `aff806d`, `690a345` |
+| 6 | Legal text slots | blocked — defining document does not exist | — |
+| 7 | Counter fix | done — latent since `cc512d9`, reproduced 4/4, fixed, 2 mutations caught | `9dfefda` |
+| 8 | Fixture/Stub merge | ambiguous — it is a rendered-copy change; needs wording | — |
+| 9 | Press mailbox | flagged — real-inbox wiring outside the repo; two decisions for Andre | — |
+| 10 | Branch protection | blocked — no CI to require | — |
+
+Final gate on this branch: typecheck 0, lint 0, e2e 339 passed / 1 skipped / 0 failed.
+Nothing is merged to `main`, pushed, deployed, or applied to repository settings. None of this is
+certified; the phase audit belongs to an independent reviewer.
