@@ -295,3 +295,100 @@ minutes and builds both apps), followed by protection that requires that workflo
 Final gate on this branch: typecheck 0, lint 0, e2e 339 passed / 1 skipped / 0 failed.
 Nothing is merged to `main`, pushed, deployed, or applied to repository settings. None of this is
 certified; the phase audit belongs to an independent reviewer.
+
+---
+
+# Housekeeping batch 2 — 2026-09-24, same branch
+
+Source: a reviewer's note, pasted by Andre. Same boundaries as the first pass: no merge to `main`,
+no new claims, nothing beyond the four items below.
+
+## B2-1 — `apps/zbc/PRODUCT.md:35` — PROPOSED, not committed
+
+The line and the replacement are held for one round of confirmation, as the note asks.
+
+- **Current:** "Every submission is reviewed by a person before it counts, and only approved
+  posts with verified views are billed."
+- **Proposed:** "Every submission is reviewed by a person before it counts, and clients pay only
+  for approved posts."
+
+This line is client-facing billing, so it follows O3 (the Media Kit boilerplate, the same claim
+in the same sentence shape), not O2, which is the clipper payout line. The same paragraph also
+opens "One source, **hundreds** of clips". The Sep 17 ruling changed hundreds to dozens across
+the site; PRODUCT.md was not in that sweep. This is not in B2-1's scope — flagged, not proposed.
+
+## B2-2 — O2 step 5 voice (done, `8ba79ee`)
+
+"Paid on approved posts and verified views" becomes "**Get** paid on approved posts and verified
+views", matching the verb-first steps 1–4. The meta description keeps TOOLING.md's wording, as a
+sentence fragment.
+- The tests were updated first and failed 4/4 on the old title. That run is the mutation proof:
+  the tests reject "Paid on…".
+- Gate: typecheck 0, lint 0, e2e 339 passed / 1 skipped / 0 failed.
+- Two captures re-taken (become-a-clipper, both viewports).
+
+## B2-3 — Scans re-run at the branch tip `8ba79ee`
+
+The Phase 1 numbers above are from `49a46d1`. Since then O1–O3, the counter and B2-2 have
+changed rendered output, so the scans were re-run on a fresh production build of `8ba79ee`, with
+the same method and script.
+
+- **Accessibility (axe):** not run. It is still blocked for the reason in item 2, and no result
+  is claimed.
+- **Dependencies:** `pnpm audit` — "No known vulnerabilities found". Pass.
+- **Routes:** 50 of 50 loads returned 200 with rendered copy, and the classifications are
+  unchanged. Word counts moved only on the three O1–O3 pages: ZBC `/` 373→376,
+  `/become-a-clipper` 230→233, `/media-kit` 252→249.
+- **CWV / console, per route:** 0 failures. Thresholds: LCP ≤ 2500 ms, CLS ≤ 0.1, INP ≤ 200 ms,
+  0 console errors, 0 hydration/key warnings. Cells show status, LCP / CLS / INP proxy, console.
+  The lab, unthrottled and INP-proxy caveats from item 4 apply. † = the 404 document's own
+  "Failed to load resource: 404", the expected behavior, which is not counted.
+
+| Site | Route | 1440 | 390 |
+|---|---|---|---|
+| ZBM | `/` | pass — 200, 68 ms / 0 / 24 ms / 0 err, 0 warn | pass — 200, 32 ms / 0 / 24 ms / 0 err, 0 warn |
+| ZBM | `/about` | pass — 200, 24 ms / 0 / 24 ms / 0 err, 0 warn | pass — 200, 20 ms / 0 / 16 ms / 0 err, 0 warn |
+| ZBM | `/contact` | pass — 200, 20 ms / 0 / 24 ms / 0 err, 0 warn | pass — 200, 20 ms / 0 / 16 ms / 0 err, 0 warn |
+| ZBM | `/faq` | pass — 200, 20 ms / 0 / 24 ms / 0 err, 0 warn | pass — 200, 20 ms / 0 / 24 ms / 0 err, 0 warn |
+| ZBM | `/digital-advertising` | pass — 200, 60 ms / 0 / 24 ms / 0 err, 0 warn | pass — 200, 36 ms / 0 / 32 ms / 0 err, 0 warn |
+| ZBM | `/out-of-home` | pass — 200, 24 ms / 0 / 24 ms / 0 err, 0 warn | pass — 200, 20 ms / 0 / 24 ms / 0 err, 0 warn |
+| ZBM | `/revenue-recovery` | pass — 200, 28 ms / 0 / 24 ms / 0 err, 0 warn | pass — 200, 24 ms / 0 / 40 ms / 0 err, 0 warn |
+| ZBM | `/search-intelligence` | pass — 200, 28 ms / 0 / 32 ms / 0 err, 0 warn | pass — 200, 40 ms / 0 / 24 ms / 0 err, 0 warn |
+| ZBM | `/legal/privacy-policy` | pass — 200, 44 ms / 0 / 24 ms / 0 err, 0 warn | pass — 200, 44 ms / 0 / 40 ms / 0 err, 0 warn |
+| ZBM | `/legal/terms-of-service` | pass — 200, 44 ms / 0 / 24 ms / 0 err, 0 warn | pass — 200, 44 ms / 0 / 16 ms / 0 err, 0 warn |
+| ZBM | `/legal/cookie-policy` | pass — 200, 44 ms / 0 / 24 ms / 0 err, 0 warn | pass — 200, 44 ms / 0 / 16 ms / 0 err, 0 warn |
+| ZBM | `/dev/system` | pass — 200, 24 ms / 0 / 24 ms / 0 err, 0 warn | pass — 200, 20 ms / 0 / 32 ms / 0 err, 0 warn |
+| ZBM | `/this-page-does-not-exist` | pass — 404, 24 ms / 0.004 / 16 ms / 1† err, 0 warn | pass — 404, 44 ms / 0 / 40 ms / 1† err, 0 warn |
+| ZBC | `/` | pass — 200, 32 ms / 0 / 24 ms / 0 err, 0 warn | pass — 200, 20 ms / 0 / 24 ms / 0 err, 0 warn |
+| ZBC | `/about` | pass — 200, 28 ms / 0 / 24 ms / 0 err, 0 warn | pass — 200, 40 ms / 0 / 16 ms / 0 err, 0 warn |
+| ZBC | `/faq` | pass — 200, 28 ms / 0 / 24 ms / 0 err, 0 warn | pass — 200, 20 ms / 0 / 16 ms / 0 err, 0 warn |
+| ZBC | `/pricing` | pass — 200, 28 ms / 0 / 24 ms / 0 err, 0 warn | pass — 200, 36 ms / 0 / 32 ms / 0 err, 0 warn |
+| ZBC | `/entertainment` | pass — 200, 28 ms / 0 / 32 ms / 0 err, 0 warn | pass — 200, 40 ms / 0 / 16 ms / 0 err, 0 warn |
+| ZBC | `/brands` | pass — 200, 28 ms / 0 / 32 ms / 0 err, 0 warn | pass — 200, 20 ms / 0 / 48 ms / 0 err, 0 warn |
+| ZBC | `/become-a-clipper` | pass — 200, 44 ms / 0 / 32 ms / 0 err, 0 warn | pass — 200, 40 ms / 0 / 24 ms / 0 err, 0 warn |
+| ZBC | `/launch-a-campaign` | pass — 200, 52 ms / 0 / 40 ms / 0 err, 0 warn | pass — 200, 44 ms / 0 / 24 ms / 0 err, 0 warn |
+| ZBC | `/media-kit` | pass — 200, 28 ms / 0 / 32 ms / 0 err, 0 warn | pass — 200, 20 ms / 0 / 40 ms / 0 err, 0 warn |
+| ZBC | `/legal/privacy-policy` | pass — 200, 60 ms / 0 / 32 ms / 0 err, 0 warn | pass — 200, 44 ms / 0 / 40 ms / 0 err, 0 warn |
+| ZBC | `/legal/terms-of-service` | pass — 200, 60 ms / 0 / 32 ms / 0 err, 0 warn | pass — 200, 44 ms / 0 / 40 ms / 0 err, 0 warn |
+| ZBC | `/legal/cookie-policy` | pass — 200, 60 ms / 0 / 32 ms / 0 err, 0 warn | pass — 200, 44 ms / 0 / 48 ms / 0 err, 0 warn |
+| ZBC | `/dev/system` | pass — 200, 32 ms / 0 / 32 ms / 0 err, 0 warn | pass — 200, 24 ms / 0 / 32 ms / 0 err, 0 warn |
+| ZBC | `/this-page-does-not-exist` | pass — 404, 24 ms / 0.003 / 24 ms / 1† err, 0 warn | pass — 404, 40 ms / 0 / 32 ms / 1† err, 0 warn |
+
+## B2-4 — Everything still open from the first pass: the list, not the resolution
+
+Held until Andre has seen it. Nothing here was acted on.
+
+| # | Item | State | What it needs |
+|---|---|---|---|
+| 1 | Item 2 — axe scan | blocked | a go-ahead to install `@axe-core/playwright` (Phase 6 control 1, a supply-chain change) |
+| 2 | Item 6 — legal text slots | blocked | `specs/FRONTEND_COMPLIANCE_HANDOFF_2026-09-23.md`, which the brief cites and which does not exist |
+| 3 | Item 8 — Fixture/Stub note merge | ambiguous | confirmation that it is the rendered merge (RR `FixtureNote` above the form's own "Stub —" notice; the same stack on the ZBC waitlist), and the merged wording |
+| 4 | Item 9 — press mailbox | flagged | two decisions: an alias or the founder's address (the latter against the no-founder-name direction unless it is a role address), and who creates the mailbox |
+| 5 | Item 10 — branch protection | blocked | a CI workflow that runs the gate, first |
+| 6 | B2-1 — PRODUCT.md:35 | proposed | a yes or no on the replacement above |
+| 7 | PRODUCT.md "hundreds of clips" | flagged | whether PRODUCT.md is in the dozens sweep |
+| 8 | Brief source copy (`ZBM-ZBC-Build-Brief-v2.md:623`, `:670`) | noted | nothing, while the brief stays the locked handoff — it still carries the pre-O1–O3 wording |
+| 9 | `phase-4-zbc.spec.ts:263` test name | noted | a rename or a real reduced-motion check, whichever is preferred |
+
+Branch tip `8ba79ee` before this log commit. Nothing is merged, pushed, deployed, or applied to
+repository settings.
