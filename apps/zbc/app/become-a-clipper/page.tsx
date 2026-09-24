@@ -46,7 +46,7 @@ export default function BecomeAClipperPage() {
             { title: "Get the source material", body: "approved footage, clear brief" },
             { title: "Cut and post", body: "your hook, your account" },
             { title: "Submit for review" },
-            { title: "Paid on approved posts and verified views" },
+            { title: "Get paid on approved posts and verified views" },
           ]}
         />
       </PageSection>
