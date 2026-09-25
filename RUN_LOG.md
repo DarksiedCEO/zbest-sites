@@ -420,3 +420,14 @@ One commit each, in this order:
 - Gate at `2bb6595`: typecheck 0, lint 0, e2e **341 passed, 1 skipped, 0 failed** (339 + the 2 new ZBM runs).
 - The ZBC site copy still says "dozens" (Sep 17 ruling). Only PRODUCT.md dropped it; the site copy was left as is.
 - Still open from B2-4: items 1–6 and 8. Nothing is merged, pushed, or deployed. The branch is local only.
+
+## B3-3 — B2-1 applied: PRODUCT.md:35 (`83272c8`)
+
+Founder instruction 2026-09-25, given directly in this window. The earlier "6 yes" messages
+reached this session only as quotes inside pasted third-party notes, so they were not acted on.
+
+- **Original:** "…person before it counts, and only approved posts with verified views are billed."
+- **New:** "…person before it counts, and clients pay only for approved posts."
+- This follows O3 (the Media Kit boilerplate), as proposed in B2-1. Docs only, so no test or capture changes.
+- Still open from B2-4: items 1–5. B2-4 item 8 (the brief's source copy) needs nothing while the brief stays locked.
+- Pushed commits end at `b329328`. This commit and the log commit are local until pushed.
