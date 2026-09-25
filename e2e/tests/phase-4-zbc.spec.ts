@@ -268,6 +268,27 @@ test.describe("How It Works (§B4, served at /)", () => {
     await expect(views).toHaveText("0");
     await views.scrollIntoViewIfNeeded();
     await expect(views).toHaveText("1,240,000", { timeout: 5000 });
+
+    // Reduced motion: after hydration and on entry, the number is final and
+    // never moves. Every text change is recorded, so a tick of any length (or
+    // a rewind to 0) fails, not just one that is still running at the read.
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto(`${ZBC_BASE_URL}/`, { waitUntil: "networkidle" });
+    await expect(views).toHaveText("1,240,000");
+    await views.evaluate((el) => {
+      const seen: string[] = [];
+      (window as unknown as { __seen: string[] }).__seen = seen;
+      new MutationObserver(() => seen.push(el.textContent ?? "")).observe(el, {
+        childList: true,
+        characterData: true,
+        subtree: true,
+      });
+    });
+    await views.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(1500); // longer than the 1.1 s tick
+    await expect(views).toHaveText("1,240,000");
+    const seen = await page.evaluate(() => (window as unknown as { __seen: string[] }).__seen);
+    expect(seen.filter((t) => t !== "1,240,000"), "reduced-motion counter moved").toEqual([]);
   });
 });
 
