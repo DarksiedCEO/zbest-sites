@@ -406,3 +406,17 @@ ruling, and it leaves `apps/zbm/app/page.tsx:85` alone.
 - Not touched: line 32 still reads "cuts it into dozens of distinct short-form videos". That is outside the line
   given and is flagged for a separate call. Items 1 (the `phase-4-zbc.spec.ts:263` reduced-motion test) and
   2 (`apps/zbm/app/page.tsx:85`) are still open.
+
+## B3-2 — The three open calls, as given by Andre 2026-09-25 ("1 go, 2 apply dozens, line 32 drop dozens too")
+
+One commit each, in this order:
+
+| Call | Commit | Change | Proof |
+|---|---|---|---|
+| 1 go (open item 9) | `6efbb86` | `phase-4-zbc.spec.ts:263` gets a real reduced-motion half: it reloads with `reduce`, waits for hydration, records every text change while the counter scrolls into view, and requires 1,240,000 throughout | two counter mutants run and then reverted, both failed 2/2: rewind-to-0 (read "0" after hydration) and tick-only (67 intermediate values recorded) |
+| 2 apply dozens | `8337bb8` | `apps/zbm/app/page.tsx:85` "One source, hundreds of clips, real reach." → "One source, **dozens** of clips, real reach." | new test in `phase-4-zbm.spec.ts` failed 2/2 on the old copy; ZBM home captures re-taken (phase-1, phase-3, phase-4-zbm, both viewports) |
+| line 32 drop dozens too | `2bb6595` | `apps/zbc/PRODUCT.md:32` "cuts it into dozens of distinct short-form videos" → "cuts it into distinct short-form videos" | docs only; no number put back, same as line 31 |
+
+- Gate at `2bb6595`: typecheck 0, lint 0, e2e **341 passed, 1 skipped, 0 failed** (339 + the 2 new ZBM runs).
+- The ZBC site copy still says "dozens" (Sep 17 ruling). Only PRODUCT.md dropped it; the site copy was left as is.
+- Still open from B2-4: items 1–6 and 8. Nothing is merged, pushed, or deployed. The branch is local only.
