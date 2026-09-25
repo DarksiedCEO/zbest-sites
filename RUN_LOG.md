@@ -392,3 +392,17 @@ Held until Andre has seen it. Nothing here was acted on.
 
 Branch tip `8ba79ee` before this log commit. Nothing is merged, pushed, deployed, or applied to
 repository settings.
+
+## B3-1 — PRODUCT.md:31: the clip count comes out, with no number put back
+
+Founder instruction 2026-09-25 (open item 7 above). This applies the no-fabricated-metrics
+principle to a file the Sep 17 "dozens" ruling did not cover. It is not a reading of that
+ruling, and it leaves `apps/zbm/app/page.tsx:85` alone.
+
+- **Original** (`apps/zbc/PRODUCT.md:31`): `One source, hundreds of clips, real reach. A client hands over one piece of long-form`
+- **New:** `One source, a stream of clips, real reach. A client hands over one piece of long-form`
+- It keeps the three-beat fragment of the site's hero ("One source. … Real reach.") and makes no quantity claim.
+- **No verified clip count exists — revisit if a real number becomes available.**
+- Not touched: line 32 still reads "cuts it into dozens of distinct short-form videos". That is outside the line
+  given and is flagged for a separate call. Items 1 (the `phase-4-zbc.spec.ts:263` reduced-motion test) and
+  2 (`apps/zbm/app/page.tsx:85`) are still open.

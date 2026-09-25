@@ -28,7 +28,7 @@ clippers.**
 
 ## Product Purpose
 
-One source, hundreds of clips, real reach. A client hands over one piece of long-form
+One source, a stream of clips, real reach. A client hands over one piece of long-form
 content; the clipper network cuts it into dozens of distinct short-form videos, each
 with a different hook, pace and caption, posted across TikTok, Instagram Reels and
 YouTube Shorts from real independent accounts. Every submission is reviewed by a
