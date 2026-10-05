@@ -15,7 +15,7 @@ export const metadata = pageMetadata(SITE, {
  * Services hub (amendment Oct 4, 2026). Every service, grouped, each linking to
  * its page — the one page a broad campaign can send anyone to.
  *
- * "Who we work with" names industries only — no client names, no logos, no
+ * "Who we serve" names industries only — no client names, no logos, no
  * results (Brief §9; Sep 17 rulings).
  */
 export default function ServicesPage() {
@@ -54,7 +54,7 @@ export default function ServicesPage() {
         </PageSection>
       ))}
 
-      <PageSection id="who-we-work-with" label="Who we work with" title="Any business with something to sell.">
+      <PageSection id="who-we-work-with" label="Who we serve" title="Any business with something to sell.">
         <RuledList
           items={[
             "Home services — HVAC, roofing, plumbing, restoration",
@@ -76,7 +76,7 @@ export default function ServicesPage() {
             ["Tell us", "What you need, or just what’s going on."],
             ["Plan & quote", "A written plan: what we’ll do, what it costs, how we’ll measure it."],
             ["Agree", "Nothing starts until you approve it in writing."],
-            ["Run", "We make it, place it, and manage it."],
+            ["Run", "We make it, get it placed, and manage it."],
             ["Report", "What it did, in real numbers, with the confidence stated."],
           ].map(([step, body], i) => (
             <li key={step} className="flex flex-col border-t border-text-secondary/35 pt-4">

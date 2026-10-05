@@ -41,15 +41,20 @@ const website = z
 export const INTAKE_BUDGETS = ["under-5k", "5k-25k", "25k-100k", "100k-plus", "not-sure"] as const;
 export const INTAKE_TIMINGS = ["asap", "30-days", "1-3-months", "exploring"] as const;
 
-/** Campaign/source tag carried from ?src= or ?utm_campaign= — never free text. */
+/**
+ * Campaign/source tag carried from ?src= or ?utm_campaign= — never free text.
+ * Case-insensitive on the way in, stored lowercase, so BB-I405 and bb-i405
+ * count as one campaign.
+ */
 export const SOURCE_TAG = /^[a-z0-9][a-z0-9._-]{0,63}$/i;
 
 /** Optional fields: whitespace-only counts as empty, then empty or valid. */
 const blankOr = <T extends z.ZodType<unknown, string>>(schema: T) =>
   z.string().trim().pipe(z.union([z.literal(""), schema]));
 
+/** The custom message sits on the union: an inner one is discarded by it. */
 const optionalChoice = <T extends readonly [string, ...string[]]>(values: T, message: string) =>
-  blankOr(z.enum(values, { error: message }));
+  z.string().trim().pipe(z.union([z.literal(""), z.enum(values)], { error: message }));
 
 /** "a,b,c" from the checkbox group → a de-duplicated list of known services. */
 const intakeServices = z
@@ -90,7 +95,7 @@ export const LEAD_FIELDS = {
     details: z.string().trim().max(5000, "Keep this under 5000 characters."),
     // Hidden attribution tag: a bad value is dropped, never shown as an error
     // the visitor cannot see or fix.
-    source: blankOr(z.string().regex(SOURCE_TAG)).catch(""),
+    source: blankOr(z.string().regex(SOURCE_TAG).transform((v) => v.toLowerCase())).catch(""),
   }),
 } satisfies Record<LeadForm, z.ZodTypeAny>;
 

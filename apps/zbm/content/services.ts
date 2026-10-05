@@ -106,7 +106,7 @@ export const SERVICES: Service[] = [
       included: [
         "Media planning across broadcast, cable, and streaming (CTV/OTT) — the mix set by your market, audience, and budget",
         "Schedule building — dayparts, programs, and flight dates chosen for reach and frequency, not filler",
-        "Commercial production — :15, :30, and :60 spots made by our Creative & Production team, or cut from footage you already have",
+        "Commercial production — :15, :30, and :60 spots made through our Creative & Production service, or cut from footage you already have",
         "Streaming targeting — by geography, household, and audience segment, with frequency capped so the same viewer isn’t hammered",
         "Measurement that connects airtime to response — calls, site visits, and branded search lined up against when spots ran, with the confidence stated plainly",
       ],
@@ -116,7 +116,7 @@ export const SERVICES: Service[] = [
         { slug: "revenue-recovery", body: "makes sure the calls TV generates actually get answered" },
       ],
       pricing:
-        "Scoped individually by market, network or platform, daypart, and flight length. Production is quoted separately from media.",
+        "Scoped individually by market, network or platform, daypart, and flight length. How the media itself is paid for — by you directly, or through us at cost — is written into your agreement before anything runs. Production is quoted separately.",
       whoFor:
         "Businesses ready to reach a whole market at once — local brands stepping up from digital-only, multi-location brands, auto dealers, entertainment releases, and anyone launching something people need to hear about fast.",
       faq: [
@@ -133,7 +133,7 @@ export const SERVICES: Service[] = [
         {
           question: "Do you make the commercial?",
           answer:
-            "Yes — through our Creative & Production team. We can also cut a spot from footage and brand assets you already have.",
+            "Yes — through our Creative & Production service. We can also cut a spot from footage and brand assets you already have.",
         },
         {
           question: "How do you measure whether TV worked?",
@@ -164,8 +164,8 @@ export const SERVICES: Service[] = [
       ],
       included: [
         "Station and platform planning — AM/FM, streaming audio services, and podcasts matched to your listener, market, and budget",
-        "Spot writing and production — scripts, voice talent, music, and final mix, through our Creative & Production team",
-        "Host-read and sponsorship placements — on-air and podcast reads where a trusted voice sells better than a produced spot, always disclosed as advertising",
+        "Spot writing and production — scripts, voice talent, music, and final mix, through our Creative & Production service",
+        "Host-read and sponsorship placements — on-air and podcast reads where a trusted voice sells better than a produced spot, identified as paid advertising",
         "Scheduling — dayparts and frequency set so your message is heard enough times to stick",
         "Response tracking — dedicated phone numbers, web addresses, and offer codes so audio’s results show up in your numbers",
       ],
@@ -175,7 +175,7 @@ export const SERVICES: Service[] = [
         { slug: "revenue-recovery", body: "makes sure the calls radio generates actually get answered" },
       ],
       pricing:
-        "Scoped individually by market, station or platform, daypart, and flight length. Production is quoted separately from media.",
+        "Scoped individually by market, station or platform, daypart, and flight length. How the media itself is paid for — by you directly, or through us at cost — is written into your agreement before anything runs. Production is quoted separately.",
       whoFor:
         "Local service businesses that live on phone calls, auto dealers, restaurants, events and venues, music releases, and multi-location brands.",
       faq: [
@@ -192,12 +192,12 @@ export const SERVICES: Service[] = [
         {
           question: "Do you write and produce the spots?",
           answer:
-            "Yes — script, voice talent, music, and mix, through our Creative & Production team. You approve the script before anything is recorded.",
+            "Yes — script, voice talent, music, and mix, through our Creative & Production service. You approve the script before anything is recorded.",
         },
         {
           question: "What’s a host-read ad?",
           answer:
-            "The show’s host delivers your message in their own voice. It carries the host’s credibility, and it is always identified as a paid message.",
+            "The show’s host delivers your message in their own voice. It carries the host’s credibility, and it must be identified as a paid message.",
         },
         {
           question: "How do you track results from audio?",
@@ -232,7 +232,7 @@ export const SERVICES: Service[] = [
       ],
       included: [
         "Channel strategy — the platforms your customers actually use, not every platform there is",
-        "Content calendar and production — posts, short-form video, and stories built with our Creative & Production team",
+        "Content calendar and production — posts, short-form video, and stories built through our Creative & Production service",
         "Publishing — a consistent cadence in each platform’s native formats",
         "Community management — comments and messages answered, with escalation rules agreed with you up front",
         "Reputation monitoring — reviews and mentions watched, with responses drafted for your approval",
@@ -261,7 +261,7 @@ export const SERVICES: Service[] = [
         {
           question: "Do you create the content, or do I provide it?",
           answer:
-            "Either. We produce it through our Creative & Production team, work from photos and video you send, or mix the two.",
+            "Either. We produce it through our Creative & Production service, work from photos and video you send, or mix the two.",
         },
         {
           question: "What’s the difference between organic and paid social?",
@@ -353,10 +353,10 @@ export const SERVICES: Service[] = [
       included: [
         "Creator sourcing and vetting — audience fit, engagement quality, brand safety, and past sponsorships checked before anyone is signed",
         "Partnership terms — deliverables, usage rights, exclusivity, and payment negotiated and put in writing",
-        "Content briefs and review — creators keep their voice; you approve before anything posts",
-        "Disclosure — every paid post clearly labeled as an ad, and checked after it goes live",
+        "Content briefs and review — creators keep their voice, and you can require approval before anything posts",
+        "Disclosure — every post with a material connection clearly labeled as an ad, and checked after it goes live",
         "Paid amplification — the best creator content run as ads through Digital Advertising, with the creator’s permission",
-        "Results reporting — reach, engagement, clicks, codes, and sales tied to each creator",
+        "Results reporting — reach, engagement, and clicks per creator, plus sales wherever codes or tracked links make them measurable",
       ],
       fits: [
         { slug: "z-best-clips", body: "adds high-volume short-form distribution across many creator accounts" },
@@ -376,7 +376,7 @@ export const SERVICES: Service[] = [
         {
           question: "Do creators have to disclose that they’re paid?",
           answer:
-            "Yes. Every paid post must be clearly labeled — “#ad,” “sponsored,” or the platform’s paid-partnership label — and we check that it is.",
+            "Yes — and not only when they’re paid. Any material connection, including free product, has to be disclosed clearly and up front: “#ad” or “Sponsored” where people will see it, alongside the platform’s paid-partnership label where there is one. We check that it is.",
         },
         {
           question: "Do you work with smaller creators?",

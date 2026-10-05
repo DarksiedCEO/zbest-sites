@@ -32,7 +32,7 @@ function sourceTag(params: Record<string, string | string[] | undefined>): strin
   for (const key of ["src", "utm_campaign"]) {
     const value = params[key];
     const first = Array.isArray(value) ? value[0] : value;
-    if (first && SOURCE_TAG.test(first)) return first;
+    if (first && SOURCE_TAG.test(first)) return first.toLowerCase();
   }
   return "";
 }

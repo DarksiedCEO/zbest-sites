@@ -218,8 +218,8 @@ test.describe("/start — universal intake", () => {
   test("the campaign tag is carried from ?src= (or utm_campaign), and junk is dropped", async ({ page }) => {
     await presetConsent(page);
     const source = () => form(page).locator('input[type="hidden"][name="source"]').inputValue();
-    await page.goto(`${ZBM_BASE_URL}/start?src=billboard-i405-oct`, { waitUntil: "domcontentloaded" });
-    expect(await source()).toBe("billboard-i405-oct");
+    await page.goto(`${ZBM_BASE_URL}/start?src=Billboard-I405-Oct`, { waitUntil: "domcontentloaded" });
+    expect(await source(), "stored lowercase so one campaign counts once").toBe("billboard-i405-oct");
     await page.goto(`${ZBM_BASE_URL}/start?utm_campaign=fall_radio.v2`, { waitUntil: "domcontentloaded" });
     expect(await source()).toBe("fall_radio.v2");
     await page.goto(`${ZBM_BASE_URL}/start?src=${encodeURIComponent('"><img src=x>')}`, {
@@ -313,6 +313,9 @@ test.describe("/start — server contract on the stub route", () => {
     expect(res.status()).toBe(422);
     const body = await res.json();
     expect(Object.keys(body.error.fields).sort()).toEqual(["budget", "services", "timing", "website"]);
+    // The field's own message, not zod's generic "Invalid input".
+    expect(body.error.fields.budget).toBe("Choose a budget range from the list.");
+    expect(body.error.fields.timing).toBe("Choose a timing from the list.");
   });
 
   test("required fields are required; an empty service list is refused", async ({ page }) => {
@@ -322,7 +325,9 @@ test.describe("/start — server contract on the stub route", () => {
     expect(Object.keys(body.error.fields).sort()).toEqual(["business", "name", "reach", "services"]);
   });
 
-  test("a tampered source tag is dropped, not surfaced as an error", async ({ page }) => {
+  // The stub echoes nothing, so this proves only that a bad tag is never a
+  // visitor-facing error; that the tag is cleaned is proven on the page above.
+  test("a tampered source tag is not surfaced as an error", async ({ page }) => {
     const res = await post(page, { ...base, source: "<script>alert(1)</script>" });
     expect(res.status()).toBe(200);
   });
@@ -340,15 +345,57 @@ test("the Services menu reaches every service at this viewport", async ({ page }
   await presetConsent(page);
   await page.goto(`${ZBM_BASE_URL}/`, { waitUntil: "domcontentloaded" });
   const header = page.getByRole("banner");
+  // Scoped to the Services list itself, so a top-level link with the same
+  // href (Revenue Recovery, Z Best Clips) cannot satisfy the check.
+  let menu;
   if (testInfo.project.name.startsWith("mobile")) {
     await header.getByRole("button", { name: "Menu" }).click();
+    menu = header.locator('[id$="-mobile"] li', { has: page.getByText("Services", { exact: true }) }).locator("ul");
   } else {
-    await header.getByRole("button", { name: "Services" }).click();
+    const trigger = header.getByRole("button", { name: "Services" });
+    await trigger.click();
+    menu = page.locator(`[id="${await trigger.getAttribute("aria-controls")}"]`);
   }
-  for (const [name, href] of [["All Services", "/services"] as [string, string], ...CATALOG]) {
-    const link = header.locator(`a:visible[href="${href}"]`, { hasText: name }).first();
+  const entries = [["All Services", "/services"] as [string, string], ...CATALOG];
+  await expect(menu.locator("a")).toHaveCount(entries.length);
+  for (const [i, [name, href]] of entries.entries()) {
+    const link = menu.locator("a").nth(i);
     await expect(link, name).toBeVisible();
+    await expect(link).toHaveText(name);
+    await expect(link).toHaveAttribute("href", href);
   }
   await expect(header.locator("[data-nav-cta]:visible")).toHaveAttribute("href", "/start");
   await capture(page, "nav-services-open", testInfo.project.name);
+});
+
+/**
+ * Amendment Oct 4 2026 supersedes the Sep 17 CTA-primacy ruling: Start a
+ * Project is the first hero action on Home and the service pages, and the
+ * first action on About.
+ * Revenue Recovery keeps Get an Assessment first; Home keeps it in the
+ * featured section and the closing row.
+ */
+test("Start a Project leads the hero; Revenue Recovery still leads with the assessment", async ({ page }) => {
+  await presetConsent(page);
+  const firstHeroCta = async (p: string) => {
+    await page.goto(`${ZBM_BASE_URL}${p}`, { waitUntil: "domcontentloaded" });
+    return page.locator("main header a").first();
+  };
+  for (const [p, href] of <[string, string][]>[
+    ["/", "/start"],
+    ["/digital-advertising", "/start?service=digital-advertising"],
+    ["/out-of-home", "/start?service=out-of-home"],
+    ["/tv-streaming", "/start?service=tv-streaming"],
+  ]) {
+    const cta = await firstHeroCta(p);
+    await expect(cta, p).toHaveText(/Start a Project/i);
+    await expect(cta, p).toHaveAttribute("href", href);
+  }
+  await expect(await firstHeroCta("/revenue-recovery")).toHaveText(/Get an Assessment/i);
+  // About has no hero CTA (§A4); its one CTA row now leads with Start a Project.
+  await page.goto(`${ZBM_BASE_URL}/about`, { waitUntil: "domcontentloaded" });
+  await expect(page.locator("main a").first()).toHaveText(/Start a Project/i);
+  await expect(page.locator("main a").first()).toHaveAttribute("href", "/start");
+  await page.goto(`${ZBM_BASE_URL}/`, { waitUntil: "domcontentloaded" });
+  await expect(page.locator("#revenue-recovery").getByRole("link", { name: "Get your free assessment" })).toBeVisible();
 });

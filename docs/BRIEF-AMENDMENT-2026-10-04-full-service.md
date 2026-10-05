@@ -36,6 +36,16 @@ The Brief's four-discipline structure was narrower than that, so this amendment 
   - `/influencer-marketing`
   - `/websites`
 
+## Earlier rulings this supersedes
+- **Sep 17 ruling, CTA primacy** (`docs/TOOLING.md:422-423`). That ruling put "Get an Assessment" first on Home and "Talk to Us" first on DA, OOH and About.
+- Under this amendment, **Start a Project** is the first hero action on Home, every service page and About.
+- What the assessment keeps:
+  - first place on Revenue Recovery,
+  - the featured RR section on Home,
+  - the closing row on Home.
+- "Talk to Us" stays on every page as the secondary action.
+- The new placement is asserted in `phase-6-full-service.spec.ts`.
+
 ## What did NOT change
 - **Search Intelligence remains built, unlinked and noindex** (CLAUDE.md, §A4). Linking it is a founder decision because it reverses a deliberate one. It was not taken here.
 - **Political Advertising** (roster dept 14) has no page. It carries its own legal regime (FEC/state "paid for by" disclaimers, broadcast political-file rules, platform political-ad authorization, state AI-in-political-ads laws). Advertising it before Compliance/Legal cover it would invite clients ZBM cannot yet lawfully serve. This is a founder decision.
@@ -57,11 +67,34 @@ These match the Brief and the Sep 17 founder rulings, and they are enforced by `
 5. Influencer: creator fees quoted separately from the management fee, and paid posts checked for disclosure after they go live.
 6. Websites: "The site you're reading is our own work". It also names Shopify, WordPress and Webflow as platforms ZBM will build in. **Confirm ZBM will take that work.**
 7. Websites: "built to WCAG 2.2 AA as the target, and checked". This is a target, not a compliance claim.
+8. TV & Radio pricing: the media is paid "by you directly, or through us at cost", written into the agreement. **This depends on the CPA/counsel media pass-through answer.** See `FULL-SERVICE-DESIGN.md` §3. Until then, the client pays the media vendors directly.
+9. TV, Radio and Social: "through our Creative & Production service". At launch that service is delivered by people and vendors (crews, voice talent, music licensing), not an in-house studio.
+10. Radio: host reads "must be identified as a paid message".
+    - For broadcast, sponsorship identification is the station's duty under FCC rules (47 CFR 73.1212).
+    - For podcasts it falls under the FTC Endorsement Guides.
+    - ZBM can require it in the insertion order, but cannot guarantee a third party's conduct.
+11. Influencer:
+    - "you can require approval before anything posts"
+    - sales reported "wherever codes or tracked links make them measurable"
+    - the disclosure answer. **Counsel should check the disclosure answer against 16 CFR 255 and the FTC's "Disclosures 101" before launch.**
+12. `/services` "Who we serve" lists clinics and legal services. Advertising for clinics raises HIPAA/tracking-pixel questions, and advertising for law firms is subject to state bar advertising rules. Both raise the same kind of issue that kept Political Advertising off the site. Decide whether to keep them listed before campaigns target them.
+13. The Websites page says lead capture is "tested before launch" while this site's own forms are still the stub. Wire the lead route before running ads to the Websites page.
+
+## AEGIS review
+An independent reviewer read the full diff on Oct 4 2026 (read-only).
+- **Result:** 0 Critical, 0 High, 4 Medium, 4 Low.
+- **All 8 were addressed in the follow-up commit:**
+  - the copy fixes above, with commitments added to this list (items 8–13);
+  - the intake budget/timing field errors now show their own messages, and their values are derived from `lib/lead.ts`;
+  - `src` tags are stored lowercase;
+  - the nav test is scoped to the Services menu;
+  - the CTA primacy test was added;
+  - each checkbox's hint is moved out of its accessible name.
 
 ## Verification on this branch (sandbox)
 - `pnpm lint` and `pnpm typecheck` pass. `next build` (zbm) passes.
 - Playwright: 310 of the existing tests passed unchanged. 19 failed only on the intended IA changes; those tests (phase-3 ZBM nav/footer, phase-4-zbm Home §2/stat/Scale, FAQ groups) were updated to the amended values.
-- The new phase-6 gate has 19 tests × 2 viewports (38 runs). All pass. Screenshots are in `e2e/snapshots/phase-6-full-service/`.
+- The new phase-6 gate has 20 tests × 2 viewports (40 runs). All pass. Screenshots are in `e2e/snapshots/phase-6-full-service/`.
 - **Sandbox caveats** (see `e2e/playwright.sandbox.config.ts`):
   - The cloud sandbox has no WebKit, so the 390 project ran on Chromium emulating iPhone 14.
   - Google Fonts is blocked there. The build used the same families served locally from `@fontsource`.

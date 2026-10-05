@@ -135,26 +135,35 @@ export function LeadForm({
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
                 {field.options?.map((o) => {
                   const optionId = `${id}-${o.value}`;
+                  // The hint is outside the <label> and tied by aria-describedby,
+                  // so the accessible name stays the short service name.
                   return (
-                    <label
+                    <div
                       key={o.value}
-                      htmlFor={optionId}
-                      className="flex cursor-pointer items-start gap-3 border border-text-secondary/35 bg-base px-3.5 py-3 has-[:checked]:border-accent"
+                      className="border border-text-secondary/35 bg-base px-3.5 py-3 has-[:checked]:border-accent"
                     >
-                      <input
-                        id={optionId}
-                        type="checkbox"
-                        name={field.name}
-                        value={o.value}
-                        defaultChecked={ticked.has(o.value)}
-                        aria-invalid={error ? true : undefined}
-                        className="mt-1 size-4 shrink-0 accent-accent"
-                      />
-                      <span className="flex flex-col">
+                      <label htmlFor={optionId} className="flex cursor-pointer items-start gap-3">
+                        <input
+                          id={optionId}
+                          type="checkbox"
+                          name={field.name}
+                          value={o.value}
+                          defaultChecked={ticked.has(o.value)}
+                          aria-invalid={error ? true : undefined}
+                          aria-describedby={
+                            [o.hint ? `${optionId}-hint` : "", error ? `${id}-error` : ""].filter(Boolean).join(" ") ||
+                            undefined
+                          }
+                          className="mt-1 size-4 shrink-0 accent-accent"
+                        />
                         <span className="type-body text-text-primary">{o.label}</span>
-                        {o.hint ? <span className="type-small text-text-secondary">{o.hint}</span> : null}
-                      </span>
-                    </label>
+                      </label>
+                      {o.hint ? (
+                        <p id={`${optionId}-hint`} className="type-small mt-1 pl-7 text-text-secondary">
+                          {o.hint}
+                        </p>
+                      ) : null}
+                    </div>
                   );
                 })}
               </div>
@@ -177,7 +186,8 @@ export function LeadForm({
         } as const;
         return (
           <div key={field.name} className="py-ledger">
-            <label htmlFor={id} className="type-label text-text-secondary">
+            {/* block: an inline label lets a short one ("Name") sit beside its control. */}
+            <label htmlFor={id} className="type-label block text-text-secondary">
               {field.label}
               {field.optional ? <span className="normal-case tracking-normal"> (optional)</span> : null}
             </label>

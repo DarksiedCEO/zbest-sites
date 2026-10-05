@@ -1,22 +1,26 @@
 import { LeadForm as SharedLeadForm, type LeadField } from "@zbest/ui/lead";
 import { NOT_SURE, SERVICES } from "@/content/services";
-import type { LeadForm as LeadFormName } from "@/lib/lead";
+import { INTAKE_BUDGETS, INTAKE_TIMINGS, type LeadForm as LeadFormName } from "@/lib/lead";
 
-/** Labels for the intake's coarse choices; values live in lib/lead.ts. */
-const BUDGET_OPTIONS = [
-  { value: "under-5k", label: "Under $5,000" },
-  { value: "5k-25k", label: "$5,000–$25,000" },
-  { value: "25k-100k", label: "$25,000–$100,000" },
-  { value: "100k-plus", label: "$100,000+" },
-  { value: "not-sure", label: "Not sure yet" },
-];
-
-const TIMING_OPTIONS = [
-  { value: "asap", label: "As soon as possible" },
-  { value: "30-days", label: "Within 30 days" },
-  { value: "1-3-months", label: "In 1–3 months" },
-  { value: "exploring", label: "Just exploring" },
-];
+/**
+ * Labels for the intake's coarse choices. Values come from lib/lead.ts and the
+ * Record type makes a value without a label a compile error.
+ */
+const BUDGET_LABELS: Record<(typeof INTAKE_BUDGETS)[number], string> = {
+  "under-5k": "Under $5,000",
+  "5k-25k": "$5,000–$25,000",
+  "25k-100k": "$25,000–$100,000",
+  "100k-plus": "$100,000+",
+  "not-sure": "Not sure yet",
+};
+const TIMING_LABELS: Record<(typeof INTAKE_TIMINGS)[number], string> = {
+  asap: "As soon as possible",
+  "30-days": "Within 30 days",
+  "1-3-months": "In 1–3 months",
+  exploring: "Just exploring",
+};
+const BUDGET_OPTIONS = INTAKE_BUDGETS.map((value) => ({ value, label: BUDGET_LABELS[value] }));
+const TIMING_OPTIONS = INTAKE_TIMINGS.map((value) => ({ value, label: TIMING_LABELS[value] }));
 
 /** Labels are the §6.1 field names, verbatim, for the Brief's two forms. */
 const FIELDS: Record<LeadFormName, LeadField[]> = {

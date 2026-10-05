@@ -552,7 +552,10 @@ test.describe("About and Contact (§A4)", () => {
 });
 
 test.describe("Copy revision (founder rulings, Sep 17 — audit at 1fc360f)", () => {
-  test("the assessment is primary on Home and Revenue Recovery only", async ({ page }) => {
+  // Amended Oct 4, 2026: CTA primacy is now asserted in phase-6 ("Start a
+  // Project leads the hero"). This test checks only where an assessment CTA
+  // exists at all, and that Talk to Us is still offered.
+  test("an assessment CTA appears on Home and Revenue Recovery only; Talk to Us is offered elsewhere", async ({ page }) => {
     for (const path of ["/", "/revenue-recovery"]) {
       await visit(page, byPath(path));
       expect(
@@ -572,7 +575,7 @@ test.describe("Copy revision (founder rulings, Sep 17 — audit at 1fc360f)", ()
       await visit(page, byPath(path));
       await expect(
         page.locator("main").getByRole("link", { name: "Talk to Us" }).first(),
-        `${path} leads with Talk to Us`,
+        `${path} offers Talk to Us`,
       ).toHaveAttribute("href", "/contact");
     }
   });
