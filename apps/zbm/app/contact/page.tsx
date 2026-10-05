@@ -1,5 +1,6 @@
 import { pageMetadata } from "@zbest/ui";
 import { LeadForm } from "@/components/lead-form";
+import Link from "next/link";
 import { Lead, PageHeader, PageSection } from "@/components/page";
 import { SITE } from "@/lib/site";
 
@@ -23,6 +24,13 @@ export default function ContactPage() {
           Whether it&rsquo;s a revenue leak, a media buy, a billboard campaign, or a
           content strategy — start with what&rsquo;s actually happening, not what you
           think the solution should be.
+        </Lead>
+        <Lead>
+          Already know what you need?{" "}
+          <Link href="/start" className="text-text-primary underline underline-offset-4">
+            Start a project
+          </Link>{" "}
+          and pick every service in one form.
         </Lead>
       </PageHeader>
 

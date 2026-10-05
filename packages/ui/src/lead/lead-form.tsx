@@ -14,11 +14,23 @@ export type { LeadResponse } from "./contract";
 export type LeadField = {
   name: string;
   label: string;
-  kind?: "text" | "email" | "url" | "textarea" | "select";
-  options?: { value: string; label: string }[];
+  /**
+   * "checkboxes" posts every ticked value joined with "," (option values must
+   * not contain one); "hidden" posts `defaultValue` and renders no control.
+   */
+  kind?: "text" | "email" | "url" | "textarea" | "select" | "checkboxes" | "hidden";
+  options?: { value: string; label: string; hint?: string }[];
   optional?: boolean;
   autoComplete?: string;
+  /** Initial value. For "checkboxes", the values ticked on first render. */
+  defaultValue?: string | string[];
 };
+
+/** A field's posted value: checkbox groups join their ticked values. */
+function valueOf(data: FormData, field: LeadField): string {
+  if (field.kind === "checkboxes") return data.getAll(field.name).map(String).join(",");
+  return String(data.get(field.name) ?? "");
+}
 
 type State =
   | { kind: "idle" }
@@ -59,7 +71,7 @@ export function LeadForm({
     if (state.kind === "submitting") return;
     submissionId.current ??= crypto.randomUUID();
     const data = new FormData(event.currentTarget);
-    const values = Object.fromEntries(fields.map((f) => [f.name, String(data.get(f.name) ?? "")]));
+    const values = Object.fromEntries(fields.map((f) => [f.name, valueOf(data, f)]));
     setState({ kind: "submitting" });
     const result = await submitLead({
       form,
@@ -100,6 +112,61 @@ export function LeadForm({
       {fields.map((field) => {
         const id = `${baseId}-${field.name}`;
         const error = errors[field.name];
+        const initial = typeof field.defaultValue === "string" ? field.defaultValue : undefined;
+
+        if (field.kind === "hidden") {
+          return <input key={field.name} type="hidden" name={field.name} defaultValue={initial ?? ""} />;
+        }
+
+        if (field.kind === "checkboxes") {
+          const ticked = new Set(Array.isArray(field.defaultValue) ? field.defaultValue : []);
+          return (
+            <fieldset
+              key={field.name}
+              className="py-ledger"
+              aria-describedby={error ? `${id}-error` : undefined}
+              data-field={field.name}
+              data-invalid={error ? "true" : undefined}
+            >
+              <legend className="type-label text-text-secondary">
+                {field.label}
+                {field.optional ? <span className="normal-case tracking-normal"> (optional)</span> : null}
+              </legend>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                {field.options?.map((o) => {
+                  const optionId = `${id}-${o.value}`;
+                  return (
+                    <label
+                      key={o.value}
+                      htmlFor={optionId}
+                      className="flex cursor-pointer items-start gap-3 border border-text-secondary/35 bg-base px-3.5 py-3 has-[:checked]:border-accent"
+                    >
+                      <input
+                        id={optionId}
+                        type="checkbox"
+                        name={field.name}
+                        value={o.value}
+                        defaultChecked={ticked.has(o.value)}
+                        aria-invalid={error ? true : undefined}
+                        className="mt-1 size-4 shrink-0 accent-accent"
+                      />
+                      <span className="flex flex-col">
+                        <span className="type-body text-text-primary">{o.label}</span>
+                        {o.hint ? <span className="type-small text-text-secondary">{o.hint}</span> : null}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+              {error ? (
+                <p id={`${id}-error`} className="type-small mt-2 text-accent">
+                  {error}
+                </p>
+              ) : null}
+            </fieldset>
+          );
+        }
+
         const common = {
           id,
           name: field.name,
@@ -115,9 +182,9 @@ export function LeadForm({
               {field.optional ? <span className="normal-case tracking-normal"> (optional)</span> : null}
             </label>
             {field.kind === "textarea" ? (
-              <textarea rows={5} {...common} />
+              <textarea rows={5} defaultValue={initial} {...common} />
             ) : field.kind === "select" ? (
-              <select defaultValue="" {...common}>
+              <select defaultValue={initial ?? ""} {...common}>
                 <option value="">Choose one</option>
                 {field.options?.map((o) => (
                   <option key={o.value} value={o.value}>
@@ -126,7 +193,7 @@ export function LeadForm({
                 ))}
               </select>
             ) : (
-              <input type={field.kind ?? "text"} {...common} />
+              <input type={field.kind ?? "text"} defaultValue={initial} {...common} />
             )}
             {error ? (
               <p id={`${id}-error`} className="type-small mt-2 text-accent">

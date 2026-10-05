@@ -36,14 +36,30 @@ const APPS = [
     baseUrl: ZBM_BASE_URL,
     // Founder decision 3: zbestmedia.com, canonical host www.
     origin: "https://www.zbestmedia.com",
-    // §A2
-    nav: ["Digital Advertising", "Revenue Recovery", "Out-of-Home", "Z Best Clips", "About", "Contact"],
-    dropdown: null,
-    navCta: null,
-    // §A3
+    // §A2 as amended Oct 4, 2026 (docs/BRIEF-AMENDMENT-2026-10-04-full-service.md):
+    // a Services dropdown carrying the full catalog, and a Start a Project CTA.
+    nav: ["Services", "Revenue Recovery", "Z Best Clips", "About", "Contact"],
+    dropdown: { trigger: "Services", probe: "TV & Streaming" },
+    navCta: "Start a Project",
+    // §A3 as amended Oct 4, 2026: every service in Services; Start a Project in Company.
     footer: [
-      { heading: "Services", links: ["Digital Advertising", "Revenue Recovery", "Out-of-Home", "Z Best Clips"] },
-      { heading: "Company", links: ["About", "Contact"] },
+      {
+        heading: "Services",
+        links: [
+          "Digital Advertising",
+          "TV & Streaming",
+          "Radio & Audio",
+          "Out-of-Home",
+          "Social Media",
+          "Creative & Production",
+          "Influencer & Creator Partnerships",
+          "Z Best Clips",
+          "Revenue Recovery",
+          "Websites & Landing Pages",
+          "All Services",
+        ],
+      },
+      { heading: "Company", links: ["About", "Start a Project", "Contact"] },
       { heading: "Resources", links: ["FAQ"] },
       { heading: "Legal", links: ["Privacy Policy", "Terms of Service", "Cookie Settings"] },
     ],
@@ -57,7 +73,7 @@ const APPS = [
     origin: "https://zbestclips.com",
     // §B2
     nav: ["Focus Areas", "How It Works", "Pricing", "Become a Clipper"],
-    dropdown: ["Entertainment", "Brands"],
+    dropdown: { trigger: "Focus Areas", probe: "Brands" },
     navCta: "Launch a Campaign",
     // §B3 launch configuration
     footer: [
@@ -238,7 +254,7 @@ for (const app of APPS) {
         await expect(toggle).toHaveAttribute("aria-expanded", "false");
         await expect(page.locator(`[id$="-mobile"]`)).toBeHidden();
       } else if (app.dropdown) {
-        const trigger = header.getByRole("button", { name: "Focus Areas" });
+        const trigger = header.getByRole("button", { name: app.dropdown.trigger });
         await trigger.click();
         await expect(trigger).toHaveAttribute("aria-expanded", "true");
         await page.keyboard.press("Escape");
@@ -250,9 +266,9 @@ for (const app of APPS) {
         await expect(trigger).toHaveAttribute("aria-expanded", "true");
         await clientNavigateHome();
         await expect(trigger).toHaveAttribute("aria-expanded", "false");
-        await expect(header.getByRole("link", { name: "Brands", exact: true })).toBeHidden();
+        await expect(header.getByRole("link", { name: app.dropdown.probe, exact: true })).toBeHidden();
       } else {
-        // Z Best Media's desktop nav has no dropdown (§A2); nothing opens.
+        // An app without a dropdown: nothing opens.
         expect(await header.locator("button[aria-expanded]:visible").count()).toBe(0);
       }
     });

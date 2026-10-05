@@ -5,19 +5,23 @@ import { SITE } from "@/lib/site";
 export const metadata = pageMetadata(SITE, {
   title: "About",
   description:
-    "Z Best Media runs across four disciplines to one standard: find what’s actually working, prove it with real numbers, then scale it.",
+    "Z Best Media is a full-service advertising agency run to one standard: find what’s actually working, prove it with real numbers, then scale it.",
   path: "/about",
   ogImage: "/about/opengraph-image",
 });
 
-/** About (Brief §A4). Copy verbatim. */
+/**
+ * About (Brief §A4). Copy verbatim except the first sentence of the lead,
+ * amended Oct 4, 2026 from "four disciplines" to the full-service catalog.
+ */
 export default function AboutPage() {
   return (
     <main>
       <PageHeader label="About" title="An advertising agency built on evidence, not promises.">
         <Lead>
-          Z Best Media runs across four disciplines — digital advertising, revenue
-          recovery, out-of-home, and creator-powered content through Z Best Clips. What
+          Z Best Media is a full-service advertising agency — digital, TV, radio,
+          out-of-home, social, creative, influencer, websites, revenue recovery, and
+          creator-powered content through Z Best Clips. What
           ties them together isn&rsquo;t the channel, it&rsquo;s the approach: find
           what&rsquo;s actually working, prove it with real numbers, then scale it. No
           fake urgency, no manufactured scarcity, no unverified proof — a standard held
@@ -34,7 +38,10 @@ export default function AboutPage() {
         </p>
         <p className="type-headline">One team, one standard, applied everywhere we work.</p>
         <CtaRow>
-          <ButtonLink href="/contact">Talk to Us</ButtonLink>
+          <ButtonLink href="/start">Start a Project</ButtonLink>
+          <ButtonLink href="/contact" variant="secondary">
+            Talk to Us
+          </ButtonLink>
         </CtaRow>
       </PageSection>
     </main>

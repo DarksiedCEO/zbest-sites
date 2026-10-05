@@ -221,7 +221,8 @@ test.describe("Home (§A4)", () => {
       ]),
     );
     expect(rows).toEqual([
-      ["Disciplines", "4"],
+      // Amended Oct 4, 2026: the full-service catalog replaces "Disciplines | 4".
+      ["Services", "10"],
       ["Platforms we plan across", "Google · Meta · TikTok · Lamar · Clear Channel · OUTFRONT"],
       ["Standard", "Audit first. Evidence. Then scale."],
     ]);
@@ -240,19 +241,26 @@ test.describe("Home (§A4)", () => {
       "A free look at where you’re likely losing revenue.",
       "A paid, full diagnostic. Every finding comes with a priority and a confidence label.",
       "Conversion repaired before a dollar more goes into spend.",
-      "Once it’s proven, we run the media: digital, out-of-home, clips.",
+      "Once it’s proven, we run the media: digital, TV, radio, out-of-home, social, clips.",
     ]);
   });
 
-  test("four disciplines link to their pages; See What We Do anchors to them", async ({ page }) => {
+  // Amended Oct 4, 2026: Section 2 lists every service in the catalog.
+  test("every service links to its page; See What We Do anchors to them", async ({ page }) => {
     await visit(page, byPath("/"));
     const section = page.locator("#what-we-do");
-    await expect(section.getByRole("heading", { level: 2 })).toHaveText("One team. Four ways to be seen.");
+    await expect(section.getByRole("heading", { level: 2 })).toHaveText("One team. Every way to be seen.");
     for (const [name, href] of <[string, string][]>[
       ["Digital Advertising", "/digital-advertising"],
-      ["Revenue Recovery", "/revenue-recovery"],
+      ["TV & Streaming", "/tv-streaming"],
+      ["Radio & Audio", "/radio-audio"],
       ["Out-of-Home", "/out-of-home"],
+      ["Social Media", "/social-media"],
+      ["Creative & Production", "/creative-production"],
+      ["Influencer & Creator Partnerships", "/influencer-marketing"],
       ["Z Best Clips", "https://zbestclips.com"],
+      ["Revenue Recovery", "/revenue-recovery"],
+      ["Websites & Landing Pages", "/websites"],
     ]) {
       await expect(section.getByRole("link", { name: new RegExp(`^${name}`) })).toHaveAttribute("href", href);
     }
@@ -603,9 +611,20 @@ test.describe("Copy revision (founder rulings, Sep 17 — audit at 1fc360f)", ()
 });
 
 test.describe("FAQ (§A4)", () => {
-  test("aggregates the three discipline blocks, grouped, with no Search Intelligence questions", async ({ page }) => {
+  test("aggregates every service's FAQ block, grouped, with no Search Intelligence questions", async ({ page }) => {
     await visit(page, byPath("/faq"));
-    await expect(page.locator("main h2")).toHaveText(["Digital Advertising", "Revenue Recovery", "Out-of-Home"]);
+    // The Brief's three, then the Oct 4 2026 catalog services in catalog order.
+    await expect(page.locator("main h2")).toHaveText([
+      "Digital Advertising",
+      "Revenue Recovery",
+      "Out-of-Home",
+      "TV & Streaming",
+      "Radio & Audio",
+      "Social Media",
+      "Creative & Production",
+      "Influencer & Creator Partnerships",
+      "Websites & Landing Pages",
+    ]);
     await expect(page.locator("#digital-advertising button[aria-expanded]")).toHaveCount(4);
     await expect(page.locator("#revenue-recovery button[aria-expanded]")).toHaveCount(7);
     // Withdrawn Sep 17 (founder rulings): no agency comparison, no case-study

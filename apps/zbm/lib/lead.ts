@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { INTAKE_SERVICE_VALUES } from "@/content/services";
 
 /**
  * Lead form contract (Brief §6.1, §6.2), shared by the route handler and the
@@ -7,7 +8,7 @@ import { z } from "zod";
  * Form names and field names live here and nowhere else (Backend Spec §9:
  * enums are never hard-coded into components).
  */
-export const LEAD_FORMS = ["contact", "assessment"] as const;
+export const LEAD_FORMS = ["contact", "assessment", "start"] as const;
 export type LeadForm = (typeof LEAD_FORMS)[number];
 
 const text = (max: number, message: string) =>
@@ -32,6 +33,35 @@ const website = z
     }
   }, "Enter a website address, like example.com.");
 
+/**
+ * Universal intake (/start, amendment Oct 4 2026). Budget and timing are
+ * optional and coarse on purpose: enough to route and size a reply, not a
+ * qualification gate. Values live here, labels in components/lead-form.tsx.
+ */
+export const INTAKE_BUDGETS = ["under-5k", "5k-25k", "25k-100k", "100k-plus", "not-sure"] as const;
+export const INTAKE_TIMINGS = ["asap", "30-days", "1-3-months", "exploring"] as const;
+
+/** Campaign/source tag carried from ?src= or ?utm_campaign= — never free text. */
+export const SOURCE_TAG = /^[a-z0-9][a-z0-9._-]{0,63}$/i;
+
+/** Optional fields: whitespace-only counts as empty, then empty or valid. */
+const blankOr = <T extends z.ZodType<unknown, string>>(schema: T) =>
+  z.string().trim().pipe(z.union([z.literal(""), schema]));
+
+const optionalChoice = <T extends readonly [string, ...string[]]>(values: T, message: string) =>
+  blankOr(z.enum(values, { error: message }));
+
+/** "a,b,c" from the checkbox group → a de-duplicated list of known services. */
+const intakeServices = z
+  .string()
+  .transform((raw) => [...new Set(raw.split(",").map((v) => v.trim()).filter(Boolean))])
+  .pipe(
+    z
+      .array(z.enum(INTAKE_SERVICE_VALUES, { error: "Choose from the list." }))
+      .min(1, "Pick at least one — or “Not sure yet.”")
+      .max(INTAKE_SERVICE_VALUES.length),
+  );
+
 export const LEAD_FIELDS = {
   // §6.1 Contact: Name · Business · What are you looking to solve? · Best way to reach you
   contact: z.object({
@@ -46,6 +76,21 @@ export const LEAD_FIELDS = {
     business: text(200, "Enter your business name."),
     website,
     reach: text(300, "Tell us the best way to reach you."),
+  }),
+  // Universal intake: What do you need? · Name · Business · Best way to reach you
+  // · Website (optional) · Budget (optional) · Timing (optional) · Details (optional)
+  start: z.object({
+    services: intakeServices,
+    name: text(200, "Enter your name."),
+    business: text(200, "Enter your business name."),
+    reach: text(300, "Tell us the best way to reach you."),
+    website: blankOr(website),
+    budget: optionalChoice(INTAKE_BUDGETS, "Choose a budget range from the list."),
+    timing: optionalChoice(INTAKE_TIMINGS, "Choose a timing from the list."),
+    details: z.string().trim().max(5000, "Keep this under 5000 characters."),
+    // Hidden attribution tag: a bad value is dropped, never shown as an error
+    // the visitor cannot see or fix.
+    source: blankOr(z.string().regex(SOURCE_TAG)).catch(""),
   }),
 } satisfies Record<LeadForm, z.ZodTypeAny>;
 

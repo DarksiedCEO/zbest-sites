@@ -1,7 +1,7 @@
 import { CookieConsent, Footer, Nav, siteMetadata } from "@zbest/ui";
 import { GateNonce } from "@zbest/ui/gate";
 import { zbmFontVariables } from "@zbest/ui/fonts/zbm";
-import { FOOTER_COLUMNS, NAV_ITEMS, SITE } from "@/lib/site";
+import { FOOTER_COLUMNS, NAV_CTA, NAV_ITEMS, SITE } from "@/lib/site";
 import "./globals.css";
 
 export const metadata = siteMetadata(SITE);
@@ -17,7 +17,7 @@ export default function RootLayout({
     <html lang="en" data-brand="zbm" className={zbmFontVariables}>
       <body className="bg-base font-sans text-text-primary antialiased">
         <GateNonce />
-        <Nav brandName={SITE.name} items={NAV_ITEMS} />
+        <Nav brandName={SITE.name} items={NAV_ITEMS} cta={NAV_CTA} />
         {children}
         <Footer brandName={SITE.name} columns={FOOTER_COLUMNS} />
         <CookieConsent />

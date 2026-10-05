@@ -1,6 +1,7 @@
 import { ButtonLink, LedgerRule, pageMetadata, ScrollScrub, StatBlock } from "@zbest/ui";
 import { CtaRow, FixtureNote, LedgerList, Lead, PageSection } from "@/components/page";
-import { ASSESSMENT_HREF, SITE, ZBC_ORIGIN } from "@/lib/site";
+import { SERVICES } from "@/content/services";
+import { ASSESSMENT_HREF, SITE } from "@/lib/site";
 
 export const metadata = pageMetadata(SITE, { path: "/" });
 
@@ -9,7 +10,12 @@ export const metadata = pageMetadata(SITE, { path: "/" });
  * verbatim from the brief with one founder hold, marked below.
  *
  * Revenue Recovery gets the featured section, but the page leads with the
- * agency and its four disciplines; it must not read as a single-service shop.
+ * agency and everything it sells; it must not read as a single-service shop.
+ *
+ * AMENDED Oct 4, 2026 (docs/BRIEF-AMENDMENT-2026-10-04-full-service.md): the
+ * hero subhead, the primary CTA ("Start a Project"), the services row of the
+ * stat block, Section 2 (every service, from content/services.ts), the Scale
+ * step and the closing CTA now cover the full-service catalog.
  */
 export default function HomePage() {
   return (
@@ -20,13 +26,13 @@ export default function HomePage() {
           <ScrollScrub className="lg:col-span-7">
             <h1 className="type-display max-w-[11ch]">Advertising you can audit.</h1>
             <p className="type-body-lead mt-stack text-text-secondary">
-              Digital advertising, out-of-home, revenue recovery, and creator-powered
-              content — run to one standard: find what&rsquo;s actually working, prove
-              it with real numbers, then scale it.
+              Digital, TV, radio, out-of-home, social, creative, websites, revenue
+              recovery, and creator-powered content — run to one standard: find
+              what&rsquo;s actually working, prove it with real numbers, then scale it.
             </p>
             <div className="mt-stack">
               <CtaRow>
-                <ButtonLink href={ASSESSMENT_HREF}>Get an Assessment</ButtonLink>
+                <ButtonLink href="/start">Start a Project</ButtonLink>
                 <ButtonLink href="#what-we-do" variant="secondary">
                   See What We Do
                 </ButtonLink>
@@ -47,7 +53,7 @@ export default function HomePage() {
           <div className="lg:col-span-5 lg:pt-4">
             <StatBlock
               rows={[
-                { label: "Disciplines", value: "4" },
+                { label: "Services", value: String(SERVICES.length) },
                 {
                   label: "Platforms we plan across",
                   value: "Google · Meta · TikTok · Lamar · Clear Channel · OUTFRONT",
@@ -59,33 +65,21 @@ export default function HomePage() {
         </div>
       </header>
 
-      {/* Section 2 — Four disciplines, each linking to its page. */}
-      <PageSection id="what-we-do" label="What we do" title="One team. Four ways to be seen.">
+      {/* Section 2 — Every service, each linking to its page (amended Oct 4, 2026). */}
+      <PageSection id="what-we-do" label="What we do" title="One team. Every way to be seen.">
         <LedgerList
-          items={[
-            {
-              title: "Digital Advertising",
-              href: "/digital-advertising",
-              body: "Paid social, search, and platform campaigns that bring the traffic.",
-            },
-            {
-              title: "Revenue Recovery",
-              href: "/revenue-recovery",
-              body: "The audit that finds where that traffic leaks — and fixes it before you spend more.",
-            },
-            {
-              title: "Out-of-Home",
-              href: "/out-of-home",
-              body: "Billboards, transit, and physical placements. Presence you can’t scroll past.",
-            },
-            {
-              title: "Z Best Clips",
-              href: ZBC_ORIGIN,
-              external: true,
-              body: "Creator-powered short-form distribution. One source, hundreds of clips, real reach.",
-            },
-          ]}
+          items={SERVICES.map((s) => ({
+            title: s.name,
+            href: s.href,
+            external: s.external,
+            body: s.summary,
+          }))}
         />
+        <CtaRow>
+          <ButtonLink href="/services" variant="secondary">
+            All Services
+          </ButtonLink>
+        </CtaRow>
       </PageSection>
 
       {/* Section 3 — Revenue Recovery, featured. */}
@@ -141,7 +135,7 @@ export default function HomePage() {
             ["Assess", "A free look at where you’re likely losing revenue."],
             ["Audit", "A paid, full diagnostic. Every finding comes with a priority and a confidence label."],
             ["Fix", "Conversion repaired before a dollar more goes into spend."],
-            ["Scale", "Once it’s proven, we run the media: digital, out-of-home, clips."],
+            ["Scale", "Once it’s proven, we run the media: digital, TV, radio, out-of-home, social, clips."],
           ].map(([step, body], i) => (
             <li key={step} className="flex flex-col">
               <LedgerRule emphasis />
@@ -159,9 +153,9 @@ export default function HomePage() {
         <div className="flex flex-col gap-stack pt-section lg:flex-row lg:items-end lg:justify-between">
           <h2 className="type-display max-w-[14ch]">Tell us what&rsquo;s actually going on.</h2>
           <CtaRow>
-            <ButtonLink href={ASSESSMENT_HREF}>Get an Assessment</ButtonLink>
-            <ButtonLink href="/contact" variant="secondary">
-              Talk to Us
+            <ButtonLink href="/start">Start a Project</ButtonLink>
+            <ButtonLink href={ASSESSMENT_HREF} variant="secondary">
+              Get an Assessment
             </ButtonLink>
           </CtaRow>
         </div>

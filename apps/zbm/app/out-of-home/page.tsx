@@ -1,6 +1,7 @@
 import { ButtonLink, pageMetadata } from "@zbest/ui";
 import { Cite, CtaRow, FaqList, Lead, PageHeader, PageSection, RuledList } from "@/components/page";
 import { OUT_OF_HOME_FAQ } from "@/content/faq";
+import { startHref } from "@/content/services";
 import { SITE } from "@/lib/site";
 
 export const metadata = pageMetadata(SITE, {
@@ -43,7 +44,10 @@ export default function OutOfHomePage() {
           for your market and budget.
         </Lead>
         <CtaRow>
-          <ButtonLink href="/contact">Talk to Us</ButtonLink>
+          <ButtonLink href={startHref("out-of-home")}>Start a Project</ButtonLink>
+          <ButtonLink href="/contact" variant="secondary">
+            Talk to Us
+          </ButtonLink>
         </CtaRow>
       </PageHeader>
 

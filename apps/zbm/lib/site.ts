@@ -1,4 +1,5 @@
 import type { FooterColumn, NavItem, SiteIdentity } from "@zbest/ui";
+import { SERVICES } from "@/content/services";
 
 /**
  * Z Best Media site configuration — the one place the nav, footer, sitemap and
@@ -21,15 +22,30 @@ export const ZBC_ORIGIN = "https://zbestclips.com";
  */
 export const ASSESSMENT_HREF = "/revenue-recovery#assessment";
 
-/** §A2. Work is removed until one named client exists (decided Sep 13). */
+/**
+ * Primary nav. AMENDED Oct 4, 2026 (docs/BRIEF-AMENDMENT-2026-10-04-full-service.md):
+ * the Brief's four-discipline menu (§A2) is replaced by a Services dropdown
+ * listing everything Z Best Media sells, with Revenue Recovery and Z Best Clips
+ * kept at the top level. Still a short top-level menu with depth exactly one
+ * layer down (§A2, decided Sep 7). Work stays out until one named client
+ * exists (decided Sep 13).
+ */
 export const NAV_ITEMS: NavItem[] = [
-  { label: "Digital Advertising", href: "/digital-advertising" },
+  {
+    label: "Services",
+    children: [
+      { label: "All Services", href: "/services" },
+      ...SERVICES.map((s) => ({ label: s.name, href: s.href })),
+    ],
+  },
   { label: "Revenue Recovery", href: "/revenue-recovery" },
-  { label: "Out-of-Home", href: "/out-of-home" },
   { label: "Z Best Clips", href: ZBC_ORIGIN },
   { label: "About", href: "/about" },
   { label: "Contact", href: "/contact" },
 ];
+
+/** The nav's primary action: the universal intake (amendment Oct 4, 2026). */
+export const NAV_CTA = { label: "Start a Project", href: "/start" };
 
 /**
  * §A3. Blog joins Resources with the first post; Work joins Company with the
@@ -38,17 +54,17 @@ export const NAV_ITEMS: NavItem[] = [
 export const FOOTER_COLUMNS: FooterColumn[] = [
   {
     heading: "Services",
+    // Amended Oct 4, 2026: every service, from the catalog.
     links: [
-      { label: "Digital Advertising", href: "/digital-advertising" },
-      { label: "Revenue Recovery", href: "/revenue-recovery" },
-      { label: "Out-of-Home", href: "/out-of-home" },
-      { label: "Z Best Clips", href: ZBC_ORIGIN, external: true },
+      ...SERVICES.map((s) => ({ label: s.name, href: s.href, ...(s.external ? { external: true } : {}) })),
+      { label: "All Services", href: "/services" },
     ],
   },
   {
     heading: "Company",
     links: [
       { label: "About", href: "/about" },
+      { label: "Start a Project", href: "/start" },
       { label: "Contact", href: "/contact" },
     ],
   },
@@ -86,6 +102,10 @@ export const ROUTES: Route[] = [
   { path: "/digital-advertising", built: true, indexable: true },
   { path: "/revenue-recovery", built: true, indexable: true },
   { path: "/out-of-home", built: true, indexable: true },
+  // Amendment Oct 4, 2026: the full-service catalog pages, the hub, and the intake.
+  { path: "/services", built: true, indexable: true },
+  ...SERVICES.filter((s) => s.page).map((s) => ({ path: s.href, built: true, indexable: true })),
+  { path: "/start", built: true, indexable: true },
   { path: "/about", built: true, indexable: true },
   { path: "/contact", built: true, indexable: true },
   { path: "/faq", built: true, indexable: true },
