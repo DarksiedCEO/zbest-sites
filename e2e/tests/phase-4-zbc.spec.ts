@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
-import { mkdir } from "node:fs/promises";
 import path from "node:path";
+import { captureFullPage } from "../capture";
 import { ZBC_BASE_URL } from "../playwright.config";
 
 /**
@@ -168,11 +168,11 @@ for (const p of PAGES) {
       expect(crushed).toEqual([]);
 
       await page.evaluate(() => document.fonts.ready);
-      await mkdir(SNAPSHOT_DIR, { recursive: true });
-      await page.screenshot({
-        path: path.join(SNAPSHOT_DIR, `zbc-${p.slug}-${testInfo.project.name}.png`),
-        fullPage: true,
-      });
+      await captureFullPage(
+        page,
+        path.join(SNAPSHOT_DIR, `zbc-${p.slug}-${testInfo.project.name}.png`),
+        testInfo,
+      );
     });
   });
 }

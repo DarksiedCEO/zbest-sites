@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
-import { mkdir } from "node:fs/promises";
 import path from "node:path";
+import { captureFullPage } from "../capture";
 import { ZBC_BASE_URL, ZBM_BASE_URL } from "../playwright.config";
 
 /**
@@ -134,14 +134,11 @@ for (const app of APPS) {
         page.getByText("Illustrative example — not a client result").first(),
       ).toBeVisible();
 
-      await mkdir(SNAPSHOT_DIR, { recursive: true });
-      await page.screenshot({
-        path: path.join(
-          SNAPSHOT_DIR,
-          `${app.slug}-dev-system-${testInfo.project.name}.png`,
-        ),
-        fullPage: true,
-      });
+      await captureFullPage(
+        page,
+        path.join(SNAPSHOT_DIR, `${app.slug}-dev-system-${testInfo.project.name}.png`),
+        testInfo,
+      );
     });
 
     test("FAQ accordion is operable and announces state", async ({ page }) => {
