@@ -115,7 +115,7 @@ export default function HowItWorksPage() {
             "Campaign guidelines and brand safety review",
             "Clipper network distribution",
             "Submission review on every post",
-            "Only eligible views billed",
+            "Nothing billed before you approve the post",
             "TikTok/Reels/Shorts coverage",
             "Verified reporting",
             "Dedicated campaign contact",

@@ -45,7 +45,7 @@ export default function MediaKitPage() {
             distribution for brands — auto dealerships, med spas, local businesses — where clips
             post to the client&rsquo;s own accounts to build a compounding local following.
             Every submission is reviewed by a person before it counts, and clients pay only for
-            approved posts with verified views.
+            approved posts.
           </Lead>
         </div>
       </PageSection>

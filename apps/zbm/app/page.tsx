@@ -82,7 +82,7 @@ export default function HomePage() {
               title: "Z Best Clips",
               href: ZBC_ORIGIN,
               external: true,
-              body: "Creator-powered short-form distribution. One source, hundreds of clips, real reach.",
+              body: "Creator-powered short-form distribution. One source, dozens of clips, real reach.",
             },
           ]}
         />

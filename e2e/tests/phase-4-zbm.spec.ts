@@ -259,6 +259,14 @@ test.describe("Home (§A4)", () => {
     await expect(page.getByRole("link", { name: "See What We Do" })).toHaveAttribute("href", "#what-we-do");
   });
 
+  // The Sep 17 ruling put ZBC's clip volume at "dozens"; this card on the ZBM
+  // home still said "hundreds" after the ZBC sweep.
+  test("the Z Best Clips card says dozens of clips, never hundreds", async ({ page }) => {
+    await visit(page, byPath("/"));
+    await expect(page.locator("#what-we-do")).toContainText("One source, dozens of clips, real reach.");
+    expect(await mainText(page)).not.toMatch(/[Hh]undreds of/);
+  });
+
   test("featured Revenue Recovery carries the six leaks, the decision-10 assessment CTA and its fixture label", async ({ page }) => {
     await visit(page, byPath("/"));
     const section = page.locator("#revenue-recovery");

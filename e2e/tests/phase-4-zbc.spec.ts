@@ -268,6 +268,27 @@ test.describe("How It Works (§B4, served at /)", () => {
     await expect(views).toHaveText("0");
     await views.scrollIntoViewIfNeeded();
     await expect(views).toHaveText("1,240,000", { timeout: 5000 });
+
+    // Reduced motion: after hydration and on entry, the number is final and
+    // never moves. Every text change is recorded, so a tick of any length (or
+    // a rewind to 0) fails, not just one that is still running at the read.
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto(`${ZBC_BASE_URL}/`, { waitUntil: "networkidle" });
+    await expect(views).toHaveText("1,240,000");
+    await views.evaluate((el) => {
+      const seen: string[] = [];
+      (window as unknown as { __seen: string[] }).__seen = seen;
+      new MutationObserver(() => seen.push(el.textContent ?? "")).observe(el, {
+        childList: true,
+        characterData: true,
+        subtree: true,
+      });
+    });
+    await views.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(1500); // longer than the 1.1 s tick
+    await expect(views).toHaveText("1,240,000");
+    const seen = await page.evaluate(() => (window as unknown as { __seen: string[] }).__seen);
+    expect(seen.filter((t) => t !== "1,240,000"), "reduced-motion counter moved").toEqual([]);
   });
 });
 
@@ -294,7 +315,7 @@ test.describe("Become a Clipper (§B4)", () => {
       "Get the source material",
       "Cut and post",
       "Submit for review",
-      "Get paid on verified views",
+      "Get paid on approved posts and verified views",
     ]);
     const cards = page.locator("#payouts [data-focus]");
     expect(await cards.nth(0).evaluate((el) => getComputedStyle(el).borderLeftColor)).toBe(ENT);
@@ -469,6 +490,35 @@ test.describe("Copy revision (ZBC gate CONDITIONAL at c35ee1d — founder ruling
     ).toContain("nothing is billed before you approve the post");
     await visit(page, byPath("/media-kit"));
     expect(await mainText(page)).not.toContain("only verified views billed");
+  });
+
+  // O1–O3 (TOOLING.md, open after 28ef158): the same "views only" error in the
+  // three places decision 3 missed. textContent, not innerText — RuledList and
+  // step titles are CSS-transformed, and the swap is exact.
+  const bodyCopy = async (page: Page) => (await page.locator("main").textContent())?.replace(/\s+/g, " ") ?? "";
+
+  test("O1: What's Included bills nothing before approval, not 'only eligible views'", async ({ page }) => {
+    await visit(page, byPath("/"));
+    const text = await bodyCopy(page);
+    expect(text).toContain("Nothing billed before you approve the post");
+    expect(text).not.toContain("eligible views billed");
+  });
+
+  test("O2: clippers are paid on approved posts and verified views, in the step and the metadata", async ({ page }) => {
+    await visit(page, byPath("/become-a-clipper"));
+    // Step 5 keeps the verb-first voice of steps 1–4 ("Get paid…"); the meta
+    // description is a sentence fragment and keeps TOOLING.md's wording as given.
+    await expect(page.locator("#how-it-works h3").nth(4)).toHaveText("Get paid on approved posts and verified views");
+    expect(await head(page, 'meta[name="description"]')).toContain("Paid on approved posts and verified views");
+    expect(await bodyCopy(page)).not.toContain("paid on verified views");
+    expect(await head(page, 'meta[name="description"]')).not.toContain("Paid on verified views");
+  });
+
+  test("O3: the long boilerplate has clients pay for approved posts, not approved posts with views", async ({ page }) => {
+    await visit(page, byPath("/media-kit"));
+    const text = await bodyCopy(page);
+    expect(text).toContain("clients pay only for approved posts.");
+    expect(text).not.toContain("approved posts with verified views");
   });
 
   test("ZBC does not position against agencies, and drops the unsupported 'proven'", async ({ page }) => {
