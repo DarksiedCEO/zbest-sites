@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
-import { mkdir } from "node:fs/promises";
 import path from "node:path";
+import { captureFullPage } from "../capture";
 import { ZBM_BASE_URL } from "../playwright.config";
 
 /**
@@ -169,11 +169,11 @@ for (const p of PAGES) {
       expect(hrefs.filter((h) => /search-intelligence/i.test(h))).toEqual([]);
 
       await page.evaluate(() => document.fonts.ready);
-      await mkdir(SNAPSHOT_DIR, { recursive: true });
-      await page.screenshot({
-        path: path.join(SNAPSHOT_DIR, `zbm-${p.slug}-${testInfo.project.name}.png`),
-        fullPage: true,
-      });
+      await captureFullPage(
+        page,
+        path.join(SNAPSHOT_DIR, `zbm-${p.slug}-${testInfo.project.name}.png`),
+        testInfo,
+      );
     });
   });
 }
@@ -257,6 +257,14 @@ test.describe("Home (§A4)", () => {
       await expect(section.getByRole("link", { name: new RegExp(`^${name}`) })).toHaveAttribute("href", href);
     }
     await expect(page.getByRole("link", { name: "See What We Do" })).toHaveAttribute("href", "#what-we-do");
+  });
+
+  // The Sep 17 ruling put ZBC's clip volume at "dozens"; this card on the ZBM
+  // home still said "hundreds" after the ZBC sweep.
+  test("the Z Best Clips card says dozens of clips, never hundreds", async ({ page }) => {
+    await visit(page, byPath("/"));
+    await expect(page.locator("#what-we-do")).toContainText("One source, dozens of clips, real reach.");
+    expect(await mainText(page)).not.toMatch(/[Hh]undreds of/);
   });
 
   test("featured Revenue Recovery carries the six leaks, the decision-10 assessment CTA and its fixture label", async ({ page }) => {
