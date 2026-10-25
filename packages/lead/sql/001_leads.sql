@@ -1,9 +1,11 @@
 -- Brief §6.2 leads table, plus the columns FULL-SERVICE-DESIGN §4.1 asks for
 -- (services[] and source as columns, so leads count per campaign and service)
--- and notify_status, so a lead whose email failed can be found and chased.
+-- notify_status, so a lead whose email failed can be found and chased, and
+-- payload_hash, so a changed resubmission under the same id is refused (409).
 --
--- Applied by `pnpm --filter @zbest/lead migrate` (reads POSTGRES_URL). The app
--- never runs DDL at request time. Idempotent: safe to run twice.
+-- Applied by `pnpm --filter @zbest/lead migrate` (reads POSTGRES_URL), which
+-- records it in schema_migrations, checks the resulting columns, and does a
+-- rolled-back round-trip insert. The app never runs DDL at request time.
 --
 -- PII: payload holds what the visitor typed. ip_hash is an HMAC of the client
 -- IP (LEAD_IP_HASH_SECRET); the raw IP is never stored. No retention period is
@@ -16,6 +18,7 @@ CREATE TABLE IF NOT EXISTS leads (
   app            text        NOT NULL CHECK (app IN ('zbm', 'zbc')),
   form           text        NOT NULL,
   payload        jsonb       NOT NULL,
+  payload_hash   text        NOT NULL,
   services       text[]      NOT NULL DEFAULT '{}',
   source         text,
   ip_hash        text,

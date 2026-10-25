@@ -2,7 +2,7 @@
 
 import { useId, useRef, useState, type FormEvent } from "react";
 import { LedgerRule } from "../components/ledger-rule";
-import { FAILURE_COPY, submitLead, type LeadFailure } from "./contract";
+import { FAILURE_COPY, HONEYPOT_FIELD, submitLead, type LeadFailure } from "./contract";
 
 export type { LeadResponse } from "./contract";
 
@@ -77,11 +77,15 @@ export function LeadForm({
       form,
       submissionId: submissionId.current,
       fields: values,
-      honeypot: String(data.get("company_url") ?? ""),
+      honeypot: String(data.get(HONEYPOT_FIELD) ?? ""),
     });
     if (result.status === "accepted") setState({ kind: "accepted" });
     else if (result.status === "invalid") setState({ kind: "invalid", fields: result.fields });
-    else setState({ kind: "failed", reason: result.status });
+    else {
+      // A changed resubmission under a stored id: the next send is a new lead.
+      if (result.status === "conflict") submissionId.current = null;
+      setState({ kind: "failed", reason: result.status });
+    }
   };
 
   if (state.kind === "accepted") {
@@ -208,8 +212,8 @@ export function LeadForm({
 
       {/* Honeypot (§6.2): off-screen, unlabeled for sighted users, skipped by tab order. */}
       <div aria-hidden="true" className="absolute -left-[9999px] h-px w-px overflow-hidden">
-        <label htmlFor={`${baseId}-company_url`}>Leave this empty</label>
-        <input id={`${baseId}-company_url`} name="company_url" tabIndex={-1} autoComplete="off" />
+        <label htmlFor={`${baseId}-hp`}>Leave this empty</label>
+        <input id={`${baseId}-hp`} name={HONEYPOT_FIELD} tabIndex={-1} autoComplete="off" data-1p-ignore data-lpignore="true" />
       </div>
 
       <LedgerRule emphasis />

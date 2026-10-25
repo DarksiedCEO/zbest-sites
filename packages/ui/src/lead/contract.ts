@@ -10,33 +10,55 @@
 export type LeadErrorBody =
   | { ok: false; error: { code: "validation"; fields: Record<string, string> } }
   | { ok: false; error: { code: "bad_request" } }
+  | { ok: false; error: { code: "unsupported_media_type" } }
+  | { ok: false; error: { code: "forbidden_origin" } }
+  | { ok: false; error: { code: "payload_too_large" } }
   | { ok: false; error: { code: "rate_limited"; retry_after_s: number } }
   | { ok: false; error: { code: "not_configured" } }
+  | { ok: false; error: { code: "conflict" } }
   | { ok: false; error: { code: "unavailable" } };
 
 export type LeadResponse = { ok: true; submission_id: string } | LeadErrorBody;
 
 /** Why a submission was not saved, as the form tells the visitor. */
-export type LeadFailure = "failed" | "rate_limited" | "not_configured" | "unavailable";
+export type LeadFailure = "failed" | "rate_limited" | "not_configured" | "unavailable" | "conflict";
 
 export type LeadResult =
   | { status: "accepted" }
   | { status: "invalid"; fields: Record<string, string> }
   | { status: LeadFailure };
 
-/** One honest sentence per failure. Every one says nothing was saved. */
+/**
+ * One honest sentence per failure. Each claims only what is known: "nothing
+ * was saved" only where the server said so; an unknown outcome says it is
+ * unknown (AEGIS L3). A retry is always safe — it reuses the submission id.
+ */
 export const FAILURE_COPY: Record<LeadFailure, string> = {
-  failed: "That did not go through. Nothing was saved — please try again.",
+  failed: "We couldn’t confirm that went through — please try again.",
+  conflict:
+    "We already have an earlier version of this from you. Send again to submit these changes as a new message.",
   unavailable: "We couldn’t save that just now, so nothing was sent. Please try again in a few minutes.",
   not_configured: "This form isn’t accepting submissions yet, so nothing was saved or sent.",
   rate_limited: "Too many attempts from your connection. Nothing was saved — please wait a few minutes and try again.",
 };
 
-/** Maps a non-validation error body (or garbage) to the failure the form shows. */
+/**
+ * Maps a non-validation error body (or garbage) to the failure the form shows.
+ * 400/403/413/415 are not reachable from the real forms; they read as "failed".
+ */
 export function failureOf(body: unknown): LeadFailure {
   const code = (body as { error?: { code?: unknown } } | null)?.error?.code;
-  return code === "rate_limited" || code === "not_configured" || code === "unavailable" ? code : "failed";
+  return code === "rate_limited" || code === "not_configured" || code === "unavailable" || code === "conflict"
+    ? code
+    : "failed";
 }
+
+/**
+ * The honeypot's HTML input name (AEGIS L4). Deliberately non-semantic so no
+ * browser or password manager has a reason to autofill it; it is sent to the
+ * route under the wire key `company_url`, which the app contracts define.
+ */
+export const HONEYPOT_FIELD = "zbx_hp_7f3";
 
 /**
  * Typed adapter in front of /api/lead (Backend Spec §9: every API call behind

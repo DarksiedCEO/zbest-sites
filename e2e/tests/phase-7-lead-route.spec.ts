@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
@@ -7,6 +8,7 @@ import {
   ZBC_BASE_URL,
   ZBM_BASE_URL,
   ZBM_LIMITED_URL,
+  ZBM_MALFORMED_PORT,
   ZBM_UNCONFIGURED_URL,
   outboxFor,
 } from "../playwright.config";
@@ -67,7 +69,10 @@ async function jsonl<T>(server: "zbm" | "zbc" | "zbm-limited", file: string): Pr
 const rowsFor = async (server: "zbm" | "zbc" | "zbm-limited", id: string) =>
   (await jsonl<Row>(server, "rows.jsonl")).filter((r) => r.submission_id === id);
 const emailsFor = async (server: "zbm" | "zbc" | "zbm-limited", id: string) =>
-  (await jsonl<Email>(server, "emails.jsonl")).filter((e) => e.idempotency_key === `lead-${id}`);
+  (await jsonl<Email>(server, "emails.jsonl")).filter(
+    // Namespaced by app (AEGIS L6).
+    (e) => e.idempotency_key === `lead-${server === "zbc" ? "zbc" : "zbm"}-${id}`,
+  );
 const notifyFor = async (server: "zbm" | "zbc", id: string) =>
   (await jsonl<Notify>(server, "notify.jsonl")).filter((n) => n.submission_id === id);
 /** Every stored row whose payload mentions this marker. */
@@ -135,7 +140,9 @@ test.describe("Success through the fake transport (§6.2)", () => {
       source: "bb-lead-gate",
     });
     expect(rows[0]!.payload).toMatchObject({ name, business: "Lead Gate Co", reach: "lead-gate@example.com" });
-    expect(rows[0]!.ip_hash).toMatch(/^[0-9a-f]{64}$/);
+    // This gate server is not behind a trusted proxy, so no client address is
+    // believed and none is hashed (AEGIS M4). The HMAC path is unit-tested.
+    expect(rows[0]!.ip_hash).toBeNull();
     expect(JSON.stringify(rows[0])).not.toContain("127.0.0.1");
 
     const emails = await emailsFor("zbm", id);
@@ -157,24 +164,22 @@ test.describe("Success through the fake transport (§6.2)", () => {
     // A real double-click: the button disables after the first, so at most a
     // second request can slip through; and the same submission_id is reused.
     const posts: string[] = [];
+    let sentBody: unknown;
     page.on("request", (r) => {
-      if (r.url().endsWith("/api/lead") && r.method() === "POST") posts.push(r.postDataJSON().submission_id);
+      if (r.url().endsWith("/api/lead") && r.method() === "POST") {
+        sentBody = r.postDataJSON();
+        posts.push(r.postDataJSON().submission_id);
+      }
     });
     await startForm(page).getByRole("button", { name: "Send" }).dblclick();
     await expect(page.locator('[data-lead-result="accepted"]')).toBeVisible();
     expect(new Set(posts).size).toBe(1);
     const id = posts[0]!;
 
-    // And the server holds even when the client does not: replay it twice more.
-    const replay = () =>
-      page.request.post(`${ZBM_BASE_URL}/api/lead`, {
-        data: {
-          form: "start",
-          submission_id: id,
-          fields: { services: "websites", name, business: "x", reach: "y", website: "", budget: "", timing: "", details: "", source: "" },
-        },
-        failOnStatusCode: false,
-      });
+    // And the server holds even when the client does not: replay the exact
+    // request twice more, concurrently. (A replay with CHANGED content is a
+    // 409 conflict — asserted in the hardening block below.)
+    const replay = () => page.request.post(`${ZBM_BASE_URL}/api/lead`, { data: sentBody, failOnStatusCode: false });
     const [a, b] = await Promise.all([replay(), replay()]);
     for (const r of [a, b]) {
       expect(r.status()).toBe(200);
@@ -296,7 +301,10 @@ test.describe("Validation and abuse (§6.2)", () => {
     const name = marker("honeypot", testInfo.project.name);
     await fillStart(page, name);
     // What a form-filling bot does: fills every input, including the hidden one.
-    await startForm(page).locator('input[name="company_url"]').fill("http://spam.example", { force: true });
+    // The input's name is non-semantic (AEGIS L4); it is sent as company_url.
+    const trap = startForm(page).locator('input[name="zbx_hp_7f3"]');
+    await expect(trap).toHaveAttribute("autocomplete", "off");
+    await trap.fill("http://spam.example", { force: true });
     const response = await sendStart(page);
     expect(response.status()).toBe(200);
     const id = response.request().postDataJSON().submission_id as string;
@@ -403,5 +411,114 @@ test.describe("Misconfiguration fails closed", () => {
     });
     expect(res.status()).toBe(200);
     expect(res.headers()["x-zbest-lead-transport"]).toBe("fake");
+  });
+});
+
+test.describe("Hardening (AEGIS review of 55d3437)", () => {
+  const contact = (id: string, name = "A") => ({ form: "contact", submission_id: id, fields: { name, business: "B", problem: "C", reach: "D" } });
+
+  test("M3: non-JSON is 415 and a foreign Origin is 403; nothing is stored", async ({ page }, testInfo) => {
+    const id = randomUUID();
+    const plain = await page.request.post(`${ZBM_BASE_URL}/api/lead`, {
+      headers: { "content-type": "text/plain" },
+      data: JSON.stringify(contact(id)),
+      failOnStatusCode: false,
+    });
+    expect(plain.status()).toBe(415);
+    const foreign = await page.request.post(`${ZBM_BASE_URL}/api/lead`, {
+      headers: { origin: "https://evil.example" },
+      data: contact(id),
+      failOnStatusCode: false,
+    });
+    expect(foreign.status()).toBe(403);
+    expect(await rowsFor("zbm", id)).toHaveLength(0);
+
+    // The real attack, from a real browser on another origin (the ZBC site):
+    // a no-cors text/plain POST, and a JSON POST that needs a preflight.
+    const name = marker("cross-site", testInfo.project.name);
+    await page.goto(`${ZBC_BASE_URL}/`, { waitUntil: "domcontentloaded" });
+    const outcomes = await page.evaluate(
+      async ([target, body]) => {
+        const results: string[] = [];
+        try {
+          await fetch(target, { method: "POST", mode: "no-cors", headers: { "content-type": "text/plain" }, body });
+          results.push("no-cors sent");
+        } catch {
+          results.push("no-cors blocked");
+        }
+        try {
+          await fetch(target, { method: "POST", headers: { "content-type": "application/json" }, body });
+          results.push("json allowed");
+        } catch {
+          results.push("json blocked");
+        }
+        return results;
+      },
+      [`${ZBM_BASE_URL}/api/lead`, JSON.stringify(contact(randomUUID(), name))] as const,
+    );
+    expect(outcomes).toEqual(["no-cors sent", "json blocked"]);
+    expect(await rowsMentioning("zbm", name)).toHaveLength(0);
+  });
+
+  test("L1: an oversized body is 413; L2: a changed resubmission is 409", async ({ page }) => {
+    const big = await page.request.post(`${ZBM_BASE_URL}/api/lead`, {
+      data: contact(randomUUID(), "x".repeat(70 * 1024)),
+      failOnStatusCode: false,
+    });
+    expect(big.status()).toBe(413);
+
+    const id = randomUUID();
+    expect((await page.request.post(`${ZBM_BASE_URL}/api/lead`, { data: contact(id, "First") })).status()).toBe(200);
+    const changed = await page.request.post(`${ZBM_BASE_URL}/api/lead`, { data: contact(id, "Edited"), failOnStatusCode: false });
+    expect(changed.status()).toBe(409);
+    expect(await changed.json()).toEqual({ ok: false, error: { code: "conflict" } });
+    const rows = await rowsFor("zbm", id);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.payload.name).toBe("First");
+    expect(await emailsFor("zbm", id)).toHaveLength(1);
+  });
+
+  test("M1: a real `next start` with a malformed POSTGRES_URL answers 503 and never prints the URL", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "desktop-1440", "server behaviour — viewport-independent");
+    const secret = `PwLeak${randomUUID().slice(0, 8)}`;
+    const server = spawn(
+      "pnpm",
+      ["--filter", "@zbest/zbm", "exec", "next", "start", "--hostname", "127.0.0.1", "--port", String(ZBM_MALFORMED_PORT)],
+      {
+        cwd: path.join(import.meta.dirname, "..", ".."),
+        env: {
+          PATH: process.env.PATH,
+          HOME: process.env.HOME,
+          POSTGRES_URL: `postgres://u:${secret}@[bad/db`,
+          LEAD_IP_HASH_SECRET: "s".repeat(32),
+          LEAD_NOTIFY: "disabled",
+        },
+        stdio: ["ignore", "pipe", "pipe"],
+        // Own process group, so the whole pnpm → next tree is stopped after.
+        detached: true,
+      },
+    );
+    let output = "";
+    server.stdout.on("data", (d) => (output += String(d)));
+    server.stderr.on("data", (d) => (output += String(d)));
+    try {
+      const base = `http://127.0.0.1:${ZBM_MALFORMED_PORT}`;
+      await expect
+        .poll(async () => (await page.request.get(`${base}/start`, { failOnStatusCode: false }).catch(() => null))?.status() ?? 0, {
+          timeout: 30_000,
+        })
+        .toBe(200);
+      for (let i = 0; i < 3; i++) {
+        const res = await page.request.post(`${base}/api/lead`, { data: contact(randomUUID()), failOnStatusCode: false });
+        expect(res.status()).toBe(503);
+        expect(await res.json()).toEqual({ ok: false, error: { code: "not_configured" } });
+      }
+      await expect.poll(() => output.includes("POSTGRES_URL:unparseable"), { timeout: 5_000 }).toBe(true);
+      expect(output).not.toContain(secret);
+      expect(output).not.toContain("[bad");
+      expect(output).not.toMatch(/TypeError|Invalid URL/);
+    } finally {
+      if (server.pid) process.kill(-server.pid, "SIGTERM");
+    }
   });
 });

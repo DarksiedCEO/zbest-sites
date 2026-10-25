@@ -1,6 +1,6 @@
 import { appendFileSync, mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
-import type { LeadApp, LeadEmail, LeadNotifier, LeadRecord, LeadStore, NotifyStatus } from "./types";
+import type { InsertResult, LeadApp, LeadEmail, LeadNotifier, LeadRecord, LeadStore, NotifyStatus } from "./types";
 
 /**
  * TEST-ONLY transport: the store and the notifier append JSON lines to files
@@ -13,19 +13,19 @@ import type { LeadApp, LeadEmail, LeadNotifier, LeadRecord, LeadStore, NotifySta
  *   <outbox>/notify.jsonl   one line per notify_status update
  */
 
-type Outbox = { dir: string; seen: Set<string> };
+type Outbox = { dir: string; seen: Map<string, string> };
 const outboxes = new Map<string, Outbox>();
 
 function outbox(dir: string): Outbox {
   let box = outboxes.get(dir);
   if (!box) {
     mkdirSync(dir, { recursive: true });
-    const seen = new Set<string>();
+    const seen = new Map<string, string>();
     try {
       for (const line of readFileSync(path.join(dir, "rows.jsonl"), "utf8").split("\n")) {
         if (line) {
           const row = JSON.parse(line) as LeadRecord;
-          seen.add(`${row.app}:${row.submission_id}`);
+          seen.set(`${row.app}:${row.submission_id}`, row.payload_hash);
         }
       }
     } catch {
@@ -43,10 +43,10 @@ const append = (box: Outbox, file: string, value: unknown) =>
 export function fakeStore(dir: string): LeadStore {
   const box = outbox(dir);
   return {
-    async insert(record: LeadRecord) {
+    async insert(record: LeadRecord): Promise<InsertResult> {
       const key = `${record.app}:${record.submission_id}`;
-      if (box.seen.has(key)) return { inserted: false };
-      box.seen.add(key);
+      if (box.seen.has(key)) return { inserted: false, samePayload: box.seen.get(key) === record.payload_hash };
+      box.seen.set(key, record.payload_hash);
       append(box, "rows.jsonl", { ...record, created_at: new Date().toISOString() });
       return { inserted: true };
     },

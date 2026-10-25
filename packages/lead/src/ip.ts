@@ -1,16 +1,22 @@
 import { createHash, createHmac } from "node:crypto";
 
 /**
- * The client IP, as Vercel reports it. Vercel's edge sets `x-real-ip` and
- * overwrites `x-forwarded-for`, so on Vercel neither can be spoofed by the
- * client. Anywhere else these headers are client-controlled; the rate limit
- * is only as trustworthy as the proxy in front of the app.
+ * The client address, or null when none can be trusted (AEGIS M4).
+ *
+ * These headers are client-controlled unless a proxy in front of the app
+ * overwrites them. Vercel's edge sets `x-vercel-forwarded-for` and
+ * `x-real-ip` and rewrites `x-forwarded-for`, so they are trusted only when
+ * `trustProxy` is on: automatically on Vercel (VERCEL=1), or when an operator
+ * sets LEAD_TRUSTED_PROXY=1 for a host whose proxy does the same. Otherwise
+ * the address is unknown — never guessed from a header anyone can send.
  */
-export function clientIp(headers: Headers): string {
-  const real = headers.get("x-real-ip")?.trim();
-  if (real) return real;
-  const forwarded = headers.get("x-forwarded-for")?.split(",")[0]?.trim();
-  return forwarded || "unknown";
+export function clientIp(headers: Headers, trustProxy: boolean): string | null {
+  if (!trustProxy) return null;
+  for (const name of ["x-vercel-forwarded-for", "x-real-ip", "x-forwarded-for"]) {
+    const value = headers.get(name)?.split(",")[0]?.trim();
+    if (value && value.length <= 64 && /^[0-9A-Fa-f:.]+$/.test(value)) return value;
+  }
+  return null;
 }
 
 /** Brief §6.2 `ip_hash`: HMAC-SHA256 so the stored value cannot be reversed by a lookup table. */

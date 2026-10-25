@@ -1,5 +1,8 @@
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { fakeNotifier, fakeStore } from "./fake";
 import { hmacIp } from "./ip";
+import { parsePostgresUrl } from "./pg-url";
 import type { LeadLogger } from "./log";
 import { postgresStore } from "./postgres";
 import { memoryLimiter, parseRateLimit, restLimiter, DEFAULT_RATE_LIMIT, type RateLimitSpec } from "./rate-limit";
@@ -54,16 +57,73 @@ function recipients(env: Env, missing: string[]): string[] {
   return to;
 }
 
+/**
+ * Any of these means "a deployed, production-like platform". The fake
+ * transport refuses to run where any is set (AEGIS M2), in addition to
+ * needing its positive proof below.
+ */
+const PLATFORM_MARKERS = [
+  "VERCEL",
+  "VERCEL_ENV",
+  "VERCEL_URL",
+  "RAILWAY_ENVIRONMENT",
+  "RAILWAY_PROJECT_ID",
+  "FLY_APP_NAME",
+  "RENDER",
+  "K_SERVICE",
+  "NETLIFY",
+  "AWS_LAMBDA_FUNCTION_NAME",
+  "DYNO",
+];
+
+/**
+ * The fake transport writes "leads" to a local JSONL file and answers
+ * success, so it must be impossible to enable by accident. It needs ALL of:
+ *   1. ZBEST_LEAD_TRANSPORT=fake;
+ *   2. ZBEST_LEAD_FAKE_ACK equal to ZBEST_GATE_NONCE, a random value the
+ *      Playwright gate generates per run (so a stale env var copied into a
+ *      deployment does not match anything);
+ *   3. an outbox under the OS temp directory;
+ *   4. no production-platform marker in the environment.
+ * NODE_ENV cannot be the test: `next start` — which the gate must exercise —
+ * always runs with NODE_ENV=production. The per-run nonce is the stronger
+ * equivalent the review allowed.
+ */
+function fakeTransportProblems(env: Env): string[] {
+  const problems: string[] = [];
+  const marker = PLATFORM_MARKERS.find((name) => set(env, name));
+  if (marker) problems.push(`ZBEST_LEAD_TRANSPORT:fake-refused-on-platform-${marker}`);
+  const nonce = set(env, "ZBEST_GATE_NONCE");
+  if (nonce.length < 16 || set(env, "ZBEST_LEAD_FAKE_ACK") !== nonce) problems.push("ZBEST_LEAD_FAKE_ACK:must-equal-gate-nonce");
+  const dir = set(env, "ZBEST_LEAD_FAKE_OUTBOX");
+  const tmp = path.resolve(tmpdir());
+  if (!dir || !path.isAbsolute(dir) || !path.resolve(dir).startsWith(tmp + path.sep)) {
+    problems.push("ZBEST_LEAD_FAKE_OUTBOX:must-be-under-os-tmpdir");
+  }
+  return problems;
+}
+
+/**
+ * Never throws (AEGIS M1): every way configuration can be wrong comes back
+ * as `{ ok: false, missing }` naming settings, never values.
+ */
 export function resolveTransport(env: Env): TransportConfig {
+  try {
+    return resolveTransportUnsafe(env);
+  } catch {
+    return { ok: false, missing: ["LEAD_TRANSPORT:unresolvable"] };
+  }
+}
+
+function resolveTransportUnsafe(env: Env): TransportConfig {
   const missing: string[] = [];
   const transport = set(env, "ZBEST_LEAD_TRANSPORT");
 
   if (transport === "fake") {
-    if (set(env, "VERCEL")) return { ok: false, missing: ["ZBEST_LEAD_TRANSPORT:fake-refused-on-vercel"] };
-    const dir = set(env, "ZBEST_LEAD_FAKE_OUTBOX");
-    if (!dir || !dir.startsWith("/")) missing.push("ZBEST_LEAD_FAKE_OUTBOX:absolute-path-required");
+    missing.push(...fakeTransportProblems(env));
     const notify = resolveNotifyMode(env, missing);
     if (missing.length) return { ok: false, missing };
+    const dir = set(env, "ZBEST_LEAD_FAKE_OUTBOX");
     return {
       ok: true,
       transport: {
@@ -77,8 +137,9 @@ export function resolveTransport(env: Env): TransportConfig {
   if (transport !== "") return { ok: false, missing: ["ZBEST_LEAD_TRANSPORT:only-fake-recognised"] };
 
   const url = set(env, "POSTGRES_URL");
-  if (!url) missing.push("POSTGRES_URL");
-  else if (!/^postgres(ql)?:\/\//.test(url)) missing.push("POSTGRES_URL:not-a-postgres-url");
+  const pg = url ? parsePostgresUrl(url) : null;
+  if (!pg) missing.push("POSTGRES_URL");
+  else if (!pg.ok) missing.push(`POSTGRES_URL:${pg.reason}`);
 
   const secret = set(env, "LEAD_IP_HASH_SECRET");
   if (secret.length < 16) missing.push("LEAD_IP_HASH_SECRET:min-16-chars");
@@ -95,31 +156,70 @@ export function resolveTransport(env: Env): TransportConfig {
     if (!missing.length) notifier = resendNotifier({ apiKey, from, to });
   }
 
-  if (missing.length) return { ok: false, missing };
+  if (missing.length || !pg?.ok) return { ok: false, missing };
   return {
     ok: true,
-    transport: { mode: "live", store: postgresStore(url), notifier, hashIp: hmacIp(secret) },
+    transport: { mode: "live", store: postgresStore(pg.options), notifier, hashIp: hmacIp(secret) },
+  };
+}
+
+/** Request-level policy: who may post, which client address to trust, how big a body may be. */
+export type RequestPolicy = {
+  /** Trust x-vercel-forwarded-for / x-real-ip / x-forwarded-for (AEGIS M4). */
+  trustProxy: boolean;
+  /** Extra allowed browser origins; same-origin is always allowed (AEGIS M3). */
+  allowedOrigins: Set<string>;
+  maxBodyBytes: number;
+  problems: string[];
+};
+
+export const DEFAULT_MAX_BODY_BYTES = 64 * 1024;
+
+export function resolvePolicy(env: Env): RequestPolicy {
+  const problems: string[] = [];
+  const allowedOrigins = new Set<string>();
+  for (const raw of set(env, "LEAD_ALLOWED_ORIGINS").split(",").map((s) => s.trim()).filter(Boolean)) {
+    try {
+      const u = new URL(raw);
+      if ((u.protocol !== "https:" && u.protocol !== "http:") || u.pathname !== "/" || u.search || u.username) throw new Error();
+      allowedOrigins.add(u.origin);
+    } catch {
+      problems.push("LEAD_ALLOWED_ORIGINS:not-an-origin-list");
+    }
+  }
+  const trusted = set(env, "LEAD_TRUSTED_PROXY").toLowerCase();
+  if (trusted !== "" && trusted !== "1" && trusted !== "true") problems.push("LEAD_TRUSTED_PROXY:must-be-1-or-unset");
+  return {
+    // On Vercel the edge sets these headers; elsewhere only an operator who
+    // knows a proxy overwrites them may switch trust on.
+    trustProxy: set(env, "VERCEL") === "1" || trusted === "1" || trusted === "true",
+    allowedOrigins,
+    maxBodyBytes: DEFAULT_MAX_BODY_BYTES,
+    problems,
   };
 }
 
 const limiters = new Map<string, RateLimiter>();
 
-/**
- * Always returns a limiter, so abuse is limited even while the transport is
- * misconfigured. A malformed LEAD_RATE_LIMIT is reported as a misconfiguration
- * and the default applies to the rate check meanwhile.
- */
-export function resolveLimiter(
-  env: Env,
-  logger: LeadLogger,
-): { limiter: RateLimiter; spec: RateLimitSpec; problem?: string } {
-  const parsed = parseRateLimit(env.LEAD_RATE_LIMIT);
-  const spec = parsed ?? DEFAULT_RATE_LIMIT;
-  const problem = parsed ? undefined : "LEAD_RATE_LIMIT:expected-count/seconds";
+export type Limiters = {
+  /** Per client address, per app. */
+  perIp: RateLimiter;
+  /**
+   * Used only when no trusted client address exists (AEGIS M4): one shared
+   * ceiling per app, much higher than the per-IP limit, so missing headers
+   * neither turn into one tiny bucket that blocks everyone nor into no limit.
+   */
+  flood: RateLimiter;
+  spec: RateLimitSpec;
+  problem?: string;
+};
+
+const DEFAULT_FLOOD = "200/600";
+
+function buildLimiter(spec: RateLimitSpec, env: Env, logger: LeadLogger, tag: string): RateLimiter {
   const restUrl = set(env, "KV_REST_API_URL") || set(env, "UPSTASH_REDIS_REST_URL");
   const restToken = set(env, "KV_REST_API_TOKEN") || set(env, "UPSTASH_REDIS_REST_TOKEN");
-  const cacheKey = `${spec.limit}/${spec.windowSec}|${restUrl ? "rest" : "memory"}`;
-
+  const cacheKey = `${tag}|${spec.limit}/${spec.windowSec}|${restUrl && restToken ? "rest" : "memory"}`;
   let limiter = limiters.get(cacheKey);
   if (!limiter) {
     const memory = memoryLimiter(spec);
@@ -135,5 +235,31 @@ export function resolveLimiter(
         : memory;
     limiters.set(cacheKey, limiter);
   }
-  return { limiter, spec, problem };
+  return limiter;
+}
+
+/**
+ * Always returns limiters, so abuse is limited even while the transport is
+ * misconfigured. A malformed setting is reported as a misconfiguration and
+ * the default applies to the rate check meanwhile.
+ *
+ * Without KV_REST_API_* (or UPSTASH_REDIS_REST_*) the counters live in each
+ * server instance's memory: on Vercel that is per serverless instance, NOT a
+ * global cap. A global cap needs KV — a launch decision (design note §5).
+ */
+export function resolveLimiter(env: Env, logger: LeadLogger): Limiters {
+  const parsed = parseRateLimit(env.LEAD_RATE_LIMIT);
+  const spec = parsed ?? DEFAULT_RATE_LIMIT;
+  const floodParsed = parseRateLimit(env.LEAD_RATE_LIMIT_FLOOD || DEFAULT_FLOOD);
+  const floodSpec = floodParsed ?? parseRateLimit(DEFAULT_FLOOD)!;
+  const problems = [
+    ...(parsed ? [] : ["LEAD_RATE_LIMIT:expected-count/seconds"]),
+    ...(floodParsed ? [] : ["LEAD_RATE_LIMIT_FLOOD:expected-count/seconds"]),
+  ];
+  return {
+    perIp: buildLimiter(spec, env, logger, "ip"),
+    flood: buildLimiter(floodSpec, env, logger, "flood"),
+    spec,
+    problem: problems.length ? problems.join(",") : undefined,
+  };
 }

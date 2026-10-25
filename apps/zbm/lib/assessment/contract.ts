@@ -32,7 +32,7 @@ export const ASSESSMENT_REQUEST = z.object({
   submission_id: z.uuid(),
   rule_set_version: z.string().min(1),
   contact: LEAD_FIELDS.assessment,
-  answers: z.array(ANSWER).superRefine((answers, ctx) => {
+  answers: z.array(ANSWER).max(32, { error: "Too many answers.", abort: true }).superRefine((answers, ctx) => {
     const seen = new Set<string>();
     for (const answer of answers) {
       if (!questionIds.has(answer.question_id)) {

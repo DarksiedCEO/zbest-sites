@@ -5,7 +5,8 @@ import type { LeadApp, LeadEmail, LeadRecord } from "./types";
  * Plain text, built only from validated values. The subject uses the form
  * name, the source tag (regex-validated) and the service slugs (an enum), and
  * every line break is stripped from it regardless, so no header can be
- * injected through a field.
+ * injected through a field. The body is plain text (never HTML), and the
+ * visitor's own words sit inside a labelled fence.
  */
 
 const BRAND: Record<LeadApp, string> = { zbm: "Z Best Media", zbc: "Z Best Clips" };
@@ -13,9 +14,12 @@ const EMAIL = /^[^\s@<>,]+@[^\s@<>,]+\.[^\s@<>,]+$/;
 
 const oneLine = (s: string) => s.replace(/[\r\n]+/g, " ").trim();
 
+/** A visitor line can never start with the fence marker. */
+const unfence = (s: string) => s.replace(/^-{5}/gm, "- - -");
+
 function render(value: unknown): string {
   if (value === null || value === undefined || value === "") return "—";
-  if (typeof value === "string") return value;
+  if (typeof value === "string") return unfence(value);
   if (typeof value === "number" || typeof value === "boolean") return String(value);
   if (Array.isArray(value) && value.every((v) => typeof v === "string")) return value.join(", ") || "—";
   return JSON.stringify(value, null, 2);
@@ -42,7 +46,11 @@ export function leadEmail(record: LeadRecord, receivedAt: Date): LeadEmail {
     `Source tag: ${record.source ?? "—"}`,
     ...(record.services.length ? [`Services: ${record.services.join(", ")}`] : []),
     "",
+    // Everything between the fences was typed by the visitor and is
+    // unverified (AEGIS L7): it can imitate headers or carry links.
+    "----- visitor-supplied, unverified -----",
     ...Object.entries(record.payload).map(([key, value]) => `${key}: ${render(value)}`),
+    "----- end visitor-supplied -----",
     "",
     "A person reads every submission (/start promise). Reply using the contact above.",
   ];

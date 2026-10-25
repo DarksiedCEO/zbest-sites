@@ -2,7 +2,7 @@
 
 import { useId, useRef, useState, type FormEvent } from "react";
 import { ButtonLink, LedgerRule } from "@zbest/ui";
-import { FAILURE_COPY, type LeadFailure } from "@zbest/ui/lead/contract";
+import { FAILURE_COPY, HONEYPOT_FIELD, type LeadFailure } from "@zbest/ui/lead/contract";
 import { submitAssessment } from "@/lib/assessment/contract";
 import { ACTIVE_RULE_SET, QUESTIONS, SCALE, type AnswerValue } from "@/lib/assessment/rules";
 import type { FreeAssessmentResult } from "@/lib/assessment/score";
@@ -133,7 +133,7 @@ export function AssessmentForm() {
       const raw = data.get(`q-${q.id}`);
       return raw === null ? [] : [{ question_id: q.id, value: Number(raw) as AnswerValue }];
     });
-    const honeypot = text("company_url");
+    const honeypot = text(HONEYPOT_FIELD);
 
     setState({ kind: "submitting" });
     const outcome = await submitAssessment({
@@ -147,7 +147,10 @@ export function AssessmentForm() {
     if (outcome.status === "scored") setState({ kind: "scored", result: outcome.result });
     else if (outcome.status === "invalid") setState({ kind: "invalid", fields: outcome.fields });
     else if (outcome.status === "superseded") setState({ kind: "superseded" });
-    else setState({ kind: "failed", reason: outcome.reason });
+    else {
+      if (outcome.reason === "conflict") submissionId.current = null;
+      setState({ kind: "failed", reason: outcome.reason });
+    }
   };
 
   if (state.kind === "scored") return <Result result={state.result} />;
@@ -234,8 +237,8 @@ export function AssessmentForm() {
 
       {/* Honeypot (§6.2): off-screen, unlabeled for sighted users, skipped by tab order. */}
       <div aria-hidden="true" className="absolute -left-[9999px] h-px w-px overflow-hidden">
-        <label htmlFor={`${baseId}-company_url`}>Leave this empty</label>
-        <input id={`${baseId}-company_url`} name="company_url" tabIndex={-1} autoComplete="off" />
+        <label htmlFor={`${baseId}-hp`}>Leave this empty</label>
+        <input id={`${baseId}-hp`} name={HONEYPOT_FIELD} tabIndex={-1} autoComplete="off" data-1p-ignore data-lpignore="true" />
       </div>
 
       {state.kind === "failed" ? (

@@ -3,13 +3,18 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { resolveTransport, type TransportConfig } from "../src/config";
 import { handleLead } from "../src/pipeline";
 import { memoryLimiter } from "../src/rate-limit";
-import { DeliveryError, type LeadNotifier, type LeadStore } from "../src/types";
+import { DeliveryError, type LeadNotifier, type LeadStore, type RateLimiter } from "../src/types";
 import { PII, captureLogger, readJsonl, request, tempOutbox, toyParse } from "./helpers";
 
 const open = () => memoryLimiter({ limit: 1000, windowSec: 60 });
+const both = (l: RateLimiter) => ({ perIp: l, flood: l });
+const NONCE = "gate-nonce-0123456789abcdef";
 const fakeEnv = (dir: string, extra: Record<string, string> = {}) => ({
   ZBEST_LEAD_TRANSPORT: "fake",
   ZBEST_LEAD_FAKE_OUTBOX: dir,
+  ZBEST_GATE_NONCE: NONCE,
+  ZBEST_LEAD_FAKE_ACK: NONCE,
+  LEAD_TRUSTED_PROXY: "1",
   ...extra,
 });
 const valid = (id = randomUUID(), extra: Record<string, string> = {}) => ({
@@ -25,7 +30,7 @@ describe("success through the fake transport", () => {
     const dir = tempOutbox();
     const log = captureLogger();
     const id = randomUUID();
-    const res = await handleLead(request(valid(id)), { app: "zbm", parse: toyParse, env: fakeEnv(dir), logger: log.logger, limiter: open() });
+    const res = await handleLead(request(valid(id)), { app: "zbm", parse: toyParse, env: fakeEnv(dir), logger: log.logger, limiters: both(open()) });
 
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true, submission_id: id });
@@ -48,7 +53,7 @@ describe("success through the fake transport", () => {
 
     const emails = readJsonl(dir, "emails.jsonl");
     expect(emails).toHaveLength(1);
-    expect(emails[0]).toMatchObject({ idempotency_key: `lead-${id}`, replyTo: PII.reach });
+    expect(emails[0]).toMatchObject({ idempotency_key: `lead-zbm-${id}`, replyTo: PII.reach });
     expect(String(emails[0]!.subject)).toContain("src:bb-i405-oct");
     expect(String(emails[0]!.text)).toContain(PII.name);
     expect(readJsonl(dir, "notify.jsonl")).toEqual([{ app: "zbm", submission_id: id, notify_status: "sent" }]);
@@ -57,7 +62,7 @@ describe("success through the fake transport", () => {
   it("a double submit with the same submission_id is one lead and one email", async () => {
     const dir = tempOutbox();
     const id = randomUUID();
-    const opts = { app: "zbm" as const, parse: toyParse, env: fakeEnv(dir), logger: captureLogger().logger, limiter: open() };
+    const opts = { app: "zbm" as const, parse: toyParse, env: fakeEnv(dir), logger: captureLogger().logger, limiters: both(open()) };
     const [a, b] = await Promise.all([handleLead(request(valid(id)), opts), handleLead(request(valid(id)), opts)]);
     const c = await handleLead(request(valid(id)), opts);
     for (const r of [a, b, c]) {
@@ -76,7 +81,7 @@ describe("success through the fake transport", () => {
       parse: toyParse,
       env: fakeEnv(dir, { LEAD_NOTIFY: "disabled" }),
       logger: captureLogger().logger,
-      limiter: open(),
+      limiters: both(open()),
     });
     expect(res.status).toBe(200);
     expect(readJsonl(dir, "rows.jsonl")).toHaveLength(1);
@@ -88,7 +93,7 @@ describe("success through the fake transport", () => {
 describe("misconfiguration fails closed", () => {
   it("no env at all: 503 not_configured, nothing stored, names (not values) logged", async () => {
     const log = captureLogger();
-    const res = await handleLead(request(valid()), { app: "zbm", parse: toyParse, env: {}, logger: log.logger, limiter: open() });
+    const res = await handleLead(request(valid()), { app: "zbm", parse: toyParse, env: {}, logger: log.logger, limiters: both(open()) });
     expect(res.status).toBe(503);
     expect(await res.json()).toEqual({ ok: false, error: { code: "not_configured" } });
     const line = log.lines.find((l) => l.event === "not_configured");
@@ -98,7 +103,7 @@ describe("misconfiguration fails closed", () => {
   it("store configured but Resend missing (and not explicitly disabled): 503, not a quiet success", async () => {
     const env = { POSTGRES_URL: "postgres://u:p@127.0.0.1:1/db", LEAD_IP_HASH_SECRET: "x".repeat(32) };
     const log = captureLogger();
-    const res = await handleLead(request(valid()), { app: "zbm", parse: toyParse, env, logger: log.logger, limiter: open() });
+    const res = await handleLead(request(valid()), { app: "zbm", parse: toyParse, env, logger: log.logger, limiters: both(open()) });
     expect(res.status).toBe(503);
     expect(log.text()).toContain("RESEND_API_KEY");
     expect(log.text()).not.toContain("u:p@");
@@ -111,7 +116,7 @@ describe("misconfiguration fails closed", () => {
       parse: toyParse,
       env: fakeEnv(dir, { VERCEL: "1" }),
       logger: captureLogger().logger,
-      limiter: open(),
+      limiters: both(open()),
     });
     expect(res.status).toBe(503);
     expect(readJsonl(dir, "rows.jsonl")).toHaveLength(0);
@@ -131,7 +136,7 @@ describe("misconfiguration fails closed", () => {
 });
 
 describe("validation and abuse", () => {
-  const opts = (dir: string) => ({ app: "zbm" as const, parse: toyParse, env: fakeEnv(dir), logger: captureLogger().logger, limiter: open() });
+  const opts = (dir: string) => ({ app: "zbm" as const, parse: toyParse, env: fakeEnv(dir), logger: captureLogger().logger, limiters: both(open()) });
 
   it("unparseable JSON is 400 bad_request", async () => {
     const res = await handleLead(request("{not json"), opts(tempOutbox()));
@@ -160,7 +165,7 @@ describe("validation and abuse", () => {
   it("rate limit: the N+1th request from one IP is 429 with Retry-After; another IP is unaffected", async () => {
     const dir = tempOutbox();
     const limiter = memoryLimiter({ limit: 3, windowSec: 600 });
-    const o = { app: "zbm" as const, parse: toyParse, env: fakeEnv(dir), logger: captureLogger().logger, limiter };
+    const o = { app: "zbm" as const, parse: toyParse, env: fakeEnv(dir), logger: captureLogger().logger, limiters: both(limiter) };
     for (let i = 0; i < 3; i++) expect((await handleLead(request(valid()), o)).status).toBe(200);
     const blocked = await handleLead(request(valid()), o);
     expect(blocked.status).toBe(429);
@@ -175,7 +180,7 @@ describe("validation and abuse", () => {
 
   it("rate limits apply per app", async () => {
     const limiter = memoryLimiter({ limit: 1, windowSec: 600 });
-    const base = { parse: toyParse, env: fakeEnv(tempOutbox()), logger: captureLogger().logger, limiter };
+    const base = { parse: toyParse, env: fakeEnv(tempOutbox()), logger: captureLogger().logger, limiters: both(limiter) };
     expect((await handleLead(request(valid()), { ...base, app: "zbm" })).status).toBe(200);
     expect((await handleLead(request(valid()), { ...base, app: "zbc" })).status).toBe(200);
     expect((await handleLead(request(valid()), { ...base, app: "zbm" })).status).toBe(429);
@@ -202,7 +207,7 @@ describe("delivery failures (Brief §6.2 failure mode)", () => {
       parse: toyParse,
       transport: transportWith(store, { send }),
       logger: log.logger,
-      limiter: open(),
+      limiters: both(open()),
     });
     expect(res.status).toBe(503);
     expect(await res.json()).toEqual({ ok: false, error: { code: "unavailable" } });
@@ -212,7 +217,7 @@ describe("delivery failures (Brief §6.2 failure mode)", () => {
 
   it("email failure after the row is written: visitor sees success, row marked failed, failure logged", async () => {
     const statuses: string[] = [];
-    const store: LeadStore = { insert: async () => ({ inserted: true }), setNotifyStatus: async (_app, _id, s) => void statuses.push(s) };
+    const store: LeadStore = { insert: async () => ({ inserted: true as const }), setNotifyStatus: async (_app, _id, s) => void statuses.push(s) };
     const notifier: LeadNotifier = {
       send: async () => {
         throw new DeliveryError("notify_rejected", 403);
@@ -225,7 +230,7 @@ describe("delivery failures (Brief §6.2 failure mode)", () => {
       parse: toyParse,
       transport: transportWith(store, notifier),
       logger: log.logger,
-      limiter: open(),
+      limiters: both(open()),
     });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true, submission_id: id });
@@ -239,7 +244,7 @@ describe("no PII in logs", () => {
     const log = captureLogger();
     const spies = (["info", "warn", "error", "log"] as const).map((m) => vi.spyOn(console, m).mockImplementation(() => {}));
     const dir = tempOutbox();
-    const o = { app: "zbm" as const, parse: toyParse, env: fakeEnv(dir), logger: log.logger, limiter: open() };
+    const o = { app: "zbm" as const, parse: toyParse, env: fakeEnv(dir), logger: log.logger, limiters: both(open()) };
     const id = randomUUID();
     await handleLead(request(valid(id)), o);
     await handleLead(request(valid(id)), o);
@@ -247,7 +252,7 @@ describe("no PII in logs", () => {
     await handleLead(request(valid(randomUUID(), { name: "" })), o);
     await handleLead(request(valid()), { ...o, env: {} });
     // And the real console logger, used when none is injected:
-    await handleLead(request(valid()), { app: "zbm", parse: toyParse, env: fakeEnv(dir), limiter: open() });
+    await handleLead(request(valid()), { app: "zbm", parse: toyParse, env: fakeEnv(dir), limiters: both(open()) });
 
     const consoleText = JSON.stringify(spies.flatMap((s) => s.mock.calls));
     for (const text of [log.text(), consoleText]) {

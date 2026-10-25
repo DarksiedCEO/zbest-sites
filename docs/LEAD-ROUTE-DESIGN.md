@@ -108,25 +108,32 @@ The live site's older backend is the `zbm-server` service in the Railway project
 
   | Variable | Required | Meaning |
   |---|---|---|
-  | `POSTGRES_URL` | yes | Lead store. |
+  | `POSTGRES_URL` | yes | Lead store. Parsed by `src/pg-url.ts`, and the driver gets discrete options, never the raw URL (AEGIS H1/M1). Accepted params: `sslmode`, `channel_binding` (dropped: the driver has no channel binding; SCRAM over TLS still works), `pgbouncer` (dropped), `connect_timeout`. Any other param → `not_configured`, naming the key only. A remote host with no `sslmode` uses TLS. Neon pooled/direct and Supabase pooler/direct formats are tested. |
   | `LEAD_IP_HASH_SECRET` | yes (with Postgres) | HMAC key for `ip_hash`. The raw IP is never stored. |
   | `RESEND_API_KEY`, `LEAD_NOTIFY_FROM`, `LEAD_NOTIFY_TO` | yes, unless `LEAD_NOTIFY=disabled` | Founder notification. |
   | `LEAD_NOTIFY=disabled` | optional | Explicit store-only mode, for running before the Resend domain is verified. Rows get `notify_status = 'disabled'`. It is never inferred from a missing key. |
-  | `LEAD_RATE_LIMIT` | optional, default `8/600` | Requests per window (seconds) per IP, per app. |
-  | `KV_REST_API_URL` + `KV_REST_API_TOKEN` (or `UPSTASH_REDIS_REST_URL` + `_TOKEN`) | optional | Shared rate-limit counter. Without them the limiter is per-instance memory. |
-  | `ZBEST_LEAD_TRANSPORT=fake` + `ZBEST_LEAD_FAKE_OUTBOX` | tests only | Writes rows and emails to JSONL files. **It refuses to run when `VERCEL` is set**, so it cannot be enabled on a deployment. |
+  | `LEAD_RATE_LIMIT` | optional, default `8/600` | Requests per window (seconds) per trusted client IP, per app. |
+  | `LEAD_RATE_LIMIT_FLOOD` | optional, default `200/600` | Shared per-app ceiling used **only** when no trusted client IP exists, so missing headers are neither one tiny bucket that blocks everyone nor unlimited (AEGIS M4). |
+  | `LEAD_TRUSTED_PROXY=1` | optional; automatic on Vercel (`VERCEL=1`) | Trust `x-vercel-forwarded-for` / `x-real-ip` / `x-forwarded-for`. Off Vercel, set it only when a proxy in front overwrites those headers; otherwise they are ignored (client-forgeable). |
+  | `LEAD_ALLOWED_ORIGINS` | optional | Extra browser origins allowed to post (comma list of `https://host`). Same-origin is always allowed; anything else is `403` (AEGIS M3). |
+  | `KV_REST_API_URL` + `KV_REST_API_TOKEN` (or `UPSTASH_REDIS_REST_URL` + `_TOKEN`) | optional, **needed for a global cap** | Shared rate-limit counter. Without them each serverless instance counts on its own, so the limits above are per instance, not global. Whether to add KV before launch is a founder decision (§5). |
+  | `ZBEST_LEAD_TRANSPORT=fake` + `ZBEST_LEAD_FAKE_OUTBOX` + `ZBEST_LEAD_FAKE_ACK` | tests only | Writes rows and emails to JSONL files. Runs only when **all** hold: the ack equals the gate's per-run `ZBEST_GATE_NONCE`; the outbox is under the OS temp dir; and no platform marker (`VERCEL`, `VERCEL_ENV`, `RAILWAY_ENVIRONMENT`, `FLY_APP_NAME`, `RENDER`, `K_SERVICE`, `DYNO`, …) is set (AEGIS M2). `NODE_ENV` cannot be the test, because `next start` always runs as production. |
 
 - **Order inside the handler:**
-  1. parse the request;
-  2. rate limit (`429` with `Retry-After`);
-  3. config check (`503 not_configured`);
-  4. envelope and field validation (`400` / `422`);
-  5. honeypot (a filled one answers exactly like a success, and nothing is stored or sent);
-  6. store (on failure, `503 unavailable`, and the form says nothing was saved);
-  7. notify (a failure is logged and recorded on the row; the visitor still sees success, per §6.2).
+  1. `Content-Type` must be `application/json` (`415`). This forces a CORS preflight, which a foreign site cannot pass;
+  2. `Origin` must be same-origin or listed; a cross-site fetch-metadata request with no Origin is refused too (`403`);
+  3. declared size over 64 KB (`413`);
+  4. rate limit (`429` with `Retry-After`);
+  5. config check (`503 not_configured`);
+  6. body read with a 64 KB cap (`413`), then JSON (`400`);
+  7. envelope and field validation (`422`; the assessment/readiness `answers` list is capped at 32);
+  8. honeypot (a filled one answers exactly like a success, and nothing is stored or sent);
+  9. store (on failure, `503 unavailable`, and the form says nothing was saved);
+  10. notify (a failure is logged and recorded on the row; the visitor still sees success, per §6.2).
+  - Any unexpected throw becomes a bare `503 unavailable` and an `internal_error` event, never a logged error object.
 - **Idempotency:**
-  - `(app, submission_id)` is the unique key, so a ZBM and a ZBC lead can never collide in a shared database. A repeat insert is a no-op that still returns success and **does not send a second email**.
-  - Resend also gets `Idempotency-Key: lead-<submission_id>`.
+  - `(app, submission_id)` is the unique key, so a ZBM and a ZBC lead can never collide in a shared database. A repeat insert with the **same** payload (by `payload_hash`) is a no-op that still returns success and **does not send a second email**. The same id with **different** content is `409 conflict`. The first row stands, and the form starts a new id so the next send is a new lead (AEGIS L2). A scored form's duplicate result is recomputed from identical answers, so it matches what was stored.
+  - Resend also gets `Idempotency-Key: lead-<app>-<submission_id>`.
 - **Source tag:**
   - `source` is validated by the `/start` schema (`SOURCE_TAG`) and stored lowercase in its own column.
   - `services[]` gets its own column too.
@@ -134,7 +141,14 @@ The live site's older backend is the `zbm-server` service in the Railway project
 - **PII in logs:**
   - One structured logger with an allowlist of keys: event, app, form, submission_id, code, notify status, and the HTTP status or SQLSTATE.
   - It never logs field values, IP, user agent, provider error bodies, or the connection string.
-- **Schema:** `packages/lead/sql/001_leads.sql`, applied by `pnpm --filter @zbest/lead migrate` (reads `POSTGRES_URL`). The app never runs DDL at request time.
+- **Schema:** `packages/lead/sql/001_leads.sql`, applied by `pnpm --filter @zbest/lead migrate` (reads `POSTGRES_URL`; Node 22.6+).
+  - The runner records versions in `schema_migrations`.
+  - It checks the `leads` columns and types against what the app writes, so an older table is caught rather than trusted.
+  - It does a rolled-back round-trip insert, so a bad URL or permissions fail before launch.
+  - The app never runs DDL at request time.
+- **Email body:** plain text. The visitor's words sit between `----- visitor-supplied, unverified -----` fences, which a visitor cannot close (AEGIS L7).
+- **Honeypot:** the HTML input is named `zbx_hp_7f3` with `autocomplete="off"` and password-manager ignore hints. It is sent under the wire key `company_url` (AEGIS L4). Honeypot hits are logged as `honeypot` events; watch that count after launch.
+- **`server-only`:** `@zbest/lead` imports it first, so a client import fails the build (AEGIS L8).
 - **What the visitor sees:**
   - The stub notices are removed.
   - On success, the form says the details were received and a person will reply.
@@ -162,7 +176,7 @@ The live site's older backend is the `zbm-server` service in the Railway project
 
 **Smaller items:**
 - Whether the live `zbm-server` currently delivers leads anywhere he reads. This matters for the canary, so leads don't split across two systems.
-- Whether to buy a shared rate-limit store (Upstash) now, or accept a per-instance limit at launch.
+- **Whether to add a shared rate-limit store (Upstash / Vercel KV) before launch.** Without it the per-IP and flood limits apply per serverless instance, not globally. The AEGIS review treats this as a launch decision.
 - Confirm the new form copy, because these are commitments:
   - Success (every §6.1 form and `/start`): "Received" / "Thanks — we have your details." / "A person reads every submission and will reply using the contact you gave us."
   - Assessment and readiness results: "Received" / "Scored on fixture rules. We have your details, and a person will follow up using the contact you gave us." Before submitting: "This form [check] scores your answers on fixture rules."
@@ -170,7 +184,8 @@ The live site's older backend is the `zbm-server` service in the Railway project
     - not configured: "This form isn't accepting submissions yet, so nothing was saved or sent."
     - unavailable: "We couldn't save that just now, so nothing was sent. Please try again in a few minutes."
     - too many attempts: "Too many attempts from your connection. Nothing was saved — please wait a few minutes and try again."
-    - network/other: unchanged ("That did not go through. Nothing was saved — please try again.")
+    - network/other, outcome unknown: "We couldn't confirm that went through — please try again." (AEGIS L3: no claim that nothing was saved; a retry is safe because it reuses the id.)
+    - changed resubmission (409): "We already have an earlier version of this from you. Send again to submit these changes as a new message."
 
 ## 6. Not done here
 - No CRM and no backend forwarder (Option B later, behind a spec revision).

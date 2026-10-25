@@ -53,12 +53,19 @@ export const GATE_NONCE = process.env.ZBEST_GATE_NONCE;
 export const ZBM_UNCONFIGURED_URL = "http://127.0.0.1:3002";
 export const ZBM_LIMITED_URL = "http://127.0.0.1:3003";
 export const LIMITED_RATE = { limit: 3, windowSec: 600 };
+/** Port for the spawned misconfigured-URL server (phase-7, M1). */
+export const ZBM_MALFORMED_PORT = 3004;
 export const LEAD_OUTBOX = path.join(tmpdir(), `zbest-lead-outbox-${GATE_NONCE}`);
 export const outboxFor = (server: "zbm" | "zbc" | "zbm-limited") => path.join(LEAD_OUTBOX, server);
 
+/**
+ * The fake transport's positive proof (AEGIS M2): the ack must equal this
+ * run's nonce, and the outbox must sit under the OS temp directory.
+ */
 const fakeLeads = (server: "zbm" | "zbc" | "zbm-limited", rate: string) => ({
   ZBEST_LEAD_TRANSPORT: "fake",
   ZBEST_LEAD_FAKE_OUTBOX: outboxFor(server),
+  ZBEST_LEAD_FAKE_ACK: GATE_NONCE,
   LEAD_RATE_LIMIT: rate,
 });
 
@@ -66,6 +73,10 @@ const fakeLeads = (server: "zbm" | "zbc" | "zbm-limited", rate: string) => ({
 const NO_LEAD_TRANSPORT = {
   ZBEST_LEAD_TRANSPORT: "",
   ZBEST_LEAD_FAKE_OUTBOX: "",
+  ZBEST_LEAD_FAKE_ACK: "",
+  LEAD_TRUSTED_PROXY: "",
+  LEAD_ALLOWED_ORIGINS: "",
+  LEAD_RATE_LIMIT_FLOOD: "",
   POSTGRES_URL: "",
   LEAD_IP_HASH_SECRET: "",
   RESEND_API_KEY: "",
@@ -112,7 +123,9 @@ export default defineConfig({
       command: serve("@zbest/zbm", 3000),
       url: ZBM_BASE_URL,
       cwd: "../",
-      env: { ZBEST_GATE_NONCE: GATE_NONCE, ...NO_LEAD_TRANSPORT, ...fakeLeads("zbm", "100000/60") },
+      // Not behind a trusted proxy, so every request shares the per-app flood
+      // ceiling (AEGIS M4); it is raised so the rest of the suite never trips it.
+      env: { ZBEST_GATE_NONCE: GATE_NONCE, ...NO_LEAD_TRANSPORT, ...fakeLeads("zbm", "100000/60"), LEAD_RATE_LIMIT_FLOOD: "100000/60" },
       // Never adopt a pre-existing server: it may be a stale build, another
       // branch, or not this project at all.
       reuseExistingServer: false,
@@ -122,7 +135,7 @@ export default defineConfig({
       command: serve("@zbest/zbc", 3001),
       url: ZBC_BASE_URL,
       cwd: "../",
-      env: { ZBEST_GATE_NONCE: GATE_NONCE, ...NO_LEAD_TRANSPORT, ...fakeLeads("zbc", "100000/60") },
+      env: { ZBEST_GATE_NONCE: GATE_NONCE, ...NO_LEAD_TRANSPORT, ...fakeLeads("zbc", "100000/60"), LEAD_RATE_LIMIT_FLOOD: "100000/60" },
       reuseExistingServer: false,
       timeout: 180_000,
     },
@@ -144,6 +157,8 @@ export default defineConfig({
         ZBEST_GATE_NONCE: GATE_NONCE,
         ...NO_LEAD_TRANSPORT,
         ...fakeLeads("zbm-limited", `${LIMITED_RATE.limit}/${LIMITED_RATE.windowSec}`),
+        // The tests set x-real-ip per viewport; trusting it stands in for Vercel's edge.
+        LEAD_TRUSTED_PROXY: "1",
       },
       reuseExistingServer: false,
       timeout: 60_000,

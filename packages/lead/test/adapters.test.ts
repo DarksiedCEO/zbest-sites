@@ -10,6 +10,7 @@ const record = (over: Partial<LeadRecord> = {}): LeadRecord => ({
   app: "zbm",
   form: "start",
   payload: { name: "Ada", reach: "ada@example.com", services: ["out-of-home"], details: "line1\nline2" },
+  payload_hash: "h",
   services: ["out-of-home"],
   source: "bb-i405",
   ip_hash: null,
