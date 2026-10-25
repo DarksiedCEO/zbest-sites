@@ -17,9 +17,10 @@ import { ZBM_BASE_URL } from "../playwright.config";
  *     for character, for all eight categories
  *   - the §11.4 rule: all-zero is insufficient_signal; highest score wins; the
  *     approved priority order breaks every tie
- *   - one schema, both sides: the form sends nothing the stub would reject
+ *   - one schema, both sides: the form sends nothing the route would reject
  *   - no dollar figure, currency or estimate anywhere in a free result
- *   - still the no-delivery stub: nothing stored or sent, and it says so
+ *   - the result is shown only once the lead route stored the lead (amended
+ *     Oct 25, 2026 when the route was wired; see phase-7-lead-route.spec.ts)
  *
  * Expected copy and order are transcribed from Backend Spec v0.3 §11.3–§11.4,
  * not imported from the app. The Leak Library is read from its source file,
@@ -229,7 +230,7 @@ test.describe("Free assessment — the rule (§11.4) and its copy (C2)", () => {
 });
 
 test.describe("Free assessment — one schema, both sides (§11.3)", () => {
-  test("the stub rejects every malformed answer set, field by field, and stays a stub", async ({ page }) => {
+  test("the route rejects every malformed answer set, field by field, and stores nothing", async ({ page }) => {
     const cases: [string, Record<string, unknown>, string, string][] = [
       ["a missing answer", request(without("follow_up", 1)), "answers.follow_up", "Choose an answer."],
       ["an unknown question", request(all(1), { answers: [...request(all(1)).answers, { question_id: "bogus", value: 1 }] }), "answers.bogus", "Unknown question."],
@@ -239,7 +240,7 @@ test.describe("Free assessment — one schema, both sides (§11.3)", () => {
     for (const [label, data, field, message] of cases) {
       const res = await post(page, data);
       expect(res.status(), label).toBe(422);
-      expect(res.headers()["x-zbest-lead-stub"], label).toBe("no-delivery");
+      expect(res.headers()["x-zbest-lead-stub"], label).toBeUndefined();
       const body = await res.json();
       expect(body.error.code, label).toBe("validation");
       expect(body.error.fields[field], label).toBe(message);
@@ -284,7 +285,7 @@ test.describe("Free assessment — the form and its result (§11.3, §11.5)", ()
     await capture(section, "form", testInfo.project.name);
   });
 
-  test("validates with the shared schema before sending — nothing reaches the stub", async ({ page }) => {
+  test("validates with the shared schema before sending — nothing reaches the route", async ({ page }) => {
     const section = await openAssessment(page);
     let sent = 0;
     page.on("request", (r) => {
@@ -307,12 +308,12 @@ test.describe("Free assessment — the form and its result (§11.3, §11.5)", ()
       page.waitForResponse((r) => r.url().endsWith("/api/lead")),
       section.getByRole("button", { name: "Get an Assessment" }).click(),
     ]);
-    expect(response.headers()["x-zbest-lead-stub"]).toBe("no-delivery");
+    expect(response.headers()["x-zbest-lead-transport"]).toBe("fake");
 
     const result = section.locator('[data-assessment-result="leak_identified"]');
     await expect(result).toBeVisible();
-    await expect(result).toContainText("Stub — not delivered");
-    await expect(result).toContainText("nothing was stored or sent");
+    await expect(result).toContainText("Received");
+    await expect(result).toContainText("Scored on fixture rules");
     await expect(result.getByRole("heading", { level: 3 })).toHaveText(library.conversion!.name);
     await expect(result.locator("[data-assessment-rationale]")).toHaveText(library.conversion!.body);
     await expect(result.locator("[data-assessment-because]")).toHaveText("Because you said this is very true for you:");

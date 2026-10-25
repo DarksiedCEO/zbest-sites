@@ -308,7 +308,7 @@ test.describe("Readiness check — the rule (§12.6)", () => {
 });
 
 test.describe("Readiness check — one schema, both sides (§12.2, §12.7)", () => {
-  test("the stub rejects every malformed answer set, field by field, and stays a stub", async ({ page }) => {
+  test("the route rejects every malformed answer set, field by field, and stores nothing", async ({ page }) => {
     const cases: [string, unknown, number][] = [
       ["a missing answer", readinessRequest(Object.fromEntries(READINESS_PRIORITY.slice(1).map((id) => [id, 0]))), 422],
       ["an unknown question", readinessRequest({ ...allGaps(0), not_a_gap: 2 } as ReadinessAnswers), 422],
@@ -320,7 +320,7 @@ test.describe("Readiness check — one schema, both sides (§12.2, §12.7)", () 
     for (const [label, data, status] of cases) {
       const response = await postReadiness(page, data);
       expect(response.status(), label).toBe(status);
-      expect(response.headers()["x-zbest-lead-stub"], `${label} is still the stub`).toBe("no-delivery");
+      expect(response.headers()["x-zbest-lead-stub"], `${label}: no stub marker`).toBeUndefined();
       const body = await response.json();
       expect(body.ok, label).toBe(false);
     }
@@ -373,7 +373,7 @@ test.describe("Readiness check — the form, the result and §12.7 routing", () 
     return section;
   }
 
-  test("validates with the shared schema before sending — nothing reaches the stub", async ({ page }) => {
+  test("validates with the shared schema before sending — nothing reaches the route", async ({ page }) => {
     const sent: string[] = [];
     await page.route("**/api/lead", (route) => {
       sent.push(route.request().url());

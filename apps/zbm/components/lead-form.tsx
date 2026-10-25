@@ -59,7 +59,7 @@ const FIELDS: Record<LeadFormName, LeadField[]> = {
 };
 
 /**
- * Z Best Media's forms on the shared stub-marked form. `defaults` pre-fills
+ * Z Best Media's forms on the shared lead form. `defaults` pre-fills
  * by field name — the intake uses it to pre-tick the service a campaign link
  * or service page sent the visitor for.
  */

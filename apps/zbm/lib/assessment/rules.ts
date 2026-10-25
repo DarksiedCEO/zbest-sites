@@ -90,7 +90,7 @@ export const PRIORITY_ORDER = [
   "traffic",
 ] as const satisfies readonly LeakCategory[];
 
-/** §11.2 `AssessmentRuleSet`, as the fixture the stub scores against. */
+/** §11.2 `AssessmentRuleSet`, as the fixture the lead route scores against. */
 export const ACTIVE_RULE_SET = {
   // .2: the six questions with apostrophes changed to curly (founder ruling,
   // 2026-09-18). A question changed, so per §11.2 this is a new version with a

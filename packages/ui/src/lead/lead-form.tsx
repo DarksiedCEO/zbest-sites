@@ -2,7 +2,7 @@
 
 import { useId, useRef, useState, type FormEvent } from "react";
 import { LedgerRule } from "../components/ledger-rule";
-import { submitLead } from "./contract";
+import { FAILURE_COPY, submitLead, type LeadFailure } from "./contract";
 
 export type { LeadResponse } from "./contract";
 
@@ -36,7 +36,7 @@ type State =
   | { kind: "idle" }
   | { kind: "submitting" }
   | { kind: "invalid"; fields: Record<string, string> }
-  | { kind: "failed" }
+  | { kind: "failed"; reason: LeadFailure }
   | { kind: "accepted" };
 
 const CONTROL =
@@ -45,12 +45,12 @@ const CONTROL =
 /**
  * Lead form (Brief §6.1) posting through the typed adapter to /api/lead.
  *
- * THE ROUTE IS A STUB this phase: it validates and acknowledges, and nothing is
- * stored or sent. The form says that to the visitor both before and after
- * submitting, so no one believes a message reached a person.
+ * The route stores the lead and notifies the founder (docs/LEAD-ROUTE-DESIGN.md).
+ * "Received" is shown only when the route says the lead was stored; every
+ * failure says nothing was saved and why (FAILURE_COPY).
  *
- * One submission_id per form instance, reused on retry, so the real handler's
- * upsert (§6.2) will treat a double-click or a retry as one lead. The button is
+ * One submission_id per form instance, reused on retry, so the handler's
+ * upsert (§6.2) treats a double-click or a retry as one lead. The button is
  * disabled while a request is in flight.
  */
 export function LeadForm({
@@ -81,17 +81,16 @@ export function LeadForm({
     });
     if (result.status === "accepted") setState({ kind: "accepted" });
     else if (result.status === "invalid") setState({ kind: "invalid", fields: result.fields });
-    else setState({ kind: "failed" });
+    else setState({ kind: "failed", reason: result.status });
   };
 
   if (state.kind === "accepted") {
     return (
       <div role="status" data-lead-result="accepted" className="border border-accent bg-panel p-6">
-        <p className="type-label text-accent">Stub — not delivered</p>
-        <p className="type-title mt-3">Your details passed validation.</p>
+        <p className="type-label text-accent">Received</p>
+        <p className="type-title mt-3">Thanks — we have your details.</p>
         <p className="type-body mt-2 text-text-secondary">
-          This form is not connected yet, so nothing was stored or sent and no one
-          will contact you from it.
+          A person reads every submission and will reply using the contact you gave us.
         </p>
       </div>
     );
@@ -100,14 +99,7 @@ export function LeadForm({
   const errors = state.kind === "invalid" ? state.fields : {};
 
   return (
-    <form noValidate onSubmit={onSubmit} data-lead-form={form} aria-describedby={`${baseId}-stub`}>
-      <p id={`${baseId}-stub`} className="type-small mb-5 flex items-start gap-2 text-text-secondary">
-        <span aria-hidden="true" className="mt-[0.45em] inline-block size-1.5 shrink-0 bg-accent" />
-        <span>
-          Stub — this form validates what you enter but is not connected yet.
-          Nothing is stored or sent.
-        </span>
-      </p>
+    <form noValidate onSubmit={onSubmit} data-lead-form={form}>
       <LedgerRule />
       {fields.map((field) => {
         const id = `${baseId}-${field.name}`;
@@ -222,8 +214,8 @@ export function LeadForm({
 
       <LedgerRule emphasis />
       {state.kind === "failed" ? (
-        <p role="alert" className="type-small mt-4 text-accent">
-          That did not go through. Nothing was saved — please try again.
+        <p role="alert" data-lead-failure={state.reason} className="type-small mt-4 text-accent">
+          {FAILURE_COPY[state.reason]}
         </p>
       ) : null}
       {state.kind === "invalid" ? (

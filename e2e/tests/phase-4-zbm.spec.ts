@@ -12,7 +12,7 @@ import { ZBM_BASE_URL } from "../playwright.config";
  *   - both "60-second" assessment lines were HELD in Phase 4; founder decision 10
  *     (Phase 5) resolved the hold: that wording is retired permanently and the
  *     assessment promises "one prioritized leak" instead
- *   - forms post to a marked stub with no delivery
+ *   - forms post to the §6.2 lead route (fake transport in the gate; see phase-7-lead-route)
  *   - assessment CTAs are labeled fixtures
  *   - Revenue Recovery: filtered carry-over of the live page, NO dollar pricing
  *   - the Get an Assessment form lives at /revenue-recovery#assessment
@@ -408,12 +408,13 @@ test.describe("Revenue Recovery (§A4, filtered live carry-over)", () => {
     await expect(panel).not.toContainText(/60[- ]?sec|quantified/i);
   });
 
-  test("assessment form: fixture-labeled, stub-marked, validates, and never claims delivery", async ({ page }) => {
+  test("assessment form: fixture-labeled, validates, and confirms receipt only once stored", async ({ page }) => {
     await visit(page, byPath("/revenue-recovery"));
     const section = page.locator("#assessment");
     await expect(section.locator("[data-fixture-note]")).toContainText("Fixture");
     const form = section.locator('form[data-lead-form="assessment"]');
-    await expect(form).toContainText("Stub");
+    await expect(form).toContainText("fixture rules");
+    await expect(form).not.toContainText("Stub");
     for (const label of ["Name", "Business", "Website", "Best way to reach you"]) {
       await expect(form.getByLabel(label, { exact: true })).toBeVisible();
     }
@@ -432,7 +433,7 @@ test.describe("Revenue Recovery (§A4, filtered live carry-over)", () => {
     await expect(form.getByText("Enter a website address, like example.com.")).toBeVisible();
 
     await form.getByLabel("Website", { exact: true }).fill("example.com");
-    // Phase 5: the eight questions must be answered before the stub is reached.
+    // Phase 5: the eight questions must be answered before the route is reached.
     for (const question of await form.locator("[data-assessment-question]").all()) {
       await question.getByRole("radio", { name: "Somewhat true", exact: true }).check();
     }
@@ -440,27 +441,28 @@ test.describe("Revenue Recovery (§A4, filtered live carry-over)", () => {
       page.waitForResponse((r) => r.url().endsWith("/api/lead")),
       form.getByRole("button", { name: "Get an Assessment" }).click(),
     ]);
-    expect(response.headers()["x-zbest-lead-stub"]).toBe("no-delivery");
+    expect(response.status()).toBe(200);
+    expect(response.headers()["x-zbest-lead-transport"]).toBe("fake");
     const result = section.locator('[data-lead-result="accepted"]');
-    await expect(result).toContainText("Stub — not delivered");
-    await expect(result).toContainText("nothing was stored or sent");
+    await expect(result).toContainText("Received");
+    await expect(result).toContainText("Scored on fixture rules");
   });
 });
 
-test.describe("Lead route stub (§6.2)", () => {
+test.describe("Lead route (§6.2)", () => {
   const post = (page: Page, data: unknown) =>
     page.request.post(`${ZBM_BASE_URL}/api/lead`, { data, failOnStatusCode: false });
   const id = "5f0c2b8e-4f7a-4c1e-9d7b-0f5d3a2b1c9e";
 
-  test("valid contact submission is acknowledged as a stub", async ({ page }) => {
+  test("valid contact submission is acknowledged", async ({ page }) => {
     const res = await post(page, {
       form: "contact",
       submission_id: id,
       fields: { name: "A", business: "B", problem: "C", reach: "D" },
     });
     expect(res.status()).toBe(200);
-    expect(res.headers()["x-zbest-lead-stub"]).toBe("no-delivery");
-    expect(await res.json()).toEqual({ ok: true, stub: true, submission_id: id });
+    expect(res.headers()["x-zbest-lead-stub"]).toBeUndefined();
+    expect(await res.json()).toEqual({ ok: true, submission_id: id });
   });
 
   test("invalid fields return the field-level error envelope", async ({ page }) => {
@@ -528,7 +530,7 @@ test.describe("About and Contact (§A4)", () => {
     );
   });
 
-  test("Contact form has the §6.1 fields and posts to the stub", async ({ page }) => {
+  test("Contact form has the §6.1 fields and posts to the lead route", async ({ page }) => {
     await visit(page, byPath("/contact"));
     const form = page.locator('form[data-lead-form="contact"]');
     for (const label of ["Name", "Business", "What are you looking to solve?", "Best way to reach you"]) {
@@ -547,7 +549,7 @@ test.describe("About and Contact (§A4)", () => {
     expect(sent.form).toBe("contact");
     expect(sent.submission_id).toMatch(/^[0-9a-f-]{36}$/);
     expect(sent).not.toHaveProperty("company_url");
-    await expect(page.locator('[data-lead-result="accepted"]')).toContainText("Stub — not delivered");
+    await expect(page.locator('[data-lead-result="accepted"]')).toContainText("Received");
   });
 });
 

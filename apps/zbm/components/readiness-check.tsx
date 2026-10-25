@@ -2,6 +2,7 @@
 
 import { useId, useRef, useState, type FormEvent } from "react";
 import { ButtonLink, LedgerRule } from "@zbest/ui";
+import { FAILURE_COPY, type LeadFailure } from "@zbest/ui/lead/contract";
 import { submitReadiness } from "@/lib/visibility/contract";
 import { ACTIVE_RULE_SET, QUESTIONS, SCALE, type AnswerValue } from "@/lib/visibility/rules";
 import type { VisibilityReadinessResult } from "@/lib/visibility/score";
@@ -19,9 +20,10 @@ import type { VisibilityReadinessResult } from "@/lib/visibility/score";
  * AI engine says, shows, cites or ranks for the business. No dollar figure.
  * Vocabulary is "gap", never "leak", and nothing here reads §11's rule set.
  *
- * THE ROUTE IS STILL THE NO-DELIVERY STUB. The result is computed for real on
- * the fixture rule set, but nothing is stored or sent, and the form says so
- * before and after submitting.
+ * The lead route stores the lead and notifies the founder before it returns
+ * the result (Spec §11.3/§12.7: submitting records the lead exactly as the
+ * lead route does). The result is scored on the FIXTURE rule set and says so
+ * (§9); it is shown only after the lead was stored.
  */
 
 type State =
@@ -29,7 +31,7 @@ type State =
   | { kind: "submitting" }
   | { kind: "invalid"; fields: Record<string, string> }
   | { kind: "superseded" }
-  | { kind: "failed" }
+  | { kind: "failed"; reason: LeadFailure }
   | { kind: "checked"; result: VisibilityReadinessResult };
 
 // Matches the assessment form's control styling: .type-body caps at 68ch, and
@@ -54,10 +56,10 @@ function Result({ result }: { result: VisibilityReadinessResult }) {
       data-readiness-result={result.status}
       className="border border-accent bg-panel p-6"
     >
-      <p className="type-label text-accent">Stub — not delivered</p>
+      <p className="type-label text-accent">Received</p>
       <p className="type-small mt-2 text-text-secondary">
-        Scored on fixture rules. This check is not connected yet, so nothing was stored or sent and
-        no one will contact you from it.
+        Scored on fixture rules. We have your details, and a person will follow up using the
+        contact you gave us.
       </p>
       <LedgerRule />
 
@@ -155,7 +157,7 @@ export function ReadinessCheck() {
     if (outcome.status === "checked") setState({ kind: "checked", result: outcome.result });
     else if (outcome.status === "invalid") setState({ kind: "invalid", fields: outcome.fields });
     else if (outcome.status === "superseded") setState({ kind: "superseded" });
-    else setState({ kind: "failed" });
+    else setState({ kind: "failed", reason: outcome.reason });
   };
 
   if (state.kind === "checked") return <Result result={state.result} />;
@@ -163,13 +165,10 @@ export function ReadinessCheck() {
   const errors = state.kind === "invalid" ? state.fields : {};
 
   return (
-    <form noValidate onSubmit={onSubmit} data-lead-form="readiness" aria-describedby={`${baseId}-stub`}>
-      <p id={`${baseId}-stub`} className="type-small mb-5 flex items-start gap-2 text-text-secondary">
+    <form noValidate onSubmit={onSubmit} data-lead-form="readiness" aria-describedby={`${baseId}-note`}>
+      <p id={`${baseId}-note`} className="type-small mb-5 flex items-start gap-2 text-text-secondary">
         <span aria-hidden="true" className="mt-[0.45em] inline-block size-1.5 shrink-0 bg-accent" />
-        <span>
-          Stub — this check scores your answers on fixture rules but is not connected yet. Nothing
-          is stored or sent.
-        </span>
+        <span>This check scores your answers on fixture rules.</span>
       </p>
       <LedgerRule />
 
@@ -250,8 +249,8 @@ export function ReadinessCheck() {
       </div>
 
       {state.kind === "failed" ? (
-        <p role="alert" className="type-small mt-4 text-accent">
-          That did not go through. Nothing was saved — please try again.
+        <p role="alert" data-lead-failure={state.reason} className="type-small mt-4 text-accent">
+          {FAILURE_COPY[state.reason]}
         </p>
       ) : null}
       {state.kind === "superseded" ? (

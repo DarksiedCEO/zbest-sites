@@ -9,7 +9,8 @@ import { ZBM_BASE_URL } from "../playwright.config";
  *
  * Under test: the six new service pages, the /services hub, and the /start
  * universal intake — including campaign deep links (?service=, ?src=) and the
- * intake's server-side contract on the still-STUB lead route.
+ * intake's server-side contract on the lead route (wired Oct 25, 2026; delivery
+ * itself is asserted in phase-7-lead-route.spec.ts).
  *
  * Expected values are transcribed from the amendment here, not imported from
  * the app, so the gate cannot agree with a config that drifted.
@@ -195,8 +196,8 @@ test.describe("/start — universal intake", () => {
       .evaluateAll((els) => els.map((e) => (e as HTMLInputElement).value));
     expect(values).toEqual(INTAKE_VALUES);
     expect(await checked(page)).toEqual([]);
-    // The stub marker is shown before anyone submits.
-    await expect(form(page)).toContainText("Nothing is stored or sent.");
+    // Amended Oct 25, 2026: the route is wired, so the stub marker is gone.
+    await expect(form(page)).not.toContainText("Stub");
     for (const label of ["Name", "Business", "Best way to reach you"]) {
       await expect(form(page).getByLabel(label, { exact: true })).toBeVisible();
     }
@@ -246,7 +247,7 @@ test.describe("/start — universal intake", () => {
     await capture(page, "start-error", testInfo.project.name);
   });
 
-  test("a campaign visitor submits: services and tag reach the stub, which says it is a stub; captured", async ({
+  test("a campaign visitor submits: services and tag reach the lead route, which confirms receipt; captured", async ({
     page,
   }, testInfo) => {
     await presetConsent(page);
@@ -261,18 +262,18 @@ test.describe("/start — universal intake", () => {
       form(page).getByRole("button", { name: "Send" }).click(),
     ]);
     expect(response.status()).toBe(200);
-    expect(response.headers()["x-zbest-lead-stub"]).toBe("no-delivery");
+    expect(response.headers()["x-zbest-lead-transport"]).toBe("fake");
     const sent = response.request().postDataJSON();
     expect(sent.form).toBe("start");
     expect(sent.fields.services).toBe("tv-streaming,out-of-home");
     expect(sent.fields.source).toBe("bb-test");
     expect(sent.fields.budget).toBe("25k-100k");
-    await expect(page.locator('[data-lead-result="accepted"]')).toContainText("Stub — not delivered");
+    await expect(page.locator('[data-lead-result="accepted"]')).toContainText("Received");
     await capture(page, "start-accepted", testInfo.project.name);
   });
 });
 
-test.describe("/start — server contract on the stub route", () => {
+test.describe("/start — server contract on the lead route", () => {
   const post = (page: Page, fields: Record<string, string>) =>
     page.request.post(`${ZBM_BASE_URL}/api/lead`, {
       data: { form: "start", submission_id: ID, fields },
@@ -290,11 +291,11 @@ test.describe("/start — server contract on the stub route", () => {
     source: "",
   };
 
-  test("a minimal valid intake is acknowledged as a stub", async ({ page }) => {
+  test("a minimal valid intake is acknowledged", async ({ page }) => {
     const res = await post(page, base);
     expect(res.status()).toBe(200);
-    expect(res.headers()["x-zbest-lead-stub"]).toBe("no-delivery");
-    expect(await res.json()).toEqual({ ok: true, stub: true, submission_id: ID });
+    expect(res.headers()["x-zbest-lead-stub"]).toBeUndefined();
+    expect(await res.json()).toEqual({ ok: true, submission_id: ID });
   });
 
   test("blank-but-whitespace optional fields are treated as empty", async ({ page }) => {
@@ -325,8 +326,8 @@ test.describe("/start — server contract on the stub route", () => {
     expect(Object.keys(body.error.fields).sort()).toEqual(["business", "name", "reach", "services"]);
   });
 
-  // The stub echoes nothing, so this proves only that a bad tag is never a
-  // visitor-facing error; that the tag is cleaned is proven on the page above.
+  // The route echoes nothing, so this proves only that a bad tag is never a
+  // visitor-facing error; that the stored tag is cleaned is proven in phase-7.
   test("a tampered source tag is not surfaced as an error", async ({ page }) => {
     const res = await post(page, { ...base, source: "<script>alert(1)</script>" });
     expect(res.status()).toBe(200);

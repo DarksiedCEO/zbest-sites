@@ -1,112 +1,106 @@
-import { ASSESSMENT_REQUEST, fieldErrors, type AssessmentResponse } from "@/lib/assessment/contract";
+import { handleLead, type ParsedLead } from "@zbest/lead";
+import { ASSESSMENT_REQUEST, fieldErrors } from "@/lib/assessment/contract";
 import { RULE_SET_HASH } from "@/lib/assessment/hash";
 import { ACTIVE_RULE_SET } from "@/lib/assessment/rules";
 import { assess } from "@/lib/assessment/score";
-import { LEAD_ENVELOPE, LEAD_FIELDS, type LeadResponse } from "@/lib/lead";
-import {
-  READINESS_REQUEST,
-  readinessFieldErrors,
-  type ReadinessResponse,
-} from "@/lib/visibility/contract";
+import { LEAD_ENVELOPE, LEAD_FIELDS } from "@/lib/lead";
+import { READINESS_REQUEST, readinessFieldErrors } from "@/lib/visibility/contract";
 import { VISIBILITY_RULES_HASH } from "@/lib/visibility/hash";
 import { ACTIVE_RULE_SET as VISIBILITY_RULE_SET } from "@/lib/visibility/rules";
 import { checkReadiness } from "@/lib/visibility/score";
 
 /**
- * Lead route handler — STUB (Brief §6.2; founder direction for Phase 4:
- * "posts to a marked stub, no delivery").
+ * Lead route handler (Brief §6.2; docs/LEAD-ROUTE-DESIGN.md).
  *
- * What it does now: validates the envelope and the form's fields with zod,
- * returns the §6.2 field-level error envelope on failure, silently accepts a
- * filled honeypot, and acknowledges a valid submission.
+ * This file only VALIDATES: it turns a request body into a ParsedLead with
+ * this app's zod schemas. Where a lead goes — rate limit, store, founder
+ * email, idempotency, fail-closed config — is the shared @zbest/lead pipeline,
+ * the same one Z Best Clips uses.
  *
- * What it deliberately does NOT do yet — all Phase 5 (§3.5):
- *   - no Vercel Postgres row (the leads table, submission_id upsert)
- *   - no Resend email
- *   - no per-IP rate limit
- * Nothing is stored, sent or logged. Every response says so: `stub: true` in
- * the body and the X-Zbest-Lead-Stub header, and the form shows it to the
- * visitor. When the real handler lands, both markers are removed with it.
- *
- * PHASE 5 — the free assessment (Backend Spec v0.3 §11, founder decision 10).
- * form "assessment" now carries the §11.3 AssessmentRequest shape and is
- * scored here against the FIXTURE rule set, returning a §11.5
- * FreeAssessmentResult. Still a stub in every other respect: nothing is stored,
- * sent or logged, and the same markers apply. Scoring is deterministic and uses
- * no model, so running it in the stub fakes nothing about the result — only
- * delivery and persistence are missing. form "contact" is unchanged.
- *
- * PHASE 5, STEP 2 — the AI Visibility Readiness Check (Backend Spec v0.4 §12,
- * founder decision 11). form "readiness" carries the §12.7 ReadinessRequest
- * shape and is scored against the SEPARATE §12 fixture rule set, returning a
- * §12.7 VisibilityReadinessResult. It shares this route and its stub markers
- * with the other two forms and nothing else: a different rule set, a different
- * taxonomy, a different result type, and a `check` discriminator so a result is
- * never mistaken for §11's. Still no engine is queried and no model runs.
+ * Forms:
+ *   - contact / start: §6.1 fields on the §6.2 envelope.
+ *     /start carries services[] and the campaign `source` tag, which the
+ *     pipeline stores as their own columns.
+ *   - assessment: Spec §11.3 AssessmentRequest, scored on the FIXTURE rule set
+ *     (§11.5 FreeAssessmentResult). §11.3: submitting "records the lead exactly
+ *     as the current lead route does" — so the result is returned only once
+ *     the lead is stored.
+ *   - readiness: Spec §12.7 ReadinessRequest, the separate §12 fixture rule set
+ *     and a VisibilityReadinessResult with its `check` discriminator.
+ * Scoring is deterministic and uses no model. Nothing queries an AI engine.
  */
-const STUB_HEADERS = { "X-Zbest-Lead-Stub": "no-delivery" };
 
-const reply = (body: LeadResponse | AssessmentResponse | ReadinessResponse, status: number) =>
-  Response.json(body, { status, headers: STUB_HEADERS });
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+const badRequest: ParsedLead = { kind: "bad_request" };
+
+/** A request missing its envelope is malformed, not a form to correct. */
+const structural = (issues: readonly { path: readonly PropertyKey[] }[]) =>
+  issues.some((i) => i.path[0] === "form" || i.path[0] === "submission_id");
 
 /** §11.3 request -> §11.5 result, or the typed error that explains why not. */
-function handleAssessment(json: unknown) {
+function parseAssessment(json: unknown): ParsedLead {
   const request = ASSESSMENT_REQUEST.safeParse(json);
   if (!request.success) {
-    const issues = request.error.issues;
-    // A request missing its envelope is malformed, not a form to correct.
-    const structural = issues.some((i) => i.path[0] === "form" || i.path[0] === "submission_id");
-    if (structural) return reply({ ok: false, error: { code: "bad_request" } }, 400);
-    return reply({ ok: false, error: { code: "validation", fields: fieldErrors(issues) } }, 422);
+    if (structural(request.error.issues)) return badRequest;
+    return { kind: "reject", status: 422, body: { ok: false, error: { code: "validation", fields: fieldErrors(request.error.issues) } } };
   }
-  const { submission_id, rule_set_version, answers, company_url } = request.data;
+  const { submission_id, rule_set_version, answers, contact, company_url } = request.data;
 
   // §11.3: never score against rules the respondent was not shown.
   if (rule_set_version !== ACTIVE_RULE_SET.version) {
-    return reply(
-      { ok: false, error: { code: "rule_set_superseded", active_version: ACTIVE_RULE_SET.version } },
-      409,
-    );
+    return {
+      kind: "reject",
+      status: 409,
+      body: { ok: false, error: { code: "rule_set_superseded", active_version: ACTIVE_RULE_SET.version } },
+    };
   }
 
-  const outcome = assess(answers, ACTIVE_RULE_SET);
   const result = {
-    ...outcome,
+    ...assess(answers, ACTIVE_RULE_SET),
     tier: "free" as const,
     submission_id,
     rule_set_version: ACTIVE_RULE_SET.version,
     rule_set_hash: RULE_SET_HASH,
     produced_at: new Date().toISOString(),
   };
-  // Honeypot: indistinguishable from a real success, and nothing happens either way.
-  void company_url;
-  return reply({ ok: true, stub: true, submission_id, result }, 200);
+  const body = { ok: true, submission_id, result };
+  // Honeypot: indistinguishable from a real success; nothing is stored or sent.
+  if (company_url) return { kind: "honeypot", form: "assessment", body };
+  return {
+    kind: "lead",
+    form: "assessment",
+    submission_id,
+    payload: {
+      contact,
+      answers,
+      result: { status: result.status, category: result.category, rule_set_version: result.rule_set_version, rule_set_hash: result.rule_set_hash },
+    },
+    body,
+  };
 }
 
 /** §12.7 request -> §12.7 result, or the typed error that explains why not. */
-function handleReadiness(json: unknown) {
+function parseReadiness(json: unknown): ParsedLead {
   const request = READINESS_REQUEST.safeParse(json);
   if (!request.success) {
-    const issues = request.error.issues;
-    // A request missing its envelope is malformed, not a form to correct.
-    const structural = issues.some((i) => i.path[0] === "form" || i.path[0] === "submission_id");
-    if (structural) return reply({ ok: false, error: { code: "bad_request" } }, 400);
-    return reply({ ok: false, error: { code: "validation", fields: readinessFieldErrors(issues) } }, 422);
+    if (structural(request.error.issues)) return badRequest;
+    return { kind: "reject", status: 422, body: { ok: false, error: { code: "validation", fields: readinessFieldErrors(request.error.issues) } } };
   }
-  const { submission_id, rule_set_version, answers, company_url } = request.data;
+  const { submission_id, rule_set_version, answers, contact, company_url } = request.data;
 
-  // §12.2, inherited from §11.3: never score against rules the respondent was
-  // not shown.
+  // §12.2, inherited from §11.3: never score against rules the respondent was not shown.
   if (rule_set_version !== VISIBILITY_RULE_SET.version) {
-    return reply(
-      { ok: false, error: { code: "rule_set_superseded", active_version: VISIBILITY_RULE_SET.version } },
-      409,
-    );
+    return {
+      kind: "reject",
+      status: 409,
+      body: { ok: false, error: { code: "rule_set_superseded", active_version: VISIBILITY_RULE_SET.version } },
+    };
   }
 
-  const outcome = checkReadiness(answers, VISIBILITY_RULE_SET);
   const result = {
-    ...outcome,
+    ...checkReadiness(answers, VISIBILITY_RULE_SET),
     tier: "free" as const,
     check: "ai_visibility_readiness" as const,
     submission_id,
@@ -114,37 +108,36 @@ function handleReadiness(json: unknown) {
     rule_set_hash: VISIBILITY_RULES_HASH,
     produced_at: new Date().toISOString(),
   };
-  // Honeypot: indistinguishable from a real success, and nothing happens either way.
-  void company_url;
-  return reply({ ok: true, stub: true, submission_id, result }, 200);
+  const body = { ok: true, submission_id, result };
+  if (company_url) return { kind: "honeypot", form: "readiness", body };
+  return {
+    kind: "lead",
+    form: "readiness",
+    submission_id,
+    payload: {
+      contact,
+      answers,
+      result: {
+        check: result.check,
+        status: result.status,
+        category: result.category,
+        rule_set_version: result.rule_set_version,
+        rule_set_hash: result.rule_set_hash,
+      },
+    },
+    body,
+  };
 }
 
-export async function POST(request: Request) {
-  let json: unknown;
-  try {
-    json = await request.json();
-  } catch {
-    return reply({ ok: false, error: { code: "bad_request" } }, 400);
-  }
-
-  if (json && typeof json === "object" && (json as { form?: unknown }).form === "assessment") {
-    return handleAssessment(json);
-  }
-
-  if (json && typeof json === "object" && (json as { form?: unknown }).form === "readiness") {
-    return handleReadiness(json);
-  }
-
+/** §6.1 forms on the §6.2 envelope. */
+function parseEnvelope(json: unknown): ParsedLead {
   const envelope = LEAD_ENVELOPE.safeParse(json);
-  if (!envelope.success) {
-    return reply({ ok: false, error: { code: "bad_request" } }, 400);
-  }
+  if (!envelope.success) return badRequest;
   const { form, submission_id, fields, company_url } = envelope.data;
+  const body = { ok: true, submission_id };
 
   // Honeypot: answer exactly like a success so a bot learns nothing.
-  if (company_url) {
-    return reply({ ok: true, stub: true, submission_id }, 200);
-  }
+  if (company_url) return { kind: "honeypot", form, body };
 
   const parsed = LEAD_FIELDS[form].safeParse(fields);
   if (!parsed.success) {
@@ -153,8 +146,28 @@ export async function POST(request: Request) {
       const key = String(issue.path[0] ?? "form");
       errors[key] ??= issue.message;
     }
-    return reply({ ok: false, error: { code: "validation", fields: errors } }, 422);
+    return { kind: "reject", status: 422, body: { ok: false, error: { code: "validation", fields: errors } } };
   }
 
-  return reply({ ok: true, stub: true, submission_id }, 200);
+  const data = parsed.data as Record<string, unknown>;
+  return {
+    kind: "lead",
+    form,
+    submission_id,
+    payload: data,
+    services: Array.isArray(data.services) ? (data.services as string[]) : [],
+    source: typeof data.source === "string" && data.source ? data.source : null,
+    body,
+  };
+}
+
+function parse(json: unknown): ParsedLead {
+  const form = json && typeof json === "object" ? (json as { form?: unknown }).form : undefined;
+  if (form === "assessment") return parseAssessment(json);
+  if (form === "readiness") return parseReadiness(json);
+  return parseEnvelope(json);
+}
+
+export function POST(request: Request) {
+  return handleLead(request, { app: "zbm", parse });
 }

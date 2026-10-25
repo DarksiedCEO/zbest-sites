@@ -43,8 +43,8 @@ function sourceTag(params: Record<string, string | string[] | undefined>): strin
  * Every campaign, service page and nav CTA lands here. One form, every
  * service: the visitor ticks what they need, and the submission carries the
  * service list plus the campaign tag so it can be routed to the team that runs
- * it. Posts to the same §6.2 route as the other forms — still the marked STUB,
- * so nothing is stored or sent, and the form says so.
+ * it. Posts to the same §6.2 route as the other forms, which stores the lead
+ * (services[] and source as columns) and notifies the founder.
  */
 export default async function StartPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;

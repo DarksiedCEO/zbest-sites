@@ -13,7 +13,8 @@
     "./dev/system-gallery": "./src/dev/system-gallery.tsx",
     "./og": "./src/og.tsx",
     "./page": "./src/page/furniture.tsx",
-    "./lead": "./src/lead/lead-form.tsx"
+    "./lead": "./src/lead/lead-form.tsx",
+    "./lead/contract": "./src/lead/contract.ts"
   },
   "scripts": {
     "lint": "eslint .",

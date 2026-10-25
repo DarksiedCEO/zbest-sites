@@ -12,7 +12,7 @@ export const metadata = pageMetadata(SITE, {
   ogImage: "/contact/opengraph-image",
 });
 
-/** Contact (Brief §A4), form per §6.1 posting to the §6.2 stub. */
+/** Contact (Brief §A4), form per §6.1 posting to the §6.2 lead route. */
 export default function ContactPage() {
   return (
     <main>

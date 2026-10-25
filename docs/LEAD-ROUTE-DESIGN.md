@@ -50,7 +50,7 @@ The live site's older backend is the `zbm-server` service in the Railway project
 ## 3. Options
 
 ### A. Route handler on Vercel → Postgres + Resend (the Brief's design) — **recommended**
-- **Flow:** validate → rate-limit → honeypot → `INSERT … ON CONFLICT (submission_id) DO NOTHING` → email the founder through Resend → update `notify_status` on the row.
+- **Flow:** validate → rate-limit → honeypot → `INSERT … ON CONFLICT (app, submission_id) DO NOTHING` → email the founder through Resend → update `notify_status` on the row.
 - **Pros:**
   - It is exactly Brief §6.2, so it needs no brief amendment.
   - The lead lands in our own database, where the founder owns it.
@@ -125,7 +125,7 @@ The live site's older backend is the `zbm-server` service in the Railway project
   6. store (on failure, `503 unavailable`, and the form says nothing was saved);
   7. notify (a failure is logged and recorded on the row; the visitor still sees success, per §6.2).
 - **Idempotency:**
-  - `submission_id` is the unique key. A repeat insert is a no-op that still returns success and **does not send a second email**.
+  - `(app, submission_id)` is the unique key, so a ZBM and a ZBC lead can never collide in a shared database. A repeat insert is a no-op that still returns success and **does not send a second email**.
   - Resend also gets `Idempotency-Key: lead-<submission_id>`.
 - **Source tag:**
   - `source` is validated by the `/start` schema (`SOURCE_TAG`) and stored lowercase in its own column.
@@ -163,7 +163,14 @@ The live site's older backend is the `zbm-server` service in the Railway project
 **Smaller items:**
 - Whether the live `zbm-server` currently delivers leads anywhere he reads. This matters for the canary, so leads don't split across two systems.
 - Whether to buy a shared rate-limit store (Upstash) now, or accept a per-instance limit at launch.
-- Confirm the new form copy (listed in the branch's commit message), because these are commitments.
+- Confirm the new form copy, because these are commitments:
+  - Success (every §6.1 form and `/start`): "Received" / "Thanks — we have your details." / "A person reads every submission and will reply using the contact you gave us."
+  - Assessment and readiness results: "Received" / "Scored on fixture rules. We have your details, and a person will follow up using the contact you gave us." Before submitting: "This form [check] scores your answers on fixture rules."
+  - Failures (`packages/ui/src/lead/contract.ts`, `FAILURE_COPY`):
+    - not configured: "This form isn't accepting submissions yet, so nothing was saved or sent."
+    - unavailable: "We couldn't save that just now, so nothing was sent. Please try again in a few minutes."
+    - too many attempts: "Too many attempts from your connection. Nothing was saved — please wait a few minutes and try again."
+    - network/other: unchanged ("That did not go through. Nothing was saved — please try again.")
 
 ## 6. Not done here
 - No CRM and no backend forwarder (Option B later, behind a spec revision).
