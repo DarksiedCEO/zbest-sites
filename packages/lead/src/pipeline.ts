@@ -11,9 +11,9 @@ import { DeliveryError, type LeadApp, type LeadRecord } from "./types";
  * where a lead goes lives here.
  *
  * Order (docs/LEAD-ROUTE-DESIGN.md §4):
- *   content type (415) → origin (403) → declared size (413) → rate limit (429)
- *   → config (503) → body, capped (413) → JSON (400) → the app's validation
- *   → honeypot → store (upsert on app + submission_id; 409 on a changed
+ *   content type (415) → origin (403) → declared size (413) → config (503)
+ *   → body, capped (413) → JSON → honeypot (not charged) → rate limit (429)
+ *   → the app's validation (400/422) → store (upsert on app + submission_id; 409 on a changed
  *   resubmission) → notify → respond
  *
  * Honesty rules:
@@ -77,7 +77,10 @@ function originAllowed(request: Request, policy: RequestPolicy): boolean {
     if (policy.allowedOrigins.has(origin)) return true;
     let originHost: string;
     try {
-      originHost = new URL(origin).host;
+      const u = new URL(origin);
+      // A real Origin is scheme://host[:port] only (AEGIS r2 N7).
+      if (u.username || u.password || (u.pathname !== "/" && u.pathname !== "") || u.search || u.hash) return false;
+      originHost = u.host;
     } catch {
       return false; // includes the opaque "null" origin
     }
@@ -88,7 +91,7 @@ function originAllowed(request: Request, policy: RequestPolicy): boolean {
   // No Origin: browsers send one on every cross-origin POST, so this is a
   // non-browser client (rate-limited like anyone) — unless fetch metadata
   // says otherwise.
-  return request.headers.get("sec-fetch-site") !== "cross-site";
+  return request.headers.get("sec-fetch-site")?.toLowerCase() !== "cross-site";
 }
 
 class TooLarge extends Error {}
@@ -163,29 +166,14 @@ async function handle(request: Request, opts: HandleLeadOptions, log: LeadLogger
     return fail({ ok: false, error: { code: "payload_too_large" } }, 413);
   }
 
-  // 4. Rate limit, per trusted client address per app. Without a trusted
-  //    address, a shared, much higher per-app ceiling applies (AEGIS M4).
+  // 4. Transport and policy. Missing config fails closed, naming settings
+  //    (never values). Off Vercel without LEAD_TRUSTED_PROXY is refused here
+  //    (AEGIS r2 N1), so no request ever reaches a shared bucket.
   const limiters: Pick<Limiters, "perIp" | "flood" | "problem"> = opts.limiters ?? resolveLimiter(env, log);
-  const limiterProblem = limiters.problem;
-  const ip = clientIp(request.headers, policy.trustProxy);
-  const decision = ip
-    ? await limiters.perIp.hit(`${app}:${plainIpKey(ip)}`)
-    : await limiters.flood.hit(`${app}:no-client-ip`);
-  if (!ip) log("info", "rate_limit_no_client_ip", { app });
-  if (!decision.allowed) {
-    log("warn", "rate_limited", { app, limiter: ip ? "ip" : "flood" });
-    return fail(
-      { ok: false, error: { code: "rate_limited", retry_after_s: decision.retryAfterSec } },
-      429,
-      { "Retry-After": String(decision.retryAfterSec) },
-    );
-  }
-
-  // 5. Transport. Missing config fails closed, naming settings (never values).
   const config = opts.transport ?? resolveTransport(env);
   const missing = [
     ...(config.ok ? [] : config.missing),
-    ...(limiterProblem ? [limiterProblem] : []),
+    ...(limiters.problem ? [limiters.problem] : []),
     ...policy.problems,
   ];
   if (!config.ok || missing.length) {
@@ -195,21 +183,56 @@ async function handle(request: Request, opts: HandleLeadOptions, log: LeadLogger
   const transport = config.transport;
   seen.mode = transport.mode;
 
-  // 6. Body (capped) and the app's own validation.
+  // 5. Rate limit — charged only for requests that reach validation, so a
+  //    honeypot hit or an oversized body never spends a real visitor's
+  //    tokens (AEGIS r2 N1). Keyed by the trusted client address; when the
+  //    trusted proxy sent none (a backstop on Vercel), by a fallback key that
+  //    is never one global bucket (see Limiters.flood).
+  const ip = clientIp(request.headers, policy.trustProxy);
+  const charge = async (): Promise<Response | null> => {
+    let decision;
+    let limiter: "ip" | "fingerprint" | "no-origin";
+    if (ip) {
+      limiter = "ip";
+      decision = await limiters.perIp.hit(`${app}:${plainIpKey(ip)}`);
+    } else {
+      const sameOriginBrowser = request.headers.get("origin") !== null; // already passed originAllowed
+      limiter = sameOriginBrowser ? "fingerprint" : "no-origin";
+      const fingerprint = ["user-agent", "accept-language", "sec-ch-ua-platform"]
+        .map((h) => request.headers.get(h) ?? "")
+        .join("|");
+      decision = await limiters.flood.hit(
+        sameOriginBrowser ? `${app}:fp:${plainIpKey(fingerprint)}` : `${app}:no-origin`,
+      );
+      log("warn", "rate_limit_no_client_ip", { app, limiter });
+    }
+    if (decision.allowed) return null;
+    log("warn", "rate_limited", { app, limiter });
+    return fail(
+      { ok: false, error: { code: "rate_limited", retry_after_s: decision.retryAfterSec } },
+      429,
+      { "Retry-After": String(decision.retryAfterSec) },
+    );
+  };
+
+  // 6. Body (capped; a 413 is not charged) and the app's own validation.
   let json: unknown;
   try {
     json = JSON.parse(await readCapped(request, policy.maxBodyBytes));
   } catch (error) {
     if (error instanceof TooLarge) return fail({ ok: false, error: { code: "payload_too_large" } }, 413);
-    return fail({ ok: false, error: { code: "bad_request" } }, 400);
+    return (await charge()) ?? fail({ ok: false, error: { code: "bad_request" } }, 400);
   }
   const parsed = opts.parse(json);
-  if (parsed.kind === "bad_request") return fail({ ok: false, error: { code: "bad_request" } }, 400);
-  if (parsed.kind === "reject") return reply(parsed.body, parsed.status);
   if (parsed.kind === "honeypot") {
+    // Not charged: a bot's hits must not consume the bucket real visitors share.
     log("info", "honeypot", { app, form: parsed.form });
     return reply(parsed.body, 200);
   }
+  const limited = await charge();
+  if (limited) return limited;
+  if (parsed.kind === "bad_request") return fail({ ok: false, error: { code: "bad_request" } }, 400);
+  if (parsed.kind === "reject") return reply(parsed.body, parsed.status);
 
   // 7. Store. The row is the lead; without it there is no success to claim.
   const record: LeadRecord = {

@@ -41,7 +41,10 @@ function client(options: PgOptions): postgres.Sql {
       // Never let the driver print notices (they can echo values).
       onnotice: () => {},
       // Discrete options only: nothing from the environment's PG* variables.
-      connection: { application_name: "zbest-lead" },
+      connection: {
+        application_name: "zbest-lead",
+        ...(options.startup_options ? { options: options.startup_options } : {}),
+      },
     });
     clients.set(key, sql);
   }

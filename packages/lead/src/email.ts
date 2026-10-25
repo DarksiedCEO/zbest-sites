@@ -14,8 +14,15 @@ const EMAIL = /^[^\s@<>,]+@[^\s@<>,]+\.[^\s@<>,]+$/;
 
 const oneLine = (s: string) => s.replace(/[\r\n]+/g, " ").trim();
 
-/** A visitor line can never start with the fence marker. */
-const unfence = (s: string) => s.replace(/^-{5}/gm, "- - -");
+/**
+ * A visitor line can never look like a fence: three or more dashes at the
+ * start of any line — after any run of horizontal whitespace, invisible or zero-width
+ * characters (AEGIS r2 N4) — are defused. `^` with the m flag also matches
+ * after \r, U+2028 and U+2029, which mail clients may render as line breaks.
+ */
+const LEADING_INVISIBLE = "[\\t\\v\\f \\u00A0\\u1680\\u2000-\\u200A\\u202F\\u205F\\u3000\\u00AD\\u180E\\u200B-\\u200F\\u202A-\\u202E\\u2060-\\u2064\\uFEFF]*";
+const FENCE_LIKE = new RegExp(`^${LEADING_INVISIBLE}[-\\u2010-\\u2015\\u2212\\uFE58\\uFE63\\uFF0D]{3,}`, "gm");
+export const unfence = (s: string) => s.replace(FENCE_LIKE, "- - -");
 
 function render(value: unknown): string {
   if (value === null || value === undefined || value === "") return "—";

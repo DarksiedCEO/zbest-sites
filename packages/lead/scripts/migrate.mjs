@@ -4,7 +4,10 @@
  * schema_migrations (AEGIS L5). Then it proves the result is usable before
  * launch (AEGIS H1):
  *   1. the leads table has exactly the columns and types the app writes;
- *   2. a round-trip insert + select inside a transaction that is rolled back.
+ *   2. it has the full UNIQUE (app, submission_id) the app's ON CONFLICT needs;
+ *   3. a round-trip insert (twice: the repeat must be a no-op) + select,
+ *      inside a transaction that is rolled back.
+ * A session advisory lock serialises concurrent runs.
  *
  * Run from a machine with the production env pulled, e.g.:
  *   vercel env pull .env.local && pnpm --filter @zbest/lead migrate
@@ -77,13 +80,35 @@ const fail = (what, error) => {
   process.exitCode = 1;
 };
 
+/** Session-level advisory lock: two concurrent runs serialise instead of racing (AEGIS r2 N9). */
+const LOCK_KEY = 815_204_771; // arbitrary, fixed: "zbest-lead migrate"
+
+class CheckFailed extends Error {}
+
+/** Columns and types: exactly what the app writes. Throws CheckFailed naming the mismatches. */
+async function checkColumns() {
+  const columns = await sql`
+    SELECT column_name, data_type FROM information_schema.columns
+    WHERE table_schema = current_schema() AND table_name = 'leads'`;
+  const actual = Object.fromEntries(columns.map((c) => [c.column_name, c.data_type]));
+  const wrong = Object.entries(EXPECTED).filter(([name, type]) => actual[name] !== type).map(([name]) => name);
+  if (wrong.length) throw new CheckFailed(`leads table does not match the app: ${wrong.join(", ")}. Fix the schema before launch.`);
+}
+
 try {
+  await sql`SELECT pg_advisory_lock(${LOCK_KEY})`;
   await sql`CREATE TABLE IF NOT EXISTS schema_migrations (
     version text PRIMARY KEY,
     applied_at timestamptz NOT NULL DEFAULT now()
   )`;
   const done = new Set((await sql`SELECT version FROM schema_migrations`).map((r) => r.version));
   const dir = path.join(here, "..", "sql");
+  // A leads table that predates our migrations would be kept by IF NOT
+  // EXISTS; check it BEFORE applying anything, so the report names the
+  // mismatch instead of a later DDL error masking it (AEGIS r2 N5).
+  const [existing] = await sql`SELECT to_regclass('leads') IS NOT NULL AS present`;
+  if (!done.has("001") && existing?.present) await checkColumns();
+  // The file-name regex is what makes the first three characters a version.
   for (const file of readdirSync(dir).filter((f) => /^\d{3}_.+\.sql$/.test(f)).sort()) {
     const version = file.slice(0, 3);
     if (done.has(version)) {
@@ -97,31 +122,59 @@ try {
     console.log(`applied ${file}`);
   }
 
-  const columns = await sql`
-    SELECT column_name, data_type FROM information_schema.columns
-    WHERE table_schema = current_schema() AND table_name = 'leads'`;
-  const actual = Object.fromEntries(columns.map((c) => [c.column_name, c.data_type]));
-  const wrong = Object.entries(EXPECTED).filter(([name, type]) => actual[name] !== type).map(([name]) => name);
-  if (wrong.length) {
-    console.error(`leads table does not match the app: ${wrong.join(", ")}. Fix the schema before launch.`);
+  // 1. Columns and types: exactly what the app writes.
+  await checkColumns();
+
+  // 2. The idempotency key the app's ON CONFLICT names (AEGIS r2 N9): a full
+  //    (non-partial) unique index on exactly (app, submission_id).
+  const [unique] = await sql`
+    SELECT 1 AS ok
+    FROM pg_index i
+    JOIN pg_class c ON c.oid = i.indrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE c.relname = 'leads' AND n.nspname = current_schema()
+      AND i.indisunique AND i.indpred IS NULL
+      AND (SELECT array_agg(a.attname::text ORDER BY a.attname)
+           FROM unnest(i.indkey) AS k(attnum)
+           JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum = k.attnum) = ARRAY['app', 'submission_id']`;
+  if (!unique) throw new CheckFailed("leads table lacks UNIQUE (app, submission_id). Fix the schema before launch.");
+
+  // 3. Round trip with the app's own statement shape, rolled back: the row
+  //    reads back as written, defaults apply, and a repeat is a no-op.
+  await sql
+    .begin(async (tx) => {
+      const id = crypto.randomUUID();
+      const insert = () => tx`
+        INSERT INTO leads (submission_id, app, form, payload, payload_hash)
+        VALUES (${id}::uuid, 'zbm', 'migrate-check', '{"k":"v"}'::jsonb, 'migrate-hash')
+        ON CONFLICT (app, submission_id) DO NOTHING
+        RETURNING id`;
+      if ((await insert()).length !== 1) throw new CheckFailed("round-trip check failed: first insert stored nothing");
+      if ((await insert()).length !== 0) throw new CheckFailed("round-trip check failed: a repeat insert stored a second row");
+      const [row] = await tx`
+        SELECT form, payload, payload_hash, services, notify_status
+        FROM leads WHERE app = 'zbm' AND submission_id = ${id}::uuid`;
+      const readsBack =
+        row?.form === "migrate-check" &&
+        row?.payload?.k === "v" &&
+        row?.payload_hash === "migrate-hash" &&
+        Array.isArray(row?.services) && row.services.length === 0 &&
+        row?.notify_status === "pending";
+      if (!readsBack) throw new CheckFailed("round-trip check failed: the row does not read back as written");
+      throw Object.assign(new Error("rollback"), { code: "ROLLBACK_OK" });
+    })
+    .catch((error) => {
+      if (error?.code !== "ROLLBACK_OK") throw error;
+    });
+  console.log("schema ok; unique key ok; round-trip insert ok (rolled back)");
+} catch (error) {
+  if (error instanceof CheckFailed) {
+    console.error(error.message);
     process.exitCode = 1;
   } else {
-    await sql
-      .begin(async (tx) => {
-        const id = crypto.randomUUID();
-        await tx`INSERT INTO leads (submission_id, app, form, payload, payload_hash)
-                 VALUES (${id}::uuid, 'zbm', 'migrate-check', '{}'::jsonb, 'x')`;
-        const [row] = await tx`SELECT form FROM leads WHERE app = 'zbm' AND submission_id = ${id}::uuid`;
-        if (row?.form !== "migrate-check") throw Object.assign(new Error("round trip"), { code: "ROUNDTRIP" });
-        throw Object.assign(new Error("rollback"), { code: "ROLLBACK_OK" });
-      })
-      .catch((error) => {
-        if (error?.code !== "ROLLBACK_OK") throw error;
-      });
-    console.log("schema ok; round-trip insert ok (rolled back)");
+    fail("migration failed", error);
   }
-} catch (error) {
-  fail("migration failed", error);
 } finally {
+  await sql`SELECT pg_advisory_unlock(${LOCK_KEY})`.catch(() => {});
   await sql.end();
 }

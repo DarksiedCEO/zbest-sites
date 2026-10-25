@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import postgres from "postgres";
@@ -24,11 +24,30 @@ const opts = (raw: string) => {
   return parsed.options;
 };
 
+/**
+ * Harness connections go through the same parser as the product (AEGIS r2
+ * N8), so LEAD_TEST_POSTGRES_URL may itself be vendor-shaped.
+ */
+const connect = (raw: string, extra: postgres.Options<Record<string, never>> = {}) => {
+  const o = opts(raw);
+  return postgres({
+    host: o.host,
+    port: o.port,
+    database: o.database,
+    username: o.username,
+    password: o.password,
+    ssl: o.ssl,
+    max: 1,
+    onnotice: () => {},
+    ...extra,
+  });
+};
+
 describe.skipIf(!url)("postgres store (integration)", () => {
   let sql: postgres.Sql;
 
   beforeAll(async () => {
-    sql = postgres(url!, { max: 1, onnotice: () => {} });
+    sql = connect(url!);
     await sql.unsafe(readFileSync(path.join(import.meta.dirname, "..", "sql", "001_leads.sql"), "utf8"));
     // The migration is idempotent: applying it twice is a no-op.
     await sql.unsafe(readFileSync(path.join(import.meta.dirname, "..", "sql", "001_leads.sql"), "utf8"));
@@ -148,7 +167,7 @@ describe.skipIf(!neonShaped)("postgres store with a Neon-shaped URL (TLS + SCRAM
       user_agent: null,
     });
     expect(result).toEqual({ inserted: true });
-    const sql = postgres(url!, { max: 1, onnotice: () => {} });
+    const sql = connect(url!);
     const [row] = await sql`SELECT form FROM leads WHERE app = 'zbc' AND submission_id = ${id}`;
     await sql.end();
     expect(row?.form).toBe("clipper");
@@ -168,7 +187,7 @@ describe.skipIf(!neonShaped)("postgres store with a Neon-shaped URL (TLS + SCRAM
  * process against a throwaway database created on the test server.
  */
 describe.skipIf(!url)("migrate script (integration)", () => {
-  const admin = () => postgres(url!, { max: 1, onnotice: () => {} });
+  const admin = () => connect(url!);
   const dbUrl = (name: string) => {
     const u = new URL(url!);
     u.pathname = `/${name}`;
@@ -190,13 +209,13 @@ describe.skipIf(!url)("migrate script (integration)", () => {
     const first = run(target);
     expect(first.status, first.stderr).toBe(0);
     expect(first.stdout).toContain("applied 001_leads.sql");
-    expect(first.stdout).toContain("schema ok; round-trip insert ok (rolled back)");
+    expect(first.stdout).toContain("schema ok; unique key ok; round-trip insert ok (rolled back)");
 
     const second = run(target);
     expect(second.status, second.stderr).toBe(0);
     expect(second.stdout).toContain("skip 001_leads.sql (already applied)");
 
-    const db = postgres(target, { max: 1, onnotice: () => {} });
+    const db = connect(target);
     expect(await db`SELECT version FROM schema_migrations`).toEqual([{ version: "001" }]);
     expect(await db`SELECT count(*)::int AS n FROM leads`).toEqual([{ n: 0 }]);
     await db.end();
@@ -208,19 +227,181 @@ describe.skipIf(!url)("migrate script (integration)", () => {
     await sql.unsafe("CREATE DATABASE leads_migrate_old");
     await sql.end();
     const target = dbUrl("leads_migrate_old");
-    const db = postgres(target, { max: 1, onnotice: () => {} });
+    const db = connect(target);
     // An older table that IF NOT EXISTS would silently keep: no payload_hash, text submission_id.
     await db.unsafe("CREATE TABLE leads (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), submission_id text, app text, form text, payload jsonb)");
     await db.end();
     const result = run(target);
     expect(result.status).not.toBe(0);
-    expect(result.stderr).toMatch(/leads table does not match the app: .*submission_id.*payload_hash|migration failed/);
+    // The column check itself must catch it — not a later failure masking it.
+    expect(result.stderr).toMatch(/leads table does not match the app: .*submission_id.*payload_hash/);
   });
 
+  /** A fresh database holding exactly the 001 schema, altered by `sqlText`, with 001 recorded as applied. */
+  const prepared = async (name: string, sqlText: string) => {
+    const sql = admin();
+    await sql.unsafe(`DROP DATABASE IF EXISTS ${name}`);
+    await sql.unsafe(`CREATE DATABASE ${name}`);
+    await sql.end();
+    const target = dbUrl(name);
+    const db = connect(target);
+    await db.unsafe(readFileSync(path.join(import.meta.dirname, "..", "sql", "001_leads.sql"), "utf8"));
+    await db.unsafe("CREATE TABLE schema_migrations (version text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())");
+    await db.unsafe("INSERT INTO schema_migrations (version) VALUES ('001')");
+    await db.unsafe(sqlText);
+    await db.end();
+    return target;
+  };
+
+  it("N5: a partially compatible table (one column missing) fails the column check by name", async () => {
+    const target = await prepared("leads_migrate_partial", "ALTER TABLE leads DROP COLUMN notify_status");
+    const result = run(target);
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain("leads table does not match the app: notify_status");
+  });
+
+  it("N9: a table without UNIQUE (app, submission_id) is caught before launch", async () => {
+    const target = await prepared("leads_migrate_nounique", "ALTER TABLE leads DROP CONSTRAINT leads_app_submission_id_key");
+    const result = run(target);
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain("leads table lacks UNIQUE (app, submission_id)");
+  });
+
+  it("N5: the round trip catches a table that does not store what the app writes", async () => {
+    // Columns and key are right, but a trigger rewrites rows: only a read-back can see it.
+    const target = await prepared(
+      "leads_migrate_trigger",
+      `CREATE FUNCTION mangle() RETURNS trigger AS $$ BEGIN NEW.form := 'mangled'; RETURN NEW; END $$ LANGUAGE plpgsql;
+       CREATE TRIGGER mangle BEFORE INSERT ON leads FOR EACH ROW EXECUTE FUNCTION mangle();`,
+    );
+    const result = run(target);
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain("round-trip check failed: the row does not read back as written");
+  });
+
+  it("N5: the round trip catches a repeat insert that is not a no-op", async () => {
+    // A trigger that re-keys every row defeats ON CONFLICT: only the repeat check sees it first.
+    const target = await prepared(
+      "leads_migrate_rekey",
+      `CREATE FUNCTION rekey() RETURNS trigger AS $$ BEGIN NEW.submission_id := gen_random_uuid(); RETURN NEW; END $$ LANGUAGE plpgsql;
+       CREATE TRIGGER rekey BEFORE INSERT ON leads FOR EACH ROW EXECUTE FUNCTION rekey();`,
+    );
+    const result = run(target);
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain("round-trip check failed: a repeat insert stored a second row");
+  });
+
+  it("N9: a run waits while another holds the migration lock, then proceeds", async () => {
+    const sql = admin();
+    await sql.unsafe("DROP DATABASE IF EXISTS leads_migrate_lock");
+    await sql.unsafe("CREATE DATABASE leads_migrate_lock");
+    await sql.end();
+    const target = dbUrl("leads_migrate_lock");
+    const holder = connect(target);
+    await holder`SELECT pg_advisory_lock(815204771)`; // the runner's LOCK_KEY
+    const child = spawn(process.execPath, [path.join(import.meta.dirname, "..", "scripts", "migrate.mjs")], {
+      env: { PATH: process.env.PATH, POSTGRES_URL: target },
+    });
+    let out = "";
+    let exited: number | null | undefined;
+    child.stdout.on("data", (d) => (out += String(d)));
+    child.on("close", (code) => (exited = code));
+    await new Promise((r) => setTimeout(r, 1500));
+    expect(exited, "the runner must wait for the lock").toBeUndefined();
+    expect(out).not.toContain("applied");
+    await holder`SELECT pg_advisory_unlock(815204771)`;
+    await holder.end();
+    await new Promise<void>((r) => (exited !== undefined ? r() : child.on("close", () => r())));
+    expect(exited).toBe(0);
+    expect(out).toContain("applied 001_leads.sql");
+  }, 20_000);
+
+  it("N9: concurrent runs serialise on the advisory lock — one applies, the other skips", async () => {
+    const sql = admin();
+    await sql.unsafe("DROP DATABASE IF EXISTS leads_migrate_race");
+    await sql.unsafe("CREATE DATABASE leads_migrate_race");
+    await sql.end();
+    const target = dbUrl("leads_migrate_race");
+    const spawnRun = () =>
+      new Promise<{ code: number | null; out: string }>((resolve) => {
+        const child = spawn(process.execPath, [path.join(import.meta.dirname, "..", "scripts", "migrate.mjs")], {
+          env: { PATH: process.env.PATH, POSTGRES_URL: target },
+        });
+        let out = "";
+        child.stdout.on("data", (d) => (out += String(d)));
+        child.stderr.on("data", (d) => (out += String(d)));
+        child.on("close", (code) => resolve({ code, out }));
+      });
+    const results = await Promise.all([spawnRun(), spawnRun(), spawnRun()]);
+    for (const r of results) expect(r.code, r.out).toBe(0);
+    expect(results.filter((r) => r.out.includes("applied 001_leads.sql"))).toHaveLength(1);
+    expect(results.filter((r) => r.out.includes("skip 001_leads.sql"))).toHaveLength(2);
+  }, 30_000);
+
   it("refuses a URL the app would refuse, printing the reason and not the URL", () => {
-    const result = run("postgres://u:TopSecretPw@h.example/db?options=-c%20x");
+    const result = run("postgres://u:TopSecretPw@h.example/db?search_path=x");
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain("POSTGRES_URL refused (unknown-param-options)");
+    expect(result.stderr).toContain("POSTGRES_URL refused (unknown-param-search_path)");
     expect(result.stderr + result.stdout).not.toContain("TopSecretPw");
+  });
+});
+
+/**
+ * TLS verification and Neon's `options=endpoint` pass-through (AEGIS r2 N2,
+ * N3), against the TLS-only SCRAM role. Needs LEAD_TEST_POSTGRES_NEON_URL;
+ * the verify-full cases also need the server's CA in NODE_EXTRA_CA_CERTS and
+ * a hosts entry `lead-wrong-host.test → 127.0.0.1` (a name NOT in the
+ * certificate), and are skipped without them.
+ */
+const caLoaded = !!process.env.NODE_EXTRA_CA_CERTS;
+describe.skipIf(!neonShaped)("TLS modes and startup options (integration)", () => {
+  const withHost = (host: string, query: string) => {
+    const u = new URL(neonShaped!);
+    u.hostname = host;
+    u.search = query;
+    return u.toString();
+  };
+  const tryInsert = async (raw: string) => {
+    const store = postgresStore(opts(raw));
+    return store
+      .insert({
+        submission_id: randomUUID(),
+        app: "zbm",
+        form: "tls-check",
+        payload: {},
+        payload_hash: "h",
+        services: [],
+        source: null,
+        ip_hash: null,
+        user_agent: null,
+      })
+      .then(
+        (r) => ({ ok: true as const, r }),
+        (e: unknown) => ({ ok: false as const, code: (e as DeliveryError).detail }),
+      );
+  };
+
+  it("sslmode=require connects to a self-signed server (encryption without verification, as libpq)", async () => {
+    expect((await tryInsert(withHost("localhost", "?sslmode=require"))).ok).toBe(true);
+  });
+
+  it.skipIf(caLoaded)("sslmode=verify-full refuses a certificate it cannot verify", async () => {
+    const result = await tryInsert(withHost("localhost", "?sslmode=verify-full"));
+    expect(result.ok).toBe(false);
+  });
+
+  it.skipIf(!caLoaded)("sslmode=verify-full connects when the chain and hostname verify", async () => {
+    expect(await tryInsert(withHost("localhost", "?sslmode=verify-full&channel_binding=require"))).toMatchObject({ ok: true });
+  });
+
+  it.skipIf(!caLoaded)("sslmode=verify-full refuses a hostname the certificate does not name", async () => {
+    // "unknown": a TLS error carries no SQLSTATE, and the store logs only codes it recognises.
+    expect(await tryInsert(withHost("lead-wrong-host.test", "?sslmode=verify-full"))).toEqual({ ok: false, code: "ERR_TLS_CERT_ALTNAME_INVALID" });
+  });
+
+  it("options=endpoint=<id> reaches the server as the startup `options` parameter", async () => {
+    // Neon's proxy consumes it; stock Postgres parses it as command-line
+    // options and rejects the syntax (42601) — which proves it was forwarded.
+    expect(await tryInsert(withHost("localhost", "?sslmode=require&options=endpoint%3Dep-test-123"))).toEqual({ ok: false, code: "42601" });
   });
 });

@@ -140,9 +140,9 @@ test.describe("Success through the fake transport (§6.2)", () => {
       source: "bb-lead-gate",
     });
     expect(rows[0]!.payload).toMatchObject({ name, business: "Lead Gate Co", reach: "lead-gate@example.com" });
-    // This gate server is not behind a trusted proxy, so no client address is
-    // believed and none is hashed (AEGIS M4). The HMAC path is unit-tested.
-    expect(rows[0]!.ip_hash).toBeNull();
+    // The gate server trusts `next start` as its proxy (LEAD_TRUSTED_PROXY=1),
+    // so the loopback address is hashed — never stored raw.
+    expect(rows[0]!.ip_hash).toMatch(/^[0-9a-f]{64}$/);
     expect(JSON.stringify(rows[0])).not.toContain("127.0.0.1");
 
     const emails = await emailsFor("zbm", id);
@@ -520,5 +520,51 @@ test.describe("Hardening (AEGIS review of 55d3437)", () => {
     } finally {
       if (server.pid) process.kill(-server.pid, "SIGTERM");
     }
+  });
+});
+
+test.describe("UI after a 409 conflict (AEGIS r2 N5)", () => {
+  test("an unconfirmed send, then an edit: the form shows the conflict copy, starts a new id, and the next send is stored", async ({
+    page,
+  }, testInfo) => {
+    await presetConsent(page);
+    await page.goto(`${ZBM_BASE_URL}/start?service=websites`, { waitUntil: "domcontentloaded" });
+    const name = marker("conflict-ui", testInfo.project.name);
+    await fillStart(page, name);
+
+    // 1. The first send reaches the server and is stored, but the browser
+    //    never sees the answer (a dropped response): the outcome is unknown.
+    let firstId = "";
+    await page.route("**/api/lead", async (route) => {
+      firstId = route.request().postDataJSON().submission_id;
+      await route.fetch(); // stored server-side
+      await route.abort("failed");
+    });
+    await startForm(page).getByRole("button", { name: "Send" }).click();
+    await expect(startForm(page).locator('[data-lead-failure="failed"]')).toHaveText(
+      "We couldn’t confirm that went through — please try again.",
+    );
+    await page.unroute("**/api/lead");
+    expect(await rowsFor("zbm", firstId)).toHaveLength(1);
+
+    // 2. The visitor edits a field and sends again — same id, new content.
+    await startForm(page).getByLabel("Business", { exact: true }).fill("Edited Co");
+    const conflict = await sendStart(page);
+    expect(conflict.status()).toBe(409);
+    expect(conflict.request().postDataJSON().submission_id).toBe(firstId);
+    await expect(startForm(page).locator('[data-lead-failure="conflict"]')).toHaveText(
+      "We already have an earlier version of this from you. Send again to submit these changes as a new message.",
+    );
+    await expect(page.locator('[data-lead-result="accepted"]')).toHaveCount(0);
+
+    // 3. Send again: a NEW id, stored as a new lead with the edit.
+    const second = await sendStart(page);
+    expect(second.status()).toBe(200);
+    const secondId = second.request().postDataJSON().submission_id as string;
+    expect(secondId).not.toBe(firstId);
+    await expect(page.locator('[data-lead-result="accepted"]')).toContainText("Received");
+    expect((await rowsFor("zbm", firstId))[0]!.payload.business).toBe("Lead Gate Co");
+    expect((await rowsFor("zbm", secondId))[0]!.payload.business).toBe("Edited Co");
+    expect(await rowsMentioning("zbm", name)).toHaveLength(2);
   });
 });

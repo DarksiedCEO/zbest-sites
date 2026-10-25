@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { resolveTransport, type TransportConfig } from "../src/config";
+import { resolveTransport, type RequestPolicy, type TransportConfig } from "../src/config";
 import { handleLead } from "../src/pipeline";
 import { memoryLimiter } from "../src/rate-limit";
 import { DeliveryError, type LeadNotifier, type LeadStore, type RateLimiter } from "../src/types";
@@ -8,6 +8,7 @@ import { PII, captureLogger, readJsonl, request, tempOutbox, toyParse } from "./
 
 const open = () => memoryLimiter({ limit: 1000, windowSec: 60 });
 const both = (l: RateLimiter) => ({ perIp: l, flood: l });
+const TRUSTED: RequestPolicy = { trustProxy: true, onVercel: false, allowedOrigins: new Set(), maxBodyBytes: 65536, problems: [] };
 const NONCE = "gate-nonce-0123456789abcdef";
 const fakeEnv = (dir: string, extra: Record<string, string> = {}) => ({
   ZBEST_LEAD_TRANSPORT: "fake",
@@ -205,6 +206,7 @@ describe("delivery failures (Brief §6.2 failure mode)", () => {
     const res = await handleLead(request(valid()), {
       app: "zbm",
       parse: toyParse,
+      policy: TRUSTED,
       transport: transportWith(store, { send }),
       logger: log.logger,
       limiters: both(open()),
@@ -228,6 +230,7 @@ describe("delivery failures (Brief §6.2 failure mode)", () => {
     const res = await handleLead(request(valid(id)), {
       app: "zbm",
       parse: toyParse,
+      policy: TRUSTED,
       transport: transportWith(store, notifier),
       logger: log.logger,
       limiters: both(open()),

@@ -67,6 +67,12 @@ const fakeLeads = (server: "zbm" | "zbc" | "zbm-limited", rate: string) => ({
   ZBEST_LEAD_FAKE_OUTBOX: outboxFor(server),
   ZBEST_LEAD_FAKE_ACK: GATE_NONCE,
   LEAD_RATE_LIMIT: rate,
+  // Off Vercel the route refuses to run without it (AEGIS r2 N1). `next start`
+  // is the proxy here: it sets x-forwarded-for from the socket when absent;
+  // the rate-limit test sends x-real-ip per viewport, which is preferred.
+  LEAD_TRUSTED_PROXY: "1",
+  // Raised so the suite (all from 127.0.0.1) never trips the fallback either.
+  LEAD_RATE_LIMIT_FLOOD: "100000/60",
 });
 
 /** Overrides anything the runner's own shell might carry, so "unconfigured" really is. */
@@ -123,9 +129,7 @@ export default defineConfig({
       command: serve("@zbest/zbm", 3000),
       url: ZBM_BASE_URL,
       cwd: "../",
-      // Not behind a trusted proxy, so every request shares the per-app flood
-      // ceiling (AEGIS M4); it is raised so the rest of the suite never trips it.
-      env: { ZBEST_GATE_NONCE: GATE_NONCE, ...NO_LEAD_TRANSPORT, ...fakeLeads("zbm", "100000/60"), LEAD_RATE_LIMIT_FLOOD: "100000/60" },
+      env: { ZBEST_GATE_NONCE: GATE_NONCE, ...NO_LEAD_TRANSPORT, ...fakeLeads("zbm", "100000/60") },
       // Never adopt a pre-existing server: it may be a stale build, another
       // branch, or not this project at all.
       reuseExistingServer: false,
@@ -135,7 +139,7 @@ export default defineConfig({
       command: serve("@zbest/zbc", 3001),
       url: ZBC_BASE_URL,
       cwd: "../",
-      env: { ZBEST_GATE_NONCE: GATE_NONCE, ...NO_LEAD_TRANSPORT, ...fakeLeads("zbc", "100000/60"), LEAD_RATE_LIMIT_FLOOD: "100000/60" },
+      env: { ZBEST_GATE_NONCE: GATE_NONCE, ...NO_LEAD_TRANSPORT, ...fakeLeads("zbc", "100000/60") },
       reuseExistingServer: false,
       timeout: 180_000,
     },
@@ -157,8 +161,6 @@ export default defineConfig({
         ZBEST_GATE_NONCE: GATE_NONCE,
         ...NO_LEAD_TRANSPORT,
         ...fakeLeads("zbm-limited", `${LIMITED_RATE.limit}/${LIMITED_RATE.windowSec}`),
-        // The tests set x-real-ip per viewport; trusting it stands in for Vercel's edge.
-        LEAD_TRUSTED_PROXY: "1",
       },
       reuseExistingServer: false,
       timeout: 60_000,

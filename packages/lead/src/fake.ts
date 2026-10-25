@@ -5,8 +5,9 @@ import type { InsertResult, LeadApp, LeadEmail, LeadNotifier, LeadRecord, LeadSt
 /**
  * TEST-ONLY transport: the store and the notifier append JSON lines to files
  * in an outbox directory, so the e2e gate can assert exactly what would have
- * been stored and sent. config.ts refuses it whenever VERCEL is set, so it
- * cannot run on a deployment.
+ * been stored and sent. config.ts enables it only with the gate's per-run
+ * nonce, an outbox under the OS temp dir and no platform marker
+ * (fakeTransportProblems), so it cannot run on a deployment.
  *
  *   <outbox>/rows.jsonl     one line per inserted lead (duplicates are not written)
  *   <outbox>/emails.jsonl   one line per notification

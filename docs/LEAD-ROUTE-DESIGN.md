@@ -108,13 +108,13 @@ The live site's older backend is the `zbm-server` service in the Railway project
 
   | Variable | Required | Meaning |
   |---|---|---|
-  | `POSTGRES_URL` | yes | Lead store. Parsed by `src/pg-url.ts`, and the driver gets discrete options, never the raw URL (AEGIS H1/M1). Accepted params: `sslmode`, `channel_binding` (dropped: the driver has no channel binding; SCRAM over TLS still works), `pgbouncer` (dropped), `connect_timeout`. Any other param → `not_configured`, naming the key only. A remote host with no `sslmode` uses TLS. Neon pooled/direct and Supabase pooler/direct formats are tested. |
+  | `POSTGRES_URL` | yes | Lead store. Parsed by `src/pg-url.ts`, and the driver gets discrete options, never the raw URL (AEGIS H1/M1). Accepted params: `sslmode`; `channel_binding` (accepted, **not enforced**: the driver has no channel binding); `pgbouncer`, `supa`, `connection_limit`, `pool_timeout` (validated, then dropped as harmless hints); `options` **only** as `endpoint=<neon-id>`, passed to the server as the startup `options` parameter; `connect_timeout`. Any other param, or a repeated one, → `not_configured`, naming the key only. A remote host with no `sslmode` uses TLS. **Recommended: `?sslmode=verify-full`** for Neon and Supabase (public CAs). `require` encrypts but does not verify the certificate, as in libpq. Verification of an IP-literal host checks the chain only, not the name (a driver limit); vendor hosts are DNS names. A remote `sslmode=disable` is honoured as the operator's choice. Neon pooled/direct and Supabase pooler/direct formats are tested. |
   | `LEAD_IP_HASH_SECRET` | yes (with Postgres) | HMAC key for `ip_hash`. The raw IP is never stored. |
   | `RESEND_API_KEY`, `LEAD_NOTIFY_FROM`, `LEAD_NOTIFY_TO` | yes, unless `LEAD_NOTIFY=disabled` | Founder notification. |
   | `LEAD_NOTIFY=disabled` | optional | Explicit store-only mode, for running before the Resend domain is verified. Rows get `notify_status = 'disabled'`. It is never inferred from a missing key. |
   | `LEAD_RATE_LIMIT` | optional, default `8/600` | Requests per window (seconds) per trusted client IP, per app. |
-  | `LEAD_RATE_LIMIT_FLOOD` | optional, default `200/600` | Shared per-app ceiling used **only** when no trusted client IP exists, so missing headers are neither one tiny bucket that blocks everyone nor unlimited (AEGIS M4). |
-  | `LEAD_TRUSTED_PROXY=1` | optional; automatic on Vercel (`VERCEL=1`) | Trust `x-vercel-forwarded-for` / `x-real-ip` / `x-forwarded-for`. Off Vercel, set it only when a proxy in front overwrites those headers; otherwise they are ignored (client-forgeable). |
+  | `LEAD_TRUSTED_PROXY=1` | **required off Vercel**; automatic on Vercel (`VERCEL=1`) | Trust `x-vercel-forwarded-for` / `x-real-ip` / `x-forwarded-for`. Off Vercel without it the route answers `503 not_configured` (AEGIS r2 N1): there is no client address to limit by, and a shared bucket would let one client lock every visitor out. Set it only when a proxy in front overwrites those headers. |
+  | `LEAD_RATE_LIMIT_FLOOD` | optional, default `200/600` | The **fallback** limit, used only when the proxy is trusted but sent no client address (a backstop; Vercel's edge always sends one). There is never one global bucket. A same-origin browser request is keyed by a fingerprint of its `user-agent`, `accept-language` and `sec-ch-ua-platform`, so a script cannot lock real visitors out. A request without a matching `Origin` (non-browser) is keyed per app `no-origin`, a bucket only such clients share. The limit is higher than the per-IP one because a fingerprint can be shared. |
   | `LEAD_ALLOWED_ORIGINS` | optional | Extra browser origins allowed to post (comma list of `https://host`). Same-origin is always allowed; anything else is `403` (AEGIS M3). |
   | `KV_REST_API_URL` + `KV_REST_API_TOKEN` (or `UPSTASH_REDIS_REST_URL` + `_TOKEN`) | optional, **needed for a global cap** | Shared rate-limit counter. Without them each serverless instance counts on its own, so the limits above are per instance, not global. Whether to add KV before launch is a founder decision (§5). |
   | `ZBEST_LEAD_TRANSPORT=fake` + `ZBEST_LEAD_FAKE_OUTBOX` + `ZBEST_LEAD_FAKE_ACK` | tests only | Writes rows and emails to JSONL files. Runs only when **all** hold: the ack equals the gate's per-run `ZBEST_GATE_NONCE`; the outbox is under the OS temp dir; and no platform marker (`VERCEL`, `VERCEL_ENV`, `RAILWAY_ENVIRONMENT`, `FLY_APP_NAME`, `RENDER`, `K_SERVICE`, `DYNO`, …) is set (AEGIS M2). `NODE_ENV` cannot be the test, because `next start` always runs as production. |
@@ -123,11 +123,11 @@ The live site's older backend is the `zbm-server` service in the Railway project
   1. `Content-Type` must be `application/json` (`415`). This forces a CORS preflight, which a foreign site cannot pass;
   2. `Origin` must be same-origin or listed; a cross-site fetch-metadata request with no Origin is refused too (`403`);
   3. declared size over 64 KB (`413`);
-  4. rate limit (`429` with `Retry-After`);
-  5. config check (`503 not_configured`);
-  6. body read with a 64 KB cap (`413`), then JSON (`400`);
-  7. envelope and field validation (`422`; the assessment/readiness `answers` list is capped at 32);
-  8. honeypot (a filled one answers exactly like a success, and nothing is stored or sent);
+  4. config check (`503 not_configured`), including the trusted-proxy requirement;
+  5. body read with a 64 KB cap (`413`, **not charged** to the rate limit), then JSON;
+  6. honeypot (a filled one answers exactly like a success; nothing is stored or sent; **not charged**, so bot hits never spend real visitors' tokens);
+  7. rate limit (`429` with `Retry-After`), charged for everything that reaches validation (including malformed JSON);
+  8. envelope and field validation (`400` / `422`; the assessment/readiness `answers` list is capped at 32);
   9. store (on failure, `503 unavailable`, and the form says nothing was saved);
   10. notify (a failure is logged and recorded on the row; the visitor still sees success, per §6.2).
   - Any unexpected throw becomes a bare `503 unavailable` and an `internal_error` event, never a logged error object.
@@ -149,6 +149,18 @@ The live site's older backend is the `zbm-server` service in the Railway project
 - **Email body:** plain text. The visitor's words sit between `----- visitor-supplied, unverified -----` fences, which a visitor cannot close (AEGIS L7).
 - **Honeypot:** the HTML input is named `zbx_hp_7f3` with `autocomplete="off"` and password-manager ignore hints. It is sent under the wire key `company_url` (AEGIS L4). Honeypot hits are logged as `honeypot` events; watch that count after launch.
 - **`server-only`:** `@zbest/lead` imports it first, so a client import fails the build (AEGIS L8).
+- **Migration runner:**
+  - A session advisory lock serialises concurrent runs.
+  - A pre-existing `leads` table is column-checked **before** anything is applied, so the mismatch is named rather than masked by a DDL error.
+  - After applying, it checks columns, then the full `UNIQUE (app, submission_id)` index the app's `ON CONFLICT` needs, then the round trip. The round trip inserts twice (the repeat must be a no-op) and reads back form, payload, hash, default `services` and `notify_status`.
+  - Versions are the `NNN` prefix of files matching `^\d{3}_.+\.sql$` (AEGIS r2 N9).
+- **Fake transport, extra guards (AEGIS r2 N6):**
+  - `KUBERNETES_SERVICE_HOST` is a platform marker.
+  - The outbox path is resolved through symlinks before the temp-dir check.
+  - `ZBEST_LEAD_TRANSPORT` must be exactly `fake`, with no trimming.
+- **Origin check, remaining choices (AEGIS r2 N7):**
+  - `Sec-Fetch-Site` is compared case-insensitively, and an Origin with userinfo, a path or a query is refused.
+  - **Not enforced:** the scheme. An `http://` Origin on the site's own host is accepted, because behind Vercel the request scheme the app sees is not reliably the visitor's, and no browser on a third-party site can send our host as its Origin. The site is HTTPS-only at the edge.
 - **What the visitor sees:**
   - The stub notices are removed.
   - On success, the form says the details were received and a person will reply.
@@ -176,7 +188,8 @@ The live site's older backend is the `zbm-server` service in the Railway project
 
 **Smaller items:**
 - Whether the live `zbm-server` currently delivers leads anywhere he reads. This matters for the canary, so leads don't split across two systems.
-- **Whether to add a shared rate-limit store (Upstash / Vercel KV) before launch.** Without it the per-IP and flood limits apply per serverless instance, not globally. The AEGIS review treats this as a launch decision.
+- **Whether to add a shared rate-limit store (Upstash / Vercel KV) before launch.** Without it the per-IP and fallback limits apply per serverless instance, not globally. The AEGIS review treats this as a launch decision.
+- **The hosting target.** On Vercel nothing extra is needed. Anywhere else, `LEAD_TRUSTED_PROXY=1` is required, and is only correct behind a proxy that overwrites the client-IP headers.
 - Confirm the new form copy, because these are commitments:
   - Success (every §6.1 form and `/start`): "Received" / "Thanks — we have your details." / "A person reads every submission and will reply using the contact you gave us."
   - Assessment and readiness results: "Received" / "Scored on fixture rules. We have your details, and a person will follow up using the contact you gave us." Before submitting: "This form [check] scores your answers on fixture rules."

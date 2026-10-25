@@ -1,3 +1,4 @@
+import { existsSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fakeNotifier, fakeStore } from "./fake";
@@ -74,7 +75,26 @@ const PLATFORM_MARKERS = [
   "NETLIFY",
   "AWS_LAMBDA_FUNCTION_NAME",
   "DYNO",
+  // Any Kubernetes pod (AEGIS r2 N6).
+  "KUBERNETES_SERVICE_HOST",
 ];
+
+/**
+ * The deepest existing ancestor of `p`, resolved through symlinks, with the
+ * rest re-appended — so a symlink under /tmp pointing elsewhere is caught
+ * even before the outbox exists (AEGIS r2 N6).
+ */
+function realish(p: string): string {
+  let head = path.resolve(p);
+  const tail: string[] = [];
+  while (!existsSync(head)) {
+    const parent = path.dirname(head);
+    if (parent === head) break;
+    tail.unshift(path.basename(head));
+    head = parent;
+  }
+  return path.join(realpathSync(head), ...tail);
+}
 
 /**
  * The fake transport writes "leads" to a local JSONL file and answers
@@ -96,8 +116,8 @@ function fakeTransportProblems(env: Env): string[] {
   const nonce = set(env, "ZBEST_GATE_NONCE");
   if (nonce.length < 16 || set(env, "ZBEST_LEAD_FAKE_ACK") !== nonce) problems.push("ZBEST_LEAD_FAKE_ACK:must-equal-gate-nonce");
   const dir = set(env, "ZBEST_LEAD_FAKE_OUTBOX");
-  const tmp = path.resolve(tmpdir());
-  if (!dir || !path.isAbsolute(dir) || !path.resolve(dir).startsWith(tmp + path.sep)) {
+  const tmp = realpathSync(path.resolve(tmpdir()));
+  if (!dir || !path.isAbsolute(dir) || !realish(dir).startsWith(tmp + path.sep)) {
     problems.push("ZBEST_LEAD_FAKE_OUTBOX:must-be-under-os-tmpdir");
   }
   return problems;
@@ -117,7 +137,8 @@ export function resolveTransport(env: Env): TransportConfig {
 
 function resolveTransportUnsafe(env: Env): TransportConfig {
   const missing: string[] = [];
-  const transport = set(env, "ZBEST_LEAD_TRANSPORT");
+  // Exact match, no trimming: " fake " is a typo, not a test switch (AEGIS r2 N6).
+  const transport = env.ZBEST_LEAD_TRANSPORT ?? "";
 
   if (transport === "fake") {
     missing.push(...fakeTransportProblems(env));
@@ -167,6 +188,8 @@ function resolveTransportUnsafe(env: Env): TransportConfig {
 export type RequestPolicy = {
   /** Trust x-vercel-forwarded-for / x-real-ip / x-forwarded-for (AEGIS M4). */
   trustProxy: boolean;
+  /** Running on Vercel (VERCEL=1), where the edge supplies the client address. */
+  onVercel: boolean;
   /** Extra allowed browser origins; same-origin is always allowed (AEGIS M3). */
   allowedOrigins: Set<string>;
   maxBodyBytes: number;
@@ -189,10 +212,17 @@ export function resolvePolicy(env: Env): RequestPolicy {
   }
   const trusted = set(env, "LEAD_TRUSTED_PROXY").toLowerCase();
   if (trusted !== "" && trusted !== "1" && trusted !== "true") problems.push("LEAD_TRUSTED_PROXY:must-be-1-or-unset");
+  const onVercel = set(env, "VERCEL") === "1";
+  const trustProxy = onVercel || trusted === "1" || trusted === "true";
+  // AEGIS r2 N1: off Vercel, with no trusted proxy, there is no client
+  // address to limit by, and a shared bucket would let one client lock every
+  // visitor out. So that combination is a misconfiguration, not a mode.
+  if (!trustProxy) problems.push("LEAD_TRUSTED_PROXY:required-off-vercel");
   return {
     // On Vercel the edge sets these headers; elsewhere only an operator who
     // knows a proxy overwrites them may switch trust on.
-    trustProxy: set(env, "VERCEL") === "1" || trusted === "1" || trusted === "true",
+    trustProxy,
+    onVercel,
     allowedOrigins,
     maxBodyBytes: DEFAULT_MAX_BODY_BYTES,
     problems,
@@ -205,9 +235,16 @@ export type Limiters = {
   /** Per client address, per app. */
   perIp: RateLimiter;
   /**
-   * Used only when no trusted client address exists (AEGIS M4): one shared
-   * ceiling per app, much higher than the per-IP limit, so missing headers
-   * neither turn into one tiny bucket that blocks everyone nor into no limit.
+   * The fallback, used only when the proxy is trusted but no client address
+   * arrived (on Vercel the edge always sets one, so this is a backstop) —
+   * AEGIS r2 N1. Keys, never one global bucket:
+   *   - a same-origin browser request: a fingerprint of its user agent and
+   *     language headers, so a non-browser flood cannot lock real visitors
+   *     out;
+   *   - anything else (no matching Origin): a per-app "no-origin" key, which
+   *     only non-browser clients share.
+   * Its limit (LEAD_RATE_LIMIT_FLOOD, default 200/600) is deliberately higher
+   * than the per-IP one, because a fingerprint can be shared by many people.
    */
   flood: RateLimiter;
   spec: RateLimitSpec;

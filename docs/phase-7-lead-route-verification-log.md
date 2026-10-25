@@ -95,3 +95,59 @@ Earlier phases' committed screenshots were **not** overwritten (restored after t
 - Real Resend, real KV. Per-instance limits without KV.
 - WebKit and the canonical `pnpm e2e` on the Mac. Preview-deployment email end-to-end.
 - The independence condition: builder and reviewer were both Claude sessions sharing a scratchpad.
+
+---
+
+# Round 3 — AEGIS re-review r2 of 00349ee (N1–N9)
+
+The r2 verdict was CERTIFIED WITH CONDITIONS for the merge and NOT CERTIFIED for go-live (nothing is deployed). This round fixes N1–N5 and N9. N6–N8 were trivial enough to fix; the one N7 choice not taken is documented in the design note.
+
+## What changed, by finding
+| Finding | Fix | Proven by |
+|---|---|---|
+| **N1** shared bucket lets one client lock everyone out | Off Vercel without `LEAD_TRUSTED_PROXY` → `503 not_configured` (`LEAD_TRUSTED_PROXY:required-off-vercel`); no request ever reaches a shared bucket. Trusted but no client address (a backstop; Vercel's edge always sends one) → keyed fallback, never global: same-origin browser requests by a UA/language fingerprint, others per app `no-origin`. The rate limit is charged only after the honeypot check, so honeypot hits and 413s never spend real visitors' tokens. | Unit: untrusted → 503 for every header variant, nothing stored; a no-Origin script exhausts only `no-origin` while a same-origin visitor still gets 200; a same-origin attacker exhausts only its own fingerprint; 10 honeypot hits + 20 oversized bodies (declared and streamed) consume nothing (then 200, 200, 429 at limit 2). |
+| **N2** harmless vendor params refused | `supa`, `connection_limit`, `pool_timeout` validated and dropped. `options` accepted only as `endpoint=<id>` and **passed through** as the startup `options` parameter (the driver supports it, via `connection.options`). Unknown or repeated params are still refused. | Unit: Supabase URL with `supa`, Prisma params and `pgbouncer` parses. Neon `options=endpoint%3D…` → `startup_options`. `-c search_path`, uppercase or embedded-space options refused. Duplicate `sslmode` refused. **Real PG:** `options=endpoint%3Dep-test-123` reaches the server, which rejects it as command-line syntax (`42601`), proving the pass-through. Neon's proxy consumes it instead. |
+| **N3** TLS semantics | `verify-full` / `verify-ca` → verified TLS. Documented as **recommended for Neon/Supabase**. `require` = encrypted, unverified (libpq semantics); `channel_binding` accepted but not enforced; remote default stays TLS. | Unit: mode mapping. **Real PG with a cert for IP 127.0.0.1 / DNS localhost:** `require` connects to the self-signed server. `verify-full` without the CA is refused. With the CA (`NODE_EXTRA_CA_CERTS`), `verify-full` + `channel_binding=require` stores a row; `verify-full` to `lead-wrong-host.test` (a hosts entry → 127.0.0.1, a name not in the cert) → `ERR_TLS_CERT_ALTNAME_INVALID`. Found while testing: for an IP-literal host the driver checks the chain but not the name. That is documented; vendor hosts are DNS names. |
+| **N4** fence forgery with leading whitespace / zero-width | Any line starting with horizontal whitespace, invisible or zero-width characters and then 3+ dashes (incl. Unicode dashes) is defused, including after CR / U+2028. | Unit (non-vacuous: the forged closer starts its own line after `note: hello`): 8 prefixes (none, spaces, tab, U+200B, U+FEFF, NBSP, mixed) → exactly one line reads as the closer, and it is the real one, at the end. Plus CR, U+2028 and Unicode-dash cases, and inline `---` left alone. |
+| **N5** surviving mutants | New tests: console/stdio spies on an internal throw; canonical-key hash; `form` in the hash (same id and fields under another form → 409). Incompatible-table test now requires the column-check message. Partially compatible table (missing `notify_status`) → named. Round trip catches a trigger that rewrites rows, and one that re-keys rows. E2E for the UI after a 409. | Mutation run below. **E2E (both viewports):** first send stored but its response dropped → "couldn't confirm"; the edit resends the same id → 409 and the conflict copy, no "Received"; send again → a new id, 200, "Received"; two rows (original + edit). |
+| **N6** fake-transport residuals | `KUBERNETES_SERVICE_HOST` marker; outbox resolved through symlinks (deepest existing ancestor) before the tmp check; `ZBEST_LEAD_TRANSPORT` must be exactly `fake`; stale comment fixed. | Unit: symlink under tmp → `/var/tmp` refused (as the dir and as a parent); `" fake "` and `"fake\n"` refused; k8s marker refused. |
+| **N7** Origin nits | `Sec-Fetch-Site` case-insensitive; an Origin with userinfo or a path is refused. **Not done:** scheme matching — documented in the design note. | Unit: `Cross-Site` → 403; `https://user:pw@host` → 403; `…/path` → 403. |
+| **N8** harness took raw URLs | Test admin connections use the product parser (`connect()`), so `LEAD_TEST_POSTGRES_URL` may be vendor-shaped. | — |
+| **N9** migrate nits | Session advisory lock. A pre-existing `leads` table is column-checked before anything is applied. After applying: columns, then a full unique index on exactly `(app, submission_id)`, then a round trip that inserts twice (the repeat must be a no-op) and reads back form, payload, hash, default services and `notify_status`. | Real processes against real PG: missing unique → named; a run blocks while the test holds the lock and completes after release; 3 concurrent runs → 1 applies, 2 skip, all exit 0. |
+
+## Mutation testing
+The reviewer's driver, adapted to this repo and this session's database, is at `/tmp/claude-0/-home-claude/507835c2-f88c-57d2-8bb7-588397ac8f5c/scratchpad/r3lead/mut.py`.
+- Code that moved has its mutants retargeted at the same guard: tmpdir check, policy trust, the fallback limiter, the round trip, the `unknown-param` refusal, and the `Sec-Fetch-Site` check.
+- 22 mutants were added for N1–N9.
+- **Result: 55 / 55 killed** (unit + integration suite, PG with TLS on and the CA loaded).
+- That includes all 7 r2 survivors: the error-logging catch, hash key sort, `form` in the hash, the migrate column check, the migrate round trip, plus `unfence` and resolve-try.
+- An earlier run had 1 survivor, the advisory-lock removal, because the race test was timing-dependent. It is now killed by the deterministic lock-wait test.
+
+## Round 3 runs (sandbox)
+| Check | Result |
+|---|---|
+| `pnpm exec turbo run lint typecheck --force` | **11/11, 0 cached** |
+| vitest, TLS PG + SCRAM role, **without** CA | 84 passed, 2 skipped (the two CA-only verify-full positives) |
+| vitest, TLS PG + SCRAM role, **with** CA | 85 passed, 1 skipped (the no-CA verify-full negative) |
+| (together) | all 86 tests ran and passed in one mode or the other |
+| vitest without database (`pnpm test`) | 66 passed, 20 skipped |
+| Full Playwright, sandbox config | **398 passed, 2 skipped, 0 failed** (6.5 min). Skips are the desktop-only phase-3 OG test and the desktop-only M1 spawned-server test. |
+| phase-7 gate | 15 tests × 2 = 30 runs: 29 pass, 1 skipped (M1 on mobile) |
+| Server log events | `conflict` 4, `forbidden_origin` 2, `not_configured` 6, `rate_limited` 4, with no values |
+
+**E2E config:** gate servers now set `LEAD_TRUSTED_PROXY=1`, as required off Vercel. `next start` acts as the proxy and sets `x-forwarded-for` from the socket. On 3000, `ip_hash` is again asserted as an HMAC, never the raw IP.
+
+**Sandbox changes for this round, outside the repo:**
+- Local PG16 regenerated with a cert for `IP:127.0.0.1, DNS:localhost`, listening on 127.0.0.1 and .2.
+- An `/etc/hosts` line `127.0.0.1 lead-wrong-host.test`, for the hostname-mismatch test.
+
+## Still unverified after round 3
+Unchanged from round 2:
+- real Neon (run `pnpm --filter @zbest/lead migrate` with the real URL, preferably with `?sslmode=verify-full`);
+- whether Vercel sets `VERCEL=1` and the IP headers in the function runtime;
+- real Resend and real KV;
+- WebKit and the canonical `pnpm e2e` on the Mac;
+- preview-deployment email end-to-end;
+- the independence condition.
+
+Also unverified: the format of the Vercel–Supabase `supa=` parameter in a live integration. It is accepted for any short `[A-Za-z0-9._-]` value.
