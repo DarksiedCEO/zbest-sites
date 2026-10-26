@@ -140,7 +140,7 @@ test.describe("Success through the fake transport (§6.2)", () => {
       source: "bb-lead-gate",
     });
     expect(rows[0]!.payload).toMatchObject({ name, business: "Lead Gate Co", reach: "lead-gate@example.com" });
-    // The gate server trusts `next start` as its proxy (LEAD_TRUSTED_PROXY=1),
+    // The gate server trusts `next start` as its proxy (LEAD_TRUSTED_PROXY=x-forwarded-for),
     // so the loopback address is hashed — never stored raw.
     expect(rows[0]!.ip_hash).toMatch(/^[0-9a-f]{64}$/);
     expect(JSON.stringify(rows[0])).not.toContain("127.0.0.1");

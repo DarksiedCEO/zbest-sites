@@ -151,3 +151,60 @@ Unchanged from round 2:
 - the independence condition.
 
 Also unverified: the format of the Vercel–Supabase `supa=` parameter in a live integration. It is accepted for any short `[A-Za-z0-9._-]` value.
+
+---
+
+# Round 4 — AEGIS r3 findings on 403f50e (F1–F6), branch `lead-route-v2`
+
+`lead-route-v1@403f50e` was fast-forwarded into `full-service-v1` and `main` (founder YES; r3 CERTIFIED WITH CONDITIONS). This round is on `lead-route-v2`, from `origin/main` = 403f50e. It is not merged.
+
+## What changed, by finding
+| Finding | Fix | Proven by |
+|---|---|---|
+| **F1** a client-sent `x-vercel-forwarded-for` bypassed the per-IP limit off Vercel | Exactly **one** client-address header is trusted. On Vercel (`VERCEL` exactly `"1"`) that is `x-vercel-forwarded-for` only. Off Vercel it is the header **named** by `LEAD_TRUSTED_PROXY` (`x-forwarded-for`, `x-real-ip`, `cf-connecting-ip` or `fly-client-ip`); any other value, including the old `1`, → `503 not_configured`. For `x-forwarded-for` the **rightmost** hop (the one the proxy appended) is used. A single-value header carrying several values is refused. `x-forwarded-host` is believed only on Vercel. The memory limiter now evicts least-recently-seen keys instead of `clear()`-ing every bucket at 50,000. | Unit, reproducing r3 probe P2: off Vercel, `LEAD_TRUSTED_PROXY=x-forwarded-for`, limit 2, fixed XFF + rotating `x-vercel-forwarded-for` + rotating `x-real-ip` → `200, 200, 429, 429…` (2 of 20 allowed). A client-prepended XFF hop is ignored. `VERCEL=true` trusts nothing. 5 invalid `LEAD_TRUSTED_PROXY` values → 503. A blocked bucket survives a key flood. On Vercel, distinct `x-vercel-forwarded-for` values get distinct buckets. |
+| **F2** fingerprint fallback could lock out shared fingerprints and was evadable; the note overclaimed | Trusted header absent, empty or malformed → **`503 not_configured`**, logged `no_client_address:<header>`. The fallback limiter and `LEAD_RATE_LIMIT_FLOOD` are removed. The design note now says the old claim was wrong. | Unit: off Vercel (XFF) and on Vercel policy, with an empty header and a same-origin Origin → 503 both times, logged with the header name, nothing stored. |
+| **F3** session advisory lock unreliable through a transaction pooler | Migrate reads `POSTGRES_URL_NON_POOLING`, then `DATABASE_URL_UNPOOLED`, then `POSTGRES_URL`; it prints the variable **name** and warns on a `-pooler` host. **And** the whole run is one transaction under `pg_advisory_xact_lock`: apply, checks, and a round trip in a rolled-back savepoint. The lock lives on one backend and is released by `COMMIT`/`ROLLBACK`; a failed check rolls back everything, migration included. | Real PG, real processes: NON_POOLING beats a refused `POSTGRES_URL`/`DATABASE_URL_UNPOOLED`; UNPOOLED beats a refused `POSTGRES_URL`; a refused NON_POOLING is reported by name; no URL or password printed. Pooled-host warning shown. Atomicity: a round-trip failure on a fresh DB leaves **no** `schema_migrations` and **no** 001 index. The lock-wait test (a session lock held on the same key blocks the xact lock) and the 3-way concurrent run (1 applies, 2 skip) both pass. |
+| **F4** fence lookalikes | Every visitor line is quoted `> `, continuation lines included, split on LF, CRLF, CR, VT, FF, NEL, U+2028 and U+2029. Between the fences no line can start with anything else. The r2 character-class defuser is removed. | Unit: 13 lookalike closers × 8 line breaks = 104 cases. Every line between the real fences starts `> `; exactly one opener and one closer; no break character survives inside a line; the forged line is present, quoted. The lookalikes are: bare, space, tab, ZWSP, BOM, NBSP, **U+3164, U+FFA0, U+034F, box-drawing, U+2E3A, spaced dashes**, em dashes. Multi-line JSON answers are quoted line by line. |
+| **F5** charging untested; r3 survivors | Tests: malformed JSON, a 400 bad_request and a 422 validation failure each spend the token (the next valid lead → 429). Migrate tests: a **partial** unique index and a **non-unique** index on `(app, submission_id)` are each named as "lacks UNIQUE". | Mutation run below. |
+| **F6** info | Migrate passes the same startup parameters as the app (`options=endpoint`). The design note warns that `sslmode=prefer`/`allow` can be downgraded to plaintext. | — |
+
+## Mutation testing (`/tmp/claude-0/-home-claude/507835c2-f88c-57d2-8bb7-588397ac8f5c/scratchpad/r4lead/mut.py`)
+- **Base:** r3's driver (55 implementer + 14 reviewer mutants), re-pointed at this repo and this session's TLS-only SCRAM PG, with the CA loaded.
+- **Retired (18):** mutants whose target code no longer exists — the fingerprint/flood fallback, the unfence defuser, the session unlock and the boolean trust flag. Where the same guard survives in new code it is retargeted: the trust requirement, `x-forwarded-host` on Vercel, `VERCEL` exactly `"1"`, the migrate lock, the pre-check and the post-apply column check.
+- **Added for F1–F5:**
+  - vercel header off Vercel; any value accepted; old `1` accepted;
+  - XFF leftmost; first of many; IP shape unchecked;
+  - LRU replaced by a global reset; LRU without refresh;
+  - no-address allowed; a shared key;
+  - NON_POOLING ignored; UNPOOLED ignored; pooler warning removed; not atomic;
+  - no quoting; LF-only split; first line only quoted;
+  - malformed JSON not charged; rejects not charged.
+- **Result: 77 / 77 killed.**
+  - The full run killed 76 / 77. The one survivor was `m4-no-source-trusted-anyway`, removing the null-source guard in `clientIp`, which the pipeline never reaches with a null source.
+  - A direct unit assertion now kills it; confirmed with a targeted re-run.
+  - All 7 r3 survivors are covered:
+    - partial and non-unique index → killed;
+    - badjson and reject charging → killed;
+    - `VERCEL` truthy → killed;
+    - fingerprint UA-only and session unlock → retired (code removed: no fallback; xact lock).
+- Green baseline first: 94 passed, 1 skipped.
+
+## Round 4 runs (sandbox)
+| Check | Result |
+|---|---|
+| `pnpm exec turbo run lint typecheck --force` | **11/11, 0 cached** |
+| vitest, TLS-only SCRAM PG, without CA | 93 passed, 2 skipped (the CA-only verify-full positives) |
+| vitest, same, with CA | 94 passed, 1 skipped (the no-CA negative) |
+| (together) | all 95 tests ran and passed in one mode or the other |
+| vitest without database | 70 passed, 25 skipped |
+| Full Playwright, sandbox config | **398 passed, 2 skipped, 0 failed** (5.3 min); skips are desktop-only by design |
+| Server log events | `conflict` 4, `forbidden_origin` 2, `not_configured` 6, `rate_limited` 4; no `no_client_address` (the gate servers always carry their trusted header) |
+
+**E2E config:** 3000/3001 use `LEAD_TRUSTED_PROXY=x-forwarded-for`, which `next start` fills from the socket. 3003, the rate-limit server, uses `x-real-ip`, which its test sets per viewport.
+
+## Still unverified after round 4
+- Vercel's edge overwriting a client-sent `x-vercel-forwarded-for` (r3 go-live #1). Now the only header trusted on Vercel, so this matters more, not less. Run the 9-POST spoof test on the vercel.app deployment.
+- Raw preview evidence (deployment ID, migrate output, Resend message ID).
+- `verify-full` in the production URL; `migrate` on the non-pooled URL (now the default when `POSTGRES_URL_NON_POOLING` is set).
+- The KV decision, WebKit on the Mac, retention/CCPA, independence.
+- PgBouncer itself was not run here: F3's fix rests on the documented one-backend-per-transaction guarantee of transaction pooling.

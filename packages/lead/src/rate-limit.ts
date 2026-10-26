@@ -27,16 +27,22 @@ export function parseRateLimit(raw: string | undefined): RateLimitSpec | null {
   return { limit, windowSec };
 }
 
-export function memoryLimiter(spec: RateLimitSpec, now: () => number = Date.now): RateLimiter {
+export function memoryLimiter(spec: RateLimitSpec, now: () => number = Date.now, maxKeys = 50_000): RateLimiter {
   const buckets = new Map<string, { tokens: number; at: number }>();
   const refillPerMs = spec.limit / (spec.windowSec * 1000);
   return {
     async hit(key: string): Promise<RateDecision> {
       const t = now();
-      // Bounded memory: drop the whole table if a flood of distinct keys
-      // fills it. Worst case, limits reset early — never unbounded growth.
-      if (buckets.size > 50_000) buckets.clear();
       const bucket = buckets.get(key) ?? { tokens: spec.limit, at: t };
+      // Least-recently-used order: re-inserting moves this key to the end.
+      buckets.delete(key);
+      // Bounded memory without a global reset (AEGIS r3 F1): a flood of new
+      // keys evicts only the least recently seen buckets, never everyone's.
+      while (buckets.size >= maxKeys) {
+        const oldest = buckets.keys().next().value;
+        if (oldest === undefined) break;
+        buckets.delete(oldest);
+      }
       bucket.tokens = Math.min(spec.limit, bucket.tokens + (t - bucket.at) * refillPerMs);
       bucket.at = t;
       if (bucket.tokens >= 1) {

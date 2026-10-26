@@ -12,6 +12,7 @@ import { DeliveryError, type LeadApp, type LeadRecord } from "./types";
  *
  * Order (docs/LEAD-ROUTE-DESIGN.md §4):
  *   content type (415) → origin (403) → declared size (413) → config (503)
+ *   → client address from the one trusted header (503 if absent)
  *   → body, capped (413) → JSON → honeypot (not charged) → rate limit (429)
  *   → the app's validation (400/422) → store (upsert on app + submission_id; 409 on a changed
  *   resubmission) → notify → respond
@@ -62,7 +63,7 @@ export type HandleLeadOptions = {
   logger?: LeadLogger;
   /** Test seams; production resolves these from env. */
   transport?: TransportConfig;
-  limiters?: Pick<Limiters, "perIp" | "flood">;
+  limiters?: Pick<Limiters, "perIp">;
   policy?: RequestPolicy;
   now?: () => Date;
 };
@@ -84,7 +85,9 @@ function originAllowed(request: Request, policy: RequestPolicy): boolean {
     } catch {
       return false; // includes the opaque "null" origin
     }
-    const forwardedHost = policy.trustProxy ? request.headers.get("x-forwarded-host")?.split(",")[0]?.trim() : undefined;
+    // x-forwarded-host is believed only on Vercel, whose edge sets it; an
+    // operator's proxy is trusted for one IP header only (AEGIS r3 F1).
+    const forwardedHost = policy.onVercel ? request.headers.get("x-forwarded-host")?.split(",")[0]?.trim() : undefined;
     const host = forwardedHost || request.headers.get("host");
     return !!host && originHost.toLowerCase() === host.toLowerCase();
   }
@@ -169,7 +172,7 @@ async function handle(request: Request, opts: HandleLeadOptions, log: LeadLogger
   // 4. Transport and policy. Missing config fails closed, naming settings
   //    (never values). Off Vercel without LEAD_TRUSTED_PROXY is refused here
   //    (AEGIS r2 N1), so no request ever reaches a shared bucket.
-  const limiters: Pick<Limiters, "perIp" | "flood" | "problem"> = opts.limiters ?? resolveLimiter(env, log);
+  const limiters: Pick<Limiters, "perIp" | "problem"> = opts.limiters ?? resolveLimiter(env, log);
   const config = opts.transport ?? resolveTransport(env);
   const missing = [
     ...(config.ok ? [] : config.missing),
@@ -183,31 +186,23 @@ async function handle(request: Request, opts: HandleLeadOptions, log: LeadLogger
   const transport = config.transport;
   seen.mode = transport.mode;
 
-  // 5. Rate limit — charged only for requests that reach validation, so a
-  //    honeypot hit or an oversized body never spends a real visitor's
-  //    tokens (AEGIS r2 N1). Keyed by the trusted client address; when the
-  //    trusted proxy sent none (a backstop on Vercel), by a fallback key that
-  //    is never one global bucket (see Limiters.flood).
-  const ip = clientIp(request.headers, policy.trustProxy);
+  // 5. The client address, from the one trusted header (AEGIS r3 F1). A
+  //    trusted proxy that sends no address is itself a misconfiguration: fail
+  //    closed rather than guess a shared or fingerprint bucket (AEGIS r3 F2).
+  const ip = clientIp(request.headers, policy.ipSource);
+  if (!ip) {
+    log("error", "not_configured", { app, missing: `no_client_address:${policy.ipSource?.header ?? "none"}` });
+    return fail({ ok: false, error: { code: "not_configured" } }, 503);
+  }
+
+  // Rate limit — charged for every request that reaches validation, including
+  // malformed JSON and 400/422 rejects (so probing and form-fuzzing spend
+  // tokens), but never for a honeypot hit or an oversized body, so bot traffic
+  // cannot spend a real visitor's tokens (AEGIS r2 N1).
   const charge = async (): Promise<Response | null> => {
-    let decision;
-    let limiter: "ip" | "fingerprint" | "no-origin";
-    if (ip) {
-      limiter = "ip";
-      decision = await limiters.perIp.hit(`${app}:${plainIpKey(ip)}`);
-    } else {
-      const sameOriginBrowser = request.headers.get("origin") !== null; // already passed originAllowed
-      limiter = sameOriginBrowser ? "fingerprint" : "no-origin";
-      const fingerprint = ["user-agent", "accept-language", "sec-ch-ua-platform"]
-        .map((h) => request.headers.get(h) ?? "")
-        .join("|");
-      decision = await limiters.flood.hit(
-        sameOriginBrowser ? `${app}:fp:${plainIpKey(fingerprint)}` : `${app}:no-origin`,
-      );
-      log("warn", "rate_limit_no_client_ip", { app, limiter });
-    }
+    const decision = await limiters.perIp.hit(`${app}:${plainIpKey(ip)}`);
     if (decision.allowed) return null;
-    log("warn", "rate_limited", { app, limiter });
+    log("warn", "rate_limited", { app, limiter: "ip" });
     return fail(
       { ok: false, error: { code: "rate_limited", retry_after_s: decision.retryAfterSec } },
       429,

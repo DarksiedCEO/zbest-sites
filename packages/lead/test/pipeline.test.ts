@@ -7,15 +7,15 @@ import { DeliveryError, type LeadNotifier, type LeadStore, type RateLimiter } fr
 import { PII, captureLogger, readJsonl, request, tempOutbox, toyParse } from "./helpers";
 
 const open = () => memoryLimiter({ limit: 1000, windowSec: 60 });
-const both = (l: RateLimiter) => ({ perIp: l, flood: l });
-const TRUSTED: RequestPolicy = { trustProxy: true, onVercel: false, allowedOrigins: new Set(), maxBodyBytes: 65536, problems: [] };
+const both = (l: RateLimiter) => ({ perIp: l });
+const TRUSTED: RequestPolicy = { ipSource: { header: "x-forwarded-for", hop: "last" }, onVercel: false, allowedOrigins: new Set(), maxBodyBytes: 65536, problems: [] };
 const NONCE = "gate-nonce-0123456789abcdef";
 const fakeEnv = (dir: string, extra: Record<string, string> = {}) => ({
   ZBEST_LEAD_TRANSPORT: "fake",
   ZBEST_LEAD_FAKE_OUTBOX: dir,
   ZBEST_GATE_NONCE: NONCE,
   ZBEST_LEAD_FAKE_ACK: NONCE,
-  LEAD_TRUSTED_PROXY: "1",
+  LEAD_TRUSTED_PROXY: "x-forwarded-for",
   ...extra,
 });
 const valid = (id = randomUUID(), extra: Record<string, string> = {}) => ({

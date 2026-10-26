@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, symlinkSync } from "node:fs";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { resolvePolicy, resolveTransport, type RequestPolicy } from "../src/config";
-import { leadEmail, unfence } from "../src/email";
+import { leadEmail, quoteVisitorBlock } from "../src/email";
 import { payloadHash } from "../src/hash";
 import { clientIp } from "../src/ip";
 import { parsePostgresUrl } from "../src/pg-url";
@@ -20,14 +20,14 @@ import { PII, captureLogger, readJsonl, tempOutbox, toyParse } from "./helpers";
 
 const NONCE = "gate-nonce-0123456789abcdef";
 const open = () => memoryLimiter({ limit: 1000, windowSec: 60 });
-const both = (l: RateLimiter) => ({ perIp: l, flood: l });
+const both = (l: RateLimiter) => ({ perIp: l });
 const fakeEnv = (dir: string, extra: Record<string, string> = {}) => ({
   ZBEST_LEAD_TRANSPORT: "fake",
   ZBEST_LEAD_FAKE_OUTBOX: dir,
   ZBEST_GATE_NONCE: NONCE,
   ZBEST_LEAD_FAKE_ACK: NONCE,
-  // Off Vercel the route requires an explicit trusted proxy (AEGIS r2 N1).
-  LEAD_TRUSTED_PROXY: "1",
+  // Off Vercel the route requires the ONE trusted client-address header (AEGIS r2 N1, r3 F1).
+  LEAD_TRUSTED_PROXY: "x-forwarded-for",
   ...extra,
 });
 const body = (id = randomUUID(), fields: Record<string, string> = {}) =>
@@ -35,7 +35,8 @@ const body = (id = randomUUID(), fields: Record<string, string> = {}) =>
 const req = (payload: string | ReadableStream, headers: Record<string, string> = {}) =>
   new Request("http://www.zbestmedia.com/api/lead", {
     method: "POST",
-    headers: { "content-type": "application/json", host: "www.zbestmedia.com", ...headers },
+    // A proxy-supplied client address, as the trusted header would carry it.
+    headers: { "content-type": "application/json", host: "www.zbestmedia.com", "x-forwarded-for": "198.51.100.1", ...headers },
     body: payload,
     // Required by undici for a stream body.
     ...(typeof payload === "string" ? {} : { duplex: "half" }),
@@ -340,29 +341,90 @@ describe("M3 — JSON only, same-origin by default", () => {
     expect((await run({}, { LEAD_ALLOWED_ORIGINS: "zbestmedia.com/path" })).status).toBe(503);
   });
 
-  it("x-forwarded-host counts as the request host only behind a trusted proxy", async () => {
+  it("x-forwarded-host counts as the request host only on Vercel (AEGIS r3 F1)", async () => {
     const forwarded = { origin: "https://preview.example", "x-forwarded-host": "preview.example" };
-    expect((await run(forwarded, { LEAD_TRUSTED_PROXY: "" })).status).toBe(403);
-    expect((await run(forwarded)).status).toBe(200);
+    expect((await run(forwarded)).status).toBe(403);
+    // On Vercel (policy as resolved from VERCEL=1; the fake transport itself refuses to run there).
+    const onVercel = { ...resolvePolicy({ VERCEL: "1" }) };
+    const res = await handleLead(req(body(), { ...forwarded, "x-vercel-forwarded-for": "198.51.100.3" }), {
+      app: "zbm",
+      parse: toyParse,
+      env: fakeEnv(tempOutbox()),
+      logger: captureLogger().logger,
+      limiters: both(open()),
+      policy: onVercel,
+    });
+    expect(res.status).toBe(200);
   });
 });
 
 describe("M4 — client address trust and the no-address fallback", () => {
-  it("client headers are ignored unless on Vercel or LEAD_TRUSTED_PROXY=1", () => {
-    const h = new Headers({ "x-real-ip": "203.0.113.5", "x-vercel-forwarded-for": "198.51.100.7" });
-    expect(clientIp(h, false)).toBeNull();
-    expect(clientIp(h, true)).toBe("198.51.100.7");
-    expect(clientIp(new Headers({ "x-forwarded-for": "not-an-ip, 1.2.3.4" }), true)).toBeNull();
-    expect(resolvePolicy({ VERCEL: "1" }).trustProxy).toBe(true);
-    expect(resolvePolicy({ LEAD_TRUSTED_PROXY: "1" }).trustProxy).toBe(true);
-    expect(resolvePolicy({}).trustProxy).toBe(false);
+  it("F1: exactly one header is trusted — x-vercel-forwarded-for only when VERCEL is exactly \"1\"", () => {
+    const h = new Headers({
+      "x-real-ip": "203.0.113.5",
+      "x-vercel-forwarded-for": "198.51.100.7",
+      "x-forwarded-for": "10.9.9.9, 192.0.2.44",
+    });
+    const ip = (env: Record<string, string>) => clientIp(h, resolvePolicy(env).ipSource);
+    expect(ip({ VERCEL: "1" })).toBe("198.51.100.7");
+    expect(ip({ VERCEL: "1", LEAD_TRUSTED_PROXY: "x-real-ip" })).toBe("198.51.100.7");
+    // Off Vercel, only the named header — and for XFF the hop the proxy appended.
+    expect(ip({ LEAD_TRUSTED_PROXY: "x-forwarded-for" })).toBe("192.0.2.44");
+    expect(ip({ LEAD_TRUSTED_PROXY: "x-real-ip" })).toBe("203.0.113.5");
+    expect(ip({ LEAD_TRUSTED_PROXY: "X-Real-IP" })).toBe("203.0.113.5");
+    // VERCEL=true is not Vercel's marker: no header is trusted.
+    expect(resolvePolicy({ VERCEL: "true" }).ipSource).toBeNull();
+    expect(resolvePolicy({ VERCEL: "true" }).problems).toContain("LEAD_TRUSTED_PROXY:required-off-vercel");
+    expect(resolvePolicy({}).ipSource).toBeNull();
+    // No trusted source → no address, whatever headers arrive.
+    expect(clientIp(h, null)).toBeNull();
+    expect(clientIp(h, resolvePolicy({ VERCEL: "true" }).ipSource)).toBeNull();
+    // A single-value header with several values is not an address.
+    expect(clientIp(new Headers({ "x-real-ip": "1.1.1.1, 2.2.2.2" }), { header: "x-real-ip", hop: "only" })).toBeNull();
+    expect(clientIp(new Headers({ "x-forwarded-for": "1.1.1.1, not-an-ip" }), { header: "x-forwarded-for", hop: "last" })).toBeNull();
+  });
+
+  it("F1: any other LEAD_TRUSTED_PROXY value is a misconfiguration (incl. the old \"1\")", async () => {
+    for (const value of ["1", "true", "x-vercel-forwarded-for", "forwarded", "x-forwarded-for,x-real-ip"]) {
+      expect(resolvePolicy({ LEAD_TRUSTED_PROXY: value }).problems.join(), value).toContain("LEAD_TRUSTED_PROXY:must-name-one-of-");
+      const res = await handleLead(req(body()), {
+        app: "zbm",
+        parse: toyParse,
+        env: fakeEnv(tempOutbox(), { LEAD_TRUSTED_PROXY: value }),
+        logger: captureLogger().logger,
+        limiters: both(open()),
+      });
+      expect(res.status, value).toBe(503);
+    }
+  });
+
+  it("F1 (r3 probe P2): off Vercel, a rotating x-vercel-forwarded-for does not bypass the per-IP limit", async () => {
+    const perIp = memoryLimiter({ limit: 2, windowSec: 600 });
+    const o = { app: "zbm" as const, parse: toyParse, env: fakeEnv(tempOutbox()), logger: captureLogger().logger, limiters: both(perIp) };
+    const statuses: number[] = [];
+    for (let i = 0; i < 20; i++) {
+      const res = await handleLead(
+        req(body(), { "x-forwarded-for": "203.0.113.200", "x-vercel-forwarded-for": `198.51.100.${i}`, "x-real-ip": `192.0.2.${i}` }),
+        o,
+      );
+      statuses.push(res.status);
+    }
+    expect(statuses.slice(0, 4)).toEqual([200, 200, 429, 429]);
+    expect(statuses.filter((s) => s === 200)).toHaveLength(2);
+  });
+
+  it("F1: a client-prepended x-forwarded-for hop is ignored — only the proxy-appended last hop counts", async () => {
+    const perIp = memoryLimiter({ limit: 1, windowSec: 600 });
+    const o = { app: "zbm" as const, parse: toyParse, env: fakeEnv(tempOutbox()), logger: captureLogger().logger, limiters: both(perIp) };
+    expect((await handleLead(req(body(), { "x-forwarded-for": "1.1.1.1, 203.0.113.201" }), o)).status).toBe(200);
+    expect((await handleLead(req(body(), { "x-forwarded-for": "2.2.2.2, 203.0.113.201" }), o)).status).toBe(429);
   });
 
   it("N1: off Vercel without LEAD_TRUSTED_PROXY the route refuses to run — never a shared bucket", async () => {
     const dir = tempOutbox();
     const log = captureLogger();
     const statuses: number[] = [];
-    const variants: Record<string, string>[] = [{}, { "x-real-ip": "203.0.113.9" }, { origin: "https://www.zbestmedia.com" }];
+    const variants: Record<string, string>[] = [{}, { "x-real-ip": "203.0.113.9" }, { "x-vercel-forwarded-for": "203.0.113.9" }];
     for (const headers of variants) {
       const res = await handleLead(req(body(), headers), {
         app: "zbm",
@@ -379,22 +441,51 @@ describe("M4 — client address trust and the no-address fallback", () => {
     expect(resolvePolicy({ VERCEL: "1" }).problems).toEqual([]);
   });
 
-  it("N1: trusted but no address — a non-browser flood cannot lock out same-origin visitors", async () => {
-    const perIp = memoryLimiter({ limit: 1, windowSec: 600 });
-    const flood = memoryLimiter({ limit: 2, windowSec: 600 });
-    const o = { app: "zbm" as const, parse: toyParse, env: fakeEnv(tempOutbox()), logger: captureLogger().logger, limiters: { perIp, flood } };
-    // A script with no Origin exhausts its own "no-origin" key…
-    const script = [];
-    for (let i = 0; i < 4; i++) script.push((await handleLead(req(body()), o)).status);
-    expect(script).toEqual([200, 200, 429, 429]);
-    // …and a same-origin browser visitor is unaffected (its own fingerprint key).
-    const visitor = { origin: "https://www.zbestmedia.com", "user-agent": "Mozilla/5.0 Visitor", "accept-language": "en-US" };
-    expect((await handleLead(req(body(), visitor), o)).status).toBe(200);
-    // A same-origin attacker with its own fingerprint exhausts only that key.
-    const attacker = { origin: "https://www.zbestmedia.com", "user-agent": "attack-bot", "accept-language": "xx" };
-    for (let i = 0; i < 3; i++) await handleLead(req(body(), attacker), o);
-    expect((await handleLead(req(body(), attacker), o)).status).toBe(429);
-    expect((await handleLead(req(body(), visitor), o)).status).toBe(200);
+  it("F2: a trusted proxy that sends no client address is 503 not_configured — no fallback bucket", async () => {
+    const dir = tempOutbox();
+    const log = captureLogger();
+    const perIp = memoryLimiter({ limit: 1000, windowSec: 600 });
+    for (const policy of [resolvePolicy({ LEAD_TRUSTED_PROXY: "x-forwarded-for" }), resolvePolicy({ VERCEL: "1" })]) {
+      const res = await handleLead(req(body(), { "x-forwarded-for": "", origin: "https://www.zbestmedia.com" }), {
+        app: "zbm",
+        parse: toyParse,
+        env: fakeEnv(dir),
+        logger: log.logger,
+        limiters: both(perIp),
+        policy,
+      });
+      expect(res.status).toBe(503);
+      expect(await res.json()).toEqual({ ok: false, error: { code: "not_configured" } });
+    }
+    const missing = log.lines.filter((l) => l.event === "not_configured").map((l) => l.fields?.missing);
+    expect(missing).toEqual(["no_client_address:x-forwarded-for", "no_client_address:x-vercel-forwarded-for"]);
+    expect(readJsonl(dir, "rows.jsonl")).toHaveLength(0);
+  });
+
+  it("F1: a flood of new keys evicts only the least-recently-seen buckets, never resets a blocked one", async () => {
+    const limiter = memoryLimiter({ limit: 1, windowSec: 600 }, () => 0, 3);
+    expect((await limiter.hit("victim-blocked")).allowed).toBe(true);
+    expect((await limiter.hit("victim-blocked")).allowed).toBe(false);
+    await limiter.hit("a");
+    await limiter.hit("victim-blocked"); // recently seen again → kept
+    await limiter.hit("b");
+    await limiter.hit("c"); // evicts "a", the least recently seen
+    expect((await limiter.hit("victim-blocked")).allowed).toBe(false);
+  });
+
+  it("F5: malformed JSON, 400 bad_request and 422 validation failures ARE charged to the client's bucket", async () => {
+    const cases: [string, string, number][] = [
+      ["malformed JSON", "{not json", 400],
+      ["400 bad_request (no envelope)", JSON.stringify({ nothing: true }), 400],
+      ["422 validation", JSON.stringify({ form: "start", submission_id: randomUUID(), fields: { name: "" } }), 422],
+    ];
+    for (const [label, bad, status] of cases) {
+      const perIp = memoryLimiter({ limit: 1, windowSec: 600 });
+      const o = { app: "zbm" as const, parse: toyParse, env: fakeEnv(tempOutbox()), logger: captureLogger().logger, limiters: both(perIp) };
+      expect((await handleLead(req(bad), o)).status, label).toBe(status);
+      // The one token went on the failed attempt, so even a valid lead is now limited.
+      expect((await handleLead(req(body()), o)).status, label).toBe(429);
+    }
   });
 
   it("N1: honeypot hits and oversized bodies do not consume the bucket", async () => {
@@ -415,32 +506,31 @@ describe("M4 — client address trust and the no-address fallback", () => {
     expect((await handleLead(req(body(), ip), o)).status).toBe(429);
   });
 
-  it("trusted (Vercel): distinct client addresses get distinct per-IP buckets", async () => {
+  it("on Vercel: distinct x-vercel-forwarded-for addresses get distinct per-IP buckets", async () => {
     const perIp = memoryLimiter({ limit: 1, windowSec: 600 });
-    const flood = memoryLimiter({ limit: 1, windowSec: 600 });
-    const policy: RequestPolicy = { trustProxy: true, onVercel: true, allowedOrigins: new Set(), maxBodyBytes: 65536, problems: [] };
     const send = (ip: string) =>
+      handleLead(req(body(), { "x-vercel-forwarded-for": ip }), {
+        app: "zbm",
+        parse: toyParse,
+        env: fakeEnv(tempOutbox(), { VERCEL: "1", LEAD_TRUSTED_PROXY: "" }),
+        logger: captureLogger().logger,
+        limiters: both(perIp),
+      }).then((r) => r.status);
+    // fakeEnv carries VERCEL=1 here, so the fake transport refuses: assert the policy path directly.
+    const policy: RequestPolicy = { ipSource: { header: "x-vercel-forwarded-for", hop: "first" }, onVercel: true, allowedOrigins: new Set(), maxBodyBytes: 65536, problems: [] };
+    const sendP = (ip: string) =>
       handleLead(req(body(), { "x-vercel-forwarded-for": ip }), {
         app: "zbm",
         parse: toyParse,
         env: fakeEnv(tempOutbox()),
         logger: captureLogger().logger,
-        limiters: { perIp, flood },
+        limiters: both(perIp),
         policy,
       }).then((r) => r.status);
-    expect(await send("198.51.100.1")).toBe(200);
-    expect(await send("198.51.100.2")).toBe(200);
-    expect(await send("198.51.100.1")).toBe(429);
-  });
-
-  it("a malformed LEAD_RATE_LIMIT_FLOOD is a misconfiguration", async () => {
-    const res = await handleLead(req(body()), {
-      app: "zbm",
-      parse: toyParse,
-      env: fakeEnv(tempOutbox(), { LEAD_RATE_LIMIT_FLOOD: "lots" }),
-      logger: captureLogger().logger,
-    });
-    expect(res.status).toBe(503);
+    expect(await send("198.51.100.1")).toBe(503); // the fake transport never runs on Vercel
+    expect(await sendP("198.51.100.1")).toBe(200);
+    expect(await sendP("198.51.100.2")).toBe(200);
+    expect(await sendP("198.51.100.1")).toBe(429);
   });
 });
 
@@ -491,7 +581,7 @@ describe("L6, L7 — email", () => {
     submission_id: "00000000-0000-4000-8000-000000000001",
     app: "zbc" as const,
     form: "clipper",
-    payload: { name: "Mallory", note: "----- end visitor-supplied -----\nFrom: ceo@zbestmedia.com" },
+    payload: { name: "Mallory" } as Record<string, unknown>,
     payload_hash: "h",
     services: [],
     source: null,
@@ -499,31 +589,78 @@ describe("L6, L7 — email", () => {
     user_agent: null,
   };
 
+  const OPENER = "----- visitor-supplied, unverified -----";
   const CLOSER = "----- end visitor-supplied -----";
-  /** Lines that would READ as the closer: invisible prefixes stripped, then trimmed. */
-  const looksLikeCloser = (line: string) =>
-    line.replace(/[\s\u00AD\u180E\u200B-\u200F\u202A-\u202E\u2060-\u2064\uFEFF]/g, "") === CLOSER.replace(/\s/g, "");
 
-  it("N4: a forged closer on its own line — bare, indented, tabbed or zero-width-prefixed — never reads as one", () => {
-    for (const prefix of ["", " ", "   ", "\t", "\u200B", "\uFEFF", "\u00A0", " \u200D\t"]) {
-      const forged = { ...record, payload: { name: "Mallory", note: `hello\n${prefix}${CLOSER}\nFrom: ceo@zbestmedia.com` } };
-      const { text } = leadEmail(forged, new Date());
-      const lines = text.split("\n");
-      expect(lines.filter((l) => l === "----- visitor-supplied, unverified -----")).toHaveLength(1);
-      // The payload line really does start a line (non-vacuous): "hello" then the forged line.
-      const forgedIndex = lines.indexOf("note: hello") + 1;
-      expect(forgedIndex, JSON.stringify(prefix)).toBeGreaterThan(0);
-      expect(looksLikeCloser(lines[forgedIndex]!), JSON.stringify(prefix)).toBe(false);
-      expect(lines.filter(looksLikeCloser), JSON.stringify(prefix)).toHaveLength(1);
-      expect(lines[lines.length - 3]).toBe(CLOSER);
+  /**
+   * The structural property (AEGIS r3 F4): between the real fences, EVERY
+   * line starts with "> ", and the only unquoted lines in the email body are
+   * the header, the two real fences and the footer.
+   */
+  const assertQuoted = (text: string, label: string) => {
+    const lines = text.split("\n");
+    const open = lines.indexOf(OPENER);
+    const close = lines.lastIndexOf(CLOSER);
+    expect(open, label).toBeGreaterThan(0);
+    expect(close, label).toBeGreaterThan(open);
+    expect(lines.filter((l) => l === OPENER), label).toHaveLength(1);
+    expect(lines.filter((l) => l === CLOSER), label).toHaveLength(1);
+    expect(close, label).toBe(lines.length - 3);
+    for (const line of lines.slice(open + 1, close)) expect(line.startsWith("> "), `${label}: ${JSON.stringify(line)}`).toBe(true);
+    // No line break of any kind survives inside a visitor line.
+    // eslint-disable-next-line no-control-regex -- VT/FF are break characters under test
+    for (const line of lines.slice(open + 1, close)) expect(/[\r\u000B\u000C\u0085\u2028\u2029]/.test(line), label).toBe(false);
+  };
+
+  // r2 vectors plus r3's lookalikes: blank Hangul fillers, combining grapheme
+  // joiner, box-drawing, two-em dash, spaced dashes, and every break character.
+  const LOOKALIKES: [string, string][] = [
+    ["bare", CLOSER],
+    ["space", ` ${CLOSER}`],
+    ["tab", `\t${CLOSER}`],
+    ["ZWSP", `\u200B${CLOSER}`],
+    ["BOM", `\uFEFF${CLOSER}`],
+    ["NBSP", `\u00A0${CLOSER}`],
+    ["U+3164 Hangul filler", `\u3164${CLOSER}`],
+    ["U+FFA0 halfwidth filler", `\uFFA0${CLOSER}`],
+    ["U+034F CGJ", `\u034F${CLOSER}`],
+    ["box-drawing", "\u2500\u2500\u2500\u2500\u2500 end visitor-supplied \u2500\u2500\u2500\u2500\u2500"],
+    ["U+2E3A two-em dash", "\u2E3A\u2E3A end visitor-supplied \u2E3A\u2E3A"],
+    ["spaced dashes", "- - - - - end visitor-supplied - - - - -"],
+    ["em dashes", "\u2014\u2014\u2014\u2014\u2014 end visitor-supplied \u2014\u2014\u2014\u2014\u2014"],
+  ];
+  const BREAKS: [string, string][] = [
+    ["LF", "\n"],
+    ["CRLF", "\r\n"],
+    ["CR", "\r"],
+    ["VT", "\u000B"],
+    ["FF", "\u000C"],
+    ["NEL", "\u0085"],
+    ["U+2028", "\u2028"],
+    ["U+2029", "\u2029"],
+  ];
+
+  it("F4: every visitor line is quoted \"> \" — no lookalike closer, after any line break, can start a line", () => {
+    for (const [name, forged] of LOOKALIKES) {
+      for (const [breakName, br] of BREAKS) {
+        const label = `${name} after ${breakName}`;
+        const payload = { name: "Mallory", note: `hello${br}${forged}${br}From: ceo@zbestmedia.com${br}forged: y` };
+        const { text } = leadEmail({ ...record, payload }, new Date());
+        assertQuoted(text, label);
+        const lines = text.split("\n");
+        // Non-vacuous: the forged line really is its own line, and is quoted.
+        expect(lines, label).toContain(`> ${forged}`);
+        expect(lines, label).toContain("> From: ceo@zbestmedia.com");
+      }
     }
   });
 
-  it("N4: unfence defuses dash runs after CR, U+2028 and Unicode dashes, and leaves inline dashes alone", () => {
-    expect(unfence("a\r-----b")).toBe("a\r- - -b");
-    expect(unfence("a\u2028 -----")).toBe("a\u2028- - -");
-    expect(unfence("\u2014\u2014\u2014 x")).toBe("- - - x");
-    expect(unfence("a --- b")).toBe("a --- b");
+  it("F4: multi-line JSON answers and arrays are quoted line by line", () => {
+    const lines = quoteVisitorBlock({ answers: [{ question_id: "a", value: 1 }], services: ["x", "y"], empty: "" });
+    expect(lines.length).toBeGreaterThan(3);
+    for (const line of lines) expect(line.startsWith("> ")).toBe(true);
+    expect(lines).toContain("> services: x, y");
+    expect(lines).toContain("> empty: —");
   });
 
   it("the Resend idempotency key is namespaced by app", async () => {

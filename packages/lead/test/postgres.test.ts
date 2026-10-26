@@ -193,11 +193,12 @@ describe.skipIf(!url)("migrate script (integration)", () => {
     u.pathname = `/${name}`;
     return u.toString();
   };
-  const run = (postgresUrl: string) =>
+  const runEnv = (env: Record<string, string>) =>
     spawnSync(process.execPath, [path.join(import.meta.dirname, "..", "scripts", "migrate.mjs")], {
-      env: { PATH: process.env.PATH, POSTGRES_URL: postgresUrl },
+      env: { PATH: process.env.PATH, ...env },
       encoding: "utf8",
     });
+  const run = (postgresUrl: string) => runEnv({ POSTGRES_URL: postgresUrl });
 
   it("applies once, records the version, verifies columns and round-trips; a second run skips", async () => {
     const sql = admin();
@@ -337,6 +338,84 @@ describe.skipIf(!url)("migrate script (integration)", () => {
     expect(results.filter((r) => r.out.includes("applied 001_leads.sql"))).toHaveLength(1);
     expect(results.filter((r) => r.out.includes("skip 001_leads.sql"))).toHaveLength(2);
   }, 30_000);
+
+  it("r3 F5: a PARTIAL unique index on (app, submission_id) is not the key the app needs", async () => {
+    const target = await prepared(
+      "leads_migrate_partial_unique",
+      `ALTER TABLE leads DROP CONSTRAINT leads_app_submission_id_key;
+       CREATE UNIQUE INDEX leads_partial_key ON leads (app, submission_id) WHERE app = 'zbm';`,
+    );
+    const result = run(target);
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain("leads table lacks UNIQUE (app, submission_id)");
+  });
+
+  it("r3 F5: a NON-unique index on (app, submission_id) is not the key the app needs", async () => {
+    const target = await prepared(
+      "leads_migrate_nonunique",
+      `ALTER TABLE leads DROP CONSTRAINT leads_app_submission_id_key;
+       CREATE INDEX leads_plain_idx ON leads (app, submission_id);`,
+    );
+    const result = run(target);
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain("leads table lacks UNIQUE (app, submission_id)");
+  });
+
+  it("F3: prefers POSTGRES_URL_NON_POOLING, then DATABASE_URL_UNPOOLED, then POSTGRES_URL (names printed, never URLs)", async () => {
+    const sql = admin();
+    await sql.unsafe("DROP DATABASE IF EXISTS leads_migrate_pref");
+    await sql.unsafe("CREATE DATABASE leads_migrate_pref");
+    await sql.end();
+    const good = dbUrl("leads_migrate_pref");
+    // A URL the parser refuses: if it were chosen, the run would fail.
+    const refused = "postgres://u:PrefSecret@h.example/db?bogus=1";
+
+    const nonPooling = runEnv({ POSTGRES_URL: refused, DATABASE_URL_UNPOOLED: refused, POSTGRES_URL_NON_POOLING: good });
+    expect(nonPooling.status, nonPooling.stderr).toBe(0);
+    expect(nonPooling.stdout).toContain("using POSTGRES_URL_NON_POOLING");
+
+    const unpooled = runEnv({ POSTGRES_URL: refused, DATABASE_URL_UNPOOLED: good });
+    expect(unpooled.status, unpooled.stderr).toBe(0);
+    expect(unpooled.stdout).toContain("using DATABASE_URL_UNPOOLED");
+
+    const plain = runEnv({ POSTGRES_URL: good });
+    expect(plain.status, plain.stderr).toBe(0);
+    expect(plain.stdout).toContain("using POSTGRES_URL");
+
+    const refusedRun = runEnv({ POSTGRES_URL_NON_POOLING: refused, POSTGRES_URL: good });
+    expect(refusedRun.status).toBe(1);
+    expect(refusedRun.stderr).toContain("POSTGRES_URL_NON_POOLING refused (unknown-param-bogus)");
+    for (const r of [nonPooling, unpooled, plain, refusedRun]) expect(r.stdout + r.stderr).not.toContain("PrefSecret");
+  });
+
+  it("F3: warns when the only URL is a pooled (-pooler) endpoint", () => {
+    const result = runEnv({ POSTGRES_URL: "postgres://u:pw@ep-x-pooler.invalid/db?connect_timeout=2" });
+    expect(result.stderr + result.stdout).toContain("POSTGRES_URL looks like a pooled endpoint");
+    expect(result.status).not.toBe(0); // .invalid never resolves
+  });
+
+  it("F3: one transaction — a failed check rolls back every step, including the migration itself", async () => {
+    const sql = admin();
+    await sql.unsafe("DROP DATABASE IF EXISTS leads_migrate_atomic");
+    await sql.unsafe("CREATE DATABASE leads_migrate_atomic");
+    await sql.end();
+    const target = dbUrl("leads_migrate_atomic");
+    const db = connect(target);
+    // A compatible pre-existing table with a row-mangling trigger, and no
+    // schema_migrations: 001 applies, then the round trip fails.
+    await db.unsafe(readFileSync(path.join(import.meta.dirname, "..", "sql", "001_leads.sql"), "utf8").replace(/CREATE INDEX[^;]*;/g, ""));
+    await db.unsafe(`CREATE FUNCTION mangle() RETURNS trigger AS $$ BEGIN NEW.form := 'mangled'; RETURN NEW; END $$ LANGUAGE plpgsql;
+      CREATE TRIGGER mangle BEFORE INSERT ON leads FOR EACH ROW EXECUTE FUNCTION mangle();`);
+    const result = run(target);
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain("round-trip check failed");
+    expect(result.stderr).toContain("Nothing was changed (the whole run was rolled back).");
+    const [state] = await db`
+      SELECT to_regclass('schema_migrations') IS NULL AS no_versions,
+             to_regclass('leads_app_created_idx') IS NULL AS no_index`;
+    await db.end();
+    expect(state).toEqual({ no_versions: true, no_index: true });
+  });
 
   it("refuses a URL the app would refuse, printing the reason and not the URL", () => {
     const result = run("postgres://u:TopSecretPw@h.example/db?search_path=x");

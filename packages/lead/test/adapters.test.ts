@@ -117,7 +117,7 @@ describe("founder email", () => {
     expect(email.subject).toBe("New lead — Z Best Media · start · out-of-home · src:bb-i405");
     expect(email.replyTo).toBe("ada@example.com");
     expect(email.text).toContain("Source tag: bb-i405");
-    expect(email.text).toContain("details: line1\nline2");
+    expect(email.text).toContain("> details: line1\n> line2");
   });
 
   it("no CR/LF can reach the subject; a non-email reach sets no reply-to", () => {

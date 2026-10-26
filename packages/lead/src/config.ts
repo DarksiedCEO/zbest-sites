@@ -2,7 +2,7 @@ import { existsSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fakeNotifier, fakeStore } from "./fake";
-import { hmacIp } from "./ip";
+import { TRUSTED_PROXY_HEADERS, VERCEL_IP_SOURCE, hmacIp, ipSourceFor, type IpSource } from "./ip";
 import { parsePostgresUrl } from "./pg-url";
 import type { LeadLogger } from "./log";
 import { postgresStore } from "./postgres";
@@ -186,9 +186,12 @@ function resolveTransportUnsafe(env: Env): TransportConfig {
 
 /** Request-level policy: who may post, which client address to trust, how big a body may be. */
 export type RequestPolicy = {
-  /** Trust x-vercel-forwarded-for / x-real-ip / x-forwarded-for (AEGIS M4). */
-  trustProxy: boolean;
-  /** Running on Vercel (VERCEL=1), where the edge supplies the client address. */
+  /**
+   * The ONE header trusted for the client address (AEGIS r3 F1), or null when
+   * none is (a misconfiguration off Vercel — `problems` says so).
+   */
+  ipSource: IpSource | null;
+  /** Running on Vercel (VERCEL === "1" exactly). */
   onVercel: boolean;
   /** Extra allowed browser origins; same-origin is always allowed (AEGIS M3). */
   allowedOrigins: Set<string>;
@@ -210,48 +213,36 @@ export function resolvePolicy(env: Env): RequestPolicy {
       problems.push("LEAD_ALLOWED_ORIGINS:not-an-origin-list");
     }
   }
-  const trusted = set(env, "LEAD_TRUSTED_PROXY").toLowerCase();
-  if (trusted !== "" && trusted !== "1" && trusted !== "true") problems.push("LEAD_TRUSTED_PROXY:must-be-1-or-unset");
-  const onVercel = set(env, "VERCEL") === "1";
-  const trustProxy = onVercel || trusted === "1" || trusted === "true";
-  // AEGIS r2 N1: off Vercel, with no trusted proxy, there is no client
-  // address to limit by, and a shared bucket would let one client lock every
-  // visitor out. So that combination is a misconfiguration, not a mode.
-  if (!trustProxy) problems.push("LEAD_TRUSTED_PROXY:required-off-vercel");
-  return {
-    // On Vercel the edge sets these headers; elsewhere only an operator who
-    // knows a proxy overwrites them may switch trust on.
-    trustProxy,
-    onVercel,
-    allowedOrigins,
-    maxBodyBytes: DEFAULT_MAX_BODY_BYTES,
-    problems,
-  };
+
+  // Exactly "1": VERCEL=true or VERCEL=yes is not Vercel's own marker.
+  const onVercel = (env.VERCEL ?? "") === "1";
+  const named = set(env, "LEAD_TRUSTED_PROXY").toLowerCase();
+  const valid = (TRUSTED_PROXY_HEADERS as readonly string[]).includes(named);
+  if (named !== "" && !valid) problems.push(`LEAD_TRUSTED_PROXY:must-name-one-of-${TRUSTED_PROXY_HEADERS.join("|")}`);
+
+  let ipSource: IpSource | null = null;
+  if (onVercel) {
+    // The edge sets x-vercel-forwarded-for; nothing else is read on Vercel.
+    ipSource = VERCEL_IP_SOURCE;
+  } else if (valid) {
+    ipSource = ipSourceFor(named as (typeof TRUSTED_PROXY_HEADERS)[number]);
+  } else if (named === "") {
+    // AEGIS r2 N1: off Vercel with no named proxy header there is no client
+    // address to limit by, and a shared bucket would let one client lock
+    // every visitor out. A misconfiguration, not a mode.
+    problems.push("LEAD_TRUSTED_PROXY:required-off-vercel");
+  }
+  return { ipSource, onVercel, allowedOrigins, maxBodyBytes: DEFAULT_MAX_BODY_BYTES, problems };
 }
 
 const limiters = new Map<string, RateLimiter>();
 
 export type Limiters = {
-  /** Per client address, per app. */
+  /** Per client address, per app. There is no other bucket (AEGIS r3 F2). */
   perIp: RateLimiter;
-  /**
-   * The fallback, used only when the proxy is trusted but no client address
-   * arrived (on Vercel the edge always sets one, so this is a backstop) —
-   * AEGIS r2 N1. Keys, never one global bucket:
-   *   - a same-origin browser request: a fingerprint of its user agent and
-   *     language headers, so a non-browser flood cannot lock real visitors
-   *     out;
-   *   - anything else (no matching Origin): a per-app "no-origin" key, which
-   *     only non-browser clients share.
-   * Its limit (LEAD_RATE_LIMIT_FLOOD, default 200/600) is deliberately higher
-   * than the per-IP one, because a fingerprint can be shared by many people.
-   */
-  flood: RateLimiter;
   spec: RateLimitSpec;
   problem?: string;
 };
-
-const DEFAULT_FLOOD = "200/600";
 
 function buildLimiter(spec: RateLimitSpec, env: Env, logger: LeadLogger, tag: string): RateLimiter {
   const restUrl = set(env, "KV_REST_API_URL") || set(env, "UPSTASH_REDIS_REST_URL");
@@ -287,16 +278,9 @@ function buildLimiter(spec: RateLimitSpec, env: Env, logger: LeadLogger, tag: st
 export function resolveLimiter(env: Env, logger: LeadLogger): Limiters {
   const parsed = parseRateLimit(env.LEAD_RATE_LIMIT);
   const spec = parsed ?? DEFAULT_RATE_LIMIT;
-  const floodParsed = parseRateLimit(env.LEAD_RATE_LIMIT_FLOOD || DEFAULT_FLOOD);
-  const floodSpec = floodParsed ?? parseRateLimit(DEFAULT_FLOOD)!;
-  const problems = [
-    ...(parsed ? [] : ["LEAD_RATE_LIMIT:expected-count/seconds"]),
-    ...(floodParsed ? [] : ["LEAD_RATE_LIMIT_FLOOD:expected-count/seconds"]),
-  ];
   return {
     perIp: buildLimiter(spec, env, logger, "ip"),
-    flood: buildLimiter(floodSpec, env, logger, "flood"),
     spec,
-    problem: problems.length ? problems.join(",") : undefined,
+    problem: parsed ? undefined : "LEAD_RATE_LIMIT:expected-count/seconds",
   };
 }
