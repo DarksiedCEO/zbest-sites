@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { spawn, spawnSync } from "node:child_process";
+import { lookup } from "node:dns/promises";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import postgres from "postgres";
@@ -432,7 +433,32 @@ describe.skipIf(!url)("migrate script (integration)", () => {
  * a hosts entry `lead-wrong-host.test → 127.0.0.1` (a name NOT in the
  * certificate), and are skipped without them.
  */
-const caLoaded = !!process.env.NODE_EXTRA_CA_CERTS;
+/**
+ * Whether THIS server's CA is trusted, detected by trying it — not by the
+ * presence of NODE_EXTRA_CA_CERTS, which a sandbox may set to its own bundle
+ * (AEGIS r4). The probe is a verify-full connection to localhost.
+ */
+async function probeCaTrusted(): Promise<boolean> {
+  if (!neonShaped) return false;
+  const u = new URL(neonShaped);
+  u.hostname = "localhost";
+  u.search = "?sslmode=verify-full";
+  const sql = connect(u.toString(), { connect_timeout: 5 });
+  try {
+    await sql`SELECT 1`;
+    return true;
+  } catch {
+    return false;
+  } finally {
+    await sql.end({ timeout: 1 });
+  }
+}
+const caLoaded = await probeCaTrusted();
+/** The hostname-mismatch case needs a name that resolves here but is not in the cert. */
+const wrongHostResolves = await lookup("lead-wrong-host.test").then(
+  () => true,
+  () => false,
+);
 describe.skipIf(!neonShaped)("TLS modes and startup options (integration)", () => {
   const withHost = (host: string, query: string) => {
     const u = new URL(neonShaped!);
@@ -473,7 +499,7 @@ describe.skipIf(!neonShaped)("TLS modes and startup options (integration)", () =
     expect(await tryInsert(withHost("localhost", "?sslmode=verify-full&channel_binding=require"))).toMatchObject({ ok: true });
   });
 
-  it.skipIf(!caLoaded)("sslmode=verify-full refuses a hostname the certificate does not name", async () => {
+  it.skipIf(!caLoaded || !wrongHostResolves)("sslmode=verify-full refuses a hostname the certificate does not name", async () => {
     // "unknown": a TLS error carries no SQLSTATE, and the store logs only codes it recognises.
     expect(await tryInsert(withHost("lead-wrong-host.test", "?sslmode=verify-full"))).toEqual({ ok: false, code: "ERR_TLS_CERT_ALTNAME_INVALID" });
   });

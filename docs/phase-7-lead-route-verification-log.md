@@ -135,7 +135,7 @@ The reviewer's driver, adapted to this repo and this session's database, is at `
 | phase-7 gate | 15 tests × 2 = 30 runs: 29 pass, 1 skipped (M1 on mobile) |
 | Server log events | `conflict` 4, `forbidden_origin` 2, `not_configured` 6, `rate_limited` 4, with no values |
 
-**E2E config:** gate servers now set `LEAD_TRUSTED_PROXY=1`, as required off Vercel. `next start` acts as the proxy and sets `x-forwarded-for` from the socket. On 3000, `ip_hash` is again asserted as an HMAC, never the raw IP.
+**E2E config:** gate servers now set `LEAD_TRUSTED_PROXY=1`, as required off Vercel. `next start` acts as the proxy and sets `x-forwarded-for` from the socket. **Correction (round 5, AEGIS r4 R1):** `next start` only fills `x-forwarded-for` when it is *absent*. It does not overwrite or append to a client-sent value, so it is not a proxy in the security sense. The gate is safe only because its tests never send `x-forwarded-for`. On 3000, `ip_hash` is again asserted as an HMAC, never the raw IP.
 
 **Sandbox changes for this round, outside the repo:**
 - Local PG16 regenerated with a cert for `IP:127.0.0.1, DNS:localhost`, listening on 127.0.0.1 and .2.
@@ -200,7 +200,7 @@ Also unverified: the format of the Vercel–Supabase `supa=` parameter in a live
 | Full Playwright, sandbox config | **398 passed, 2 skipped, 0 failed** (5.3 min); skips are desktop-only by design |
 | Server log events | `conflict` 4, `forbidden_origin` 2, `not_configured` 6, `rate_limited` 4; no `no_client_address` (the gate servers always carry their trusted header) |
 
-**E2E config:** 3000/3001 use `LEAD_TRUSTED_PROXY=x-forwarded-for`, which `next start` fills from the socket. 3003, the rate-limit server, uses `x-real-ip`, which its test sets per viewport.
+**E2E config:** 3000/3001 use `LEAD_TRUSTED_PROXY=x-forwarded-for`, which `next start` fills from the socket **only when absent** (correction, round 5: it does not append to or overwrite a client-sent value; see AEGIS r4 R1). 3003, the rate-limit server, uses `x-real-ip`, which its test sets per viewport.
 
 ## Still unverified after round 4
 - Vercel's edge overwriting a client-sent `x-vercel-forwarded-for` (r3 go-live #1). Now the only header trusted on Vercel, so this matters more, not less. Run the 9-POST spoof test on the vercel.app deployment.
@@ -208,3 +208,51 @@ Also unverified: the format of the Vercel–Supabase `supa=` parameter in a live
 - `verify-full` in the production URL; `migrate` on the non-pooled URL (now the default when `POSTGRES_URL_NON_POOLING` is set).
 - The KV decision, WebKit on the Mac, retention/CCPA, independence.
 - PgBouncer itself was not run here: F3's fix rests on the documented one-backend-per-transaction guarantee of transaction pooling.
+
+---
+
+# Round 5 — AEGIS r4 findings on ff19be8 (R1, R2, small items), branch `lead-route-v3`
+
+`lead-route-v2@ff19be8` was fast-forwarded into `main` (r4 CERTIFIED WITH CONDITIONS). This round is on `lead-route-v3`, from `origin/main` = ff19be8. It is not merged.
+
+## What changed, by finding
+| Finding | Fix | Proven by |
+|---|---|---|
+| **R1** bare `next start` does not overwrite a client-sent `x-forwarded-for` | **Docs corrected:** design note `LEAD_TRUSTED_PROXY` row, the `e2e/playwright.config.ts` comment, two lines of this log (rounds 3 and 4) and a phase-7 test comment. They now say `x-forwarded-for` is valid only behind exactly the configured number of proxies that **append** to it; that Next 16.3.5 only fills it when absent (`base-server.js:612`); and never to expose `next start` directly with any `LEAD_TRUSTED_PROXY`. **New setting** `LEAD_TRUSTED_PROXY_HOPS` (1–9, default 1, `x-forwarded-for` only) reads the n-th entry from the right. A chain shorter than the hops → no address → 503. | Unit: hops 1/2/3 pick the right entry; hops 4 on a 3-entry chain → null. With hops 2, a client-prepended entry cannot pick the bucket, and a different visitor behind the same CDN egress gets a different bucket. Invalid hops (`0`, `10`, `two`, `-1`, `1.5`) or hops with another header → misconfiguration. |
+| **R2** keys per literal string (ports, IPv6 rotation) | `normalizeIp`: strips `:port` from IPv4 and `[…]:port` from IPv6, with ports validated 1–65535. Unwraps `::ffff:a.b.c.d`. Refuses zone ids. Validates with `net.isIP` (anything else → no address → 503). Expands IPv6, including an embedded IPv4 tail. The rate-limit key is `v4:<addr>` or **`v6/64:<first 4 groups>`**; `ip_hash` is the HMAC of the full normalised address. | Unit, reproducing r4 probe P5: 10 addresses in `2001:db8:1:1::/64` on Vercel policy → `200` then 9×`429`, and 10 ports of one IPv4 behind XFF → `200` then 9×`429`. 10 non-addresses → null. `deadbeef` in the trusted header → 503. `ip_hash` equals HMAC(`198.51.100.30`) for `198.51.100.30:5678`, and HMAC(expanded v6) for `[2001:db8:1:1::5]:443`. |
+| small: `x-vercel-forwarded-for` as one value | `hop: "only"`: a list is refused (fail closed) | unit |
+| small: stale comment | `sql/001_leads.sql` header now describes the direct-URL order, the single transaction and the xact lock, and says the file must stay free of `CONCURRENTLY` and `BEGIN/COMMIT` | — |
+| small: harness CA detection | `caLoaded` is now **probed** (a verify-full connect to localhost), not read from `NODE_EXTRA_CA_CERTS`. The hostname-mismatch test also requires `lead-wrong-host.test` to resolve. | vitest under the sandbox's ambient `NODE_EXTRA_CA_CERTS=/root/.ccr/ca-bundle.crt`: **104 passed, 2 skipped, 0 failed** (r4 saw 4 spurious failures there) |
+| r4 info items | Doc lines added: don't ship a `vercel env pull` file (it copies `VERCEL="1"`); watch the `no_client_address` count after launch; `VERCEL` with whitespace is not Vercel (tested); only the first `x-forwarded-host` hop counts (tested). | unit |
+| **Found while running the gate:** pre-hydration native submit | The flaky double-submit failure (mobile, once) was a native **GET** submit before React hydrated: the URL carried `name=…&reach=…`, so PII would land in history and server logs. All lead forms are now `method="post"`. `LeadForm` sets `data-ready="true"` after hydration; the double-submit test waits for it. | New e2e, both viewports: JavaScript disabled, a submit leaves no typed value in the URL, and nothing is stored. |
+
+## Mutation testing (`/tmp/claude-0/-home-claude/507835c2-f88c-57d2-8bb7-588397ac8f5c/scratchpad/r5lead/mut.py`)
+- **Base:** r4's driver (77 builder + 12 reviewer mutants), re-pointed at this repo, with 8 retargeted to the new code and 12 new mutants for R1/R2:
+  - hops ignored; any hops value; hops with any header; short chain accepted;
+  - port kept (v4 and bracketed); port range unchecked; mapped not unwrapped;
+  - full-v6 key; v4 tail ignored; zone accepted; hash of the key instead of the address.
+- **Full run: 97 / 100 killed.** The 3 survivors:
+  - `r5-v6-v4tail-ignored` is now killed by an exact `address` assertion (targeted re-run).
+  - `A-ip-length-uncapped` is **equivalent**: `net.isIP` rejects anything over 64 chars that the cap would; no valid IP text, even bracketed with a port, reaches 64.
+  - `A-migrate-session-lock` is **equivalent on a direct connection**: only a transaction pooler distinguishes them, and the r4 reviewer's PgBouncer run passed with the shipped xact lock.
+- **Net: 98 / 100 killed, 2 equivalent.**
+
+## Round 5 runs (sandbox)
+| Check | Result |
+|---|---|
+| `pnpm exec turbo run lint typecheck --force` | **11/11, 0 cached** |
+| vitest, TLS-only SCRAM PG, our CA | 105 passed, 1 skipped (the no-CA negative) |
+| vitest, same, ambient sandbox bundle | 104 passed, 2 skipped (CA-only positives; probe said untrusted) |
+| vitest, no DB, `env -u NODE_EXTRA_CA_CERTS` | 81 passed, 25 skipped |
+| Full Playwright, sandbox config | **399 passed, 2 skipped, 1 failed**. The failure is desktop `phase-2:147`, the ZBC FAQ accordion: `aria-expanded` was still `false` after a click. That file and the FAQ component are untouched by this branch, and r3 reported the same test flaking on mobile. A targeted `--repeat-each=5` gave **19/20**, so it is a pre-existing hydration flake, not fixed here. phase-7: all pass, including both new tests. |
+| Server log events | `conflict` 4, `forbidden_origin` 2, `not_configured` 6, `rate_limited` 4 |
+
+## Not done
+- **Not done:** r4's suggestion to warn when `POSTGRES_URL_NON_POOLING` points at a different database than `POSTGRES_URL`. It is optional, and migrate already prints the variable name it used.
+
+## Still unverified
+Unchanged from r4's go-live list:
+- Vercel edge overwriting `x-vercel-forwarded-for` (the 9-POST spoof test);
+- raw preview evidence;
+- `verify-full` in production;
+- KV, WebKit, retention/CCPA, independence.

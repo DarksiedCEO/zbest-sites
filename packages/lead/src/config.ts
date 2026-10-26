@@ -220,12 +220,22 @@ export function resolvePolicy(env: Env): RequestPolicy {
   const valid = (TRUSTED_PROXY_HEADERS as readonly string[]).includes(named);
   if (named !== "" && !valid) problems.push(`LEAD_TRUSTED_PROXY:must-name-one-of-${TRUSTED_PROXY_HEADERS.join("|")}`);
 
+  // AEGIS r4 R1: how many appending proxies sit in front, for x-forwarded-for
+  // only. Default 1. Meaningless (so refused) for the single-value headers.
+  const hopsRaw = set(env, "LEAD_TRUSTED_PROXY_HOPS");
+  let hops = 1;
+  if (hopsRaw !== "") {
+    if (!/^(?:[1-9])$/.test(hopsRaw)) problems.push("LEAD_TRUSTED_PROXY_HOPS:must-be-1-to-9");
+    else if (named !== "x-forwarded-for") problems.push("LEAD_TRUSTED_PROXY_HOPS:only-with-x-forwarded-for");
+    else hops = Number(hopsRaw);
+  }
+
   let ipSource: IpSource | null = null;
   if (onVercel) {
     // The edge sets x-vercel-forwarded-for; nothing else is read on Vercel.
     ipSource = VERCEL_IP_SOURCE;
   } else if (valid) {
-    ipSource = ipSourceFor(named as (typeof TRUSTED_PROXY_HEADERS)[number]);
+    ipSource = ipSourceFor(named as (typeof TRUSTED_PROXY_HEADERS)[number], hops);
   } else if (named === "") {
     // AEGIS r2 N1: off Vercel with no named proxy header there is no client
     // address to limit by, and a shared bucket would let one client lock

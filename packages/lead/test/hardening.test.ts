@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { resolvePolicy, resolveTransport, type RequestPolicy } from "../src/config";
 import { leadEmail, quoteVisitorBlock } from "../src/email";
 import { payloadHash } from "../src/hash";
-import { clientIp } from "../src/ip";
+import { clientIp, hmacIp, normalizeIp } from "../src/ip";
 import { parsePostgresUrl } from "../src/pg-url";
 import { handleLead } from "../src/pipeline";
 import { memoryLimiter } from "../src/rate-limit";
@@ -365,7 +365,7 @@ describe("M4 — client address trust and the no-address fallback", () => {
       "x-vercel-forwarded-for": "198.51.100.7",
       "x-forwarded-for": "10.9.9.9, 192.0.2.44",
     });
-    const ip = (env: Record<string, string>) => clientIp(h, resolvePolicy(env).ipSource);
+    const ip = (env: Record<string, string>) => clientIp(h, resolvePolicy(env).ipSource)?.address;
     expect(ip({ VERCEL: "1" })).toBe("198.51.100.7");
     expect(ip({ VERCEL: "1", LEAD_TRUSTED_PROXY: "x-real-ip" })).toBe("198.51.100.7");
     // Off Vercel, only the named header — and for XFF the hop the proxy appended.
@@ -381,7 +381,7 @@ describe("M4 — client address trust and the no-address fallback", () => {
     expect(clientIp(h, resolvePolicy({ VERCEL: "true" }).ipSource)).toBeNull();
     // A single-value header with several values is not an address.
     expect(clientIp(new Headers({ "x-real-ip": "1.1.1.1, 2.2.2.2" }), { header: "x-real-ip", hop: "only" })).toBeNull();
-    expect(clientIp(new Headers({ "x-forwarded-for": "1.1.1.1, not-an-ip" }), { header: "x-forwarded-for", hop: "last" })).toBeNull();
+    expect(clientIp(new Headers({ "x-forwarded-for": "1.1.1.1, not-an-ip" }), { header: "x-forwarded-for", hop: "from-right", hops: 1 })).toBeNull();
   });
 
   it("F1: any other LEAD_TRUSTED_PROXY value is a misconfiguration (incl. the old \"1\")", async () => {
@@ -517,7 +517,7 @@ describe("M4 — client address trust and the no-address fallback", () => {
         limiters: both(perIp),
       }).then((r) => r.status);
     // fakeEnv carries VERCEL=1 here, so the fake transport refuses: assert the policy path directly.
-    const policy: RequestPolicy = { ipSource: { header: "x-vercel-forwarded-for", hop: "first" }, onVercel: true, allowedOrigins: new Set(), maxBodyBytes: 65536, problems: [] };
+    const policy: RequestPolicy = { ipSource: { header: "x-vercel-forwarded-for", hop: "only" }, onVercel: true, allowedOrigins: new Set(), maxBodyBytes: 65536, problems: [] };
     const sendP = (ip: string) =>
       handleLead(req(body(), { "x-vercel-forwarded-for": ip }), {
         app: "zbm",
@@ -696,5 +696,130 @@ describe("N5 — the payload hash", () => {
     expect((await handleLead(req(body(id)), { ...o, parse: parseAs("contact") })).status).toBe(200);
     expect((await handleLead(req(body(id)), { ...o, parse: parseAs("start") })).status).toBe(409);
     expect(readJsonl(dir, "rows.jsonl")).toHaveLength(1);
+  });
+});
+
+describe("AEGIS r4 — R1 hops, R2 key normalisation, single-value Vercel header", () => {
+  const xff = (hops?: string) =>
+    resolvePolicy({ LEAD_TRUSTED_PROXY: "x-forwarded-for", ...(hops ? { LEAD_TRUSTED_PROXY_HOPS: hops } : {}) });
+
+  it("R1: LEAD_TRUSTED_PROXY_HOPS picks the n-th entry from the right (default 1)", () => {
+    const h = new Headers({ "x-forwarded-for": "6.6.6.6, 203.0.113.9, 198.51.100.20" });
+    expect(clientIp(h, xff().ipSource)?.address).toBe("198.51.100.20");
+    expect(clientIp(h, xff("2").ipSource)?.address).toBe("203.0.113.9");
+    expect(clientIp(h, xff("3").ipSource)?.address).toBe("6.6.6.6");
+    // Fewer entries than the configured hops: the chain is not what the operator said.
+    expect(clientIp(h, xff("4").ipSource)).toBeNull();
+    expect(clientIp(new Headers({ "x-forwarded-for": "198.51.100.20" }), xff("2").ipSource)).toBeNull();
+  });
+
+  it("R1: with two appending proxies, a client-prepended entry cannot pick the bucket", async () => {
+    const perIp = memoryLimiter({ limit: 1, windowSec: 600 });
+    const o = {
+      app: "zbm" as const,
+      parse: toyParse,
+      env: fakeEnv(tempOutbox(), { LEAD_TRUSTED_PROXY_HOPS: "2" }),
+      logger: captureLogger().logger,
+      limiters: both(perIp),
+    };
+    // client-spoofed, then the address the CDN saw, then the CDN egress the LB saw.
+    expect((await handleLead(req(body(), { "x-forwarded-for": "1.1.1.1, 203.0.113.50, 10.0.0.1" }), o)).status).toBe(200);
+    expect((await handleLead(req(body(), { "x-forwarded-for": "2.2.2.2, 203.0.113.50, 10.0.0.1" }), o)).status).toBe(429);
+    // A different visitor behind the same CDN egress is a different bucket.
+    expect((await handleLead(req(body(), { "x-forwarded-for": "203.0.113.51, 10.0.0.1" }), o)).status).toBe(200);
+  });
+
+  it("R1: invalid hops settings are misconfigurations", () => {
+    for (const hops of ["0", "10", "two", "-1", "1.5"]) expect(xff(hops).problems.join(), hops).toContain("LEAD_TRUSTED_PROXY_HOPS:must-be-1-to-9");
+    expect(resolvePolicy({ LEAD_TRUSTED_PROXY: "x-real-ip", LEAD_TRUSTED_PROXY_HOPS: "2" }).problems.join()).toContain(
+      "LEAD_TRUSTED_PROXY_HOPS:only-with-x-forwarded-for",
+    );
+    expect(xff("1").problems).toEqual([]);
+  });
+
+  it("R2: ports are stripped; IPv4-mapped IPv6 is IPv4; IPv6 is keyed by its /64", () => {
+    expect(normalizeIp("198.51.100.30:5678")).toEqual({ address: "198.51.100.30", key: "v4:198.51.100.30" });
+    expect(normalizeIp("::ffff:198.51.100.30")).toEqual({ address: "198.51.100.30", key: "v4:198.51.100.30" });
+    expect(normalizeIp("[2001:db8:1:1::5]:443")).toEqual({
+      address: "2001:0db8:0001:0001:0000:0000:0000:0005",
+      key: "v6/64:2001:0db8:0001:0001",
+    });
+    expect(normalizeIp("2001:DB8:1:1:aaaa:bbbb:cccc:dddd")?.key).toBe("v6/64:2001:0db8:0001:0001");
+    expect(normalizeIp("64:ff9b::198.51.100.1")).toEqual({
+      address: "0064:ff9b:0000:0000:0000:0000:c633:6401",
+      key: "v6/64:0064:ff9b:0000:0000",
+    });
+    expect(normalizeIp("2001:db8:1:2::1")?.key).not.toBe(normalizeIp("2001:db8:1:1::1")?.key);
+  });
+
+  it("R2: anything net.isIP rejects is no address", () => {
+    for (const bad of ["deadbeef", "999.1.1.1", "1.2.3", "1.2.3.4:99999", "fe80::1%eth0", "[::1", "::ffff:999.1.1.1", "1.2.3.4.5", "a".repeat(65), ""]) {
+      expect(normalizeIp(bad), JSON.stringify(bad)).toBeNull();
+    }
+  });
+
+  it("R2 (r4 probe P5): rotating addresses inside one IPv6 /64, or rotating ports, share one bucket", async () => {
+    const perIp = memoryLimiter({ limit: 1, windowSec: 600 });
+    const policy = resolvePolicy({ VERCEL: "1" });
+    const send = (ip: string) =>
+      handleLead(req(body(), { "x-vercel-forwarded-for": ip }), {
+        app: "zbm",
+        parse: toyParse,
+        env: fakeEnv(tempOutbox()),
+        logger: captureLogger().logger,
+        limiters: both(perIp),
+        policy,
+      }).then((r) => r.status);
+    const v6 = [];
+    for (let i = 1; i <= 10; i++) v6.push(await send(`2001:db8:1:1::${i.toString(16)}`));
+    expect(v6).toEqual([200, 429, 429, 429, 429, 429, 429, 429, 429, 429]);
+
+    const perIp2 = memoryLimiter({ limit: 1, windowSec: 600 });
+    const o = { app: "zbm" as const, parse: toyParse, env: fakeEnv(tempOutbox()), logger: captureLogger().logger, limiters: both(perIp2) };
+    const ports = [];
+    for (let i = 0; i < 10; i++) ports.push((await handleLead(req(body(), { "x-forwarded-for": `198.51.100.30:${40000 + i}` }), o)).status);
+    expect(ports).toEqual([200, 429, 429, 429, 429, 429, 429, 429, 429, 429]);
+  });
+
+  it("R2: ip_hash is the HMAC of the full normalised address — port-free, never the /64 key", async () => {
+    const dir = tempOutbox();
+    const o = { app: "zbm" as const, parse: toyParse, env: fakeEnv(dir), logger: captureLogger().logger, limiters: both(open()) };
+    await handleLead(req(body(), { "x-forwarded-for": "198.51.100.30:5678" }), o);
+    await handleLead(req(body(), { "x-forwarded-for": "[2001:db8:1:1::5]:443" }), o);
+    const rows = readJsonl<{ ip_hash: string }>(dir, "rows.jsonl");
+    const hash = hmacIp("fake-transport-not-a-secret");
+    expect(rows.map((r) => r.ip_hash)).toEqual([hash("198.51.100.30"), hash("2001:0db8:0001:0001:0000:0000:0000:0005")]);
+  });
+
+  it("R2: a trusted header carrying a non-address is 503, never a bucket", async () => {
+    const res = await handleLead(req(body(), { "x-forwarded-for": "deadbeef" }), {
+      app: "zbm",
+      parse: toyParse,
+      env: fakeEnv(tempOutbox()),
+      logger: captureLogger().logger,
+      limiters: both(open()),
+    });
+    expect(res.status).toBe(503);
+  });
+
+  it("small: x-vercel-forwarded-for is read as one value; a list is refused (fail closed)", () => {
+    const vercel = resolvePolicy({ VERCEL: "1" }).ipSource;
+    expect(clientIp(new Headers({ "x-vercel-forwarded-for": "198.51.100.7" }), vercel)?.address).toBe("198.51.100.7");
+    expect(clientIp(new Headers({ "x-vercel-forwarded-for": "6.6.6.6, 198.51.100.7" }), vercel)).toBeNull();
+  });
+
+  it("small: VERCEL with surrounding whitespace is not Vercel", () => {
+    for (const v of [" 1", "1 ", "\t1"]) expect(resolvePolicy({ VERCEL: v }).onVercel, JSON.stringify(v)).toBe(false);
+  });
+
+  it("small: only the first x-forwarded-host hop is the host on Vercel", async () => {
+    const policy = resolvePolicy({ VERCEL: "1" });
+    const send = (xfh: string) =>
+      handleLead(
+        req(body(), { origin: "https://www.zbestmedia.com", host: "zbm.vercel.app", "x-forwarded-host": xfh, "x-vercel-forwarded-for": "198.51.100.9" }),
+        { app: "zbm", parse: toyParse, env: fakeEnv(tempOutbox()), logger: captureLogger().logger, limiters: both(open()), policy },
+      ).then((r) => r.status);
+    expect(await send("www.zbestmedia.com, evil.example")).toBe(200);
+    expect(await send("evil.example, www.zbestmedia.com")).toBe(403);
   });
 });

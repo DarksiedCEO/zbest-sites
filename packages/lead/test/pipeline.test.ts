@@ -8,7 +8,7 @@ import { PII, captureLogger, readJsonl, request, tempOutbox, toyParse } from "./
 
 const open = () => memoryLimiter({ limit: 1000, windowSec: 60 });
 const both = (l: RateLimiter) => ({ perIp: l });
-const TRUSTED: RequestPolicy = { ipSource: { header: "x-forwarded-for", hop: "last" }, onVercel: false, allowedOrigins: new Set(), maxBodyBytes: 65536, problems: [] };
+const TRUSTED: RequestPolicy = { ipSource: { header: "x-forwarded-for", hop: "from-right", hops: 1 }, onVercel: false, allowedOrigins: new Set(), maxBodyBytes: 65536, problems: [] };
 const NONCE = "gate-nonce-0123456789abcdef";
 const fakeEnv = (dir: string, extra: Record<string, string> = {}) => ({
   ZBEST_LEAD_TRANSPORT: "fake",

@@ -140,7 +140,8 @@ test.describe("Success through the fake transport (§6.2)", () => {
       source: "bb-lead-gate",
     });
     expect(rows[0]!.payload).toMatchObject({ name, business: "Lead Gate Co", reach: "lead-gate@example.com" });
-    // The gate server trusts `next start` as its proxy (LEAD_TRUSTED_PROXY=x-forwarded-for),
+    // The gate server trusts x-forwarded-for, which `next start` fills from the socket
+    // when absent (this test sends none — see the R1 caution in playwright.config.ts),
     // so the loopback address is hashed — never stored raw.
     expect(rows[0]!.ip_hash).toMatch(/^[0-9a-f]{64}$/);
     expect(JSON.stringify(rows[0])).not.toContain("127.0.0.1");
@@ -171,6 +172,9 @@ test.describe("Success through the fake transport (§6.2)", () => {
         posts.push(r.postDataJSON().submission_id);
       }
     });
+    // Wait for hydration: a double-click before it would be a native submit,
+    // not the double submit under test (r5: observed once on mobile).
+    await expect(page.locator('form[data-lead-form="start"][data-ready="true"]')).toBeVisible();
     await startForm(page).getByRole("button", { name: "Send" }).dblclick();
     await expect(page.locator('[data-lead-result="accepted"]')).toBeVisible();
     expect(new Set(posts).size).toBe(1);
@@ -566,5 +570,27 @@ test.describe("UI after a 409 conflict (AEGIS r2 N5)", () => {
     expect((await rowsFor("zbm", firstId))[0]!.payload.business).toBe("Lead Gate Co");
     expect((await rowsFor("zbm", secondId))[0]!.payload.business).toBe("Edited Co");
     expect(await rowsMentioning("zbm", name)).toHaveLength(2);
+  });
+});
+
+test.describe("Before hydration (r5)", () => {
+  test("a native submit (no JavaScript) never puts what the visitor typed into the URL", async ({ browser }, testInfo) => {
+    const context = await browser.newContext({ javaScriptEnabled: false });
+    const page = await context.newPage();
+    try {
+      await page.goto(`${ZBM_BASE_URL}/start?service=websites`, { waitUntil: "domcontentloaded" });
+      const name = marker("nojs", testInfo.project.name);
+      const form = page.locator('form[data-lead-form="start"]');
+      await expect(form).toHaveAttribute("method", "post");
+      await form.getByLabel("Name", { exact: true }).fill(name);
+      await form.getByLabel("Best way to reach you", { exact: true }).fill("nojs-secret@example.com");
+      await Promise.all([page.waitForLoadState("domcontentloaded"), form.getByRole("button", { name: "Send" }).click()]);
+      expect(page.url()).not.toContain("nojs-secret");
+      expect(decodeURIComponent(page.url())).not.toContain(name);
+      // And a native form post is not a lead: nothing was stored.
+      expect(await rowsMentioning("zbm", name)).toHaveLength(0);
+    } finally {
+      await context.close();
+    }
   });
 });

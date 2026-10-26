@@ -168,7 +168,7 @@ export function ReadinessCheck() {
   const errors = state.kind === "invalid" ? state.fields : {};
 
   return (
-    <form noValidate onSubmit={onSubmit} data-lead-form="readiness" aria-describedby={`${baseId}-note`}>
+    <form noValidate method="post" onSubmit={onSubmit} data-lead-form="readiness" aria-describedby={`${baseId}-note`}>
       <p id={`${baseId}-note`} className="type-small mb-5 flex items-start gap-2 text-text-secondary">
         <span aria-hidden="true" className="mt-[0.45em] inline-block size-1.5 shrink-0 bg-accent" />
         <span>This check scores your answers on fixture rules.</span>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useRef, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { LedgerRule } from "../components/ledger-rule";
 import { FAILURE_COPY, HONEYPOT_FIELD, submitLead, type LeadFailure } from "./contract";
 
@@ -65,6 +65,8 @@ export function LeadForm({
   const baseId = useId();
   const submissionId = useRef<string | null>(null);
   const [state, setState] = useState<State>({ kind: "idle" });
+  const [ready, setReady] = useState(false);
+  useEffect(() => setReady(true), []);
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -103,7 +105,10 @@ export function LeadForm({
   const errors = state.kind === "invalid" ? state.fields : {};
 
   return (
-    <form noValidate onSubmit={onSubmit} data-lead-form={form}>
+    // method="post": if someone submits before hydration, the browser's native
+    // submit must never put what they typed into the URL (a GET would — and
+    // URLs land in history and server logs). data-ready marks hydration.
+    <form noValidate method="post" onSubmit={onSubmit} data-lead-form={form} data-ready={ready ? "true" : undefined}>
       <LedgerRule />
       {fields.map((field) => {
         const id = `${baseId}-${field.name}`;

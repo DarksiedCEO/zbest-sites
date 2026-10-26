@@ -200,7 +200,8 @@ async function handle(request: Request, opts: HandleLeadOptions, log: LeadLogger
   // tokens), but never for a honeypot hit or an oversized body, so bot traffic
   // cannot spend a real visitor's tokens (AEGIS r2 N1).
   const charge = async (): Promise<Response | null> => {
-    const decision = await limiters.perIp.hit(`${app}:${plainIpKey(ip)}`);
+    // The normalised key: port-free, IPv6 by its /64 (AEGIS r4 R2).
+    const decision = await limiters.perIp.hit(`${app}:${plainIpKey(ip.key)}`);
     if (decision.allowed) return null;
     log("warn", "rate_limited", { app, limiter: "ip" });
     return fail(
@@ -238,7 +239,7 @@ async function handle(request: Request, opts: HandleLeadOptions, log: LeadLogger
     payload_hash: payloadHash({ form: parsed.form, payload: parsed.payload }),
     services: parsed.services ?? [],
     source: parsed.source || null,
-    ip_hash: ip ? transport.hashIp(ip) : null,
+    ip_hash: transport.hashIp(ip.address),
     user_agent: request.headers.get("user-agent")?.slice(0, 500) ?? null,
   };
   const ids = { app, form: record.form, submission_id: record.submission_id, mode: transport.mode };

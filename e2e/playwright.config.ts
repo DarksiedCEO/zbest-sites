@@ -72,10 +72,14 @@ const fakeLeads = (
   ZBEST_LEAD_FAKE_ACK: GATE_NONCE,
   LEAD_RATE_LIMIT: rate,
   // Off Vercel the route refuses to run without naming the ONE trusted
-  // client-address header (AEGIS r2 N1, r3 F1). `next start` is the proxy
-  // here: it sets x-forwarded-for from the socket when absent. The
-  // rate-limit server trusts x-real-ip instead, which its test sets per
-  // viewport so the two viewports never share a bucket.
+  // client-address header (AEGIS r2 N1, r3 F1). CAUTION (AEGIS r4 R1): this
+  // is a TEST harness, not a deployment pattern. `next start` does NOT append
+  // to x-forwarded-for — Next 16 only fills it from the socket when it is
+  // ABSENT — so a client-sent value passes through untouched. That is fine
+  // here only because these tests never send x-forwarded-for; never expose
+  // `next start` directly with LEAD_TRUSTED_PROXY set. The rate-limit server
+  // trusts x-real-ip, which its test sets per viewport so the two viewports
+  // never share a bucket.
   LEAD_TRUSTED_PROXY: ipHeader,
 });
 
@@ -85,6 +89,7 @@ const NO_LEAD_TRANSPORT = {
   ZBEST_LEAD_FAKE_OUTBOX: "",
   ZBEST_LEAD_FAKE_ACK: "",
   LEAD_TRUSTED_PROXY: "",
+  LEAD_TRUSTED_PROXY_HOPS: "",
   LEAD_ALLOWED_ORIGINS: "",
   POSTGRES_URL: "",
   LEAD_IP_HASH_SECRET: "",
