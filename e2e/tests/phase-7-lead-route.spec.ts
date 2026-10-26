@@ -591,6 +591,17 @@ test.describe("Before hydration (AEGIS r5 N1)", () => {
       const button = form.getByRole("button", { name: "Loading…" });
       await expect(button).toBeDisabled();
       await expect(form.locator("noscript")).toHaveCount(1);
+      // AEGIS r6 O4: busy is the BUTTON's state, described for assistive tech;
+      // nothing that holds the explanation is inside a busy region.
+      await expect(form).not.toHaveAttribute("aria-busy", /.*/);
+      await expect(button).toHaveAttribute("aria-busy", "true");
+      await expect(button).toHaveAccessibleDescription("The form is still loading. Send will be available in a moment.");
+      expect(await page.locator("[aria-busy] noscript, [aria-busy] [data-lead-stuck]").count()).toBe(0);
+      // Playwright disables JS by emulation, so the parser still treats <noscript>
+      // as raw text (and `scripting` stays "enabled"): assert the shipped markup.
+      expect(await form.locator("noscript").textContent()).toContain(
+        "This form needs JavaScript to send. Please enable it and reload the page.",
+      );
       const posts: string[] = [];
       page.on("request", (r) => {
         if (r.method() === "POST") posts.push(r.url());
@@ -608,6 +619,37 @@ test.describe("Before hydration (AEGIS r5 N1)", () => {
     } finally {
       await context.close();
     }
+  });
+
+  // AEGIS r6 O3: scripts that never arrive (failed chunk, blocker, version skew).
+  const STUCK: { label: string; url: string; form: string }[] = [
+    { label: "ZBM /start", url: `${ZBM_BASE_URL}/start?service=websites`, form: "start" },
+    { label: "ZBM assessment", url: `${ZBM_BASE_URL}/revenue-recovery#assessment`, form: "assessment" },
+    { label: "ZBC clipper", url: `${ZBC_BASE_URL}/become-a-clipper`, form: "clipper" },
+  ];
+  for (const c of STUCK) {
+    test(`scripts never load, ${c.label}: after ~10 s a CSS-only line says to refresh; no contact claim`, async ({ page }) => {
+      await page.route(/\/_next\/static\/chunks\/.*\.js/, (route) => route.abort("failed"));
+      await page.goto(c.url, { waitUntil: "domcontentloaded" });
+      const form = page.locator(`form[data-lead-form="${c.form}"]`);
+      const stuck = form.locator("[data-lead-stuck]");
+      await expect(form.getByRole("button", { name: "Loading…" })).toBeDisabled();
+      await expect(stuck).toBeHidden(); // not before the delay
+      await expect(stuck).toBeVisible({ timeout: 13_000 });
+      await expect(stuck).toHaveText("Still loading? Please refresh the page.");
+      expect(await stuck.textContent()).not.toMatch(/@|mailto|call|phone/i);
+      await expect(form).not.toHaveAttribute("data-ready", "true");
+    });
+  }
+
+  test("once hydrated, the fallback line is gone for good and the button is no longer busy", async ({ page }) => {
+    await page.goto(`${ZBM_BASE_URL}/contact`, { waitUntil: "domcontentloaded" });
+    const form = await formReady(page.locator('form[data-lead-form="contact"]'));
+    await expect(form.locator("[data-lead-stuck]")).toHaveCSS("display", "none");
+    const send = form.getByRole("button", { name: "Send" });
+    await expect(send).toBeEnabled();
+    await expect(send).not.toHaveAttribute("aria-busy", /.*/);
+    await expect(send).not.toHaveAttribute("aria-describedby", /.*/);
   });
 
   type FormCase = {

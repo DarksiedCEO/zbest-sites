@@ -301,3 +301,45 @@ Unchanged from r5:
 - raw preview evidence;
 - `verify-full` in production;
 - KV, WebKit, retention/CCPA, independence.
+
+---
+
+# Round 7 — AEGIS r6 findings on 9947e2c (O1–O5), branch `lead-route-v5`
+
+`lead-route-v4@9947e2c` was fast-forwarded into `main` after r6. The r6 reviewer ran the database suite owed from round 6: 111 passed, and the N2 shim proof failed as it should. This round is on `lead-route-v5`, from `origin/main` = 9947e2c. It is not merged.
+
+## What changed, by finding
+| Finding | Fix | Proven by (this round) |
+|---|---|---|
+| **O1** `LEAD_TEST_EXPECT_VERIFY_FULL` set nowhere | Expect-verify-full is now **on by default** whenever `LEAD_TEST_POSTGRES_NEON_URL` is set (opt out with `=0`). A new `pnpm --filter @zbest/lead test:integration` refuses to run without both DB URLs and sets the flag to `1`. The gate runbook is in the design note, §7. | Without URLs, `test:integration` exits 2 with the reason. With a Neon URL pointing at nothing, `vitest` **fails** (`ECONNREFUSED` rethrown by the probe) rather than skipping. |
+| **O2** hostname negative skipped silently without the hosts entry | Under expect-verify-full, a test asserts `lead-wrong-host.test` resolves, and fails with the `/etc/hosts` line to add. | **Owed** (needs the database) |
+| **O3** stuck forever on "Loading…" if scripts never arrive | A CSS-only line, "Still loading? Please refresh the page.", in `styles/lead.css` (imported by both apps). It is hidden, revealed by a 10 s animation only while the form lacks `data-ready`, `display:none` once ready, and hidden under `@media (scripting: none)`. No contact address: the site copy has none (ZBC's press address is marked "does not exist yet"). | E2e, both viewports, `/start`, the assessment and the ZBC clipper with every JS chunk **aborted**: hidden at first, visible within 13 s, exact text, no `@`/mailto/phone, button still disabled. Once hydrated, the line has `display: none`. |
+| **O4** form-wide `aria-busy` | `aria-busy` moves to the **button**, which also gets `aria-describedby` pointing at a visually hidden status line. `<noscript>` and the fallback line are outside any busy element. | E2e (JS off): the form has no `aria-busy`; the button is `aria-busy="true"` with the accessible description; no `noscript` or fallback line sits under an `[aria-busy]`. Hydrated: no busy and no description. Screen-reader behaviour is not verified. |
+| **O5** N3 residuals | Documented in the design note (NAT64, `::2–::ffff`, reserved space). | — |
+
+**Test-harness limit found:** Playwright disables JavaScript by emulation, so Chromium still parses `<noscript>` as raw text and reports `scripting: enabled`. The no-JS test therefore asserts the shipped `<noscript>` markup, not its rendering. The `(scripting: none)` rule that hides the fallback line cannot be exercised here.
+
+## Runs (sandbox)
+| Check | Result |
+|---|---|
+| `pnpm exec turbo run lint typecheck --force` | **11/11, 0 cached** |
+| vitest without database | 86 passed, 27 skipped |
+| Full Playwright, sandbox config | **420 passed, 2 skipped, 0 failed** (6.8 min) |
+
+## OWED: needs the database, which needs an approval
+Starting the TLS cluster (`su pgtest … postgres … -c ssl=on`) and adding `127.0.0.1 lead-wrong-host.test` to `/etc/hosts` need approval. They were **not attempted** this round, because the round-6 request went unanswered.
+
+Owed before treating O1/O2 as proven:
+1. `pnpm --filter @zbest/lead test:integration` with both URLs, our CA and the hosts entry → expect all passing, including the two new expect-verify-full assertions.
+2. The same **without** the hosts entry → expect a **failure** naming `/etc/hosts` (O2).
+3. The same with `NODE_EXTRA_CA_CERTS` pointing at a missing file → expect a **failure** (O1).
+4. The same with r5's shim (`NODE_OPTIONS=--require=<scratchpad>/r5rev/shim/break-verify.cjs`) → expect a **failure** (the N2 regression check).
+
+No source under `packages/lead/src` changed this round. Only `test/postgres.test.ts` changed, plus the new `scripts/test-integration.mjs`. So no database-backed product behaviour is unverified, only the harness's own failure modes.
+
+## Still unverified
+Unchanged:
+- the Vercel edge overwrite of `x-vercel-forwarded-for`;
+- raw preview evidence;
+- `verify-full` in production;
+- KV, WebKit, retention/CCPA, independence.

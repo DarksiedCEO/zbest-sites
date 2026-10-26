@@ -465,8 +465,15 @@ const UNTRUSTED_CERT_CODES = new Set([
   "UNABLE_TO_VERIFY_LEAF_SIGNATURE",
 ]);
 const caLoaded = await probeCaTrusted();
-/** CI and the Mac gate set this: a CA that should be trusted but is not is a failure, not a skip. */
-const expectVerifyFull = process.env.LEAD_TEST_EXPECT_VERIFY_FULL === "1";
+/**
+ * Whether verify-full MUST run (AEGIS r6 O1). ON BY DEFAULT whenever a
+ * Neon-shaped URL is given — that is the run that exercises TLS — so a missing
+ * or mistyped CA, or a missing hosts entry, fails instead of skipping.
+ * `pnpm --filter @zbest/lead test:integration` sets it explicitly.
+ * Opt out (only for a deliberately CA-less run) with LEAD_TEST_EXPECT_VERIFY_FULL=0.
+ */
+const expectVerifyFull =
+  process.env.LEAD_TEST_EXPECT_VERIFY_FULL === "1" || (!!neonShaped && process.env.LEAD_TEST_EXPECT_VERIFY_FULL !== "0");
 /** The hostname-mismatch case needs a name that resolves here but is not in the cert. */
 const wrongHostResolves = await lookup("lead-wrong-host.test").then(
   () => true,
@@ -499,8 +506,12 @@ describe.skipIf(!neonShaped)("TLS modes and startup options (integration)", () =
       );
   };
 
-  it.skipIf(!expectVerifyFull)("LEAD_TEST_EXPECT_VERIFY_FULL=1: the server's CA is trusted, so verify-full runs", () => {
+  it.skipIf(!expectVerifyFull)("verify-full expected: the server's CA is trusted, so the verify-full tests run", () => {
     expect(caLoaded, "verify-full probe failed with an untrusted-chain code: is NODE_EXTRA_CA_CERTS set to this server's CA?").toBe(true);
+  });
+
+  it.skipIf(!expectVerifyFull)("verify-full expected: the hostname-mismatch name resolves, so that negative runs (AEGIS r6 O2)", () => {
+    expect(wrongHostResolves, "add `127.0.0.1 lead-wrong-host.test` to /etc/hosts — the name must resolve to the server but not appear in its certificate").toBe(true);
   });
 
   it("sslmode=require connects to a self-signed server (encryption without verification, as libpq)", async () => {

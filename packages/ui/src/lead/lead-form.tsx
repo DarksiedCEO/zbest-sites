@@ -3,7 +3,8 @@
 import { useId, useRef, useState, type FormEvent } from "react";
 import { LedgerRule } from "../components/ledger-rule";
 import { FAILURE_COPY, HONEYPOT_FIELD, submitLead, type LeadFailure } from "./contract";
-import { NOSCRIPT_COPY, NOT_READY_LABEL, useHydrated } from "./use-hydrated";
+import { SubmitStatus } from "./submit-status";
+import { NOT_READY_LABEL, useHydrated } from "./use-hydrated";
 
 export type { LeadResponse } from "./contract";
 
@@ -114,7 +115,6 @@ export function LeadForm({
       onSubmit={onSubmit}
       data-lead-form={form}
       data-ready={ready ? "true" : undefined}
-      aria-busy={ready ? undefined : true}
     >
       <LedgerRule />
       {fields.map((field) => {
@@ -245,13 +245,13 @@ export function LeadForm({
       <button
         type="submit"
         disabled={!ready || state.kind === "submitting"}
+        aria-busy={ready ? undefined : true}
+        aria-describedby={ready ? undefined : `${baseId}-loading`}
         className="type-label mt-stack inline-flex items-center whitespace-nowrap bg-accent px-5 py-3.5 text-base disabled:opacity-60"
       >
         {!ready ? NOT_READY_LABEL : state.kind === "submitting" ? "Sending…" : submitLabel}
       </button>
-      <noscript>
-        <p className="type-small mt-3 text-text-secondary">{NOSCRIPT_COPY}</p>
-      </noscript>
+      <SubmitStatus id={`${baseId}-loading`} ready={ready} />
     </form>
   );
 }

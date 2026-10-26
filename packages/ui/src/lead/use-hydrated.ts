@@ -18,3 +18,13 @@ export const NOT_READY_LABEL = "Loading…";
 
 /** Shown only when JavaScript is off, where the button stays disabled. */
 export const NOSCRIPT_COPY = "This form needs JavaScript to send. Please enable it and reload the page.";
+
+/** The button's description before hydration, for assistive technology (AEGIS r6 O4). */
+export const STATUS_LOADING_COPY = "The form is still loading. Send will be available in a moment.";
+
+/**
+ * Shown by CSS alone if the form is still not ready after ~10 s (AEGIS r6 O3):
+ * a script chunk failed or hydration aborted. No contact address is offered —
+ * the site copy has none to point to — only the action that recovers.
+ */
+export const STUCK_COPY = "Still loading? Please refresh the page.";
