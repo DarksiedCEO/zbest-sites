@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { ZBM_BASE_URL } from "../playwright.config";
+import { formReady } from "../support/ready";
 
 /**
  * Phase 5 gate — AI Visibility Readiness Check, build steps 1 and 3 (Backend
@@ -358,7 +359,7 @@ test.describe("Readiness check — the form, the result and §12.7 routing", () 
   async function fill(page: Page, answers: ReadinessAnswers) {
     await visit(page, "/search-intelligence#readiness-check");
     const section = page.locator("#readiness-check");
-    const form = section.locator('form[data-lead-form="readiness"]');
+    const form = await formReady(section.locator('form[data-lead-form="readiness"]'));
     await form.getByLabel("Name", { exact: true }).fill("Test Person");
     await form.getByLabel("Business", { exact: true }).fill("Test Co");
     await form.getByLabel("Website", { exact: true }).fill("example.com");

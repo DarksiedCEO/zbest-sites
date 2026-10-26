@@ -1,3 +1,4 @@
+import { formReady } from "../support/ready";
 import { expect, test, type Page } from "@playwright/test";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
@@ -235,6 +236,7 @@ test.describe("/start — universal intake", () => {
     await form(page).getByLabel("Name", { exact: true }).fill("Test Person");
     await form(page).getByLabel("Business", { exact: true }).fill("Test Co");
     await form(page).getByLabel("Best way to reach you", { exact: true }).fill("test@example.com");
+    await formReady(form(page));
     const [response] = await Promise.all([
       page.waitForResponse((r) => r.url().endsWith("/api/lead")),
       form(page).getByRole("button", { name: "Send" }).click(),
@@ -257,6 +259,7 @@ test.describe("/start — universal intake", () => {
     await form(page).getByLabel("Business", { exact: true }).fill("Test Co");
     await form(page).getByLabel("Best way to reach you", { exact: true }).fill("test@example.com");
     await form(page).getByLabel("Budget").selectOption("25k-100k");
+    await formReady(form(page));
     const [response] = await Promise.all([
       page.waitForResponse((r) => r.url().endsWith("/api/lead")),
       form(page).getByRole("button", { name: "Send" }).click(),

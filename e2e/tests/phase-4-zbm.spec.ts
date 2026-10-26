@@ -1,3 +1,4 @@
+import { formReady } from "../support/ready";
 import { expect, test, type Page } from "@playwright/test";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
@@ -413,6 +414,7 @@ test.describe("Revenue Recovery (§A4, filtered live carry-over)", () => {
     const section = page.locator("#assessment");
     await expect(section.locator("[data-fixture-note]")).toContainText("Fixture");
     const form = section.locator('form[data-lead-form="assessment"]');
+    await formReady(form);
     await expect(form).toContainText("fixture rules");
     await expect(form).not.toContainText("Stub");
     for (const label of ["Name", "Business", "Website", "Best way to reach you"]) {
@@ -533,6 +535,7 @@ test.describe("About and Contact (§A4)", () => {
   test("Contact form has the §6.1 fields and posts to the lead route", async ({ page }) => {
     await visit(page, byPath("/contact"));
     const form = page.locator('form[data-lead-form="contact"]');
+    await formReady(form);
     for (const label of ["Name", "Business", "What are you looking to solve?", "Best way to reach you"]) {
       await expect(form.getByLabel(label, { exact: true })).toBeVisible();
     }

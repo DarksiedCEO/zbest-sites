@@ -3,6 +3,7 @@
 import { useId, useRef, useState, type FormEvent } from "react";
 import { ButtonLink, LedgerRule } from "@zbest/ui";
 import { FAILURE_COPY, HONEYPOT_FIELD, type LeadFailure } from "@zbest/ui/lead/contract";
+import { NOSCRIPT_COPY, NOT_READY_LABEL, useHydrated } from "@zbest/ui/lead/use-hydrated";
 import { submitReadiness } from "@/lib/visibility/contract";
 import { ACTIVE_RULE_SET, QUESTIONS, SCALE, type AnswerValue } from "@/lib/visibility/rules";
 import type { VisibilityReadinessResult } from "@/lib/visibility/score";
@@ -130,6 +131,7 @@ export function ReadinessCheck() {
   const baseId = useId();
   const submissionId = useRef<string | null>(null);
   const [state, setState] = useState<State>({ kind: "idle" });
+  const ready = useHydrated();
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -168,7 +170,13 @@ export function ReadinessCheck() {
   const errors = state.kind === "invalid" ? state.fields : {};
 
   return (
-    <form noValidate method="post" onSubmit={onSubmit} data-lead-form="readiness" aria-describedby={`${baseId}-note`}>
+    <form
+      noValidate
+      method="post"
+      onSubmit={onSubmit}
+      data-lead-form="readiness"
+      data-ready={ready ? "true" : undefined}
+      aria-busy={ready ? undefined : true} aria-describedby={`${baseId}-note`}>
       <p id={`${baseId}-note`} className="type-small mb-5 flex items-start gap-2 text-text-secondary">
         <span aria-hidden="true" className="mt-[0.45em] inline-block size-1.5 shrink-0 bg-accent" />
         <span>This check scores your answers on fixture rules.</span>
@@ -269,11 +277,14 @@ export function ReadinessCheck() {
       ) : null}
       <button
         type="submit"
-        disabled={state.kind === "submitting"}
+        disabled={!ready || state.kind === "submitting"}
         className="type-label mt-stack inline-flex items-center whitespace-nowrap bg-accent px-5 py-3.5 text-base disabled:opacity-60"
       >
-        {state.kind === "submitting" ? "Checking…" : "Get Your Readiness Check"}
+        {!ready ? NOT_READY_LABEL : state.kind === "submitting" ? "Checking…" : "Get Your Readiness Check"}
       </button>
+      <noscript>
+        <p className="type-small mt-3 text-text-secondary">{NOSCRIPT_COPY}</p>
+      </noscript>
     </form>
   );
 }

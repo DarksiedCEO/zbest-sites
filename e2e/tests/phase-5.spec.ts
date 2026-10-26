@@ -2,6 +2,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { ZBM_BASE_URL } from "../playwright.config";
+import { formReady } from "../support/ready";
 
 /**
  * Phase 5 gate — the free assessment chunk (Brief §6.3; Backend Spec v0.3 §11;
@@ -127,7 +128,9 @@ async function presetConsent(page: Page) {
 async function openAssessment(page: Page) {
   await presetConsent(page);
   await page.goto(`${ZBM_BASE_URL}/revenue-recovery#assessment`, { waitUntil: "domcontentloaded" });
-  return page.locator("#assessment");
+  const section = page.locator("#assessment");
+  await formReady(section.locator('form[data-lead-form="assessment"]'));
+  return section;
 }
 
 async function fillContact(section: Locator) {

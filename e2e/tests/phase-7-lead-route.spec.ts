@@ -1,5 +1,6 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { spawn } from "node:child_process";
+import { formReady } from "../support/ready";
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
@@ -97,13 +98,17 @@ const startForm = (page: Page) => page.locator('form[data-lead-form="start"]');
 const marker = (label: string, project: string) => `E2E ${label} ${project} ${randomUUID().slice(0, 8)}`;
 
 async function fillStart(page: Page, name: string) {
-  const form = startForm(page);
+  const form = await formReady(startForm(page));
   await form.getByLabel("Name", { exact: true }).fill(name);
   await form.getByLabel("Business", { exact: true }).fill("Lead Gate Co");
   await form.getByLabel("Best way to reach you", { exact: true }).fill("lead-gate@example.com");
 }
 
-const sendStart = (page: Page) =>
+const sendStart = async (page: Page) => {
+  await formReady(startForm(page));
+  return sendStartNow(page);
+};
+const sendStartNow = (page: Page) =>
   Promise.all([
     page.waitForResponse((r) => r.url().endsWith("/api/lead") && r.request().method() === "POST"),
     startForm(page).getByRole("button", { name: "Send" }).click(),
@@ -172,9 +177,9 @@ test.describe("Success through the fake transport (§6.2)", () => {
         posts.push(r.postDataJSON().submission_id);
       }
     });
-    // Wait for hydration: a double-click before it would be a native submit,
-    // not the double submit under test (r5: observed once on mobile).
-    await expect(page.locator('form[data-lead-form="start"][data-ready="true"]')).toBeVisible();
+    // Wait for hydration: a double-click before it would hit the disabled
+    // pre-hydration button, not the double submit under test.
+    await formReady(startForm(page));
     await startForm(page).getByRole("button", { name: "Send" }).dblclick();
     await expect(page.locator('[data-lead-result="accepted"]')).toBeVisible();
     expect(new Set(posts).size).toBe(1);
@@ -573,8 +578,8 @@ test.describe("UI after a 409 conflict (AEGIS r2 N5)", () => {
   });
 });
 
-test.describe("Before hydration (r5)", () => {
-  test("a native submit (no JavaScript) never puts what the visitor typed into the URL", async ({ browser }, testInfo) => {
+test.describe("Before hydration (AEGIS r5 N1)", () => {
+  test("with JavaScript off, Send stays disabled and says why; nothing is posted, stored or put in the URL", async ({ browser }, testInfo) => {
     const context = await browser.newContext({ javaScriptEnabled: false });
     const page = await context.newPage();
     try {
@@ -582,15 +587,160 @@ test.describe("Before hydration (r5)", () => {
       const name = marker("nojs", testInfo.project.name);
       const form = page.locator('form[data-lead-form="start"]');
       await expect(form).toHaveAttribute("method", "post");
+      await expect(form).not.toHaveAttribute("data-ready", "true");
+      const button = form.getByRole("button", { name: "Loading…" });
+      await expect(button).toBeDisabled();
+      await expect(form.locator("noscript")).toHaveCount(1);
+      const posts: string[] = [];
+      page.on("request", (r) => {
+        if (r.method() === "POST") posts.push(r.url());
+      });
       await form.getByLabel("Name", { exact: true }).fill(name);
       await form.getByLabel("Best way to reach you", { exact: true }).fill("nojs-secret@example.com");
-      await Promise.all([page.waitForLoadState("domcontentloaded"), form.getByRole("button", { name: "Send" }).click()]);
+      // Implicit submission (Enter) is blocked by the disabled default button; so is a click.
+      await form.getByLabel("Name", { exact: true }).press("Enter");
+      await button.click({ force: true });
+      await page.waitForTimeout(500);
+      expect(posts).toEqual([]);
       expect(page.url()).not.toContain("nojs-secret");
-      expect(decodeURIComponent(page.url())).not.toContain(name);
-      // And a native form post is not a lead: nothing was stored.
+      expect(await form.getByLabel("Name", { exact: true }).inputValue()).toBe(name);
       expect(await rowsMentioning("zbm", name)).toHaveLength(0);
     } finally {
       await context.close();
     }
   });
+
+  type FormCase = {
+    label: string;
+    base: string;
+    path: string;
+    form: string;
+    submit: string;
+    server: "zbm" | "zbc";
+    fill: (form: Locator, name: string) => Promise<void>;
+  };
+  const contact = async (form: Locator, name: string, extra: Record<string, string>) => {
+    await form.getByLabel("Name", { exact: true }).fill(name);
+    for (const [label, value] of Object.entries(extra)) await form.getByLabel(label, { exact: true }).fill(value);
+  };
+  const answerAll = async (form: Locator, attr: string) => {
+    for (const q of await form.locator(`[${attr}]`).all()) await q.getByRole("radio", { name: "Very true", exact: true }).check();
+  };
+  const CASES: FormCase[] = [
+    {
+      label: "ZBM /start",
+      base: ZBM_BASE_URL,
+      path: "/start?service=websites",
+      form: "start",
+      submit: "Send",
+      server: "zbm",
+      fill: (f, n) => contact(f, n, { Business: "Slow JS Co", "Best way to reach you": "slow@example.com" }),
+    },
+    {
+      label: "ZBM /contact",
+      base: ZBM_BASE_URL,
+      path: "/contact",
+      form: "contact",
+      submit: "Send",
+      server: "zbm",
+      fill: (f, n) => contact(f, n, { Business: "Slow JS Co", "What are you looking to solve?": "Slow pages.", "Best way to reach you": "slow@example.com" }),
+    },
+    {
+      label: "ZBM assessment",
+      base: ZBM_BASE_URL,
+      path: "/revenue-recovery#assessment",
+      form: "assessment",
+      submit: "Get an Assessment",
+      server: "zbm",
+      fill: async (f, n) => {
+        await contact(f, n, { Business: "Slow JS Co", Website: "example.com", "Best way to reach you": "slow@example.com" });
+        await answerAll(f, "data-assessment-question");
+      },
+    },
+    {
+      label: "ZBM readiness",
+      base: ZBM_BASE_URL,
+      path: "/search-intelligence#readiness-check",
+      form: "readiness",
+      submit: "Get Your Readiness Check",
+      server: "zbm",
+      fill: async (f, n) => {
+        await contact(f, n, { Business: "Slow JS Co", Website: "example.com", "Best way to reach you": "slow@example.com" });
+        await answerAll(f, "data-readiness-question");
+      },
+    },
+    {
+      label: "ZBC campaign",
+      base: ZBC_BASE_URL,
+      path: "/launch-a-campaign",
+      form: "campaign",
+      submit: "Launch a Campaign",
+      server: "zbc",
+      fill: async (f, n) => {
+        await contact(f, n, { Organization: "Slow JS Label", "What are you promoting?": "A release.", "Best way to reach you": "slow@example.com" });
+        await f.getByLabel("Entertainment / Brands", { exact: true }).selectOption("brands");
+      },
+    },
+    {
+      label: "ZBC clipper",
+      base: ZBC_BASE_URL,
+      path: "/become-a-clipper",
+      form: "clipper",
+      submit: "Join the clipper list",
+      server: "zbc",
+      fill: async (f, n) => {
+        await contact(f, n, { Email: "slow-clipper@example.com" });
+        await f.getByLabel("Primary platform", { exact: true }).selectOption("tiktok");
+      },
+    },
+  ];
+
+  for (const c of CASES) {
+    test(`slow JavaScript, ${c.label}: Send before hydration does nothing; after it, the same entries are stored once`, async ({
+      page,
+    }, testInfo) => {
+      // r5's repro: hold every JS chunk so the page is visible and typable but not hydrated.
+      let release!: () => void;
+      const gate = new Promise<void>((r) => (release = r));
+      await page.route(/\/_next\/static\/chunks\/.*\.js/, async (route) => {
+        await gate;
+        await route.continue();
+      });
+      const posts: string[] = [];
+      page.on("request", (r) => {
+        if (r.method() === "POST") posts.push(new URL(r.url()).pathname);
+      });
+      await page.goto(`${c.base}${c.path}`, { waitUntil: "domcontentloaded" });
+      const form = page.locator(`form[data-lead-form="${c.form}"]`);
+      const name = marker(`slow-${c.form}`, testInfo.project.name);
+      await c.fill(form, name);
+
+      // Before hydration: disabled, says why, and neither Enter nor a press submits.
+      await expect(form).not.toHaveAttribute("data-ready", "true");
+      const loading = form.getByRole("button", { name: "Loading…" });
+      await expect(loading).toBeDisabled();
+      await form.getByLabel("Name", { exact: true }).press("Enter");
+      await loading.click({ force: true });
+      await page.waitForTimeout(300);
+      expect(posts, "no native submit").toEqual([]);
+      await expect(page.locator("[data-lead-result]")).toHaveCount(0);
+      const url = page.url();
+
+      // Hydrate. The visitor's entries survive, and Send now works — once.
+      release();
+      await formReady(form);
+      expect(page.url()).toBe(url);
+      expect(await form.getByLabel("Name", { exact: true }).inputValue()).toBe(name);
+      const [response] = await Promise.all([
+        page.waitForResponse((r) => r.url().endsWith("/api/lead")),
+        form.getByRole("button", { name: c.submit }).click(),
+      ]);
+      expect(response.status(), await response.text()).toBe(200);
+      await expect(page.locator('[data-lead-result="accepted"]')).toContainText("Received");
+      expect(posts).toEqual(["/api/lead"]);
+      const stored = (await jsonl<Row>(c.server, "rows.jsonl")).filter((r) => JSON.stringify(r.payload).includes(name));
+      expect(stored).toHaveLength(1);
+      expect(stored[0]!.form).toBe(c.form);
+    });
+  }
 });

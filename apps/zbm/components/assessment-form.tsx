@@ -3,6 +3,7 @@
 import { useId, useRef, useState, type FormEvent } from "react";
 import { ButtonLink, LedgerRule } from "@zbest/ui";
 import { FAILURE_COPY, HONEYPOT_FIELD, type LeadFailure } from "@zbest/ui/lead/contract";
+import { NOSCRIPT_COPY, NOT_READY_LABEL, useHydrated } from "@zbest/ui/lead/use-hydrated";
 import { submitAssessment } from "@/lib/assessment/contract";
 import { ACTIVE_RULE_SET, QUESTIONS, SCALE, type AnswerValue } from "@/lib/assessment/rules";
 import type { FreeAssessmentResult } from "@/lib/assessment/score";
@@ -120,6 +121,7 @@ export function AssessmentForm() {
   const baseId = useId();
   const submissionId = useRef<string | null>(null);
   const [state, setState] = useState<State>({ kind: "idle" });
+  const ready = useHydrated();
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -158,7 +160,13 @@ export function AssessmentForm() {
   const errors = state.kind === "invalid" ? state.fields : {};
 
   return (
-    <form noValidate method="post" onSubmit={onSubmit} data-lead-form="assessment" aria-describedby={`${baseId}-note`}>
+    <form
+      noValidate
+      method="post"
+      onSubmit={onSubmit}
+      data-lead-form="assessment"
+      data-ready={ready ? "true" : undefined}
+      aria-busy={ready ? undefined : true} aria-describedby={`${baseId}-note`}>
       <p id={`${baseId}-note`} className="type-small mb-5 flex items-start gap-2 text-text-secondary">
         <span aria-hidden="true" className="mt-[0.45em] inline-block size-1.5 shrink-0 bg-accent" />
         <span>This form scores your answers on fixture rules.</span>
@@ -259,11 +267,14 @@ export function AssessmentForm() {
       ) : null}
       <button
         type="submit"
-        disabled={state.kind === "submitting"}
+        disabled={!ready || state.kind === "submitting"}
         className="type-label mt-stack inline-flex items-center whitespace-nowrap bg-accent px-5 py-3.5 text-base disabled:opacity-60"
       >
-        {state.kind === "submitting" ? "Scoring…" : "Get an Assessment"}
+        {!ready ? NOT_READY_LABEL : state.kind === "submitting" ? "Scoring…" : "Get an Assessment"}
       </button>
+      <noscript>
+        <p className="type-small mt-3 text-text-secondary">{NOSCRIPT_COPY}</p>
+      </noscript>
     </form>
   );
 }

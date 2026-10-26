@@ -823,3 +823,56 @@ describe("AEGIS r4 — R1 hops, R2 key normalisation, single-value Vercel header
     expect(await send("evil.example, www.zbestmedia.com")).toBe(403);
   });
 });
+
+describe("AEGIS r5 — N3 IPv4 in IPv6, N5 edges", () => {
+  it("N3: every spelling of IPv4-in-IPv6 keys as the same IPv4 client", () => {
+    const v4 = { address: "198.51.100.30", key: "v4:198.51.100.30" };
+    for (const spelling of [
+      "::ffff:198.51.100.30",
+      "::FFFF:198.51.100.30",
+      "0:0:0:0:0:ffff:198.51.100.30",
+      "0000:0000:0000:0000:0000:FFFF:c633:641e",
+      "::ffff:c633:641e",
+      "::ffff:0:198.51.100.30",
+      "::ffff:0:c633:641e",
+      "::198.51.100.30",
+      "[::ffff:198.51.100.30]:443",
+    ]) {
+      expect(normalizeIp(spelling), spelling).toEqual(v4);
+    }
+  });
+
+  it("N3: distinct IPv4 clients in those forms no longer share the zero-/64", () => {
+    const keys = new Set(["0:0:0:0:0:ffff:198.51.100.30", "::ffff:c633:641f", "::ffff:0:198.51.100.32", "::198.51.100.33"].map((s) => normalizeIp(s)?.key));
+    expect(keys.size).toBe(4);
+    expect([...keys].every((k) => k?.startsWith("v4:"))).toBe(true);
+    // :: and ::1 are not IPv4 clients.
+    expect(normalizeIp("::1")?.key).toBe("v6/64:0000:0000:0000:0000");
+    expect(normalizeIp("::")?.key).toBe("v6/64:0000:0000:0000:0000");
+  });
+
+  it("N5: valid inputs of 40–64 characters are accepted (the length cap is not lower than real addresses)", () => {
+    const long = "[ffff:ffff:ffff:ffff:ffff:ffff:255.255.255.255]:65535"; // 53 chars
+    expect(long.length).toBeGreaterThanOrEqual(40);
+    expect(normalizeIp(long)).toEqual({ address: "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", key: "v6/64:ffff:ffff:ffff:ffff" });
+    const uncompressed = "[2001:0db8:0001:0001:0000:0000:0000:0005]:443"; // 45 chars
+    expect(normalizeIp(uncompressed)?.key).toBe("v6/64:2001:0db8:0001:0001");
+    expect(normalizeIp(`  ${uncompressed}  `)?.key).toBe("v6/64:2001:0db8:0001:0001");
+  });
+
+  it("N5: port 0 is not a port", () => {
+    expect(normalizeIp("198.51.100.30:0")).toBeNull();
+    expect(normalizeIp("[2001:db8::1]:0")).toBeNull();
+  });
+
+  it("N5: LEAD_TRUSTED_PROXY settings are validated everywhere — on Vercel a valid one is ignored, an invalid one is 503", () => {
+    // Chosen behaviour (documented): a stray or malformed setting is config
+    // drift; failing closed and visibly beats silently ignoring it.
+    expect(resolvePolicy({ VERCEL: "1", LEAD_TRUSTED_PROXY: "x-forwarded-for", LEAD_TRUSTED_PROXY_HOPS: "2" })).toMatchObject({
+      ipSource: { header: "x-vercel-forwarded-for", hop: "only" },
+      problems: [],
+    });
+    expect(resolvePolicy({ VERCEL: "1", LEAD_TRUSTED_PROXY_HOPS: "2" }).problems).toEqual(["LEAD_TRUSTED_PROXY_HOPS:only-with-x-forwarded-for"]);
+    expect(resolvePolicy({ VERCEL: "1", LEAD_TRUSTED_PROXY: "1" }).problems.join()).toContain("LEAD_TRUSTED_PROXY:must-name-one-of-");
+  });
+});

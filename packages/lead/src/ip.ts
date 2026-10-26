@@ -39,7 +39,8 @@ export type ClientAddress = { address: string; key: string };
 /**
  * AEGIS r4 R2: one client, one key.
  *   - strips a port: `1.2.3.4:5678` and `[2001:db8::1]:443`;
- *   - unwraps IPv4-mapped IPv6 (`::ffff:1.2.3.4` → `1.2.3.4`);
+ *   - unwraps IPv4 carried in IPv6 — mapped, translated or compatible, in any
+ *     spelling (`::ffff:1.2.3.4`, `0:0:0:0:0:FFFF:102:304` → `1.2.3.4`);
  *   - validates with `net.isIP` — anything else is no address (→ 503);
  *   - keys IPv6 by its /64, the block one subscriber or VM typically holds,
  *     so rotating addresses inside it does not mint new buckets.
@@ -59,18 +60,33 @@ export function normalizeIp(raw: string): ClientAddress | null {
   }
   // A zone id (fe80::1%eth0) is local-only and never a client address.
   if (value.includes("%")) return null;
-  const mapped = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/i.exec(value);
-  if (mapped) value = mapped[1]!;
-
   const family = isIP(value);
   if (family === 4) return { address: value, key: `v4:${value}` };
   if (family === 6) {
     const groups = expandIpv6(value);
     if (!groups) return null;
+    // IPv4 carried in IPv6, in ANY spelling (AEGIS r5 N3) — detected on the
+    // expanded groups, so uncompressed, hex, upper-case and dotted forms all
+    // key as the same IPv4 client instead of one shared zero-/64:
+    //   ::ffff:a.b.c.d    (mapped,        ::ffff:0:0/96)
+    //   ::ffff:0:a.b.c.d  (translated,    ::ffff:0:0:0/96)
+    //   ::a.b.c.d         (compatible,    ::/96, except :: and ::1)
+    const embedded = embeddedIpv4(groups);
+    if (embedded) return { address: embedded, key: `v4:${embedded}` };
     const address = groups.join(":");
     return { address, key: `v6/64:${groups.slice(0, 4).join(":")}` };
   }
   return null;
+}
+
+function embeddedIpv4(groups: string[]): string | null {
+  const zero = (from: number, to: number) => groups.slice(from, to).every((g) => g === "0000");
+  const mapped = zero(0, 5) && groups[5] === "ffff";
+  const translated = zero(0, 4) && groups[4] === "ffff" && groups[5] === "0000";
+  const tail = parseInt(groups[6]! + groups[7]!, 16);
+  const compatible = zero(0, 6) && tail > 1; // not :: (unspecified) or ::1 (loopback)
+  if (!mapped && !translated && !compatible) return null;
+  return [tail >>> 24, (tail >>> 16) & 255, (tail >>> 8) & 255, tail & 255].join(".");
 }
 
 /** Eight 4-digit lowercase hex groups, or null. Input already passed isIP === 6. */

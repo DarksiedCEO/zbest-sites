@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { useId, useRef, useState, type FormEvent } from "react";
 import { LedgerRule } from "../components/ledger-rule";
 import { FAILURE_COPY, HONEYPOT_FIELD, submitLead, type LeadFailure } from "./contract";
+import { NOSCRIPT_COPY, NOT_READY_LABEL, useHydrated } from "./use-hydrated";
 
 export type { LeadResponse } from "./contract";
 
@@ -65,8 +66,7 @@ export function LeadForm({
   const baseId = useId();
   const submissionId = useRef<string | null>(null);
   const [state, setState] = useState<State>({ kind: "idle" });
-  const [ready, setReady] = useState(false);
-  useEffect(() => setReady(true), []);
+  const ready = useHydrated();
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -108,7 +108,14 @@ export function LeadForm({
     // method="post": if someone submits before hydration, the browser's native
     // submit must never put what they typed into the URL (a GET would — and
     // URLs land in history and server logs). data-ready marks hydration.
-    <form noValidate method="post" onSubmit={onSubmit} data-lead-form={form} data-ready={ready ? "true" : undefined}>
+    <form
+      noValidate
+      method="post"
+      onSubmit={onSubmit}
+      data-lead-form={form}
+      data-ready={ready ? "true" : undefined}
+      aria-busy={ready ? undefined : true}
+    >
       <LedgerRule />
       {fields.map((field) => {
         const id = `${baseId}-${field.name}`;
@@ -232,13 +239,19 @@ export function LeadForm({
           Some fields need attention.
         </p>
       ) : null}
+      {/* Disabled until hydrated (AEGIS r5 N1): a native submit before then
+          would post the page and lose the lead. A disabled default button
+          also blocks implicit submission (Enter in a field). */}
       <button
         type="submit"
-        disabled={state.kind === "submitting"}
+        disabled={!ready || state.kind === "submitting"}
         className="type-label mt-stack inline-flex items-center whitespace-nowrap bg-accent px-5 py-3.5 text-base disabled:opacity-60"
       >
-        {state.kind === "submitting" ? "Sending…" : submitLabel}
+        {!ready ? NOT_READY_LABEL : state.kind === "submitting" ? "Sending…" : submitLabel}
       </button>
+      <noscript>
+        <p className="type-small mt-3 text-text-secondary">{NOSCRIPT_COPY}</p>
+      </noscript>
     </form>
   );
 }

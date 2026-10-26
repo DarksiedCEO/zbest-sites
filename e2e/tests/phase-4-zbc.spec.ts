@@ -1,3 +1,4 @@
+import { formReady } from "../support/ready";
 import { expect, test, type Page } from "@playwright/test";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
@@ -314,6 +315,7 @@ test.describe("Become a Clipper (§B4)", () => {
       "Join the clipper list — we’ll notify you when the first campaigns open.",
     );
     const form = section.locator('form[data-lead-form="clipper"]');
+    await formReady(form);
     await expect(form).not.toContainText("Stub");
     for (const label of ["Name", "Email", "Primary platform"]) {
       await expect(form.getByLabel(label, { exact: true })).toBeVisible();
@@ -356,6 +358,7 @@ test.describe("Launch a Campaign (§B4)", () => {
     await expect(page.locator("#what-happens h3")).toHaveCount(4);
     await expect(page.locator("#start").getByRole("link", { name: "See How It Works" })).toHaveAttribute("href", "/");
     const form = page.locator('form[data-lead-form="campaign"]');
+    await formReady(form);
     await expect(form).not.toContainText("Stub");
     for (const label of ["Name", "Organization", "What are you promoting?", "Entertainment / Brands", "Best way to reach you"]) {
       await expect(form.getByLabel(label, { exact: true })).toBeVisible();

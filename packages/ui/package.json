@@ -14,7 +14,8 @@
     "./og": "./src/og.tsx",
     "./page": "./src/page/furniture.tsx",
     "./lead": "./src/lead/lead-form.tsx",
-    "./lead/contract": "./src/lead/contract.ts"
+    "./lead/contract": "./src/lead/contract.ts",
+    "./lead/use-hydrated": "./src/lead/use-hydrated.ts"
   },
   "scripts": {
     "lint": "eslint .",

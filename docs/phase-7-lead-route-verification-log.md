@@ -256,3 +256,48 @@ Unchanged from r4's go-live list:
 - raw preview evidence;
 - `verify-full` in production;
 - KV, WebKit, retention/CCPA, independence.
+
+---
+
+# Round 6 — AEGIS r5 findings on a7e5094 (N1–N5), branch `lead-route-v4`
+
+`lead-route-v3@a7e5094` was fast-forwarded into `main` (r5 CERTIFIED WITH CONDITIONS). This round is on `lead-route-v4`, from `origin/main` = a7e5094. It is not merged.
+
+## What changed, by finding
+| Finding | Fix | Proven by |
+|---|---|---|
+| **N1** Send before hydration lost the lead silently | All three form components (shared `LeadForm`, assessment, readiness) use `useHydrated()`. Until hydrated, the submit button is **disabled** and labelled **"Loading…"**, and the form has `aria-busy`. A disabled default button also blocks Enter. `data-ready="true"` is set on hydration in all three. A `<noscript>` line explains when JS is off. A shared e2e helper `formReady()` (`e2e/support/ready.ts`) is used by every form flow in phases 4–7. | **New e2e, all six forms × both viewports (12 runs):** ZBM `/start`, `/contact`, assessment and readiness; ZBC campaign and clipper. Every JS chunk is held (r5's repro). Each form is filled, then Enter and a forced click are tried: **no POST, no result banner.** After the chunks are released and hydration completes, the URL is unchanged, the typed name is still there, Send works once, and "Received" shows. Exactly **one** row with that name, of the right form, is stored. **Non-vacuity:** with the guard removed from `LeadForm`, the `/start` slow-JS test and the no-JS test both fail. The no-JS test now asserts disabled + "Loading…" + noscript + no POST + the typed value kept + nothing stored. |
+| **N2** CA probe hid verify-full regressions | The probe returns false **only** for `DEPTH_ZERO_SELF_SIGNED_CERT`, `SELF_SIGNED_CERT_IN_CHAIN`, `UNABLE_TO_GET_ISSUER_CERT_LOCALLY` and `UNABLE_TO_VERIFY_LEAF_SIGNATURE`. Anything else is rethrown, which fails the test file. New `LEAD_TEST_EXPECT_VERIFY_FULL=1` turns "CA not trusted" into a failing test, for CI and the Mac gate. | **NOT RUN this round** — see below. |
+| **N3** non-canonical IPv4-in-IPv6 shared one zero-/64 bucket | Detected **after** expansion: mapped `::ffff:0:0/96`, translated `::ffff:0:0:0/96` and compatible `::/96` (except `::` and `::1`) key as the embedded IPv4. The dotted-only pre-regex is removed. | Unit: 9 spellings of one client (canonical, upper-case `::FFFF:`, uncompressed, uncompressed hex upper-case, compressed hex, translated dotted/hex, compatible, bracketed with port) → identical `{address, key}`; 4 different clients in those forms → 4 distinct v4 keys; `::` and `::1` stay v6. |
+| **N4** /48 or /56 holders mint many /64 buckets | Documented as an accepted limit, with the KV-time remedy (a coarser /48 tier). | — |
+| **N5** proxy bypass; stray HOPS on Vercel; test gaps | Documented: inner proxies must be reachable only through the outer one. **Choice:** proxy settings are validated everywhere. On Vercel a valid pair is ignored and an invalid one is `503`, named in the log. That is fail-closed and visible, over silent ignoring; the reason is in the design note. Tests added: valid inputs of 45 and 53 characters (bracketed uncompressed v6 with port), and port 0. | unit |
+
+## Runs (sandbox)
+| Check | Result |
+|---|---|
+| `pnpm exec turbo run lint typecheck --force` | **11/11, 0 cached** |
+| vitest **without a database** (with and without the ambient CA bundle) | 86 passed, 26 skipped, both |
+| Unit-only mutation run (`/tmp/claude-0/-home-claude/507835c2-f88c-57d2-8bb7-588397ac8f5c/scratchpad/r6lead/mut_nodb.py`): the r5 reviewer's ip/config/pipeline mutants, 6 new N3 mutants and re-checks of R1/R2/F guards | **21 / 21 killed**, including r5's survivors `B-mapped-case-sensitive`, `B-port-zero-ok` and `B-length-cap-39` |
+| Full Playwright, sandbox config | **412 passed, 2 skipped, 0 failed** (5.9 min); skips are desktop-only by design |
+
+## NOT RUN this round, and why
+- **Starting the TLS-only Postgres needed an approval that nobody answered.** The command also edits `/etc/hosts` for the hostname-mismatch test. Following the rule not to retry, these did **not** run:
+  - the Postgres integration suite (TLS / SCRAM / verify-full / migrate);
+  - the **N2 proof** with r5's TLS shim (`r5rev/shim/break-verify.cjs`): with the CA loaded and the shim preloaded, the suite must now **fail** rather than skip;
+  - the `LEAD_TEST_EXPECT_VERIFY_FULL=1` run with a missing CA file, which must fail;
+  - the database-backed half of the mutation driver (`r5lead/mut.py`).
+- `test/postgres.test.ts` changed this round (the N2 probe classification and the expect-gate), so these are **owed** before merge.
+- **To run them:**
+  1. Start the TLS cluster: `/var/tmp/zbest-pg`, `-c ssl=on`, cert `server.crt`.
+  2. Add `127.0.0.1 lead-wrong-host.test` to `/etc/hosts`.
+  3. Run vitest:
+     - with `NODE_EXTRA_CA_CERTS=/var/tmp/zbest-pg/server.crt LEAD_TEST_EXPECT_VERIFY_FULL=1` → expect all passing;
+     - again with `NODE_OPTIONS=--require=<r5rev/shim/break-verify.cjs>` → expect failure;
+     - with `NODE_EXTRA_CA_CERTS=/nonexistent LEAD_TEST_EXPECT_VERIFY_FULL=1` → expect failure.
+
+## Still unverified
+Unchanged from r5:
+- the Vercel edge overwrite of `x-vercel-forwarded-for`;
+- raw preview evidence;
+- `verify-full` in production;
+- KV, WebKit, retention/CCPA, independence.

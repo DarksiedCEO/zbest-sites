@@ -447,13 +447,26 @@ async function probeCaTrusted(): Promise<boolean> {
   try {
     await sql`SELECT 1`;
     return true;
-  } catch {
-    return false;
+  } catch (error) {
+    // ONLY "the chain is not trusted here" means the CA is absent (AEGIS r5
+    // N2). Anything else — a hostname failure, a TLS regression, a refused
+    // connection — is a real failure and must not turn into a quiet skip.
+    const code = (error as { code?: unknown }).code;
+    if (typeof code === "string" && UNTRUSTED_CERT_CODES.has(code)) return false;
+    throw error;
   } finally {
     await sql.end({ timeout: 1 });
   }
 }
+const UNTRUSTED_CERT_CODES = new Set([
+  "DEPTH_ZERO_SELF_SIGNED_CERT",
+  "SELF_SIGNED_CERT_IN_CHAIN",
+  "UNABLE_TO_GET_ISSUER_CERT_LOCALLY",
+  "UNABLE_TO_VERIFY_LEAF_SIGNATURE",
+]);
 const caLoaded = await probeCaTrusted();
+/** CI and the Mac gate set this: a CA that should be trusted but is not is a failure, not a skip. */
+const expectVerifyFull = process.env.LEAD_TEST_EXPECT_VERIFY_FULL === "1";
 /** The hostname-mismatch case needs a name that resolves here but is not in the cert. */
 const wrongHostResolves = await lookup("lead-wrong-host.test").then(
   () => true,
@@ -485,6 +498,10 @@ describe.skipIf(!neonShaped)("TLS modes and startup options (integration)", () =
         (e: unknown) => ({ ok: false as const, code: (e as DeliveryError).detail }),
       );
   };
+
+  it.skipIf(!expectVerifyFull)("LEAD_TEST_EXPECT_VERIFY_FULL=1: the server's CA is trusted, so verify-full runs", () => {
+    expect(caLoaded, "verify-full probe failed with an untrusted-chain code: is NODE_EXTRA_CA_CERTS set to this server's CA?").toBe(true);
+  });
 
   it("sslmode=require connects to a self-signed server (encryption without verification, as libpq)", async () => {
     expect((await tryInsert(withHost("localhost", "?sslmode=require"))).ok).toBe(true);
