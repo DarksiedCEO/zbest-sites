@@ -137,7 +137,8 @@ export default defineConfig({
       command: serve("@zbest/zbm", 3000),
       url: ZBM_BASE_URL,
       cwd: "../",
-      env: { ZBEST_GATE_NONCE: GATE_NONCE, ...NO_LEAD_TRANSPORT, ...fakeLeads("zbm", "100000/60") },
+      // ZBEST_DEV_ROUTES: build /dev/system for the Phase 2 gate (excluded in production).
+      env: { ZBEST_GATE_NONCE: GATE_NONCE, ZBEST_DEV_ROUTES: "1", ...NO_LEAD_TRANSPORT, ...fakeLeads("zbm", "100000/60") },
       // Never adopt a pre-existing server: it may be a stale build, another
       // branch, or not this project at all.
       reuseExistingServer: false,
@@ -147,7 +148,8 @@ export default defineConfig({
       command: serve("@zbest/zbc", 3001),
       url: ZBC_BASE_URL,
       cwd: "../",
-      env: { ZBEST_GATE_NONCE: GATE_NONCE, ...NO_LEAD_TRANSPORT, ...fakeLeads("zbc", "100000/60") },
+      // ZBEST_DEV_ROUTES: build /dev/system for the Phase 2 gate (excluded in production).
+      env: { ZBEST_GATE_NONCE: GATE_NONCE, ZBEST_DEV_ROUTES: "1", ...NO_LEAD_TRANSPORT, ...fakeLeads("zbc", "100000/60") },
       reuseExistingServer: false,
       timeout: 180_000,
     },
