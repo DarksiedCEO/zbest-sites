@@ -69,13 +69,21 @@ for (const [app, base, extra] of [
       expect(h["permissions-policy"], p).toContain("camera=()");
       expect(h["x-frame-options"], p).toBe("DENY");
       await page.evaluate(() => document.fonts.ready);
+      // next/font adds "<Family> Fallback" faces that point at system fonts
+      // (local(Arial)). They are not fetched, so the CSP cannot affect them,
+      // and they error on machines without that font (Linux CI). Only the
+      // self-hosted web fonts are checked.
       const fonts = await page.evaluate(() => {
-        const all = [...document.fonts];
-        return { loaded: all.filter((f) => f.status === "loaded").length, error: all.filter((f) => f.status === "error").length };
+        const web = [...document.fonts].filter((f) => !/Fallback/.test(f.family));
+        return {
+          loaded: web.filter((f) => f.status === "loaded").length,
+          error: web.filter((f) => f.status === "error").length,
+          failed: web.filter((f) => f.status === "error").map((f) => `${f.family} ${f.weight} ${f.style}`),
+        };
       });
       const v = await violations(page);
       report.push(`${p} fontsLoaded=${fonts.loaded} fontErrors=${fonts.error} violations=${v.length}`);
-      expect(fonts.error, `${p} font errors`).toBe(0);
+      expect(fonts.error, `${p} font errors: ${fonts.failed.join(", ")}`).toBe(0);
       expect(fonts.loaded, `${p} no fonts loaded`).toBeGreaterThan(0);
       expect(v, `${p} CSP violations`).toEqual([]);
     }
