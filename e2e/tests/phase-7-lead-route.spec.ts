@@ -2,6 +2,8 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { spawn } from "node:child_process";
 import { formReady } from "../support/ready";
 import { randomUUID } from "node:crypto";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import {
@@ -442,10 +444,19 @@ test.describe("Hardening (AEGIS review of 55d3437)", () => {
     expect(foreign.status()).toBe(403);
     expect(await rowsFor("zbm", id)).toHaveLength(0);
 
-    // The real attack, from a real browser on another origin (the ZBC site):
-    // a no-cors text/plain POST, and a JSON POST that needs a preflight.
+    // The real attack, from a real browser on another origin: a no-cors
+    // text/plain POST, and a JSON POST that needs a preflight. The attacker's
+    // page is a bare local server with no CSP. (It used to be the ZBC site,
+    // but ZBC's own CSP, connect-src 'self', now blocks both requests in the
+    // browser before the server is ever tested; Phase 6 step 3.)
     const name = marker("cross-site", testInfo.project.name);
-    await page.goto(`${ZBC_BASE_URL}/`, { waitUntil: "domcontentloaded" });
+    const attacker = createServer((_req, res) => {
+      res.writeHead(200, { "content-type": "text/html" });
+      res.end("<!doctype html><title>attacker</title>");
+    });
+    await new Promise<void>((resolve) => attacker.listen(0, "127.0.0.1", resolve));
+    const attackerUrl = `http://127.0.0.1:${(attacker.address() as AddressInfo).port}/`;
+    await page.goto(attackerUrl, { waitUntil: "domcontentloaded" });
     const outcomes = await page.evaluate(
       async ([target, body]) => {
         const results: string[] = [];
@@ -465,8 +476,21 @@ test.describe("Hardening (AEGIS review of 55d3437)", () => {
       },
       [`${ZBM_BASE_URL}/api/lead`, JSON.stringify(contact(randomUUID(), name))] as const,
     );
+    attacker.close();
     expect(outcomes).toEqual(["no-cors sent", "json blocked"]);
     expect(await rowsMentioning("zbm", name)).toHaveLength(0);
+
+    // From the ZBC site, our CSP refuses the cross-site request outright.
+    await page.goto(`${ZBC_BASE_URL}/`, { waitUntil: "domcontentloaded" });
+    const underCsp = await page.evaluate(async (target) => {
+      try {
+        await fetch(target, { method: "POST", mode: "no-cors", headers: { "content-type": "text/plain" }, body: "{}" });
+        return "sent";
+      } catch {
+        return "blocked";
+      }
+    }, `${ZBM_BASE_URL}/api/lead`);
+    expect(underCsp).toBe("blocked");
   });
 
   test("L1: an oversized body is 413; L2: a changed resubmission is 409", async ({ page }) => {

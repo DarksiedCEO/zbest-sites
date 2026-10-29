@@ -431,3 +431,21 @@ reached this session only as quotes inside pasted third-party notes, so they wer
 - This follows O3 (the Media Kit boilerplate), as proposed in B2-1. Docs only, so no test or capture changes.
 - Still open from B2-4: items 1–5. B2-4 item 8 (the brief's source copy) needs nothing while the brief stays locked.
 - Pushed commits end at `b329328`. This commit and the log commit are local until pushed.
+
+## P6-3 — Security headers (Andre 2026-10-28, launch Nov 8)
+
+Applied in both apps from `packages/ui/src/security-headers.ts`: CSP, HSTS (2 years,
+includeSubDomains, no preload), X-Content-Type-Options, Referrer-Policy,
+Permissions-Policy, X-Frame-Options. vercel.live allowed on previews only;
+'unsafe-eval' and ws: in `next dev` only. zod set to jitless in its 4 importers.
+Guarded by `e2e/tests/phase-6-security-headers.spec.ts`.
+
+Logged for after launch:
+
+- **Hash-based CSP.** script-src still carries 'unsafe-inline' because Next.js puts
+  per-page inline startup scripts in every statically built page. Upgrade: hash
+  those scripts at build time (or nonces, if per-request rendering is accepted)
+  and drop 'unsafe-inline'. style-src 'unsafe-inline' goes in the same pass.
+- **Stale ZBM screenshots (follow-up PR after step 4).** `96db6e6` changed the ZBM
+  nav and footer on every page but did not re-capture the phase 1–5 PNGs; 75 ZBM
+  PNGs on main differ from what the gate now captures. Own PR, not fixed yet.

@@ -1,6 +1,9 @@
 import { FOCUS_AREAS } from "@zbest/ui";
 import { z } from "zod";
 
+// No eval feature-check under the CSP (packages/ui/src/security-headers.ts).
+z.config({ jitless: true });
+
 /**
  * Z Best Clips lead form contract (Brief §6.1, §6.2), shared by the route
  * handler and the form so the two cannot disagree about a field. Form names,
