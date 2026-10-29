@@ -292,7 +292,11 @@ test.describe("Home (§A4)", () => {
     const cta = section.getByRole("link", { name: "Get your free assessment" });
     await expect(cta).toHaveAttribute("href", "/revenue-recovery#assessment");
     await expect(section).toContainText("One prioritized leak — the one we’d fix first — and what fixing it looks like.");
-    await expect(section.locator("[data-fixture-note]")).toContainText("Fixture");
+    await expect(section.locator("[data-note]")).toHaveText("Free. We save your answers and contact details so we can follow up with you. See our Privacy Policy.");
+    await expect(section.locator("[data-note]").getByRole("link", { name: "Privacy Policy" })).toHaveAttribute(
+      "href",
+      "/legal/privacy-policy",
+    );
   });
 
   test("How we work carries no case study cards", async ({ page }) => {
@@ -417,13 +421,17 @@ test.describe("Revenue Recovery (§A4, filtered live carry-over)", () => {
     await expect(panel).not.toContainText(/60[- ]?sec|quantified/i);
   });
 
-  test("assessment form: fixture-labeled, validates, and confirms receipt only once stored", async ({ page }) => {
+  test("assessment form: says what is saved, validates, and confirms receipt only once stored", async ({ page }) => {
     await visit(page, byPath("/revenue-recovery"));
     const section = page.locator("#assessment");
-    await expect(section.locator("[data-fixture-note]")).toContainText("Fixture");
+    await expect(section.locator("[data-note]")).toHaveText("Free. We save your answers and contact details so we can follow up with you. See our Privacy Policy.");
+    await expect(section.locator("[data-note]").getByRole("link", { name: "Privacy Policy" })).toHaveAttribute(
+      "href",
+      "/legal/privacy-policy",
+    );
     const form = section.locator('form[data-lead-form="assessment"]');
     await formReady(form);
-    await expect(form).toContainText("fixture rules");
+    await expect(form).toContainText("This form scores your answers against a fixed set of rules.");
     await expect(form).not.toContainText("Stub");
     for (const label of ["Name", "Business", "Website", "Best way to reach you"]) {
       await expect(form.getByLabel(label, { exact: true })).toBeVisible();
@@ -455,7 +463,7 @@ test.describe("Revenue Recovery (§A4, filtered live carry-over)", () => {
     expect(response.headers()["x-zbest-lead-transport"]).toBe("fake");
     const result = section.locator('[data-lead-result="accepted"]');
     await expect(result).toContainText("Received");
-    await expect(result).toContainText("Scored on fixture rules");
+    await expect(result).toContainText("Scored against a fixed set of rules. A full audit goes deeper.");
   });
 });
 

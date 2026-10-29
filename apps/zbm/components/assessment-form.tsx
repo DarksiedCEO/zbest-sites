@@ -67,7 +67,7 @@ function Result({ result }: { result: FreeAssessmentResult }) {
     >
       <p className="type-label text-accent">Received</p>
       <p className="type-small mt-2 text-text-secondary">
-        Scored on fixture rules. We have your details, and a person will follow up using the
+        Scored against a fixed set of rules. A full audit goes deeper. We have your details, and a person will follow up using the
         contact you gave us.
       </p>
       <LedgerRule />
@@ -169,7 +169,7 @@ export function AssessmentForm() {
       data-ready={ready ? "true" : undefined} aria-describedby={`${baseId}-note`}>
       <p id={`${baseId}-note`} className="type-small mb-5 flex items-start gap-2 text-text-secondary">
         <span aria-hidden="true" className="mt-[0.45em] inline-block size-1.5 shrink-0 bg-accent" />
-        <span>This form scores your answers on fixture rules.</span>
+        <span>This form scores your answers against a fixed set of rules.</span>
       </p>
       <LedgerRule />
 

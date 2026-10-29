@@ -270,8 +270,7 @@ test.describe("Free assessment — the form and its result (§11.3, §11.5)", ()
   test("renders the eight approved questions, in order, each on the approved scale", async ({ page }, testInfo) => {
     const section = await openAssessment(page);
     await expect(section.getByRole("heading", { level: 2 })).toHaveText("Get your free assessment.");
-    await expect(section.locator("[data-fixture-note]")).toContainText("Fixture");
-    await expect(section.locator("[data-fixture-note]")).toContainText("one prioritized leak");
+    await expect(section.locator("[data-note]")).toHaveText("Free. We save your answers and contact details so we can follow up with you. See our Privacy Policy.");
 
     const ids = await section.locator("[data-assessment-question]").evaluateAll((els) =>
       els.map((el) => el.getAttribute("data-assessment-question")),
@@ -316,7 +315,7 @@ test.describe("Free assessment — the form and its result (§11.3, §11.5)", ()
     const result = section.locator('[data-assessment-result="leak_identified"]');
     await expect(result).toBeVisible();
     await expect(result).toContainText("Received");
-    await expect(result).toContainText("Scored on fixture rules");
+    await expect(result).toContainText("Scored against a fixed set of rules. A full audit goes deeper.");
     await expect(result.getByRole("heading", { level: 3 })).toHaveText(library.conversion!.name);
     await expect(result.locator("[data-assessment-rationale]")).toHaveText(library.conversion!.body);
     await expect(result.locator("[data-assessment-because]")).toHaveText("Because you said this is very true for you:");

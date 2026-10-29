@@ -1,5 +1,6 @@
 import { ButtonLink, LedgerRule, pageMetadata, ScrollScrub, StatBlock } from "@zbest/ui";
-import { CtaRow, FixtureNote, LedgerList, Lead, PageSection } from "@/components/page";
+import Link from "next/link";
+import { CtaRow, LedgerList, Lead, Note, PageSection } from "@/components/page";
 import { SERVICES } from "@/content/services";
 import { ASSESSMENT_HREF, SITE } from "@/lib/site";
 
@@ -121,10 +122,14 @@ export default function HomePage() {
           <p className="type-body text-text-secondary">
             One prioritized leak — the one we’d fix first — and what fixing it looks like.
           </p>
-          <FixtureNote>
-            Fixture — the assessment is scored on fixture rules. Nothing you enter is stored
-            or sent.
-          </FixtureNote>
+          <Note>
+            Free. We save your answers and contact details so we can follow up with you. See
+            our{" "}
+            <Link href="/legal/privacy-policy" className="underline underline-offset-4">
+              Privacy Policy
+            </Link>
+            .
+          </Note>
         </div>
       </PageSection>
 
