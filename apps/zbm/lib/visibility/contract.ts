@@ -1,3 +1,4 @@
+import { failureOf, type LeadErrorBody, type LeadFailure } from "@zbest/ui/lead/contract";
 import { z } from "zod";
 import { LEAD_FIELDS } from "@/lib/lead";
 import { ACTIVE_RULE_SET } from "./rules";
@@ -7,7 +8,7 @@ import type { VisibilityReadinessResult } from "./score";
  * AI Visibility Readiness Check wire contract — Backend Spec v0.4 §12.7.
  *
  * ONE SCHEMA, BOTH SIDES (§12.2, inherited from §11.3). The form validates with
- * READINESS_REQUEST before it sends anything, and the stub validates the same
+ * READINESS_REQUEST before it sends anything, and the route validates the same
  * object with the same schema. There is no second, hand-written copy of these
  * rules to drift.
  */
@@ -20,7 +21,7 @@ const ANSWER = z.object({
 });
 
 /**
- * §12.7 `ReadinessRequest`, plus the two §6.2 lead fields the stub already
+ * §12.7 `ReadinessRequest`, plus the two §6.2 lead fields the lead route already
  * uses: the `form` discriminator and the `company_url` honeypot.
  *
  * The contact block is §11.3's four fields — §12.7: "The contact fields are the
@@ -37,7 +38,7 @@ export const READINESS_REQUEST = z.object({
   submission_id: z.uuid(),
   rule_set_version: z.string().min(1),
   contact: LEAD_FIELDS.assessment,
-  answers: z.array(ANSWER).superRefine((answers, ctx) => {
+  answers: z.array(ANSWER).max(32, { error: "Too many answers.", abort: true }).superRefine((answers, ctx) => {
     const seen = new Set<string>();
     for (const answer of answers) {
       if (!questionIds.has(answer.question_id)) {
@@ -73,24 +74,23 @@ export function readinessFieldErrors(issues: readonly z.core.$ZodIssue[]): Recor
   return errors;
 }
 
-/** What the stub returns for form "readiness". */
+/** What the lead route returns for this form: the stored lead's result, or why not. */
 export type ReadinessResponse =
-  | { ok: true; stub: true; submission_id: string; result: VisibilityReadinessResult }
-  | { ok: false; error: { code: "validation"; fields: Record<string, string> } }
+  | { ok: true; submission_id: string; result: VisibilityReadinessResult }
   | { ok: false; error: { code: "rule_set_superseded"; active_version: string } }
-  | { ok: false; error: { code: "bad_request" } };
+  | LeadErrorBody;
 
 export type ReadinessSubmission =
   | { status: "checked"; result: VisibilityReadinessResult }
   | { status: "invalid"; fields: Record<string, string> }
   | { status: "superseded" }
-  | { status: "failed" };
+  | { status: "failed"; reason: LeadFailure };
 
 /**
  * Typed adapter (Backend Spec §9, §12.9). The form calls this and never `fetch`
  * directly. It validates with the shared schema first — an invalid request is
- * never sent — then posts to the no-delivery stub. When the backend implements
- * §12, only this function's URL and the stub change.
+ * never sent — then posts to the lead route, which stores the lead before it
+ * answers. When the backend implements §12, only this function's URL changes.
  */
 export async function submitReadiness(request: ReadinessRequest): Promise<ReadinessSubmission> {
   const local = READINESS_REQUEST.safeParse(request);
@@ -104,18 +104,19 @@ export async function submitReadiness(request: ReadinessRequest): Promise<Readin
       body: JSON.stringify(local.data),
     });
   } catch {
-    return { status: "failed" };
+    return { status: "failed", reason: "failed" };
   }
 
   let body: ReadinessResponse;
   try {
     body = (await response.json()) as ReadinessResponse;
   } catch {
-    return { status: "failed" };
+    return { status: "failed", reason: "failed" };
   }
 
-  if (body.ok) return { status: "checked", result: body.result };
+  if (body.ok === true && response.ok) return { status: "checked", result: body.result };
+  if (body.ok !== false) return { status: "failed", reason: "failed" };
   if (body.error.code === "validation") return { status: "invalid", fields: body.error.fields };
   if (body.error.code === "rule_set_superseded") return { status: "superseded" };
-  return { status: "failed" };
+  return { status: "failed", reason: failureOf(body) };
 }

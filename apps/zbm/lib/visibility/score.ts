@@ -44,7 +44,7 @@ export type ReadinessOutcome =
     };
 
 /**
- * §12.7, complete: what the stub returns and the result view renders.
+ * §12.7, complete: what the lead route returns and the result view renders.
  *
  * `check` is the discriminator §12.7 requires, "so a result is never mistaken
  * for §11's". By construction this type carries no currency, amount or estimate

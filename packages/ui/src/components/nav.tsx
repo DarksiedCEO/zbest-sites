@@ -24,8 +24,9 @@ export type NavItem =
  * anti-reference (§2.2), and a hover-only menu is unusable on the 390 viewport
  * this is built at first.
  *
- * `cta` renders the button-styled primary action Z Best Clips puts on "Launch a
- * Campaign" (§B2). Z Best Media has no nav CTA.
+ * `cta` renders the button-styled primary action: Z Best Clips' "Launch a
+ * Campaign" (§B2) and, since the Oct 4 2026 full-service amendment, Z Best
+ * Media's "Start a Project".
  *
  * Phase 3 mounts this in the root layout, where it persists across client
  * navigations — so both menus close when the route changes, on Escape, and on

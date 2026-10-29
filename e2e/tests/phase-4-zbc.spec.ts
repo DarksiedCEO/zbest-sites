@@ -1,3 +1,4 @@
+import { formReady } from "../support/ready";
 import { expect, test, type Page } from "@playwright/test";
 import path from "node:path";
 import { captureFullPage } from "../capture";
@@ -13,7 +14,7 @@ import { ZBC_BASE_URL } from "../playwright.config";
  *   - client-facing pricing stays bundled; clipper payout figures appear only
  *     on Become a Clipper (§9)
  *   - every illustrative figure carries the badge (§9)
- *   - forms post to the marked stub, no delivery (founder direction)
+ *   - forms post to the §6.2 lead route (fake transport in the gate; see phase-7-lead-route)
  *
  * Expected copy is transcribed from the brief here, not imported from the app.
  */
@@ -325,7 +326,7 @@ test.describe("Become a Clipper (§B4)", () => {
     await expect(rates).toContainText("$3–5 per 1,000 views bonus");
   });
 
-  test("Browse Active Campaigns opens the labeled waitlist form, which posts to the stub", async ({ page }) => {
+  test("Browse Active Campaigns opens the labeled waitlist form, which posts to the lead route", async ({ page }) => {
     await visit(page, byPath("/become-a-clipper"));
     const cta = page.locator("main header").getByRole("link", { name: "Browse Active Campaigns" });
     await expect(cta).toHaveAttribute("href", "#waitlist");
@@ -335,7 +336,8 @@ test.describe("Become a Clipper (§B4)", () => {
       "Join the clipper list — we’ll notify you when the first campaigns open.",
     );
     const form = section.locator('form[data-lead-form="clipper"]');
-    await expect(form).toContainText("Stub");
+    await formReady(form);
+    await expect(form).not.toContainText("Stub");
     for (const label of ["Name", "Email", "Primary platform"]) {
       await expect(form.getByLabel(label, { exact: true })).toBeVisible();
     }
@@ -352,14 +354,15 @@ test.describe("Become a Clipper (§B4)", () => {
       page.waitForResponse((r) => r.url().endsWith("/api/lead")),
       form.getByRole("button", { name: "Join the clipper list" }).click(),
     ]);
-    expect(response.headers()["x-zbest-lead-stub"]).toBe("no-delivery");
+    expect(response.status()).toBe(200);
+    expect(response.headers()["x-zbest-lead-transport"]).toBe("fake");
     expect(response.request().postDataJSON().fields).toEqual({
       name: "Test Clipper",
       email: "clipper@example.com",
       platform: "tiktok",
       profile: "",
     });
-    await expect(section.locator('[data-lead-result="accepted"]')).toContainText("Stub — not delivered");
+    await expect(section.locator('[data-lead-result="accepted"]')).toContainText("Received");
   });
 });
 
@@ -371,12 +374,13 @@ test.describe("Launch a Campaign (§B4)", () => {
     );
   });
 
-  test("four steps, both ways to start, and a form with the §6.1 fields posting to the stub", async ({ page }) => {
+  test("four steps, both ways to start, and a form with the §6.1 fields posting to the lead route", async ({ page }) => {
     await visit(page, byPath("/launch-a-campaign"));
     await expect(page.locator("#what-happens h3")).toHaveCount(4);
     await expect(page.locator("#start").getByRole("link", { name: "See How It Works" })).toHaveAttribute("href", "/");
     const form = page.locator('form[data-lead-form="campaign"]');
-    await expect(form).toContainText("Stub");
+    await formReady(form);
+    await expect(form).not.toContainText("Stub");
     for (const label of ["Name", "Organization", "What are you promoting?", "Entertainment / Brands", "Best way to reach you"]) {
       await expect(form.getByLabel(label, { exact: true })).toBeVisible();
     }
@@ -397,12 +401,12 @@ test.describe("Launch a Campaign (§B4)", () => {
       form.getByRole("button", { name: "Launch a Campaign" }).click(),
     ]);
     expect(response.status()).toBe(200);
-    expect(response.headers()["x-zbest-lead-stub"]).toBe("no-delivery");
-    await expect(page.locator('[data-lead-result="accepted"]')).toContainText("nothing was stored or sent");
+    expect(response.headers()["x-zbest-lead-transport"]).toBe("fake");
+    await expect(page.locator('[data-lead-result="accepted"]')).toContainText("we have your details");
   });
 });
 
-test.describe("Lead route stub (§6.2, ZBC)", () => {
+test.describe("Lead route (§6.2, ZBC)", () => {
   const id = "5f0c2b8e-4f7a-4c1e-9d7b-0f5d3a2b1c9e";
   const post = (page: Page, data: unknown) =>
     page.request.post(`${ZBC_BASE_URL}/api/lead`, { data, failOnStatusCode: false });
@@ -425,14 +429,15 @@ test.describe("Lead route stub (§6.2, ZBC)", () => {
     expect(Object.keys((await badPlatform.json()).error.fields)).toEqual(["platform"]);
   });
 
-  test("valid submissions and a filled honeypot are acknowledged as a stub", async ({ page }) => {
+  test("valid submissions and a filled honeypot are acknowledged", async ({ page }) => {
     const ok = await post(page, {
       form: "clipper",
       submission_id: id,
       fields: { name: "A", email: "a@example.com", platform: "youtube-shorts", profile: "youtube.com/@a" },
     });
     expect(ok.status()).toBe(200);
-    expect(ok.headers()["x-zbest-lead-stub"]).toBe("no-delivery");
+    expect(await ok.json()).toEqual({ ok: true, submission_id: id });
+    expect(ok.headers()["x-zbest-lead-stub"]).toBeUndefined();
     const bot = await post(page, { form: "campaign", submission_id: id, fields: {}, company_url: "x" });
     expect(bot.status()).toBe(200);
   });

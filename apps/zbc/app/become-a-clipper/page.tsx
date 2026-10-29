@@ -19,7 +19,7 @@ export const metadata = pageMetadata(SITE, {
  *
  * "Browse Active Campaigns": until a real campaign exists it opens the clipper
  * waitlist form (§6.1) with the label §B4 supplies. Labeled as a fixture, and
- * the form posts to the no-delivery stub (founder direction, Phase 4).
+ * the form posts to the §6.2 lead route.
  */
 export default function BecomeAClipperPage() {
   return (

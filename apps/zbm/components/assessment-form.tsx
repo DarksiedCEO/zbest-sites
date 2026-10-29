@@ -2,6 +2,9 @@
 
 import { useId, useRef, useState, type FormEvent } from "react";
 import { ButtonLink, LedgerRule } from "@zbest/ui";
+import { FAILURE_COPY, HONEYPOT_FIELD, type LeadFailure } from "@zbest/ui/lead/contract";
+import { SubmitStatus } from "@zbest/ui/lead/submit-status";
+import { NOT_READY_LABEL, useHydrated } from "@zbest/ui/lead/use-hydrated";
 import { submitAssessment } from "@/lib/assessment/contract";
 import { ACTIVE_RULE_SET, QUESTIONS, SCALE, type AnswerValue } from "@/lib/assessment/rules";
 import type { FreeAssessmentResult } from "@/lib/assessment/score";
@@ -14,9 +17,10 @@ import type { FreeAssessmentResult } from "@/lib/assessment/score";
  * this component (§9: never hard-coded). The only copy authored here is the
  * form chrome and the result view's fixed templates.
  *
- * THE ROUTE IS STILL THE NO-DELIVERY STUB. The result is computed for real on
- * the fixture rule set, but nothing is stored or sent, and the form says so
- * before and after submitting.
+ * The lead route stores the lead and notifies the founder before it returns
+ * the result (Spec §11.3/§12.7: submitting records the lead exactly as the
+ * lead route does). The result is scored on the FIXTURE rule set and says so
+ * (§9); it is shown only after the lead was stored.
  */
 
 type State =
@@ -24,7 +28,7 @@ type State =
   | { kind: "submitting" }
   | { kind: "invalid"; fields: Record<string, string> }
   | { kind: "superseded" }
-  | { kind: "failed" }
+  | { kind: "failed"; reason: LeadFailure }
   | { kind: "scored"; result: FreeAssessmentResult };
 
 // .type-body sets max-width: 68ch, a paragraph measure. max-w-none keeps the
@@ -61,10 +65,10 @@ function Result({ result }: { result: FreeAssessmentResult }) {
       data-assessment-result={result.status}
       className="border border-accent bg-panel p-6"
     >
-      <p className="type-label text-accent">Stub — not delivered</p>
+      <p className="type-label text-accent">Received</p>
       <p className="type-small mt-2 text-text-secondary">
-        Scored on fixture rules. This form is not connected yet, so nothing was stored or sent and
-        no one will contact you from it.
+        Scored on fixture rules. We have your details, and a person will follow up using the
+        contact you gave us.
       </p>
       <LedgerRule />
 
@@ -118,6 +122,7 @@ export function AssessmentForm() {
   const baseId = useId();
   const submissionId = useRef<string | null>(null);
   const [state, setState] = useState<State>({ kind: "idle" });
+  const ready = useHydrated();
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -131,7 +136,7 @@ export function AssessmentForm() {
       const raw = data.get(`q-${q.id}`);
       return raw === null ? [] : [{ question_id: q.id, value: Number(raw) as AnswerValue }];
     });
-    const honeypot = text("company_url");
+    const honeypot = text(HONEYPOT_FIELD);
 
     setState({ kind: "submitting" });
     const outcome = await submitAssessment({
@@ -145,7 +150,10 @@ export function AssessmentForm() {
     if (outcome.status === "scored") setState({ kind: "scored", result: outcome.result });
     else if (outcome.status === "invalid") setState({ kind: "invalid", fields: outcome.fields });
     else if (outcome.status === "superseded") setState({ kind: "superseded" });
-    else setState({ kind: "failed" });
+    else {
+      if (outcome.reason === "conflict") submissionId.current = null;
+      setState({ kind: "failed", reason: outcome.reason });
+    }
   };
 
   if (state.kind === "scored") return <Result result={state.result} />;
@@ -153,13 +161,15 @@ export function AssessmentForm() {
   const errors = state.kind === "invalid" ? state.fields : {};
 
   return (
-    <form noValidate onSubmit={onSubmit} data-lead-form="assessment" aria-describedby={`${baseId}-stub`}>
-      <p id={`${baseId}-stub`} className="type-small mb-5 flex items-start gap-2 text-text-secondary">
+    <form
+      noValidate
+      method="post"
+      onSubmit={onSubmit}
+      data-lead-form="assessment"
+      data-ready={ready ? "true" : undefined} aria-describedby={`${baseId}-note`}>
+      <p id={`${baseId}-note`} className="type-small mb-5 flex items-start gap-2 text-text-secondary">
         <span aria-hidden="true" className="mt-[0.45em] inline-block size-1.5 shrink-0 bg-accent" />
-        <span>
-          Stub — this form scores your answers on fixture rules but is not connected yet. Nothing
-          is stored or sent.
-        </span>
+        <span>This form scores your answers on fixture rules.</span>
       </p>
       <LedgerRule />
 
@@ -235,13 +245,13 @@ export function AssessmentForm() {
 
       {/* Honeypot (§6.2): off-screen, unlabeled for sighted users, skipped by tab order. */}
       <div aria-hidden="true" className="absolute -left-[9999px] h-px w-px overflow-hidden">
-        <label htmlFor={`${baseId}-company_url`}>Leave this empty</label>
-        <input id={`${baseId}-company_url`} name="company_url" tabIndex={-1} autoComplete="off" />
+        <label htmlFor={`${baseId}-hp`}>Leave this empty</label>
+        <input id={`${baseId}-hp`} name={HONEYPOT_FIELD} tabIndex={-1} autoComplete="off" data-1p-ignore data-lpignore="true" />
       </div>
 
       {state.kind === "failed" ? (
-        <p role="alert" className="type-small mt-4 text-accent">
-          That did not go through. Nothing was saved — please try again.
+        <p role="alert" data-lead-failure={state.reason} className="type-small mt-4 text-accent">
+          {FAILURE_COPY[state.reason]}
         </p>
       ) : null}
       {state.kind === "superseded" ? (
@@ -257,11 +267,14 @@ export function AssessmentForm() {
       ) : null}
       <button
         type="submit"
-        disabled={state.kind === "submitting"}
+        disabled={!ready || state.kind === "submitting"}
+        aria-busy={ready ? undefined : true}
+        aria-describedby={ready ? undefined : `${baseId}-loading`}
         className="type-label mt-stack inline-flex items-center whitespace-nowrap bg-accent px-5 py-3.5 text-base disabled:opacity-60"
       >
-        {state.kind === "submitting" ? "Scoring…" : "Get an Assessment"}
+        {!ready ? NOT_READY_LABEL : state.kind === "submitting" ? "Scoring…" : "Get an Assessment"}
       </button>
+      <SubmitStatus id={`${baseId}-loading`} ready={ready} />
     </form>
   );
 }

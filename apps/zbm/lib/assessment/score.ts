@@ -39,7 +39,7 @@ export type Outcome =
       tie_broken_by_priority: false;
     };
 
-/** §11.5, complete: what the stub returns and the result view renders. */
+/** §11.5, complete: what the lead route returns and the result view renders. */
 export type FreeAssessmentResult = Outcome & {
   tier: "free";
   submission_id: string;

@@ -1,0 +1,35 @@
+/*
+ * Lead forms before hydration (AEGIS r6 O3). Pure CSS, so it works exactly
+ * when the scripts that would set `data-ready` never arrive: the fallback line
+ * stays hidden, and is revealed after 10 s only if the form is still not
+ * `data-ready`. Once hydrated it is gone for good. With scripting off, the
+ * <noscript> line speaks instead, so this one never shows.
+ */
+.lead-stuck {
+  visibility: hidden;
+  max-height: 0;
+  overflow: hidden;
+  margin-top: 0;
+}
+
+form:not([data-ready]) .lead-stuck {
+  animation: lead-stuck-reveal 0s 10s forwards;
+}
+
+form[data-ready] .lead-stuck {
+  display: none;
+}
+
+@media (scripting: none) {
+  .lead-stuck {
+    display: none;
+  }
+}
+
+@keyframes lead-stuck-reveal {
+  to {
+    visibility: visible;
+    max-height: 10em;
+    margin-top: 0.75rem;
+  }
+}

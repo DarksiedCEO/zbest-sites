@@ -1,5 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 import { randomUUID } from "node:crypto";
+import { tmpdir } from "node:os";
+import path from "node:path";
 
 /**
  * Phase gate harness (Brief §3, §9): every page is captured at desktop 1440 and
@@ -38,6 +40,70 @@ export const GATE_NONCE = process.env.ZBEST_GATE_NONCE;
  * hand-written page. Binding the loopback address specifically makes that
  * second bind fail with EADDRINUSE.
  */
+/**
+ * Lead route (docs/LEAD-ROUTE-DESIGN.md). The gate never delivers for real:
+ * the main servers run the FAKE transport, which writes every row and email
+ * to JSONL files in a per-run outbox the tests read back. Two more servers
+ * reuse the ZBM build to prove the other modes:
+ *   - ZBM_UNCONFIGURED_URL: no transport env at all → must fail closed (503);
+ *   - ZBM_LIMITED_URL: fake transport with a tight rate limit → 429 path.
+ * The main servers get a limit high enough that the rest of the suite, all
+ * from 127.0.0.1, never trips it.
+ */
+export const ZBM_UNCONFIGURED_URL = "http://127.0.0.1:3002";
+export const ZBM_LIMITED_URL = "http://127.0.0.1:3003";
+export const LIMITED_RATE = { limit: 3, windowSec: 600 };
+/** Port for the spawned misconfigured-URL server (phase-7, M1). */
+export const ZBM_MALFORMED_PORT = 3004;
+export const LEAD_OUTBOX = path.join(tmpdir(), `zbest-lead-outbox-${GATE_NONCE}`);
+export const outboxFor = (server: "zbm" | "zbc" | "zbm-limited") => path.join(LEAD_OUTBOX, server);
+
+/**
+ * The fake transport's positive proof (AEGIS M2): the ack must equal this
+ * run's nonce, and the outbox must sit under the OS temp directory.
+ */
+const fakeLeads = (
+  server: "zbm" | "zbc" | "zbm-limited",
+  rate: string,
+  ipHeader: "x-forwarded-for" | "x-real-ip" = "x-forwarded-for",
+) => ({
+  ZBEST_LEAD_TRANSPORT: "fake",
+  ZBEST_LEAD_FAKE_OUTBOX: outboxFor(server),
+  ZBEST_LEAD_FAKE_ACK: GATE_NONCE,
+  LEAD_RATE_LIMIT: rate,
+  // Off Vercel the route refuses to run without naming the ONE trusted
+  // client-address header (AEGIS r2 N1, r3 F1). CAUTION (AEGIS r4 R1): this
+  // is a TEST harness, not a deployment pattern. `next start` does NOT append
+  // to x-forwarded-for — Next 16 only fills it from the socket when it is
+  // ABSENT — so a client-sent value passes through untouched. That is fine
+  // here only because these tests never send x-forwarded-for; never expose
+  // `next start` directly with LEAD_TRUSTED_PROXY set. The rate-limit server
+  // trusts x-real-ip, which its test sets per viewport so the two viewports
+  // never share a bucket.
+  LEAD_TRUSTED_PROXY: ipHeader,
+});
+
+/** Overrides anything the runner's own shell might carry, so "unconfigured" really is. */
+const NO_LEAD_TRANSPORT = {
+  ZBEST_LEAD_TRANSPORT: "",
+  ZBEST_LEAD_FAKE_OUTBOX: "",
+  ZBEST_LEAD_FAKE_ACK: "",
+  LEAD_TRUSTED_PROXY: "",
+  LEAD_TRUSTED_PROXY_HOPS: "",
+  LEAD_ALLOWED_ORIGINS: "",
+  POSTGRES_URL: "",
+  LEAD_IP_HASH_SECRET: "",
+  RESEND_API_KEY: "",
+  LEAD_NOTIFY_FROM: "",
+  LEAD_NOTIFY_TO: "",
+  LEAD_NOTIFY: "",
+  LEAD_RATE_LIMIT: "",
+  KV_REST_API_URL: "",
+  KV_REST_API_TOKEN: "",
+  UPSTASH_REDIS_REST_URL: "",
+  UPSTASH_REDIS_REST_TOKEN: "",
+};
+
 const serve = (pkg: string, port: number) =>
   `pnpm --filter ${pkg} exec next build && ` +
   `pnpm --filter ${pkg} exec next start --hostname 127.0.0.1 --port ${port}`;
@@ -71,7 +137,7 @@ export default defineConfig({
       command: serve("@zbest/zbm", 3000),
       url: ZBM_BASE_URL,
       cwd: "../",
-      env: { ZBEST_GATE_NONCE: GATE_NONCE },
+      env: { ZBEST_GATE_NONCE: GATE_NONCE, ...NO_LEAD_TRANSPORT, ...fakeLeads("zbm", "100000/60") },
       // Never adopt a pre-existing server: it may be a stale build, another
       // branch, or not this project at all.
       reuseExistingServer: false,
@@ -81,9 +147,31 @@ export default defineConfig({
       command: serve("@zbest/zbc", 3001),
       url: ZBC_BASE_URL,
       cwd: "../",
-      env: { ZBEST_GATE_NONCE: GATE_NONCE },
+      env: { ZBEST_GATE_NONCE: GATE_NONCE, ...NO_LEAD_TRANSPORT, ...fakeLeads("zbc", "100000/60") },
       reuseExistingServer: false,
       timeout: 180_000,
+    },
+    // Webservers start in order, so the ZBM build above exists before these
+    // two start it again on other ports. They never build.
+    {
+      command: "pnpm --filter @zbest/zbm exec next start --hostname 127.0.0.1 --port 3002",
+      url: ZBM_UNCONFIGURED_URL,
+      cwd: "../",
+      env: { ZBEST_GATE_NONCE: GATE_NONCE, ...NO_LEAD_TRANSPORT },
+      reuseExistingServer: false,
+      timeout: 60_000,
+    },
+    {
+      command: "pnpm --filter @zbest/zbm exec next start --hostname 127.0.0.1 --port 3003",
+      url: ZBM_LIMITED_URL,
+      cwd: "../",
+      env: {
+        ZBEST_GATE_NONCE: GATE_NONCE,
+        ...NO_LEAD_TRANSPORT,
+        ...fakeLeads("zbm-limited", `${LIMITED_RATE.limit}/${LIMITED_RATE.windowSec}`, "x-real-ip"),
+      },
+      reuseExistingServer: false,
+      timeout: 60_000,
     },
   ],
 });

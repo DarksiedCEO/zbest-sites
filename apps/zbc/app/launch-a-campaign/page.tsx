@@ -16,7 +16,7 @@ export const metadata = pageMetadata(SITE, {
  * here too (§B3).
  *
  * The honesty note must stay on this page (§B4, root PRODUCT.md) — the gate
- * asserts it word for word. The form posts to the no-delivery stub.
+ * asserts it word for word. The form posts to the §6.2 lead route.
  */
 export default function LaunchACampaignPage() {
   return (

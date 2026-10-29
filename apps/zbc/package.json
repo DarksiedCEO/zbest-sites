@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@zbest/lead": "workspace:*",
     "@zbest/ui": "workspace:*",
     "next": "16.3.5",
     "react": "19.3.0",

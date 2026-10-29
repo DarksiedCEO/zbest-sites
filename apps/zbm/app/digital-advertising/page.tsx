@@ -1,6 +1,7 @@
 import { ButtonLink, pageMetadata } from "@zbest/ui";
 import { CtaRow, FaqList, LedgerList, Lead, PageHeader, PageSection, RuledList } from "@/components/page";
 import { DIGITAL_ADVERTISING_FAQ } from "@/content/faq";
+import { startHref } from "@/content/services";
 import { SITE, ZBC_ORIGIN } from "@/lib/site";
 
 export const metadata = pageMetadata(SITE, {
@@ -32,7 +33,10 @@ export default function DigitalAdvertisingPage() {
           together here instead of being sold as competing options.
         </Lead>
         <CtaRow>
-          <ButtonLink href="/contact">Talk to Us</ButtonLink>
+          <ButtonLink href={startHref("digital-advertising")}>Start a Project</ButtonLink>
+          <ButtonLink href="/contact" variant="secondary">
+            Talk to Us
+          </ButtonLink>
         </CtaRow>
       </PageHeader>
 

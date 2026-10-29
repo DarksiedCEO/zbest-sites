@@ -138,7 +138,7 @@ export const PRIORITY_ORDER = [
   "local_listings",
 ] as const satisfies readonly VisibilityGapCategory[];
 
-/** §12.3 `VisibilityGapRuleSet`, as the fixture the stub scores against. */
+/** §12.3 `VisibilityGapRuleSet`, as the fixture the lead route scores against. */
 export const ACTIVE_RULE_SET = {
   version: "fixture-2026-09-20.1",
   status: "active",

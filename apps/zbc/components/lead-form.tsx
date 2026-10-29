@@ -19,7 +19,7 @@ const FIELDS: Record<LeadFormName, LeadField[]> = {
   ],
 };
 
-/** Z Best Clips' two §6.1 forms on the shared stub-marked form. */
+/** Z Best Clips' two §6.1 forms on the shared lead form. */
 export function LeadForm({ form, submitLabel }: { form: LeadFormName; submitLabel: string }) {
   return <SharedLeadForm form={form} fields={FIELDS[form]} submitLabel={submitLabel} />;
 }

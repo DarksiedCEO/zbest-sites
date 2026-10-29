@@ -1,3 +1,4 @@
+import { formReady } from "../support/ready";
 import { expect, test, type Page } from "@playwright/test";
 import path from "node:path";
 import { captureFullPage } from "../capture";
@@ -12,7 +13,7 @@ import { ZBM_BASE_URL } from "../playwright.config";
  *   - both "60-second" assessment lines were HELD in Phase 4; founder decision 10
  *     (Phase 5) resolved the hold: that wording is retired permanently and the
  *     assessment promises "one prioritized leak" instead
- *   - forms post to a marked stub with no delivery
+ *   - forms post to the §6.2 lead route (fake transport in the gate; see phase-7-lead-route)
  *   - assessment CTAs are labeled fixtures
  *   - Revenue Recovery: filtered carry-over of the live page, NO dollar pricing
  *   - the Get an Assessment form lives at /revenue-recovery#assessment
@@ -221,7 +222,8 @@ test.describe("Home (§A4)", () => {
       ]),
     );
     expect(rows).toEqual([
-      ["Disciplines", "4"],
+      // Amended Oct 4, 2026: the full-service catalog replaces "Disciplines | 4".
+      ["Services", "10"],
       ["Platforms we plan across", "Google · Meta · TikTok · Lamar · Clear Channel · OUTFRONT"],
       ["Standard", "Audit first. Evidence. Then scale."],
     ]);
@@ -240,19 +242,26 @@ test.describe("Home (§A4)", () => {
       "A free look at where you’re likely losing revenue.",
       "A paid, full diagnostic. Every finding comes with a priority and a confidence label.",
       "Conversion repaired before a dollar more goes into spend.",
-      "Once it’s proven, we run the media: digital, out-of-home, clips.",
+      "Once it’s proven, we run the media: digital, TV, radio, out-of-home, social, clips.",
     ]);
   });
 
-  test("four disciplines link to their pages; See What We Do anchors to them", async ({ page }) => {
+  // Amended Oct 4, 2026: Section 2 lists every service in the catalog.
+  test("every service links to its page; See What We Do anchors to them", async ({ page }) => {
     await visit(page, byPath("/"));
     const section = page.locator("#what-we-do");
-    await expect(section.getByRole("heading", { level: 2 })).toHaveText("One team. Four ways to be seen.");
+    await expect(section.getByRole("heading", { level: 2 })).toHaveText("One team. Every way to be seen.");
     for (const [name, href] of <[string, string][]>[
       ["Digital Advertising", "/digital-advertising"],
-      ["Revenue Recovery", "/revenue-recovery"],
+      ["TV & Streaming", "/tv-streaming"],
+      ["Radio & Audio", "/radio-audio"],
       ["Out-of-Home", "/out-of-home"],
+      ["Social Media", "/social-media"],
+      ["Creative & Production", "/creative-production"],
+      ["Influencer & Creator Partnerships", "/influencer-marketing"],
       ["Z Best Clips", "https://zbestclips.com"],
+      ["Revenue Recovery", "/revenue-recovery"],
+      ["Websites & Landing Pages", "/websites"],
     ]) {
       await expect(section.getByRole("link", { name: new RegExp(`^${name}`) })).toHaveAttribute("href", href);
     }
@@ -408,12 +417,14 @@ test.describe("Revenue Recovery (§A4, filtered live carry-over)", () => {
     await expect(panel).not.toContainText(/60[- ]?sec|quantified/i);
   });
 
-  test("assessment form: fixture-labeled, stub-marked, validates, and never claims delivery", async ({ page }) => {
+  test("assessment form: fixture-labeled, validates, and confirms receipt only once stored", async ({ page }) => {
     await visit(page, byPath("/revenue-recovery"));
     const section = page.locator("#assessment");
     await expect(section.locator("[data-fixture-note]")).toContainText("Fixture");
     const form = section.locator('form[data-lead-form="assessment"]');
-    await expect(form).toContainText("Stub");
+    await formReady(form);
+    await expect(form).toContainText("fixture rules");
+    await expect(form).not.toContainText("Stub");
     for (const label of ["Name", "Business", "Website", "Best way to reach you"]) {
       await expect(form.getByLabel(label, { exact: true })).toBeVisible();
     }
@@ -432,7 +443,7 @@ test.describe("Revenue Recovery (§A4, filtered live carry-over)", () => {
     await expect(form.getByText("Enter a website address, like example.com.")).toBeVisible();
 
     await form.getByLabel("Website", { exact: true }).fill("example.com");
-    // Phase 5: the eight questions must be answered before the stub is reached.
+    // Phase 5: the eight questions must be answered before the route is reached.
     for (const question of await form.locator("[data-assessment-question]").all()) {
       await question.getByRole("radio", { name: "Somewhat true", exact: true }).check();
     }
@@ -440,27 +451,28 @@ test.describe("Revenue Recovery (§A4, filtered live carry-over)", () => {
       page.waitForResponse((r) => r.url().endsWith("/api/lead")),
       form.getByRole("button", { name: "Get an Assessment" }).click(),
     ]);
-    expect(response.headers()["x-zbest-lead-stub"]).toBe("no-delivery");
+    expect(response.status()).toBe(200);
+    expect(response.headers()["x-zbest-lead-transport"]).toBe("fake");
     const result = section.locator('[data-lead-result="accepted"]');
-    await expect(result).toContainText("Stub — not delivered");
-    await expect(result).toContainText("nothing was stored or sent");
+    await expect(result).toContainText("Received");
+    await expect(result).toContainText("Scored on fixture rules");
   });
 });
 
-test.describe("Lead route stub (§6.2)", () => {
+test.describe("Lead route (§6.2)", () => {
   const post = (page: Page, data: unknown) =>
     page.request.post(`${ZBM_BASE_URL}/api/lead`, { data, failOnStatusCode: false });
   const id = "5f0c2b8e-4f7a-4c1e-9d7b-0f5d3a2b1c9e";
 
-  test("valid contact submission is acknowledged as a stub", async ({ page }) => {
+  test("valid contact submission is acknowledged", async ({ page }) => {
     const res = await post(page, {
       form: "contact",
       submission_id: id,
       fields: { name: "A", business: "B", problem: "C", reach: "D" },
     });
     expect(res.status()).toBe(200);
-    expect(res.headers()["x-zbest-lead-stub"]).toBe("no-delivery");
-    expect(await res.json()).toEqual({ ok: true, stub: true, submission_id: id });
+    expect(res.headers()["x-zbest-lead-stub"]).toBeUndefined();
+    expect(await res.json()).toEqual({ ok: true, submission_id: id });
   });
 
   test("invalid fields return the field-level error envelope", async ({ page }) => {
@@ -528,9 +540,10 @@ test.describe("About and Contact (§A4)", () => {
     );
   });
 
-  test("Contact form has the §6.1 fields and posts to the stub", async ({ page }) => {
+  test("Contact form has the §6.1 fields and posts to the lead route", async ({ page }) => {
     await visit(page, byPath("/contact"));
     const form = page.locator('form[data-lead-form="contact"]');
+    await formReady(form);
     for (const label of ["Name", "Business", "What are you looking to solve?", "Best way to reach you"]) {
       await expect(form.getByLabel(label, { exact: true })).toBeVisible();
     }
@@ -547,12 +560,15 @@ test.describe("About and Contact (§A4)", () => {
     expect(sent.form).toBe("contact");
     expect(sent.submission_id).toMatch(/^[0-9a-f-]{36}$/);
     expect(sent).not.toHaveProperty("company_url");
-    await expect(page.locator('[data-lead-result="accepted"]')).toContainText("Stub — not delivered");
+    await expect(page.locator('[data-lead-result="accepted"]')).toContainText("Received");
   });
 });
 
 test.describe("Copy revision (founder rulings, Sep 17 — audit at 1fc360f)", () => {
-  test("the assessment is primary on Home and Revenue Recovery only", async ({ page }) => {
+  // Amended Oct 4, 2026: CTA primacy is now asserted in phase-6 ("Start a
+  // Project leads the hero"). This test checks only where an assessment CTA
+  // exists at all, and that Talk to Us is still offered.
+  test("an assessment CTA appears on Home and Revenue Recovery only; Talk to Us is offered elsewhere", async ({ page }) => {
     for (const path of ["/", "/revenue-recovery"]) {
       await visit(page, byPath(path));
       expect(
@@ -572,7 +588,7 @@ test.describe("Copy revision (founder rulings, Sep 17 — audit at 1fc360f)", ()
       await visit(page, byPath(path));
       await expect(
         page.locator("main").getByRole("link", { name: "Talk to Us" }).first(),
-        `${path} leads with Talk to Us`,
+        `${path} offers Talk to Us`,
       ).toHaveAttribute("href", "/contact");
     }
   });
@@ -611,9 +627,20 @@ test.describe("Copy revision (founder rulings, Sep 17 — audit at 1fc360f)", ()
 });
 
 test.describe("FAQ (§A4)", () => {
-  test("aggregates the three discipline blocks, grouped, with no Search Intelligence questions", async ({ page }) => {
+  test("aggregates every service's FAQ block, grouped, with no Search Intelligence questions", async ({ page }) => {
     await visit(page, byPath("/faq"));
-    await expect(page.locator("main h2")).toHaveText(["Digital Advertising", "Revenue Recovery", "Out-of-Home"]);
+    // The Brief's three, then the Oct 4 2026 catalog services in catalog order.
+    await expect(page.locator("main h2")).toHaveText([
+      "Digital Advertising",
+      "Revenue Recovery",
+      "Out-of-Home",
+      "TV & Streaming",
+      "Radio & Audio",
+      "Social Media",
+      "Creative & Production",
+      "Influencer & Creator Partnerships",
+      "Websites & Landing Pages",
+    ]);
     await expect(page.locator("#digital-advertising button[aria-expanded]")).toHaveCount(4);
     await expect(page.locator("#revenue-recovery button[aria-expanded]")).toHaveCount(7);
     // Withdrawn Sep 17 (founder rulings): no agency comparison, no case-study
