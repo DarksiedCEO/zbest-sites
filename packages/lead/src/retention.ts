@@ -61,8 +61,17 @@ export function retentionCutoffs(now: Date, policy: RetentionPolicy): { leads: D
 export type PurgeResult = { deleted: number; uaCleared: number };
 
 export interface LeadPurger {
-  purge(app: LeadApp, cutoffs: { leads: Date; userAgent: Date }): Promise<PurgeResult>;
+  /** Purges, and records `ranAt` as this app's last successful run (one transaction). */
+  purge(app: LeadApp, cutoffs: { leads: Date; userAgent: Date }, ranAt: Date): Promise<PurgeResult>;
 }
+
+/** Reads the last successful purge (sql/003_purge_runs.sql). */
+export interface PurgeLedger {
+  lastSuccess(app: LeadApp): Promise<Date | null>;
+}
+
+/** A purge older than this is overdue: two missed daily runs. */
+export const PURGE_OVERDUE_HOURS = 48;
 
 /** Constant-time check of `Authorization: Bearer <secret>`, compared as digests so length leaks nothing. */
 export function cronAuthorized(header: string | null, secret: string): boolean {
@@ -112,8 +121,9 @@ export async function handlePurge(request: Request, opts: HandlePurgeOptions): P
       return json({ ok: false, error: { code: "not_configured" } }, 503);
     }
 
-    const cutoffs = retentionCutoffs((opts.now ?? (() => new Date()))(), retention.policy);
-    const result = await purger.purge(app, cutoffs);
+    const now = (opts.now ?? (() => new Date()))();
+    const cutoffs = retentionCutoffs(now, retention.policy);
+    const result = await purger.purge(app, cutoffs, now);
     log("info", "purged", { app, deleted: result.deleted, ua_cleared: result.uaCleared, days: retention.policy.leadDays });
     return json({ ok: true, deleted: result.deleted, ua_cleared: result.uaCleared }, 200);
   } catch {
@@ -121,4 +131,79 @@ export async function handlePurge(request: Request, opts: HandlePurgeOptions): P
     log("error", "purge_failed", { app });
     return json({ ok: false, error: { code: "unavailable" } }, 503);
   }
+}
+
+export type PurgeHealth =
+  | "ok"
+  /** CRON_SECRET missing or short: the cron cannot run (the purge route refuses). */
+  | "cron_secret_missing"
+  /** LEAD_RETENTION_DAYS / LEAD_UA_RETENTION_DAYS out of bounds, or no usable POSTGRES_URL. */
+  | "misconfigured"
+  /** No successful run recorded yet (expected only in the first day after go-live). */
+  | "never_run"
+  /** Last success older than PURGE_OVERDUE_HOURS. */
+  | "overdue"
+  /** The ledger could not be read. */
+  | "unknown";
+
+export type HealthOptions = {
+  app: LeadApp;
+  env?: Env;
+  logger?: LeadLogger;
+  now?: () => Date;
+  /** Test seam; production builds it from POSTGRES_URL. */
+  ledger?: PurgeLedger;
+};
+
+/**
+ * Whether the retention promise is actually being kept for this app. Every
+ * status but "ok" is DEGRADED and is logged at error level, so a log alert
+ * or an uptime check on /api/health catches a purge that stopped.
+ */
+export async function purgeHealth(opts: HealthOptions): Promise<{ status: PurgeHealth; ageHours?: number }> {
+  const log = opts.logger ?? consoleLogger;
+  const env = opts.env ?? process.env;
+  const app = opts.app;
+  const degraded = (status: PurgeHealth, missing?: string, ageHours?: number) => {
+    log("error", "purge_degraded", { app, status, ...(missing ? { missing } : {}) });
+    return { status, ...(ageHours === undefined ? {} : { ageHours }) };
+  };
+  if ((env.CRON_SECRET ?? "").trim().length < 16) return degraded("cron_secret_missing", "CRON_SECRET:min-16-chars");
+  const retention = resolveRetention(env);
+  if (!retention.ok) return degraded("misconfigured", retention.problems.join(","));
+  let ledger = opts.ledger;
+  if (!ledger) {
+    const url = (env.POSTGRES_URL ?? "").trim();
+    const pg = url ? parsePostgresUrl(url) : null;
+    if (!pg || !pg.ok) return degraded("misconfigured", pg ? `POSTGRES_URL:${pg.reason}` : "POSTGRES_URL");
+    ledger = postgresPurger(pg.options);
+  }
+  let last: Date | null;
+  try {
+    last = await ledger.lastSuccess(app);
+  } catch {
+    return degraded("unknown");
+  }
+  if (!last) return degraded("never_run");
+  const ageHours = Math.floor(((opts.now ?? (() => new Date()))().getTime() - last.getTime()) / 3_600_000);
+  if (ageHours > PURGE_OVERDUE_HOURS) return degraded("overdue", undefined, ageHours);
+  return { status: "ok", ageHours };
+}
+
+/**
+ * GET /api/health: 200 when the retention purge is healthy, 503 when
+ * degraded, so any uptime monitor alerts on it. Statuses only, no values.
+ */
+export async function handleHealth(_request: Request, opts: HealthOptions): Promise<Response> {
+  let purge: { status: PurgeHealth; ageHours?: number };
+  try {
+    purge = await purgeHealth(opts);
+  } catch {
+    purge = { status: "unknown" };
+  }
+  const ok = purge.status === "ok";
+  return Response.json(
+    { ok, checks: { retention_purge: { status: purge.status, ...(purge.ageHours === undefined ? {} : { age_hours: purge.ageHours }) } } },
+    { status: ok ? 200 : 503, headers: { "Cache-Control": "no-store" } },
+  );
 }

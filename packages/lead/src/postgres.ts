@@ -1,6 +1,6 @@
 import postgres from "postgres";
 import type { PgOptions } from "./pg-url";
-import type { LeadPurger, PurgeResult } from "./retention";
+import type { LeadPurger, PurgeLedger, PurgeResult } from "./retention";
 import { DeliveryError, type InsertResult, type LeadApp, type LeadRecord, type LeadStore, type NotifyStatus } from "./types";
 
 /**
@@ -107,27 +107,48 @@ export function postgresStore(options: PgOptions): LeadStore {
 export type SqlTag = (strings: TemplateStringsArray, ...values: unknown[]) => PromiseLike<{ count: number }>;
 
 /**
- * The retention statements (src/retention.ts), parameterised: the app and the
- * cutoffs travel as bound values with explicit casts, never as SQL text.
- * Scoped to one app, so each app's cron purges only its own rows even when
- * both share a database. Both are idempotent.
+ * The retention statements (src/retention.ts), parameterised: the app, the
+ * cutoffs and the run time travel as bound values with explicit casts, never
+ * as SQL text. Scoped to one app, so each app's cron purges only its own rows
+ * even when both share a database. All idempotent. The last statement records
+ * this successful run in lead_purge_runs (sql/003_purge_runs.sql); the caller
+ * runs all three in one transaction, so the ledger never claims a purge that
+ * did not commit.
  */
-export async function purgeWith(sql: SqlTag, app: LeadApp, cutoffs: { leads: Date; userAgent: Date }): Promise<PurgeResult> {
+export async function purgeWith(
+  sql: SqlTag,
+  app: LeadApp,
+  cutoffs: { leads: Date; userAgent: Date },
+  ranAt: Date = new Date(),
+): Promise<PurgeResult> {
   const deleted = await sql`
     DELETE FROM leads
     WHERE app = ${app}::text AND created_at < ${cutoffs.leads.toISOString()}::timestamptz`;
   const cleared = await sql`
     UPDATE leads SET user_agent = NULL
     WHERE app = ${app}::text AND user_agent IS NOT NULL AND created_at < ${cutoffs.userAgent.toISOString()}::timestamptz`;
+  await sql`
+    INSERT INTO lead_purge_runs (app, last_success_at, deleted, ua_cleared)
+    VALUES (${app}::text, ${ranAt.toISOString()}::timestamptz, ${deleted.count}::int, ${cleared.count}::int)
+    ON CONFLICT (app) DO UPDATE
+      SET last_success_at = EXCLUDED.last_success_at, deleted = EXCLUDED.deleted, ua_cleared = EXCLUDED.ua_cleared`;
   return { deleted: deleted.count, uaCleared: cleared.count };
 }
 
-export function postgresPurger(options: PgOptions): LeadPurger {
+export function postgresPurger(options: PgOptions): LeadPurger & PurgeLedger {
   const sql = client(options);
   return {
-    async purge(app, cutoffs) {
+    async purge(app, cutoffs, ranAt) {
       try {
-        return await purgeWith(sql as unknown as SqlTag, app, cutoffs);
+        return (await sql.begin((tx) => purgeWith(tx as unknown as SqlTag, app, cutoffs, ranAt))) as PurgeResult;
+      } catch (error) {
+        throw storeError(error);
+      }
+    },
+    async lastSuccess(app) {
+      try {
+        const [row] = await sql`SELECT last_success_at FROM lead_purge_runs WHERE app = ${app}::text`;
+        return row ? (row.last_success_at as Date) : null;
       } catch (error) {
         throw storeError(error);
       }

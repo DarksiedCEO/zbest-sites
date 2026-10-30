@@ -14,6 +14,11 @@ export { memoryLimiter, restLimiter, parseRateLimit, DEFAULT_RATE_LIMIT } from "
 export { postgresStore, postgresPurger } from "./postgres";
 export {
   handlePurge,
+  handleHealth,
+  purgeHealth,
+  PURGE_OVERDUE_HOURS,
+  type PurgeLedger,
+  type PurgeHealth,
   resolveRetention,
   retentionCutoffs,
   DEFAULT_LEAD_RETENTION_DAYS,

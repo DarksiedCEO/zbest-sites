@@ -4,10 +4,13 @@ import {
   DEFAULT_LEAD_RETENTION_DAYS,
   DEFAULT_UA_RETENTION_DAYS,
   cronAuthorized,
+  handleHealth,
   handlePurge,
+  purgeHealth,
   resolveRetention,
   retentionCutoffs,
   type LeadPurger,
+  type PurgeLedger,
 } from "../src/retention";
 import { captureLogger } from "./helpers";
 
@@ -61,12 +64,12 @@ describe("purge SQL (parameterised, scoped by app)", () => {
     const calls: { text: string; values: unknown[] }[] = [];
     const tag: SqlTag = (strings, ...values) => {
       calls.push({ text: strings.join("$?"), values });
-      return Promise.resolve({ count: calls.length === 1 ? 4 : 7 });
+      return Promise.resolve({ count: calls.length === 1 ? 4 : calls.length === 2 ? 7 : 1 });
     };
     const cutoffs = retentionCutoffs(NOW, { leadDays: 730, uaDays: 90 });
-    expect(await purgeWith(tag, "zbc", cutoffs)).toEqual({ deleted: 4, uaCleared: 7 });
-    expect(calls).toHaveLength(2);
-    const [del, ua] = calls as [(typeof calls)[0], (typeof calls)[0]];
+    expect(await purgeWith(tag, "zbc", cutoffs, NOW)).toEqual({ deleted: 4, uaCleared: 7 });
+    expect(calls).toHaveLength(3);
+    const [del, ua, ledger] = calls as [(typeof calls)[0], (typeof calls)[0], (typeof calls)[0]];
     expect(del.text.replace(/\s+/g, " ").trim()).toBe(
       "DELETE FROM leads WHERE app = $?::text AND created_at < $?::timestamptz",
     );
@@ -75,6 +78,8 @@ describe("purge SQL (parameterised, scoped by app)", () => {
       "UPDATE leads SET user_agent = NULL WHERE app = $?::text AND user_agent IS NOT NULL AND created_at < $?::timestamptz",
     );
     expect(ua.values).toEqual(["zbc", "2026-08-01T12:00:00.000Z"]);
+    expect(ledger.text).toContain("INSERT INTO lead_purge_runs");
+    expect(ledger.values).toEqual(["zbc", NOW.toISOString(), 4, 7]);
     for (const c of calls) expect(c.text).not.toMatch(/zbc|2024|2026/);
   });
 });
@@ -121,7 +126,7 @@ describe("cron route: authorisation fails closed", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toBe("no-store");
     expect(await res.json()).toEqual({ ok: true, deleted: 2, ua_cleared: 9 });
-    expect(purge).toHaveBeenCalledWith("zbc", retentionCutoffs(NOW, { leadDays: 365, uaDays: 90 }));
+    expect(purge).toHaveBeenCalledWith("zbc", retentionCutoffs(NOW, { leadDays: 365, uaDays: 90 }), NOW);
     expect(log.lines).toEqual([{ level: "info", event: "purged", fields: { app: "zbc", deleted: 2, ua_cleared: 9, days: 365 } }]);
     expect(log.text()).not.toContain(SECRET);
   });
@@ -150,5 +155,89 @@ describe("cron route: authorisation fails closed", () => {
     expect(cronAuthorized(`Bearer ${SECRET}`, SECRET)).toBe(true);
     expect(cronAuthorized(null, SECRET)).toBe(false);
     expect(cronAuthorized(`Bearer ${SECRET.slice(0, -1)}`, SECRET)).toBe(false);
+  });
+});
+
+describe("retention defaults and bounds (AEGIS, legal branch review)", () => {
+  it("unset or blank settings mean 730 days for leads and 90 for the user agent, and the purge uses them", async () => {
+    for (const env of [{}, { LEAD_RETENTION_DAYS: "", LEAD_UA_RETENTION_DAYS: "  " }]) {
+      expect(resolveRetention(env)).toEqual({ ok: true, policy: { leadDays: 730, uaDays: 90 } });
+      const { purger, purge } = spyPurger();
+      const res = await handlePurge(call({ authorization: `Bearer ${SECRET}` }), {
+        app: "zbm",
+        env: { CRON_SECRET: SECRET, ...env },
+        purger,
+        logger: captureLogger().logger,
+        now: () => NOW,
+      });
+      expect(res.status).toBe(200);
+      const [, cutoffs] = purge.mock.calls[0]!;
+      expect(cutoffs.leads.toISOString()).toBe("2024-10-30T12:00:00.000Z");
+      expect(cutoffs.userAgent.toISOString()).toBe("2026-08-01T12:00:00.000Z");
+    }
+  });
+
+  it("out-of-bounds values are refused on every run (no purge) and reported by the health check", async () => {
+    for (const [name, value] of [
+      ["LEAD_RETENTION_DAYS", "0"],
+      ["LEAD_RETENTION_DAYS", "3651"],
+      ["LEAD_UA_RETENTION_DAYS", "0"],
+      ["LEAD_UA_RETENTION_DAYS", "800"],
+    ] as const) {
+      const env = { CRON_SECRET: SECRET, [name]: value };
+      const { purger, purge } = spyPurger();
+      const res = await handlePurge(call({ authorization: `Bearer ${SECRET}` }), { app: "zbm", env, purger, logger: captureLogger().logger });
+      expect(res.status, `${name}=${value}`).toBe(503);
+      expect(purge).not.toHaveBeenCalled();
+      const ledger: PurgeLedger = { lastSuccess: async () => NOW };
+      expect((await purgeHealth({ app: "zbm", env, ledger, logger: captureLogger().logger, now: () => NOW })).status).toBe("misconfigured");
+    }
+  });
+});
+
+describe("health: a purge that stops is never silent", () => {
+  const ledgerAt = (d: Date | null): PurgeLedger => ({ lastSuccess: async () => d });
+  const hoursAgo = (h: number) => new Date(NOW.getTime() - h * 3_600_000);
+  const health = (env: Record<string, string>, ledger: PurgeLedger) => {
+    const log = captureLogger();
+    return handleHealth(new Request("https://www.zbestmedia.com/api/health"), { app: "zbm", env, ledger, logger: log.logger, now: () => NOW }).then(
+      async (res) => ({ status: res.status, body: await res.json(), log }),
+    );
+  };
+
+  it("ok within 48 hours of the last successful purge: 200", async () => {
+    const r = await health({ CRON_SECRET: SECRET }, ledgerAt(hoursAgo(25)));
+    expect(r.status).toBe(200);
+    expect(r.body).toEqual({ ok: true, checks: { retention_purge: { status: "ok", age_hours: 25 } } });
+    expect(r.log.lines).toEqual([]);
+  });
+
+  it("overdue after 48 hours: 503 and an error-level event", async () => {
+    const r = await health({ CRON_SECRET: SECRET }, ledgerAt(hoursAgo(49)));
+    expect(r.status).toBe(503);
+    expect(r.body.checks.retention_purge).toEqual({ status: "overdue", age_hours: 49 });
+    expect(r.log.lines).toEqual([{ level: "error", event: "purge_degraded", fields: { app: "zbm", status: "overdue" } }]);
+  });
+
+  it("never run, unreadable ledger, and a missing CRON_SECRET are all degraded (503, error log)", async () => {
+    const cases: [Record<string, string>, PurgeLedger, string][] = [
+      [{ CRON_SECRET: SECRET }, ledgerAt(null), "never_run"],
+      [{ CRON_SECRET: SECRET }, { lastSuccess: () => Promise.reject(new Error("db.internal")) }, "unknown"],
+      [{}, ledgerAt(hoursAgo(1)), "cron_secret_missing"],
+      [{ CRON_SECRET: "short" }, ledgerAt(hoursAgo(1)), "cron_secret_missing"],
+    ];
+    for (const [env, ledger, status] of cases) {
+      const r = await health(env, ledger);
+      expect(r.status, status).toBe(503);
+      expect(r.body).toEqual({ ok: false, checks: { retention_purge: { status } } });
+      expect(r.log.lines[0]).toMatchObject({ level: "error", event: "purge_degraded", fields: { status } });
+      expect(r.log.text()).not.toContain("db.internal");
+    }
+  });
+
+  it("the cron route itself logs an error on EVERY invocation while CRON_SECRET is unset", async () => {
+    const log = captureLogger();
+    for (let i = 0; i < 3; i++) await handlePurge(call({}), { app: "zbm", env: {}, logger: log.logger });
+    expect(log.lines.map((l) => [l.level, l.event])).toEqual(Array(3).fill(["error", "purge_not_configured"]));
   });
 });
