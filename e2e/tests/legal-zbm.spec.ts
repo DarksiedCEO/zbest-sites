@@ -48,3 +48,19 @@ test("the notice's anchors exist on the Privacy Policy", async ({ page }) => {
   await page.goto(`${ZBM_BASE_URL}/legal/privacy-policy`, { waitUntil: "domcontentloaded" });
   for (const id of ["california", "rights"]) await expect(page.locator(`section#${id}`)).toHaveCount(1);
 });
+
+test("Accessibility Statement: linked from the footer, in effect, honest about limitations", async ({ page }) => {
+  await presetConsent(page);
+  await page.goto(`${ZBM_BASE_URL}/`, { waitUntil: "domcontentloaded" });
+  const link = page.getByRole("contentinfo").getByRole("link", { name: "Accessibility Statement" });
+  await expect(link).toHaveAttribute("href", "/legal/accessibility");
+
+  const res = await page.goto(`${ZBM_BASE_URL}/legal/accessibility`, { waitUntil: "domcontentloaded" });
+  expect(res?.status()).toBe(200);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Accessibility Statement");
+  expect(await page.locator("[data-legal-draft-banner]").count()).toBe(0);
+  await expect(page.locator("section#status")).toContainText("partially conforms to WCAG 2.2 Level AA");
+  expect(await page.locator("section#limitations li").count()).toBeGreaterThanOrEqual(1);
+  // The contact is visibly marked until Andre confirms it.
+  await expect(page.locator("section#feedback [data-placeholder]").first()).toHaveText("[ACCESSIBILITY EMAIL — CONFIRM]");
+});

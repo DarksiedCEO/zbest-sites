@@ -10,7 +10,7 @@ import {
 } from "@/lib/legal";
 import { SITE } from "@/lib/site";
 
-/** Only the three documents exist; any other /legal/* address is a 404. */
+/** Only the listed documents exist; any other /legal/* address is a 404. */
 export const dynamicParams = false;
 
 export function generateStaticParams() {

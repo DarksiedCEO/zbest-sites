@@ -62,7 +62,8 @@ const APPS = [
       },
       { heading: "Company", links: ["About", "Start a Project", "Contact"] },
       { heading: "Resources", links: ["FAQ"] },
-      { heading: "Legal", links: ["Privacy Policy", "Terms of Service", "Cookie Settings"] },
+      // Accessibility Statement added with the in-effect legal set (Oct 30 2026).
+      { heading: "Legal", links: ["Privacy Policy", "Terms of Service", "Cookie Settings", "Accessibility Statement"] },
     ],
     // §A3: "Z Best Clips (→ zbestclips.com)"; own domain per §1.1.
     crossLink: { label: "Z Best Clips", href: "https://zbestclips.com" },

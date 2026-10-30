@@ -33,6 +33,7 @@ export const LEGAL_LAST_UPDATED = "[EFFECTIVE DATE]";
 const PRIVACY_EMAIL = "[PRIVACY EMAIL]";
 const LEGAL_EMAIL = "[LEGAL NOTICES EMAIL]";
 const MAILING_ADDRESS = "[BUSINESS MAILING ADDRESS]";
+const ACCESSIBILITY_EMAIL = "[ACCESSIBILITY EMAIL — CONFIRM]";
 
 /* -------------------------------------------------------------------------- */
 /* Privacy Policy                                                             */
@@ -733,10 +734,96 @@ const cookiePolicy: InEffectLegalDocument = {
   ],
 };
 
+/* -------------------------------------------------------------------------- */
+/* Accessibility Statement                                                    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Source: the independent WCAG 2.2 AA audit of main 6960b6b, Oct 30 2026
+ * (drafting notes). Each "known limitation" below is a finding from it. When a
+ * fix lands, remove its line here in the same commit, and update the date.
+ */
+const accessibilityStatement: InEffectLegalDocument = {
+  title: "Accessibility Statement",
+  subtitle: "How accessible zbestmedia.com is today, what we’re fixing, and how to tell us about a problem.",
+  summary: [
+    "We aim to meet the Web Content Accessibility Guidelines (WCAG) 2.2 at Level AA.",
+    "Today the site partially conforms. An audit on October 30, 2026 found a few problems, listed below, and we are fixing them.",
+    "We don’t use accessibility overlays. We fix the site itself.",
+    `If anything is hard to use, email ${ACCESSIBILITY_EMAIL} and we’ll help another way while we fix it.`,
+  ],
+  sections: [
+    {
+      id: "commitment",
+      heading: "Our commitment",
+      blocks: [
+        {
+          p: "We want everyone to be able to use this website, including people who use screen readers, keyboard navigation, magnification, voice control or other assistive technology.",
+        },
+        {
+          p: "Our goal is to conform to the Web Content Accessibility Guidelines (WCAG) 2.2, Level AA. We check the site with automated tools and by hand, including keyboard-only navigation and reflow at 320 pixels wide, and we treat accessibility failures as bugs.",
+        },
+      ],
+    },
+    {
+      id: "status",
+      heading: "Conformance status",
+      blocks: [
+        {
+          p: "This site partially conforms to WCAG 2.2 Level AA: some parts of the content don’t yet fully meet the standard. An accessibility audit on October 30, 2026 found no blocking issues, and automated scans found no color-contrast, labeling, name or role failures. It did find the limitations below.",
+        },
+      ],
+    },
+    {
+      id: "limitations",
+      heading: "Known limitations",
+      blocks: [
+        {
+          list: [
+            "While the cookie notice is open, it can cover the item you have tabbed to. Choosing an option in the notice removes the problem. Tabbing backward can also place the focused item under the top navigation bar.",
+            "When the site is zoomed to 400%, the opened mobile menu can’t scroll to its lower links. Every page is also linked from the footer.",
+            "Form field outlines are lower in contrast than the standard requires.",
+            "After you submit a form, keyboard focus returns to the top of the page instead of moving to the first error or to the confirmation.",
+            "Some section titles are styled as headings but are not coded as headings.",
+            "The opening text on the homepage fades as you scroll. Turning on “reduce motion” in your device settings turns this off.",
+          ],
+        },
+        {
+          p: "We have not yet completed testing with the NVDA, JAWS, VoiceOver or TalkBack screen readers. The site has no video or audio content today; when it does, we will provide captions and transcripts.",
+        },
+      ],
+    },
+    {
+      id: "feedback",
+      heading: "Tell us about a problem",
+      blocks: [
+        {
+          p: `If anything on this site is hard to use, email ${ACCESSIBILITY_EMAIL} or write to us at ${MAILING_ADDRESS}. Tell us the page and what happened. We aim to reply within two business days, and we will provide the information or service another way while we work on a fix.`,
+        },
+      ],
+    },
+    {
+      id: "approach",
+      heading: "How we work on accessibility",
+      blocks: [
+        {
+          list: [
+            "Pages are built with semantic HTML: a page language, one main heading per page, landmarks, labeled form fields and real buttons and links.",
+            "The site respects your device’s “reduce motion” setting.",
+            "We don’t use accessibility overlays or widgets that change the page for you; we fix the underlying code.",
+            "We review this statement whenever we fix a limitation or find a new one, and update the date at the top.",
+          ],
+        },
+      ],
+    },
+  ],
+};
+
 export const LEGAL_DOCUMENTS = {
   "privacy-policy": privacyPolicy,
   "terms-of-service": termsOfService,
   "cookie-policy": cookiePolicy,
+  accessibility: accessibilityStatement,
 } satisfies Record<string, InEffectLegalDocument>;
 
 export type LegalDocument = keyof typeof LEGAL_DOCUMENTS;
