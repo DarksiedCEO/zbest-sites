@@ -50,8 +50,10 @@ export function CookieConsent({
   const [visible, setVisible] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
   const [gpc, setGpc] = useState(false);
-  // True only when "Change cookie settings" brought the banner back, i.e. a
-  // choice is already stored. Escape may then close it without a new choice.
+  // True only when "Change cookie settings" brought the banner back AND a
+  // choice is already stored. Escape may then close it without a new choice;
+  // a first-visit banner (nothing stored), even one reopened from that
+  // button, stays until the visitor chooses (AEGIS r2 N2).
   const [reopened, setReopened] = useState(false);
   const detailToggleRef = useRef<HTMLButtonElement>(null);
   const a11y = useBannerFocusSafety(visible);
@@ -81,7 +83,13 @@ export function CookieConsent({
     // "Cookie Settings" (§A3, §B3) has to be able to reopen a choice that was
     // already made — a consent that can be given but never changed is not one.
     const reopen = () => {
-      setReopened(true);
+      let stored = false;
+      try {
+        stored = !!window.localStorage.getItem(STORAGE_KEY);
+      } catch {
+        /* Unreadable storage: treat as no choice, so Escape cannot dismiss. */
+      }
+      setReopened(stored);
       setVisible(true);
     };
     window.addEventListener(OPEN_EVENT, reopen);
@@ -102,9 +110,10 @@ export function CookieConsent({
 
   // Escape (AEGIS F9) never records a consent choice. Inside the banner it
   // collapses the details and returns focus to their toggle; with the details
-  // closed, it closes a REOPENED banner (the stored choice stands, focus goes
-  // back to "Change cookie settings"). A first-visit banner stays open until
-  // the visitor chooses.
+  // closed, it closes a banner reopened over a STORED choice (the choice
+  // stands, focus goes back to "Change cookie settings"). With no stored
+  // choice — a first visit, even if "Change cookie settings" was pressed —
+  // the banner stays open until the visitor chooses.
   useEffect(() => {
     if (!visible) return;
     const onKey = (event: KeyboardEvent) => {
@@ -246,6 +255,9 @@ function useBannerFocusSafety(visible: boolean) {
     const onOpen = () => {
       const active = document.activeElement;
       opener.current = active instanceof HTMLElement && active !== document.body ? active : null;
+      // Already open (e.g. the first-visit banner is still up): `visible`
+      // does not change, so the effect below will not run — move focus now.
+      if (bannerRef.current && opener.current) headingRef.current?.focus();
     };
     window.addEventListener(OPEN_EVENT, onOpen);
     return () => window.removeEventListener(OPEN_EVENT, onOpen);
