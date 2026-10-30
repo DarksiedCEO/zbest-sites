@@ -60,6 +60,7 @@ describe.skipIf(!url)("postgres store (integration)", () => {
       await sql.unsafe(readFileSync(path.join(import.meta.dirname, "..", "sql", file), "utf8"));
     }
     await sql`TRUNCATE leads`;
+    await sql`TRUNCATE lead_purge_runs`;
     // The Neon-shaped test below connects as a separate, TLS-only SCRAM role.
     await sql.unsafe(
       "DO $$ BEGIN IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'leadscram') THEN GRANT ALL ON leads TO leadscram; END IF; END $$",
@@ -173,8 +174,13 @@ describe.skipIf(!url)("postgres store (integration)", () => {
 
     const purger = postgresPurger(opts(url!));
     const cutoffs = retentionCutoffs(now, { leadDays: 730, uaDays: 90 });
-    expect(await purger.purge("zbm", cutoffs)).toEqual({ deleted: 1, uaCleared: 2 });
-    expect(await purger.purge("zbm", cutoffs)).toEqual({ deleted: 0, uaCleared: 0 });
+    expect(await purger.purge("zbm", cutoffs, now)).toEqual({ deleted: 1, uaCleared: 2 });
+    // The ledger records the successful run, in the same transaction.
+    expect(await purger.lastSuccess("zbm")).toEqual(now);
+    expect(await purger.lastSuccess("zbc")).toBeNull();
+    const later = new Date(now.getTime() + 86_400_000);
+    expect(await purger.purge("zbm", cutoffs, later)).toEqual({ deleted: 0, uaCleared: 0 });
+    expect(await purger.lastSuccess("zbm")).toEqual(later);
 
     const left = await sql`SELECT submission_id::text AS id, user_agent FROM leads WHERE form = 'purge-test' ORDER BY created_at`;
     expect(Object.fromEntries(left.map((r) => [r.id, r.user_agent]))).toEqual({
