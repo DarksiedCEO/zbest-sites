@@ -18,7 +18,7 @@ export type LeadErrorBody =
   | { ok: false; error: { code: "rate_limited"; retry_after_s: number } }
   | { ok: false; error: { code: "not_configured" } }
   | { ok: false; error: { code: "conflict" } }
-  /** Outside the service area (50 US states, DC, PR, GU): nothing stored or sent. */
+  /** Outside the service area (50 US states, DC, and PR, GU, VI, AS, MP): nothing stored or sent. */
   | { ok: false; error: { code: "region_unavailable" } }
   | { ok: false; error: { code: "unavailable" } };
 

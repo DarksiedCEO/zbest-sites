@@ -241,7 +241,7 @@ async function handle(request: Request, opts: HandleLeadOptions, log: LeadLogger
   if (parsed.kind === "bad_request") return fail({ ok: false, error: { code: "bad_request" } }, 400);
   if (parsed.kind === "reject") return reply(parsed.body, parsed.status);
 
-  // Service area (founder decision 2026-10-30: 50 US states, DC, PR, GU). Outside it the
+  // Service area (founder decisions 2026-10-30: 50 US states, DC, PR, GU, VI, AS, MP). Outside it the
   // visitor gets a polite 422 and NOTHING is stored or sent. Checked here, in
   // the shared pipeline, so no form can skip it. Charged like any 422.
   if (!regionServed(parsed.region)) {
