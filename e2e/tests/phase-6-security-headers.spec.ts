@@ -68,6 +68,8 @@ for (const [app, base, extra] of [
       expect(h["referrer-policy"], p).toBe("strict-origin-when-cross-origin");
       expect(h["permissions-policy"], p).toContain("camera=()");
       expect(h["x-frame-options"], p).toBe("DENY");
+      // poweredByHeader: false (security sweep 2026-10-30, L2).
+      expect(h["x-powered-by"], `${p} x-powered-by`).toBeUndefined();
       await page.evaluate(() => document.fonts.ready);
       // next/font adds "<Family> Fallback" faces that point at system fonts
       // (local(Arial)). They are not fetched, so the CSP cannot affect them,
