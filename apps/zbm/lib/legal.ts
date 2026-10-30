@@ -403,6 +403,7 @@ const termsOfService: InEffectLegalDocument = {
   summary: [
     "These terms cover using our website and its free tools. They don’t cover paid services — those are governed by the written agreement we sign with each client.",
     "Free assessments are informational estimates based on your answers. They aren’t a guarantee of results and aren’t legal, tax, accounting or financial advice.",
+    "We serve clients in the United States, the United Kingdom and Canada (excluding Quebec), and not in France, Quebec or sanctioned countries.",
     "Use the site lawfully and don’t try to break, overload or scrape it.",
     "California law applies, and disputes go to the courts in Los Angeles County — or small claims court. There is no mandatory arbitration and no class-action waiver.",
   ],
@@ -428,6 +429,18 @@ const termsOfService: InEffectLegalDocument = {
         },
         {
           p: "Prices, deliverables, payment terms, ownership of work product and our responsibilities for paid work are set by the client agreement, not by these terms or by statements on the site. If a client agreement conflicts with these terms, the client agreement controls.",
+        },
+      ],
+    },
+    {
+      id: "service-area",
+      heading: "Service area",
+      blocks: [
+        {
+          p: "We serve clients in the United States, the United Kingdom and Canada (excluding Quebec). We do not offer our services to people or businesses located in France or the Province of Quebec, or to anyone who is located in, or organized or ordinarily resident in, a country or region subject to comprehensive US sanctions, or who is named on — or owned or controlled by someone named on — a US sanctions list. We decline enquiries from outside our service area, and we may ask where you or your business is located before replying.",
+        },
+        {
+          p: "By submitting a form you confirm that you and the business you represent are within our service area and are not a sanctioned person as described above.",
         },
       ],
     },
