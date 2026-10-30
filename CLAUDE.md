@@ -10,13 +10,17 @@ governs the frontend; Section 11 governs the Revenue Recovery assessment;
 Section 12 governs the AI Visibility Readiness Check. Do not build against
 guessed DTOs.
 Legal pages — Z Best Media: founder decision Oct 30 2026 put real Privacy
-Policy, Terms of Service and Cookie Policy text IN EFFECT now, plus an Accessibility Statement (/legal/accessibility) whose known
-limitations must be updated in the same commit as each accessibility fix.
+Policy, Terms of Service, Cookie Policy and Refund and Cancellation Policy
+(/legal/refunds, must match the MSA/SOW refund terms) text IN EFFECT now, plus
+an Accessibility Statement (/legal/accessibility) whose known limitations must
+be updated in the same commit as each accessibility fix. Service area: the 50
+US states, DC, Puerto Rico and Guam only.
 Text lives in apps/zbm/lib/legal.ts and must match what the code collects,
 stores, sends and sets in the browser: change it in the same commit as any
 such code change. ZBM legal pages show no draft banner. Bracketed
-[UPPER CASE] tokens are unfilled facts; a Vercel production build fails while
-any remain.
+[UPPER CASE] tokens are unfilled facts; any production build fails while any
+remain (exempt: Vercel preview, and the e2e gate via
+ZBEST_ALLOW_LEGAL_PLACEHOLDERS=1).
 Legal pages — Z Best Clips: unchanged. Clearly marked placeholders until
 attorney text is provided; scope is docs/ZBM-ZBC-Legal-Document-Brief.md; every
 ZBC legal page shell shows "Draft — pending attorney review. Not yet in effect."

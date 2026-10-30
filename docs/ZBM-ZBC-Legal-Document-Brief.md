@@ -6,6 +6,8 @@ Z Best Media  &  Z Best Clips
 
 *Purpose of this document: This brief identifies the provisions each Terms of Service, Privacy Policy, and Cookie Policy needs to address, based on the founder's own business model and a review of comparable companies' publicly stated terms. It is written to scope attorney review efficiently — it is not drafted or reviewed legal language, and nothing in it should be published or relied upon as-is. An attorney should review, revise, and finalize all language before any of it is used publicly or relied upon contractually.*
 
+**Status (founder decision, Oct 30 2026): Z Best Media.** The founder decided that Z Best Media publishes its own website legal documents now: Privacy Policy, Terms of Service, Cookie Policy, Refund and Cancellation Policy and Accessibility Statement. They are written separately (in `apps/zbm/lib/legal.ts`) and are in effect; nothing from this brief is reproduced in them. The rest of this brief stays as written, and Part Two (Z Best Clips) is unchanged.
+
 # Part One — Z Best Media
 
 Z Best Media operates across four disciplines: Digital Advertising, Revenue Recovery, Out-of-Home, and Z Best Clips (its creator-distribution arm, covered separately in Part Two). Z Best Media's legal documents are comparatively simpler than Z Best Clips' — there is no contractor-payout system to account for — but still need to cover client service terms, data collection through the site's tools, and advertising-related tracking.
@@ -108,4 +110,4 @@ Both entities should adopt a consistent, clearly stated 18-and-older policy with
 
 # How to Use This Brief
 
-This document is organized so each section — Terms of Service, Privacy Policy, and Cookie Policy, for each entity — can be handed to an attorney as a scoped work item. The goal is that the attorney's time goes toward reviewing, refining, and finalizing legally sound language against a known set of business facts, rather than discovering the business model, the payout structure, or the two-sided marketplace mechanics from scratch. None of the language above should be published, relied upon, or presented to a user or client until an attorney has reviewed and finalized it.
+This document is organized so each section — Terms of Service, Privacy Policy, and Cookie Policy, for each entity — can be handed to an attorney as a scoped work item. The goal is that the attorney's time goes toward reviewing, refining, and finalizing legally sound language against a known set of business facts, rather than discovering the business model, the payout structure, or the two-sided marketplace mechanics from scratch. None of the language above should be published, relied upon, or presented to a user or client until an attorney has reviewed and finalized it. (For Z Best Media's own website documents, see the status note at the top.)
