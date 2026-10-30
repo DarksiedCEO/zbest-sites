@@ -1,4 +1,5 @@
 import { handleLead, type ParsedLead } from "@zbest/lead";
+import { REGION } from "@zbest/lead/region";
 import { ASSESSMENT_REQUEST, fieldErrors } from "@/lib/assessment/contract";
 import { RULE_SET_HASH } from "@/lib/assessment/hash";
 import { ACTIVE_RULE_SET } from "@/lib/assessment/rules";
@@ -46,7 +47,7 @@ function parseAssessment(json: unknown): ParsedLead {
     if (structural(request.error.issues)) return badRequest;
     return { kind: "reject", status: 422, body: { ok: false, error: { code: "validation", fields: fieldErrors(request.error.issues) } } };
   }
-  const { submission_id, rule_set_version, answers, contact, company_url } = request.data;
+  const { submission_id, rule_set_version, answers, contact, region, company_url } = request.data;
 
   // §11.3: never score against rules the respondent was not shown.
   if (rule_set_version !== ACTIVE_RULE_SET.version) {
@@ -72,6 +73,7 @@ function parseAssessment(json: unknown): ParsedLead {
     kind: "lead",
     form: "assessment",
     submission_id,
+    region,
     payload: {
       contact,
       answers,
@@ -88,7 +90,7 @@ function parseReadiness(json: unknown): ParsedLead {
     if (structural(request.error.issues)) return badRequest;
     return { kind: "reject", status: 422, body: { ok: false, error: { code: "validation", fields: readinessFieldErrors(request.error.issues) } } };
   }
-  const { submission_id, rule_set_version, answers, contact, company_url } = request.data;
+  const { submission_id, rule_set_version, answers, contact, region, company_url } = request.data;
 
   // §12.2, inherited from §11.3: never score against rules the respondent was not shown.
   if (rule_set_version !== VISIBILITY_RULE_SET.version) {
@@ -114,6 +116,7 @@ function parseReadiness(json: unknown): ParsedLead {
     kind: "lead",
     form: "readiness",
     submission_id,
+    region,
     payload: {
       contact,
       answers,
@@ -139,10 +142,13 @@ function parseEnvelope(json: unknown): ParsedLead {
   // Honeypot: answer exactly like a success so a bot learns nothing.
   if (company_url) return { kind: "honeypot", form, body };
 
+  // The form's own fields, and the shared service-area field (state)
+  // beside them; both report errors by field name.
   const parsed = LEAD_FIELDS[form].safeParse(fields);
-  if (!parsed.success) {
+  const region = REGION.safeParse(fields);
+  if (!parsed.success || !region.success) {
     const errors: Record<string, string> = {};
-    for (const issue of parsed.error.issues) {
+    for (const issue of [...(parsed.error?.issues ?? []), ...(region.error?.issues ?? [])]) {
       const key = String(issue.path[0] ?? "form");
       errors[key] ??= issue.message;
     }
@@ -154,6 +160,7 @@ function parseEnvelope(json: unknown): ParsedLead {
     kind: "lead",
     form,
     submission_id,
+    region: region.data,
     payload: data,
     services: Array.isArray(data.services) ? (data.services as string[]) : [],
     source: typeof data.source === "string" && data.source ? data.source : null,

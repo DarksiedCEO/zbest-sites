@@ -1,4 +1,5 @@
 import { failureOf, type LeadErrorBody, type LeadFailure } from "@zbest/ui/lead/contract";
+import { REGION, REGION_FIELD_NAME } from "@zbest/lead/region";
 import { z } from "zod";
 import { LEAD_FIELDS } from "@/lib/lead";
 import { ACTIVE_RULE_SET } from "./rules";
@@ -41,6 +42,14 @@ export const READINESS_REQUEST = z.object({
   submission_id: z.uuid(),
   rule_set_version: z.string().min(1),
   contact: LEAD_FIELDS.assessment,
+  /**
+   * Service area (founder decisions 2026-10-30): the business's US state or
+   * territory, `{ state }`. A sibling of `contact`, which keeps the spec's
+   * four contact fields unchanged. Added to the certified request by the
+   * spec amendment of 2026-10-30 (docs/backend-interface-spec-v0.4.md §12.7,
+   * docs/SPEC-AMENDMENT-2026-10-30-service-area.md); pending backend acceptance.
+   */
+  region: REGION,
   answers: z.array(ANSWER).max(32, { error: "Too many answers.", abort: true }).superRefine((answers, ctx) => {
     const seen = new Set<string>();
     for (const answer of answers) {
@@ -69,7 +78,9 @@ export function readinessFieldErrors(issues: readonly z.core.$ZodIssue[]): Recor
   for (const issue of issues) {
     const [head, second] = issue.path;
     const key =
-      head === "contact" ? String(second ?? "contact")
+      head === "contact" ? String(second ?? head)
+      // A region error is shown under the "State or territory" select, whose field is `state`.
+      : head === "region" ? String(second ?? REGION_FIELD_NAME)
       : head === "answers" ? (typeof second === "string" ? `answers.${second}` : "answers")
       : String(head ?? "form");
     errors[key] ??= issue.message;
@@ -95,7 +106,7 @@ export type ReadinessSubmission =
  * never sent — then posts to the lead route, which stores the lead before it
  * answers. When the backend implements §12, only this function's URL changes.
  */
-export async function submitReadiness(request: ReadinessRequest): Promise<ReadinessSubmission> {
+export async function submitReadiness(request: z.input<typeof READINESS_REQUEST>): Promise<ReadinessSubmission> {
   const local = READINESS_REQUEST.safeParse(request);
   if (!local.success) return { status: "invalid", fields: readinessFieldErrors(local.error.issues) };
 

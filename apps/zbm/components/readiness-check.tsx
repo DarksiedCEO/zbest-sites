@@ -4,6 +4,7 @@ import { useId, useRef, useState, type FormEvent } from "react";
 import { ButtonLink, LedgerRule } from "@zbest/ui";
 import { FAILURE_COPY, HONEYPOT_FIELD, type LeadFailure } from "@zbest/ui/lead/contract";
 import { SubmitStatus } from "@zbest/ui/lead/submit-status";
+import { RegionFields } from "@zbest/ui/lead/region-fields";
 import { NOT_READY_LABEL, useHydrated } from "@zbest/ui/lead/use-hydrated";
 import { submitReadiness } from "@/lib/visibility/contract";
 import { ACTIVE_RULE_SET, QUESTIONS, SCALE, type AnswerValue } from "@/lib/visibility/rules";
@@ -154,6 +155,7 @@ export function ReadinessCheck() {
       submission_id: submissionId.current,
       rule_set_version: ACTIVE_RULE_SET.version,
       contact: { name: text("name"), business: text("business"), website: text("website"), reach: text("reach") },
+      region: { state: text("state") },
       answers,
       ...(honeypot ? { company_url: honeypot } : {}),
     });
@@ -208,6 +210,7 @@ export function ReadinessCheck() {
           </div>
         );
       })}
+      <RegionFields idPrefix={baseId} errors={errors} controlClassName={CONTROL} />
 
       <LedgerRule emphasis />
       <p className="type-label mt-stack text-text-secondary">How true is each of these for your business?</p>

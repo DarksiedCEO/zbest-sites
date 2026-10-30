@@ -4,6 +4,8 @@ Reconciled with Phase 1 domain contracts — MINIMUM GOVERNED PILOT model
 
 **Status: DRAFT_FOR_BACKEND_AND_FRONTEND_RECONCILIATION.** This is not an approved API contract, not production-ready, and does not authorize any real money movement or live publication. Phase 1 uses simulated/fake adapters throughout. This supersedes v1 — v1's core entities were directionally right but under-specified on money integrity, fraud evidence, and tenancy; those corrections are incorporated below.
 
+**Amended after certification, 2026-10-30 (founder decision: service area).** §11.3 and §12.7 each gain one required request field, `region: { state }`, and one typed refusal, `422 region_unavailable`. Nothing else in v0.4 changes; The certifications of §11 at `92cbf36` and §12 at `2758bfb` cover the text before this amendment only; this amendment is **not covered by either certification** and is pending the backend author's acceptance. Record: `docs/SPEC-AMENDMENT-2026-10-30-service-area.md`.
+
 **v0.4 changes (2026-09-18).** One addition: **§12 (new)**, the AI Visibility Readiness Check, carrying founder decision 11 (`docs/TOOLING.md`). Sections 1–11 are carried over from v0.3 **unchanged, byte for byte**, including §11 as amended after its certification. The auditor certified §12 at `b440211` with one condition, C3. The founder then approved every item first written as PROPOSED — the eight categories, their tie-break order, the eight questions and the Visibility Gap Library copy — with the business-profile wording changed and the routing decided (2026-09-18). C3 is applied in §12.8. Status is unchanged: DRAFT. Nothing in §12 is built until the founder gives the go for the build.
 
 **v0.3 changes (2026-09-18).** Written by the frontend build session under explicit founder delegation (2026-09-18), to carry the founder ruling of 2026-09-17 on the free assessment — recorded as founder decision 10 in `docs/TOOLING.md`. Sections 1–9 are carried over from v0.2 **unchanged, byte for byte**; only two things move:
@@ -346,16 +348,24 @@ The eight categories and their display names are exactly those already published
 
 ### 11.3 AssessmentRequest — the free tier's input
 
-Extends the existing "Get an Assessment" form. The four contact fields are unchanged; `answers` is new.
+Extends the existing "Get an Assessment" form. The four contact fields are unchanged; `answers` is new, and `region` was added by the amendment of 2026-10-30 (below).
 
 ```
 AssessmentRequest {
   submission_id: UUID                      // client-generated idempotency key, as the lead route already uses
   rule_set_version: string                 // the version the form was rendered from
   contact: { name, business, website, reach }    // unchanged from the current form
+  region: { state: ServiceArea | "outside" }     // amendment 2026-10-30; required
   answers: [{ question_id: string, value: 0 | 1 | 2 }]
 }
 ```
+
+**Amended after certification, 2026-10-30 (founder decision: service area).** Z Best Media serves businesses in the 50 US states, the District of Columbia and all five inhabited US territories, and the rule is enforced at intake. Every lead form, this one included, therefore carries `region`:
+
+- `ServiceArea` is exactly 56 codes: the 50 states as ISO 3166-2 (`US-AL` … `US-WY`), `US-DC`, and the territories as ISO 3166-1 alpha-2 (`PR`, `GU`, `VI`, `AS`, `MP`). The list is published as `SERVICE_AREAS` in `packages/lead/src/region.ts`, the one schema both client and server validate from (see "One schema, both sides" below), and the database enforces the same set (`leads_service_area_check`).
+- `"outside"` ("Outside these areas") is a valid answer that is **declined**: `422 { ok: false, error: { code: "region_unavailable" } }`. No result is returned, no lead is recorded and nothing is sent.
+- A missing `region`, a non-object, or any other `state` value is a field error: `422` with `fields: { state: "Choose your state or territory." }`. Codes are case-sensitive and trimmed of surrounding whitespace.
+- `region` is a sibling of `contact`, so the four contact fields stay exactly as certified. A recorded lead stores the code as `service_area`.
 
 - Every question in the rule set is answered exactly once. Values outside {0, 1, 2}, unknown `question_id`s, and duplicates are rejected.
 - A request against a superseded `rule_set_version` is rejected with a typed error, so the form re-renders against the active version rather than being scored against rules the respondent never saw.
@@ -563,13 +573,14 @@ The rule is §11.4 exactly, applied to this taxonomy.
 
 ### 12.7 Request and result
 
-The contact fields are the same four as §11.3; no new ones.
+The contact fields are the same four as §11.3; no new ones. `region` is required exactly as in §11.3 (amendment of 2026-10-30): the same 56 codes, the same `422 region_unavailable` for `"outside"`, and the same `fields: { state }` error otherwise.
 
 ```
 ReadinessRequest {
   submission_id: UUID
   rule_set_version: string
   contact: { name, business, website, reach }
+  region: { state: ServiceArea | "outside" }     // amendment 2026-10-30; required
   answers: [{ question_id: string, value: 0 | 1 | 2 }]
 }
 

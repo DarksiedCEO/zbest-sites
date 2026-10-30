@@ -81,6 +81,7 @@ describe.skipIf(!url)("postgres store (integration)", () => {
       payload_hash: payloadHash({ name: "Ada" }),
       services: ["out-of-home", "tv-streaming"],
       source: "bb-i405",
+      service_area: "PR",
       user_agent: "UA",
     };
     const results = await Promise.all([store.insert(record), store.insert(record), store.insert(record)]);
@@ -99,6 +100,7 @@ describe.skipIf(!url)("postgres store (integration)", () => {
       form: "start",
       services: ["out-of-home", "tv-streaming"],
       source: "bb-i405",
+      service_area: "PR",
       notify_status: "pending",
       payload: { name: "Ada", services: ["out-of-home"], nested: { a: 1 } },
     });
@@ -112,7 +114,7 @@ describe.skipIf(!url)("postgres store (integration)", () => {
   it("the same submission_id in the other app is a different lead (key is per app)", async () => {
     const store = postgresStore(opts(url!));
     const id = randomUUID();
-    const base = { submission_id: id, form: "x", payload: {}, payload_hash: "h1", services: [], source: null, user_agent: null };
+    const base = { submission_id: id, form: "x", payload: {}, payload_hash: "h1", services: [], source: null, service_area: "US-CA", user_agent: null };
     expect((await store.insert({ ...base, app: "zbm" })).inserted).toBe(true);
     expect((await store.insert({ ...base, app: "zbc" })).inserted).toBe(true);
     expect((await store.insert({ ...base, app: "zbc" })).inserted).toBe(false);
@@ -129,6 +131,7 @@ describe.skipIf(!url)("postgres store (integration)", () => {
         payload_hash: "h",
         services: [],
         source: null,
+        service_area: "US-CA",
         user_agent: null,
       })
       .catch((e: unknown) => e);
@@ -148,6 +151,7 @@ describe.skipIf(!url)("postgres store (integration)", () => {
         payload_hash: "h",
         services: [],
         source: null,
+        service_area: "US-CA",
         user_agent: null,
       })
       .catch((e: unknown) => e);
@@ -197,6 +201,17 @@ describe.skipIf(!url)("postgres store (integration)", () => {
     await sql`DELETE FROM leads WHERE form = 'purge-test'`;
   });
 
+  it("004: the table itself refuses anything outside the service area (defence in depth)", async () => {
+    const insert = (area: string | null) =>
+      sql`INSERT INTO leads (submission_id, app, form, payload, payload_hash, service_area)
+          VALUES (${randomUUID()}::uuid, 'zbm', 'region-test', '{}'::jsonb, 'h', ${area})`;
+    for (const bad of ["outside", "CA", "US-PR", "US-GU", "US-VI", "US-AS", "US-MP", "UM", "GB", "us-ca", "vi", ""]) {
+      await expect(insert(bad), bad).rejects.toMatchObject({ code: "23514" });
+    }
+    for (const ok of ["US-CA", "US-WY", "US-DC", "PR", "GU", "VI", "AS", "MP", null]) await insert(ok);
+    await sql`DELETE FROM leads WHERE form = 'region-test'`;
+  });
+
   it("002 cleared ip_hash and the app no longer writes it", async () => {
     const [{ n }] = (await sql`SELECT count(*)::int AS n FROM leads WHERE ip_hash IS NOT NULL`) as unknown as [{ n: number }];
     expect(n).toBe(0);
@@ -217,6 +232,7 @@ describe.skipIf(!neonShaped)("postgres store with a Neon-shaped URL (TLS + SCRAM
       payload_hash: "h",
       services: [],
       source: null,
+      service_area: "US-CA",
       user_agent: null,
     });
     expect(result).toEqual({ inserted: true });
@@ -264,6 +280,7 @@ describe.skipIf(!url)("migrate script (integration)", () => {
     expect(first.status, first.stderr).toBe(0);
     expect(first.stdout).toContain("applied 001_leads.sql");
     expect(first.stdout).toContain("schema ok; unique key ok; round-trip insert ok (rolled back)");
+    expect(first.stdout).toContain("service area check ok (56 codes accepted, 14 near-misses refused; rolled back)");
 
     const second = run(target);
     expect(second.status, second.stderr).toBe(0);
@@ -273,6 +290,48 @@ describe.skipIf(!url)("migrate script (integration)", () => {
     expect(await db`SELECT version FROM schema_migrations ORDER BY version`).toEqual(MIGRATIONS.map((f) => ({ version: f.slice(0, 3) })));
     expect(await db`SELECT count(*)::int AS n FROM leads`).toEqual([{ n: 0 }]);
     await db.end();
+  });
+
+  it("R-M1: a database that already ran the 53-code 004 is fixed by 005, and VI/AS/MP then store", async () => {
+    // 001-004 exactly as 004 was first committed (53 codes), recorded as applied.
+    const sqlDir = path.join(import.meta.dirname, "..", "sql");
+    const target = await prepared(
+      "leads_migrate_r_m1",
+      ["002_retention.sql", "003_purge_runs.sql", "004_region.sql"].map((f) => readFileSync(path.join(sqlDir, f), "utf8")).join("\n") +
+        "\nINSERT INTO schema_migrations (version) VALUES ('002'), ('003'), ('004');",
+    );
+    const db = connect(target);
+    await expect(
+      db`INSERT INTO leads (submission_id, app, form, payload, payload_hash, service_area) VALUES (${randomUUID()}::uuid, 'zbm', 'x', '{}'::jsonb, 'h', 'VI')`,
+    ).rejects.toMatchObject({ code: "23514" });
+    const result = run(target);
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain("skip 004_region.sql (already applied)");
+    expect(result.stdout).toContain("applied 005_region_territories.sql");
+    expect(result.stdout).toContain("service area check ok (56 codes accepted");
+    for (const code of ["VI", "AS", "MP"]) {
+      await db`INSERT INTO leads (submission_id, app, form, payload, payload_hash, service_area) VALUES (${randomUUID()}::uuid, 'zbm', 'x', '{}'::jsonb, 'h', ${code})`;
+    }
+    await db.end();
+  });
+
+  it("R-M1: a service-area CHECK that drifted from the app's set fails the run, naming the codes", async () => {
+    const sql = admin();
+    await sql.unsafe("DROP DATABASE IF EXISTS leads_migrate_drift");
+    await sql.unsafe("CREATE DATABASE leads_migrate_drift");
+    await sql.end();
+    const target = dbUrl("leads_migrate_drift");
+    expect(run(target).status).toBe(0);
+    const db = connect(target);
+    // Someone narrows the constraint by hand (drops Guam, lets 'outside' in): every migration is already recorded.
+    await db.unsafe(`ALTER TABLE leads DROP CONSTRAINT leads_service_area_check;
+      ALTER TABLE leads ADD CONSTRAINT leads_service_area_check CHECK (service_area IS NULL OR service_area <> 'GU')`);
+    await db.end();
+    const result = run(target);
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain("leads_service_area_check does not match the app's 56 service areas; refuses: GU; accepts:");
+    expect(result.stderr).toContain('"outside"');
+    expect(result.stderr).toContain("Nothing was changed");
   });
 
   it("an incompatible pre-existing leads table is caught, not trusted", async () => {
@@ -549,6 +608,7 @@ describe.skipIf(!neonShaped)("TLS modes and startup options (integration)", () =
         payload_hash: "h",
         services: [],
         source: null,
+        service_area: "US-CA",
         user_agent: null,
       })
       .then(

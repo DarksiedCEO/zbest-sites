@@ -1,4 +1,5 @@
 import { handleLead, type ParsedLead } from "@zbest/lead";
+import { REGION } from "@zbest/lead/region";
 import { LEAD_ENVELOPE, LEAD_FIELDS } from "@/lib/lead";
 
 /**
@@ -23,17 +24,19 @@ function parse(json: unknown): ParsedLead {
   // Honeypot: answer exactly like a success so a bot learns nothing.
   if (company_url) return { kind: "honeypot", form, body };
 
+  // The form's own fields, and the shared service-area fields beside them.
   const parsed = LEAD_FIELDS[form].safeParse(fields);
-  if (!parsed.success) {
+  const region = REGION.safeParse(fields);
+  if (!parsed.success || !region.success) {
     const errors: Record<string, string> = {};
-    for (const issue of parsed.error.issues) {
+    for (const issue of [...(parsed.error?.issues ?? []), ...(region.error?.issues ?? [])]) {
       const key = String(issue.path[0] ?? "form");
       errors[key] ??= issue.message;
     }
     return { kind: "reject", status: 422, body: { ok: false, error: { code: "validation", fields: errors } } };
   }
 
-  return { kind: "lead", form, submission_id, payload: parsed.data as Record<string, unknown>, body };
+  return { kind: "lead", form, submission_id, region: region.data, payload: parsed.data as Record<string, unknown>, body };
 }
 
 export function POST(request: Request) {
