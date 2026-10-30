@@ -67,12 +67,20 @@ for (const { site, base, routes } of SITES) {
 
         await page.getByRole("button", { name: "Reject non-essential" }).click();
         await expect(banner(page)).toBeHidden();
-        // Nothing open: page text that the banner or a menu covers in the
-        // other states is measured here, uncovered.
-        await expectNoViolations(page, `${where} banner dismissed`);
+
+        // No overlay open, first FAQ answer open: page text that the banner
+        // or a menu covers in the other states — the FAQ answer included —
+        // is measured here, uncovered (AEGIS r2, F5 gap).
+        const faq = page.locator("main h3 > button[aria-expanded]").first();
+        const hasFaq = (await faq.count()) > 0;
+        if (hasFaq) {
+          if ((await faq.getAttribute("aria-expanded")) === "false") await faq.click();
+          await expect(faq).toHaveAttribute("aria-expanded", "true");
+        }
+        await expectNoViolations(page, `${where} banner dismissed${hasFaq ? ", FAQ open" : ""}`);
         await expectControlBorders(page, `${where} banner dismissed`);
 
-        // Menus and the first FAQ answer open.
+        // The nav menu open.
         const header = page.locator("header:has(> nav[aria-label='Primary'])");
         if (isMobile(testInfo)) {
           await header.getByRole("button", { name: "Menu" }).click();
@@ -80,9 +88,7 @@ for (const { site, base, routes } of SITES) {
           const dropdown = header.locator("button[aria-expanded]").first();
           if (await dropdown.count()) await dropdown.click();
         }
-        const faq = page.locator("main h3 > button[aria-expanded='false']").first();
-        if (await faq.count()) await faq.click();
-        await expectNoViolations(page, `${where} banner dismissed, menu + FAQ open`);
+        await expectNoViolations(page, `${where} menu open`);
         await page.keyboard.press("Escape");
 
         // Each form's error state: submitted empty.
@@ -115,6 +121,23 @@ for (const { site, base, routes } of SITES) {
     });
   });
 }
+
+// AEGIS r2 N1 probe, kept as a regression test: a light pseudo-element
+// background behind the banner's grey description puts it at about 2:1.
+// axe cannot decide it (pseudoContent), and the overlay exemption must not
+// pass it on the strength of the banner's dark panel. The gate MUST fail.
+test("the gate fails on low-contrast banner text over a pseudo-element background (exemption probe)", async ({ page }) => {
+  await page.goto(ZBM_BASE_URL + "/contact", { waitUntil: "networkidle" });
+  await expect(banner(page)).toBeVisible();
+  await page.addStyleTag({
+    content: `
+      [role="dialog"] #cookie-consent-heading + p { position: relative; isolation: isolate; }
+      [role="dialog"] #cookie-consent-heading + p::before {
+        content: ""; position: absolute; inset: 0; z-index: -1; background: rgb(237 237 240 / 0.85);
+      }`,
+  });
+  await expect(expectNoViolations(page, "probe")).rejects.toThrow(/color-contrast needs review|axe violations/);
+});
 
 // ---------------------------------------------------------------------------
 // 2. Scripted keyboard checks: what axe cannot see.
@@ -239,6 +262,24 @@ test.describe("keyboard @keyboard", () => {
     await toggle.focus();
     await page.keyboard.press("Enter");
     await expect(page.locator("#cookie-consent-detail")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.locator("#cookie-consent-detail")).toBeHidden();
+    await expect(toggle).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(banner(page), "a choice is still required").toBeVisible();
+    expect(await page.evaluate(() => localStorage.getItem("zbest-cookie-consent"))).toBeNull();
+  });
+
+  // AEGIS r2 N2: "Change cookie settings" pressed while the FIRST-VISIT
+  // banner is still up (nothing stored yet). Escape must not dismiss it.
+  test("Escape does not dismiss a first-visit banner reopened before any choice", async ({ page }) => {
+    await page.goto(ZBM_BASE_URL + "/legal/cookie-policy", { waitUntil: "networkidle" });
+    await expect(banner(page)).toBeVisible();
+    await page.getByRole("button", { name: "Change cookie settings" }).click();
+    await expect(page.locator("#cookie-consent-heading")).toBeFocused();
+    const toggle = banner(page).getByRole("button", { name: "What we store" });
+    await toggle.focus();
+    await page.keyboard.press("Enter");
     await page.keyboard.press("Escape");
     await expect(page.locator("#cookie-consent-detail")).toBeHidden();
     await expect(toggle).toBeFocused();

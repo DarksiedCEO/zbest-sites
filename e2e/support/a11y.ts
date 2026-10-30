@@ -45,6 +45,15 @@ export const CONTRAST_REVIEW_ALLOWLIST: { name: string; reason: string; match: (
   },
 ];
 
+/**
+ * The only axe reasons exemption (c) applies to: something overlapping the
+ * text's box. `bgOverlap` — an element overlaps it; `elmPartiallyObscuring` —
+ * an element under it covers only part of it (the translucent <hr> beneath
+ * the fixed banner on /about). Any other reason inside an overlay —
+ * pseudoContent, bgImage, bgGradient, imgNode, … — stays undecided and fails.
+ */
+const OVERLAP_REASONS = ["bgOverlap", "elmPartiallyObscuring"];
+
 export type IncompleteNode = {
   target: string;
   messageKey: string;
@@ -136,14 +145,18 @@ export const banner = (page: Page) => page.getByRole("dialog", { name: "Cookies 
  *          or a positioned menu panel opened by an aria-expanded button. The
  *          a11y spec also scans every route with no overlay open, where the
  *          same text is measured with nothing over it;
- *       c. text INSIDE an overlay, which is measured here instead: axe walks
- *          the page content under a positioned panel and gives up when, say,
- *          a semi-transparent <hr> there crosses the text's box — but nothing
+ *       c. text INSIDE an overlay that axe left undecided only because
+ *          something overlaps its box (OVERLAP_REASONS): axe walks the page
+ *          content under a positioned panel and gives up when, say, a
+ *          semi-transparent <hr> there crosses the text's box — but nothing
  *          below the panel's opaque background can show through, so the text
  *          is composited over the overlay's own backgrounds and must reach
- *          4.5:1 (3:1 for large text) or the gate fails. If no opaque
- *          background is found inside the overlay, it stays undecided and
- *          fails.
+ *          4.5:1 (3:1 for large text). It stays undecided, and FAILS, if no
+ *          opaque background is found inside the overlay, or if anything
+ *          else paints near the text (a pseudo-element background, opacity,
+ *          a filter, a blend mode, or another painted element in the overlay
+ *          touching the text's box). The spec has a probe proving a
+ *          pseudo-element background behind banner text fails the gate.
  */
 export async function expectNoViolations(page: Page, label: string) {
   const results = await new AxeBuilder({ page })
@@ -208,9 +221,40 @@ export async function expectNoViolations(page: Page, label: string) {
           const mix = (i: number) => (al ? (t[i]! * t[3] + u[i]! * u[3] * (1 - t[3])) / al : 0);
           return [mix(0), mix(1), mix(2), al];
         };
+        // Anything axe would also have to give up on keeps the result
+        // undecided (AEGIS r2 N1): a painted ::before/::after, opacity < 1, a
+        // filter or a blend mode on the text or any ancestor up to the
+        // overlay, or another painted element inside the overlay whose box
+        // touches the text's box.
+        const paints = (cs: CSSStyleDeclaration) => rgba(cs.backgroundColor)[3] > 0 || cs.backgroundImage !== "none";
+        const pseudoPaints = (n: Element, which: "::before" | "::after") => {
+          const ps = getComputedStyle(n, which);
+          return ps.content !== "none" && ps.content !== "normal" && paints(ps);
+        };
+        let layered = false;
+        for (let n2: HTMLElement | null = el; n2 && !layered; n2 = n2.parentElement) {
+          const cs = getComputedStyle(n2);
+          if (
+            Number(cs.opacity) < 1 ||
+            cs.filter !== "none" ||
+            cs.mixBlendMode !== "normal" ||
+            pseudoPaints(n2, "::before") ||
+            pseudoPaints(n2, "::after")
+          )
+            layered = true;
+          if (n2 === dialog) break;
+        }
+        const t = el.getBoundingClientRect();
+        for (const other of dialog.querySelectorAll<HTMLElement>("*")) {
+          if (layered) break;
+          if (other === el || other.contains(el) || el.contains(other)) continue;
+          const r = other.getBoundingClientRect();
+          if (!(r.right > t.left && r.left < t.right && r.bottom > t.top && r.top < t.bottom)) continue;
+          if (paints(getComputedStyle(other)) || pseudoPaints(other, "::before") || pseudoPaints(other, "::after")) layered = true;
+        }
         const layers: RGBA[] = [];
         let opaque = false;
-        for (let n2: HTMLElement | null = el; n2; n2 = n2.parentElement) {
+        for (let n2: HTMLElement | null = layered ? null : el; n2; n2 = n2.parentElement) {
           const cs = getComputedStyle(n2);
           if (cs.backgroundImage !== "none") break; // cannot compute: stays undecided
           const c = rgba(cs.backgroundColor);
@@ -247,7 +291,7 @@ export async function expectNoViolations(page: Page, label: string) {
   }
   const unreviewed = undecided
     .filter((n) => !(n.messageKey === "bgOverlap" && n.overlapsOverlay))
-    .filter((n) => !(n.inOverlay && n.inOverlay.ratio >= n.inOverlay.required))
+    .filter((n) => !(OVERLAP_REASONS.includes(n.messageKey) && n.inOverlay && n.inOverlay.ratio >= n.inOverlay.required))
     .filter((n) => !CONTRAST_REVIEW_ALLOWLIST.some((a) => a.match(n)))
     .map(
       (n) =>
