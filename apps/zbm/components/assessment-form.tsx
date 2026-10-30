@@ -36,7 +36,7 @@ type State =
 // font but lets the control fill its column; without it the input stops at
 // ~653px and, in a wide column, sits beside its label instead of under it.
 const CONTROL =
-  "type-body mt-2 w-full max-w-none border border-text-secondary/35 bg-base px-3.5 py-3 text-text-primary placeholder:text-text-secondary/60 aria-[invalid=true]:border-accent";
+  "type-body mt-2 w-full max-w-none border border-text-secondary/70 bg-base px-3.5 py-3 text-text-primary placeholder:text-text-secondary/60 aria-[invalid=true]:border-accent";
 
 const CONTACT = [
   { name: "name", label: "Name", type: "text", autoComplete: "name" },
@@ -225,7 +225,7 @@ export function AssessmentForm() {
               {SCALE.map((step) => (
                 <label
                   key={step.value}
-                  className="flex cursor-pointer items-center gap-3 border border-text-secondary/35 px-3.5 py-3 has-[:checked]:border-accent has-[:checked]:bg-panel"
+                  className="flex cursor-pointer items-center gap-3 border border-text-secondary/70 px-3.5 py-3 has-[:checked]:border-accent has-[:checked]:bg-panel"
                 >
                   <input
                     type="radio"

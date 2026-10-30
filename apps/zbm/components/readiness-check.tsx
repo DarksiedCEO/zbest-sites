@@ -40,7 +40,7 @@ type State =
 // Matches the assessment form's control styling: .type-body caps at 68ch, and
 // max-w-none lets the control fill its column instead of stopping mid-width.
 const CONTROL =
-  "type-body mt-2 w-full max-w-none border border-text-secondary/35 bg-base px-3.5 py-3 text-text-primary placeholder:text-text-secondary/60 aria-[invalid=true]:border-accent";
+  "type-body mt-2 w-full max-w-none border border-text-secondary/70 bg-base px-3.5 py-3 text-text-primary placeholder:text-text-secondary/60 aria-[invalid=true]:border-accent";
 
 /** §12.7: the contact fields are §11.3's four, unchanged. */
 const CONTACT = [
@@ -235,7 +235,7 @@ export function ReadinessCheck() {
               {SCALE.map((step) => (
                 <label
                   key={step.value}
-                  className="flex cursor-pointer items-center gap-3 border border-text-secondary/35 px-3.5 py-3 has-[:checked]:border-accent has-[:checked]:bg-panel"
+                  className="flex cursor-pointer items-center gap-3 border border-text-secondary/70 px-3.5 py-3 has-[:checked]:border-accent has-[:checked]:bg-panel"
                 >
                   <input
                     type="radio"

@@ -49,7 +49,7 @@ type State =
   | { kind: "accepted" };
 
 const CONTROL =
-  "type-body mt-2 w-full border border-text-secondary/35 bg-base px-3.5 py-3 text-text-primary placeholder:text-text-secondary/60 aria-[invalid=true]:border-accent";
+  "type-body mt-2 w-full border border-text-secondary/70 bg-base px-3.5 py-3 text-text-primary placeholder:text-text-secondary/60 aria-[invalid=true]:border-accent";
 
 /**
  * Lead form (Brief §6.1) posting through the typed adapter to /api/lead.
@@ -159,7 +159,7 @@ export function LeadForm({
                   return (
                     <div
                       key={o.value}
-                      className="border border-text-secondary/35 bg-base px-3.5 py-3 has-[:checked]:border-accent"
+                      className="border border-text-secondary/70 bg-base px-3.5 py-3 has-[:checked]:border-accent"
                     >
                       <label htmlFor={optionId} className="flex cursor-pointer items-start gap-3">
                         <input
