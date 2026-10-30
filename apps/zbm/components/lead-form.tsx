@@ -80,14 +80,13 @@ export function LeadForm({
   defaults?: Record<string, string | string[]>;
 }) {
   const fields = FIELDS[form].map((f) => (f.name in defaults ? { ...f, defaultValue: defaults[f.name] } : f));
-  // The assessment carries its own notice above the form (revenue-recovery
-  // page); contact and intake get theirs above the submit button.
+  // Every form gets the notice directly above its submit button.
   return (
     <SharedLeadForm
       form={form}
       fields={fields}
       submitLabel={submitLabel}
-      notice={form === "assessment" ? undefined : <CollectionNotice />}
+      notice={<CollectionNotice />}
     />
   );
 }

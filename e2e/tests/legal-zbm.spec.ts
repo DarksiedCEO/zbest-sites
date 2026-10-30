@@ -18,6 +18,7 @@ async function presetConsent(page: Page) {
 const FORMS = [
   { path: "/contact", form: 'form[data-lead-form="contact"]' },
   { path: "/start", form: 'form[data-lead-form="start"]' },
+  { path: "/revenue-recovery", form: 'form[data-lead-form="assessment"]' },
   // Built but unlinked (Brief §A4); it still collects, so it still gets a notice.
   { path: "/search-intelligence", form: 'form[data-lead-form="readiness"]' },
 ];
@@ -30,6 +31,9 @@ for (const f of FORMS) {
     const notice = form.locator("[data-collection-notice]");
     await expect(notice).toHaveCount(1);
     await expect(notice).toContainText("We save what you send so a person can reply.");
+    // Assent to the Terms and the service-area confirmation (AEGIS M7).
+    await expect(notice).toContainText("By sending, you agree to our Terms of Service");
+    await expect(notice).toContainText("confirm your business is in our service area");
 
     const before = await form.evaluate((el) => {
       const n = el.querySelector("[data-collection-notice]");
@@ -39,7 +43,7 @@ for (const f of FORMS) {
     expect(before, "notice precedes the submit button").toBe(true);
 
     const hrefs = await notice.locator("a").evaluateAll((as) => as.map((a) => a.getAttribute("href")));
-    expect(hrefs).toEqual(["/legal/privacy-policy#california", "/legal/privacy-policy#rights"]);
+    expect(hrefs).toEqual(["/legal/terms-of-service", "/legal/privacy-policy#california", "/legal/privacy-policy#rights"]);
   });
 }
 
