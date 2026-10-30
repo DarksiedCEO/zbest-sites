@@ -7,6 +7,7 @@ import { FAILURE_COPY, HONEYPOT_FIELD, submitLead, type LeadFailure } from "./co
 import { RegionFields } from "./region-fields";
 import { SubmitStatus } from "./submit-status";
 import { NOT_READY_LABEL, useHydrated } from "./use-hydrated";
+import { firstInvalid, useOutcomeFocus } from "./use-outcome-focus";
 
 export type { LeadResponse } from "./contract";
 
@@ -75,10 +76,21 @@ export function LeadForm({
   const submissionId = useRef<string | null>(null);
   const [state, setState] = useState<State>({ kind: "idle" });
   const ready = useHydrated();
+  // a11y (WCAG 2.4.3): focus follows the outcome; see use-outcome-focus.ts.
+  const formRef = useRef<HTMLFormElement>(null);
+  const resultRef = useRef<HTMLDivElement>(null);
+  const failureRef = useRef<HTMLParagraphElement>(null);
+  const inFlight = useRef(false);
+  useOutcomeFocus(state.kind, {
+    invalid: () => firstInvalid(formRef.current),
+    failed: () => failureRef.current,
+    accepted: () => resultRef.current,
+  });
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (state.kind === "submitting") return;
+    if (state.kind === "submitting" || inFlight.current) return;
+    inFlight.current = true;
     submissionId.current ??= crypto.randomUUID();
     const data = new FormData(event.currentTarget);
     const values = Object.fromEntries(fields.flatMap((f) => entriesOf(data, f)));
@@ -96,11 +108,12 @@ export function LeadForm({
       if (result.status === "conflict") submissionId.current = null;
       setState({ kind: "failed", reason: result.status });
     }
+    inFlight.current = false;
   };
 
   if (state.kind === "accepted") {
     return (
-      <div role="status" data-lead-result="accepted" className="border border-accent bg-panel p-6">
+      <div ref={resultRef} tabIndex={-1} role="status" data-lead-result="accepted" className="border border-accent bg-panel p-6">
         <p className="type-label text-accent">Received</p>
         <p className="type-title mt-3">Thanks — we have your details.</p>
         <p className="type-body mt-2 text-text-secondary">
@@ -117,6 +130,7 @@ export function LeadForm({
     // submit must never put what they typed into the URL (a GET would — and
     // URLs land in history and server logs). data-ready marks hydration.
     <form
+      ref={formRef}
       noValidate
       method="post"
       onSubmit={onSubmit}
@@ -241,7 +255,7 @@ export function LeadForm({
 
       <LedgerRule emphasis />
       {state.kind === "failed" ? (
-        <p role="alert" data-lead-failure={state.reason} className="type-small mt-4 text-accent">
+        <p ref={failureRef} tabIndex={-1} role="alert" data-lead-failure={state.reason} className="type-small mt-4 text-accent">
           {FAILURE_COPY[state.reason]}
         </p>
       ) : null}
@@ -255,10 +269,13 @@ export function LeadForm({
           also blocks implicit submission (Enter in a field). */}
       <button
         type="submit"
-        disabled={!ready || state.kind === "submitting"}
+        disabled={!ready}
+        // aria-disabled, not disabled, while sending: a disabled button loses
+        // focus to <body> (WCAG 2.4.3). onSubmit ignores repeat submits.
+        aria-disabled={state.kind === "submitting" ? true : undefined}
         aria-busy={ready ? undefined : true}
         aria-describedby={ready ? undefined : `${baseId}-loading`}
-        className="type-label mt-stack inline-flex items-center whitespace-nowrap bg-accent px-5 py-3.5 text-base disabled:opacity-60"
+        className="type-label mt-stack inline-flex items-center whitespace-nowrap bg-accent px-5 py-3.5 text-base disabled:opacity-60 aria-disabled:opacity-60"
       >
         {!ready ? NOT_READY_LABEL : state.kind === "submitting" ? "Sending…" : submitLabel}
       </button>
