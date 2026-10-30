@@ -6,6 +6,7 @@ import {
   cronAuthorized,
   handleHealth,
   handlePurge,
+  resetHealthCache,
   purgeHealth,
   resolveRetention,
   retentionCutoffs,
@@ -22,7 +23,7 @@ const NOW = new Date("2026-10-30T12:00:00.000Z");
 const call = (headers: Record<string, string> = {}) =>
   new Request("https://www.zbestmedia.com/api/cron/purge-leads", { method: "GET", headers });
 
-function spyPurger(result = { deleted: 3, uaCleared: 5 }) {
+function spyPurger(result = { deleted: 3, uaCleared: 5, ipHashCleared: 0 }) {
   const purge = vi.fn<LeadPurger["purge"]>(async () => result);
   return { purger: { purge } satisfies LeadPurger, purge };
 }
@@ -64,12 +65,12 @@ describe("purge SQL (parameterised, scoped by app)", () => {
     const calls: { text: string; values: unknown[] }[] = [];
     const tag: SqlTag = (strings, ...values) => {
       calls.push({ text: strings.join("$?"), values });
-      return Promise.resolve({ count: calls.length === 1 ? 4 : calls.length === 2 ? 7 : 1 });
+      return Promise.resolve({ count: [0, 4, 7, 3, 1][calls.length] ?? 1 });
     };
     const cutoffs = retentionCutoffs(NOW, { leadDays: 730, uaDays: 90 });
-    expect(await purgeWith(tag, "zbc", cutoffs, NOW)).toEqual({ deleted: 4, uaCleared: 7 });
-    expect(calls).toHaveLength(3);
-    const [del, ua, ledger] = calls as [(typeof calls)[0], (typeof calls)[0], (typeof calls)[0]];
+    expect(await purgeWith(tag, "zbc", cutoffs, NOW)).toEqual({ deleted: 4, uaCleared: 7, ipHashCleared: 3 });
+    expect(calls).toHaveLength(4);
+    const [del, ua, ip, ledger] = calls as [(typeof calls)[0], (typeof calls)[0], (typeof calls)[0], (typeof calls)[0]];
     expect(del.text.replace(/\s+/g, " ").trim()).toBe(
       "DELETE FROM leads WHERE app = $?::text AND created_at < $?::timestamptz",
     );
@@ -78,6 +79,10 @@ describe("purge SQL (parameterised, scoped by app)", () => {
       "UPDATE leads SET user_agent = NULL WHERE app = $?::text AND user_agent IS NOT NULL AND created_at < $?::timestamptz",
     );
     expect(ua.values).toEqual(["zbc", "2026-08-01T12:00:00.000Z"]);
+    // Any ip_hash a pre-hardening deployment wrote is cleared every day (AEGIS H-L1).
+    expect(ip.text).toContain("UPDATE leads SET ip_hash = NULL");
+    expect(ip.text).toContain("ip_hash IS NOT NULL");
+    expect(ip.values).toEqual(["zbc"]);
     expect(ledger.text).toContain("INSERT INTO lead_purge_runs");
     expect(ledger.values).toEqual(["zbc", NOW.toISOString(), 4, 7]);
     for (const c of calls) expect(c.text).not.toMatch(/zbc|2024|2026/);
@@ -114,7 +119,7 @@ describe("cron route: authorisation fails closed", () => {
   });
 
   it("the right Bearer secret purges this app's rows with the configured cutoffs and logs counts only", async () => {
-    const { purger, purge } = spyPurger({ deleted: 2, uaCleared: 9 });
+    const { purger, purge } = spyPurger({ deleted: 2, uaCleared: 9, ipHashCleared: 4 });
     const log = captureLogger();
     const res = await handlePurge(call({ authorization: `Bearer ${SECRET}` }), {
       app: "zbc",
@@ -127,7 +132,7 @@ describe("cron route: authorisation fails closed", () => {
     expect(res.headers.get("cache-control")).toBe("no-store");
     expect(await res.json()).toEqual({ ok: true, deleted: 2, ua_cleared: 9 });
     expect(purge).toHaveBeenCalledWith("zbc", retentionCutoffs(NOW, { leadDays: 365, uaDays: 90 }), NOW);
-    expect(log.lines).toEqual([{ level: "info", event: "purged", fields: { app: "zbc", deleted: 2, ua_cleared: 9, days: 365 } }]);
+    expect(log.lines).toEqual([{ level: "info", event: "purged", fields: { app: "zbc", deleted: 2, ua_cleared: 9, ip_hash_cleared: 4, days: 365 } }]);
     expect(log.text()).not.toContain(SECRET);
   });
 
@@ -200,7 +205,7 @@ describe("health: a purge that stops is never silent", () => {
   const hoursAgo = (h: number) => new Date(NOW.getTime() - h * 3_600_000);
   const health = (env: Record<string, string>, ledger: PurgeLedger) => {
     const log = captureLogger();
-    return handleHealth(new Request("https://www.zbestmedia.com/api/health"), { app: "zbm", env, ledger, logger: log.logger, now: () => NOW }).then(
+    return handleHealth(new Request("https://www.zbestmedia.com/api/health"), { app: "zbm", env, ledger, logger: log.logger, now: () => NOW, cacheMs: 0 }).then(
       async (res) => ({ status: res.status, body: await res.json(), log }),
     );
   };
@@ -208,14 +213,14 @@ describe("health: a purge that stops is never silent", () => {
   it("ok within 48 hours of the last successful purge: 200", async () => {
     const r = await health({ CRON_SECRET: SECRET }, ledgerAt(hoursAgo(25)));
     expect(r.status).toBe(200);
-    expect(r.body).toEqual({ ok: true, checks: { retention_purge: { status: "ok", age_hours: 25 } } });
+    expect(r.body).toEqual({ ok: true, status: "ok" });
     expect(r.log.lines).toEqual([]);
   });
 
   it("overdue after 48 hours: 503 and an error-level event", async () => {
     const r = await health({ CRON_SECRET: SECRET }, ledgerAt(hoursAgo(49)));
     expect(r.status).toBe(503);
-    expect(r.body.checks.retention_purge).toEqual({ status: "overdue", age_hours: 49 });
+    expect(r.body).toEqual({ ok: false, status: "overdue" });
     expect(r.log.lines).toEqual([{ level: "error", event: "purge_degraded", fields: { app: "zbm", status: "overdue" } }]);
   });
 
@@ -229,7 +234,7 @@ describe("health: a purge that stops is never silent", () => {
     for (const [env, ledger, status] of cases) {
       const r = await health(env, ledger);
       expect(r.status, status).toBe(503);
-      expect(r.body).toEqual({ ok: false, checks: { retention_purge: { status } } });
+      expect(r.body).toEqual({ ok: false, status });
       expect(r.log.lines[0]).toMatchObject({ level: "error", event: "purge_degraded", fields: { status } });
       expect(r.log.text()).not.toContain("db.internal");
     }
@@ -239,5 +244,42 @@ describe("health: a purge that stops is never silent", () => {
     const log = captureLogger();
     for (let i = 0; i < 3; i++) await handlePurge(call({}), { app: "zbm", env: {}, logger: log.logger });
     expect(log.lines.map((l) => [l.level, l.event])).toEqual(Array(3).fill(["error", "purge_not_configured"]));
+  });
+});
+
+describe("health is cheap to call: one check per minute per instance (AEGIS H-M2)", () => {
+  const SEC = ["unit", "test", "cron", "value", "16plus"].join("-");
+  it("reuses the computed status for 60 s, shares an in-flight check, logs degraded once, and lets the CDN cache it", async () => {
+    resetHealthCache();
+    let reads = 0;
+    let t = NOW.getTime();
+    const ledger: PurgeLedger = {
+      lastSuccess: async () => {
+        reads++;
+        return null; // never_run: degraded, so it logs
+      },
+    };
+    const log = captureLogger();
+    const get = () =>
+      handleHealth(new Request("https://www.zbestmedia.com/api/health"), {
+        app: "zbc",
+        env: { CRON_SECRET: SEC },
+        ledger,
+        logger: log.logger,
+        now: () => new Date(t),
+      });
+    const burst = await Promise.all(Array.from({ length: 50 }, get));
+    expect(burst.every((r) => r.status === 503)).toBe(true);
+    expect(burst[0]!.headers.get("cache-control")).toBe("public, max-age=0, s-maxage=60");
+    expect(await burst[0]!.json()).toEqual({ ok: false, status: "never_run" });
+    t += 59_000;
+    await get();
+    expect(reads).toBe(1);
+    expect(log.lines.filter((l) => l.event === "purge_degraded")).toHaveLength(1);
+    t += 2_000; // past 60 s: checked again
+    await get();
+    expect(reads).toBe(2);
+    expect(log.lines.filter((l) => l.event === "purge_degraded")).toHaveLength(2);
+    resetHealthCache();
   });
 });

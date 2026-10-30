@@ -127,12 +127,18 @@ export async function purgeWith(
   const cleared = await sql`
     UPDATE leads SET user_agent = NULL
     WHERE app = ${app}::text AND user_agent IS NOT NULL AND created_at < ${cutoffs.userAgent.toISOString()}::timestamptz`;
+  // ip_hash is no longer written (sql/002_retention.sql cleared it once), but
+  // a deployment older than this change can still write it until this one is
+  // live; clearing it daily means no such value survives (AEGIS H-L1).
+  const ipCleared = await sql`
+    UPDATE leads SET ip_hash = NULL
+    WHERE app = ${app}::text AND ip_hash IS NOT NULL`;
   await sql`
     INSERT INTO lead_purge_runs (app, last_success_at, deleted, ua_cleared)
     VALUES (${app}::text, ${ranAt.toISOString()}::timestamptz, ${deleted.count}::int, ${cleared.count}::int)
     ON CONFLICT (app) DO UPDATE
       SET last_success_at = EXCLUDED.last_success_at, deleted = EXCLUDED.deleted, ua_cleared = EXCLUDED.ua_cleared`;
-  return { deleted: deleted.count, uaCleared: cleared.count };
+  return { deleted: deleted.count, uaCleared: cleared.count, ipHashCleared: ipCleared.count };
 }
 
 export function postgresPurger(options: PgOptions): LeadPurger & PurgeLedger {
