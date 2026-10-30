@@ -1,7 +1,7 @@
 import { resolveLimiter, resolvePolicy, resolveTransport, type Env, type Limiters, type RequestPolicy, type TransportConfig } from "./config";
 import { leadEmail } from "./email";
 import { payloadHash } from "./hash";
-import { clientIp, plainIpKey } from "./ip";
+import { clientIp } from "./ip";
 import { consoleLogger, type LeadLogger } from "./log";
 import { DeliveryError, type LeadApp, type LeadRecord } from "./types";
 
@@ -200,8 +200,11 @@ async function handle(request: Request, opts: HandleLeadOptions, log: LeadLogger
   // tokens), but never for a honeypot hit or an oversized body, so bot traffic
   // cannot spend a real visitor's tokens (AEGIS r2 N1).
   const charge = async (): Promise<Response | null> => {
-    // The normalised key: port-free, IPv6 by its /64 (AEGIS r4 R2).
-    const decision = await limiters.perIp.hit(`${app}:${plainIpKey(ip.key)}`);
+    // The normalised key: port-free, IPv6 by its /64 (AEGIS r4 R2), keyed
+    // with the IP-hash secret (HMAC). A plain SHA-256 of an IPv4 address is
+    // reversible by brute force over 2^32, and with KV enabled the key leaves
+    // the process (privacy sweep 2026-10-30, F7).
+    const decision = await limiters.perIp.hit(`${app}:${transport.hashIp(ip.key).slice(0, 32)}`);
     if (decision.allowed) return null;
     log("warn", "rate_limited", { app, limiter: "ip" });
     return fail(
