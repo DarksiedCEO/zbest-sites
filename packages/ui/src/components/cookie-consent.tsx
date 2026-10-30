@@ -50,6 +50,10 @@ export function CookieConsent({
   const [visible, setVisible] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
   const [gpc, setGpc] = useState(false);
+  // True only when "Change cookie settings" brought the banner back, i.e. a
+  // choice is already stored. Escape may then close it without a new choice.
+  const [reopened, setReopened] = useState(false);
+  const detailToggleRef = useRef<HTMLButtonElement>(null);
   const a11y = useBannerFocusSafety(visible);
 
   useEffect(() => {
@@ -76,7 +80,10 @@ export function CookieConsent({
 
     // "Cookie Settings" (§A3, §B3) has to be able to reopen a choice that was
     // already made — a consent that can be given but never changed is not one.
-    const reopen = () => setVisible(true);
+    const reopen = () => {
+      setReopened(true);
+      setVisible(true);
+    };
     window.addEventListener(OPEN_EVENT, reopen);
     return () => window.removeEventListener(OPEN_EVENT, reopen);
   }, []);
@@ -92,6 +99,27 @@ export function CookieConsent({
     }
     setVisible(false);
   };
+
+  // Escape (AEGIS F9) never records a consent choice. Inside the banner it
+  // collapses the details and returns focus to their toggle; with the details
+  // closed, it closes a REOPENED banner (the stored choice stands, focus goes
+  // back to "Change cookie settings"). A first-visit banner stays open until
+  // the visitor chooses.
+  useEffect(() => {
+    if (!visible) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || !a11y.bannerRef.current?.contains(document.activeElement)) return;
+      if (showDetail) {
+        setShowDetail(false);
+        detailToggleRef.current?.focus();
+      } else if (reopened) {
+        setVisible(false);
+      } else return;
+      event.preventDefault();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [visible, showDetail, reopened, a11y.bannerRef]);
 
   if (!visible) return null;
 
@@ -125,6 +153,7 @@ export function CookieConsent({
 
           <div className="flex shrink-0 flex-wrap items-center gap-3">
             <button
+              ref={detailToggleRef}
               type="button"
               onClick={() => setShowDetail(!showDetail)}
               aria-expanded={showDetail}
