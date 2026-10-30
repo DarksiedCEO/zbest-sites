@@ -45,7 +45,7 @@ const privacyPolicy: InEffectLegalDocument = {
   summary: [
     "We collect what you type into our forms — your name, your business, how to reach you, and your answers — so we can reply and, for the free assessment, show you a result.",
     "We don’t sell or share your personal information for advertising. The site has no analytics, no advertising pixels and no third-party tracking scripts.",
-    "We never store your IP address in our records in readable form. We keep a one-way, keyed code made from it to stop spam and abuse.",
+    "We never store your IP address in our records in readable form. To stop spam and abuse we use, at most, a keyed one-way code made from it.",
     "A small number of service providers help us run the site and deliver your message to us. They may use your information only to do that work for us.",
     `You can ask to see, correct or delete your information at any time by emailing ${PRIVACY_EMAIL}. We give these rights to everyone, wherever you live.`,
   ],
@@ -99,7 +99,7 @@ const privacyPolicy: InEffectLegalDocument = {
         { p: "Information collected automatically when you submit a form. With each submission we also record:" },
         {
           list: [
-            "A keyed one-way code (an HMAC-SHA-256 hash) made from your IP address. We never store the IP address itself. The code lets us recognize repeated abuse from the same source without keeping your address.",
+            "At most, a keyed one-way code (an HMAC-SHA-256 hash) made from your IP address. We never store the IP address itself. The code lets us recognize repeated abuse from the same source without keeping your address.",
             "Your browser’s user-agent string (it names your browser and operating system), shortened to 500 characters and deleted automatically after 90 days, so we can investigate spam and fix problems that affect particular browsers.",
             "The date and time of the submission, and a random submission ID your browser creates so a double-click doesn’t send the same form twice.",
             "If you reached the intake form from one of our campaign links, the short campaign tag in that link (for example from a billboard or an ad), so we know which campaign brought you. It identifies the campaign, not you.",
@@ -148,7 +148,7 @@ const privacyPolicy: InEffectLegalDocument = {
               ["Database hosting", "Stores form submissions.", "Everything listed under “What we collect” for the forms, except your raw IP address."],
               ["Email delivery (Resend)", "Delivers each new submission to our inbox as an email.", "The content of your submission."],
               ["Business email (our email provider)", "Holds the notification emails and our correspondence with you.", "The content of your submission and any emails you exchange with us."],
-              ["Rate-limit store (if enabled)", "Counts submissions per source to stop floods of spam.", "Only a one-way hash made from your IP address, deleted automatically after the counting window (10 minutes by default)."],
+              ["Rate-limit store (if enabled)", "Counts submissions per source to stop floods of spam.", "Only a keyed, one-way hash of your IP address, kept for about 10 minutes to limit abuse."],
             ],
           },
         },
@@ -181,7 +181,7 @@ const privacyPolicy: InEffectLegalDocument = {
                 "Notification emails about your submission",
                 "We delete them from our inbox on the same 24-month schedule. Our email-delivery provider keeps its own copy under its retention terms.",
               ],
-              ["Rate-limit counters", "Only as a one-way hash. Held briefly in temporary server memory, or — if a shared rate-limit store is enabled — deleted automatically after the counting window (10 minutes by default)."],
+              ["Rate-limit counters", "A keyed, one-way hash of your IP address, kept for about 10 minutes to limit abuse."],
               ["Your cookie-banner choice", "Stored only in your own browser until you clear it. We never receive it."],
               ["Records of privacy requests", "24 months, to show we handled them as the law requires."],
             ],
@@ -238,7 +238,7 @@ const privacyPolicy: InEffectLegalDocument = {
             caption: "Categories of personal information we collect",
             head: ["CCPA category", "Examples from our forms", "Source", "Disclosed for a business purpose to"],
             rows: [
-              ["Identifiers", "Name, email address or phone number you give us, hashed IP code, submission ID", "You; your browser", "Hosting, database, email delivery and business email providers"],
+              ["Identifiers", "Name, email address or phone number you give us, submission ID and, if we keep it, the hashed IP code", "You; your browser", "Hosting, database, email delivery and business email providers"],
               ["Customer records (Cal. Civ. Code § 1798.80(e))", "Name, contact details", "You", "Same as above"],
               ["Commercial information", "Services you’re interested in, budget and timing ranges", "You", "Same as above"],
               ["Professional information", "Your business name and website", "You", "Same as above"],
@@ -296,7 +296,7 @@ const privacyPolicy: InEffectLegalDocument = {
           list: [
             "The site is served only over encrypted HTTPS connections, and browsers are told to refuse unencrypted connections to it (HSTS).",
             "A strict content security policy allows the site to load scripts, styles, fonts and images only from our own domain.",
-            "Your IP address is stored only as a keyed one-way code. Our application logs record event codes and IDs, never form contents, IP addresses or email addresses.",
+            "We never store your IP address in readable form; at most we keep a keyed one-way code made from it. Our application logs record event codes and IDs, never form contents, IP addresses or email addresses.",
             "Form submissions are sent to the database over encrypted connections, and access to them is limited to the people at Z Best Media who need it to respond to you.",
             "Forms are protected against automated abuse with rate limits and spam traps.",
           ],
