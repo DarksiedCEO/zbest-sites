@@ -35,7 +35,8 @@ async function loadParser() {
   }
 }
 
-const EXPECTED = {
+/** The columns 001 creates: what a pre-existing table must already have. */
+const BASE = {
   id: "uuid",
   submission_id: "uuid",
   app: "text",
@@ -50,6 +51,9 @@ const EXPECTED = {
   notified_at: "timestamp with time zone",
   created_at: "timestamp with time zone",
 };
+
+/** After every migration: exactly what the app writes (004 adds the service area). */
+const EXPECTED = { ...BASE, service_area: "text" };
 
 /**
  * Which URL to migrate with (AEGIS r3 F3). A transaction-mode pooler
@@ -111,12 +115,12 @@ const LOCK_KEY = 815_204_771; // arbitrary, fixed: "zbest-lead migrate"
 class CheckFailed extends Error {}
 
 /** Columns and types: exactly what the app writes. Throws CheckFailed naming the mismatches. */
-async function checkColumns(tx) {
+async function checkColumns(tx, expected = EXPECTED) {
   const columns = await tx`
     SELECT column_name, data_type FROM information_schema.columns
     WHERE table_schema = current_schema() AND table_name = 'leads'`;
   const actual = Object.fromEntries(columns.map((c) => [c.column_name, c.data_type]));
-  const wrong = Object.entries(EXPECTED).filter(([name, type]) => actual[name] !== type).map(([name]) => name);
+  const wrong = Object.entries(expected).filter(([name, type]) => actual[name] !== type).map(([name]) => name);
   if (wrong.length) throw new CheckFailed(`leads table does not match the app: ${wrong.join(", ")}. Fix the schema before launch.`);
 }
 
@@ -138,7 +142,7 @@ try {
     // EXISTS; check it BEFORE applying anything, so the report names the
     // mismatch instead of a later DDL error masking it (AEGIS r2 N5).
     const [existing] = await tx`SELECT to_regclass('leads') IS NOT NULL AS present`;
-    if (!done.has("001") && existing?.present) await checkColumns(tx);
+    if (!done.has("001") && existing?.present) await checkColumns(tx, BASE);
     // The file-name regex is what makes the first three characters a version.
     for (const file of readdirSync(dir).filter((f) => /^\d{3}_.+\.sql$/.test(f)).sort()) {
       const version = file.slice(0, 3);

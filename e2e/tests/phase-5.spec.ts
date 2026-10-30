@@ -99,6 +99,8 @@ function request(answers: Answers, overrides: Record<string, unknown> = {}) {
     submission_id: crypto.randomUUID(),
     rule_set_version: RULE_SET_VERSION,
     contact: { name: "Test Person", business: "Test Co", website: "example.com", reach: "test@example.com" },
+    // Service area (founder decision 2026-10-30): beside contact, which keeps §11.3's four fields.
+    region: { state: "US-CA" },
     answers: Object.entries(answers).map(([question_id, value]) => ({ question_id, value })),
     ...overrides,
   };
@@ -139,6 +141,7 @@ async function fillContact(section: Locator) {
   await form.getByLabel("Business", { exact: true }).fill("Test Co");
   await form.getByLabel("Website", { exact: true }).fill("example.com");
   await form.getByLabel("Best way to reach you", { exact: true }).fill("test@example.com");
+  await form.getByLabel("State or territory", { exact: true }).selectOption("US-CA");
 }
 
 async function choose(section: Locator, choices: Record<string, (typeof SCALE)[number]>) {

@@ -585,6 +585,7 @@ describe("L6, L7 — email", () => {
     payload_hash: "h",
     services: [],
     source: null,
+    service_area: "US-CA",
     user_agent: null,
   };
 

@@ -104,6 +104,7 @@ async function fillStart(page: Page, name: string) {
   await form.getByLabel("Name", { exact: true }).fill(name);
   await form.getByLabel("Business", { exact: true }).fill("Lead Gate Co");
   await form.getByLabel("Best way to reach you", { exact: true }).fill("lead-gate@example.com");
+  await form.getByLabel("State or territory", { exact: true }).selectOption("US-CA");
 }
 
 const sendStart = async (page: Page) => {
@@ -210,6 +211,7 @@ test.describe("Success through the fake transport (§6.2)", () => {
     await form.getByLabel("Name", { exact: true }).fill(name);
     await form.getByLabel("Email", { exact: true }).fill("clipper-gate@example.com");
     await form.getByLabel("Primary platform", { exact: true }).selectOption("instagram-reels");
+    await form.getByLabel("State or territory", { exact: true }).selectOption("US-NY");
     const [response] = await Promise.all([
       page.waitForResponse((r) => r.url().endsWith("/api/lead")),
       form.getByRole("button", { name: "Join the clipper list" }).click(),
@@ -241,6 +243,7 @@ test.describe("Success through the fake transport (§6.2)", () => {
         submission_id: assessmentId,
         rule_set_version: "fixture-2026-09-18.2",
         contact,
+        region: { state: "US-CA" },
         answers: ["follow_up", "conversion", "offer", "trust", "tracking", "creative", "visibility", "traffic"].map((q, i) => ({
           question_id: q,
           value: i === 1 ? 2 : 0,
@@ -261,6 +264,7 @@ test.describe("Success through the fake transport (§6.2)", () => {
         submission_id: readinessId,
         rule_set_version: "fixture-2026-09-20.1",
         contact,
+        region: { state: "US-CA" },
         answers: [
           "business_profile", "entity_consistency", "reviews", "crawlability",
           "structured_data", "answer_content", "brand_citations", "local_listings",
@@ -281,7 +285,7 @@ test.describe("Success through the fake transport (§6.2)", () => {
       data: {
         form: "start",
         submission_id: id,
-        fields: { services: "radio-audio", name: "A", business: "B", reach: "C", website: "", budget: "", timing: "", details: "", source: "<script>x</script>" },
+        fields: { services: "radio-audio", name: "A", business: "B", reach: "C", website: "", budget: "", timing: "", details: "", source: "<script>x</script>", state: "US-CA" },
       },
     });
     expect(res.status()).toBe(200);
@@ -301,7 +305,7 @@ test.describe("Validation and abuse (§6.2)", () => {
     expect(response.status()).toBe(422);
     const body = await response.json();
     expect(body.error.code).toBe("validation");
-    expect(Object.keys(body.error.fields).sort()).toEqual(["business", "reach", "services"]);
+    expect(Object.keys(body.error.fields).sort()).toEqual(["business", "reach", "services", "state"]);
     await expect(startForm(page).getByText("Enter your business name.")).toBeVisible();
     expect(await rowsMentioning("zbm", name)).toHaveLength(0);
   });
@@ -338,13 +342,13 @@ test.describe("Validation and abuse (§6.2)", () => {
       ids.push(id);
       const ok = await page.request.post(`${ZBM_LIMITED_URL}/api/lead`, {
         headers,
-        data: { form: "contact", submission_id: id, fields: { name: "A", business: "B", problem: "C", reach: "D" } },
+        data: { form: "contact", submission_id: id, fields: { name: "A", business: "B", problem: "C", reach: "D", state: "US-CA" } },
       });
       expect(ok.status(), `request ${i + 1} of ${LIMITED_RATE.limit}`).toBe(200);
     }
     const blocked = await page.request.post(`${ZBM_LIMITED_URL}/api/lead`, {
       headers,
-      data: { form: "contact", submission_id: randomUUID(), fields: { name: "A", business: "B", problem: "C", reach: "D" } },
+      data: { form: "contact", submission_id: randomUUID(), fields: { name: "A", business: "B", problem: "C", reach: "D", state: "US-CA" } },
       failOnStatusCode: false,
     });
     expect(blocked.status()).toBe(429);
@@ -374,7 +378,7 @@ test.describe("Misconfiguration fails closed", () => {
     page,
   }, testInfo) => {
     const api = await page.request.post(`${ZBM_UNCONFIGURED_URL}/api/lead`, {
-      data: { form: "contact", submission_id: randomUUID(), fields: { name: "A", business: "B", problem: "C", reach: "D" } },
+      data: { form: "contact", submission_id: randomUUID(), fields: { name: "A", business: "B", problem: "C", reach: "D", state: "US-CA" } },
       failOnStatusCode: false,
     });
     expect(api.status()).toBe(503);
@@ -403,6 +407,7 @@ test.describe("Misconfiguration fails closed", () => {
     await form.getByLabel("Business", { exact: true }).fill("B");
     await form.getByLabel("Website", { exact: true }).fill("example.com");
     await form.getByLabel("Best way to reach you", { exact: true }).fill("a@example.com");
+    await form.getByLabel("State or territory", { exact: true }).selectOption("US-CA");
     for (const question of await form.locator("[data-assessment-question]").all()) {
       await question.getByRole("radio", { name: "Somewhat true", exact: true }).check();
     }
@@ -418,7 +423,7 @@ test.describe("Misconfiguration fails closed", () => {
   test("Z Best Clips' misconfiguration path is the same pipeline (unit-tested); its live server is configured", async ({ page }) => {
     // Guard against the gate itself silently running ZBC unconfigured.
     const res = await page.request.post(`${ZBC_BASE_URL}/api/lead`, {
-      data: { form: "campaign", submission_id: randomUUID(), fields: { name: "A", organization: "B", promoting: "C", focus: "brands", reach: "D" } },
+      data: { form: "campaign", submission_id: randomUUID(), fields: { name: "A", organization: "B", promoting: "C", focus: "brands", reach: "D", state: "US-CA" } },
     });
     expect(res.status()).toBe(200);
     expect(res.headers()["x-zbest-lead-transport"]).toBe("fake");
@@ -426,7 +431,7 @@ test.describe("Misconfiguration fails closed", () => {
 });
 
 test.describe("Hardening (AEGIS review of 55d3437)", () => {
-  const contact = (id: string, name = "A") => ({ form: "contact", submission_id: id, fields: { name, business: "B", problem: "C", reach: "D" } });
+  const contact = (id: string, name = "A") => ({ form: "contact", submission_id: id, fields: { name, business: "B", problem: "C", reach: "D", state: "US-CA" } });
 
   test("M3: non-JSON is 415 and a foreign Origin is 403; nothing is stored", async ({ page }, testInfo) => {
     const id = randomUUID();
@@ -688,6 +693,8 @@ test.describe("Before hydration (AEGIS r5 N1)", () => {
   const contact = async (form: Locator, name: string, extra: Record<string, string>) => {
     await form.getByLabel("Name", { exact: true }).fill(name);
     for (const [label, value] of Object.entries(extra)) await form.getByLabel(label, { exact: true }).fill(value);
+    // Chosen before hydration too: the state select is uncontrolled, so it survives.
+    await form.getByLabel("State or territory", { exact: true }).selectOption("US-CA");
   };
   const answerAll = async (form: Locator, attr: string) => {
     for (const q of await form.locator(`[${attr}]`).all()) await q.getByRole("radio", { name: "Very true", exact: true }).check();
@@ -809,4 +816,70 @@ test.describe("Before hydration (AEGIS r5 N1)", () => {
       expect(stored[0]!.form).toBe(c.form);
     });
   }
+});
+
+test.describe("Service area (founder decision 2026-10-30): 50 US states, DC, Puerto Rico, Guam", () => {
+  test("'Outside these areas' gets the polite decline, nothing is stored or sent; a served area then goes through; captured", async ({
+    page,
+  }, testInfo) => {
+    await presetConsent(page);
+    await page.goto(`${ZBM_BASE_URL}/start?service=out-of-home`, { waitUntil: "domcontentloaded" });
+    const name = marker("outside", testInfo.project.name);
+    await fillStart(page, name);
+    const form = startForm(page);
+    const area = form.getByLabel("State or territory", { exact: true });
+    const options = await area.locator("option").allTextContents();
+    expect(options).toHaveLength(55); // "Choose one", 53 areas, "Outside these areas"
+    expect(options.slice(-4)).toEqual(["District of Columbia", "Puerto Rico", "Guam", "Outside these areas"]);
+    await expect(area).toHaveAccessibleDescription(
+      "We currently work with businesses in the 50 US states, the District of Columbia, Puerto Rico and Guam.",
+    );
+
+    await area.selectOption("outside");
+    const refused = await sendStartNow(page);
+    expect(refused.status()).toBe(422);
+    expect(await refused.json()).toEqual({ ok: false, error: { code: "region_unavailable" } });
+    const alert = form.locator('[data-lead-failure="region_unavailable"]');
+    await expect(alert).toHaveAttribute("role", "alert");
+    await expect(alert).toHaveText(
+      "Sorry — we can only work with businesses in the 50 US states, the District of Columbia, Puerto Rico and Guam right now, so nothing was saved or sent.",
+    );
+    await expect(page.locator('[data-lead-result="accepted"]')).toHaveCount(0);
+    const id = refused.request().postDataJSON().submission_id as string;
+    expect(await rowsFor("zbm", id)).toHaveLength(0);
+    expect(await emailsFor("zbm", id)).toHaveLength(0);
+    expect(await rowsMentioning("zbm", name)).toHaveLength(0);
+    await capture(page, "start-region-refused", testInfo.project.name);
+
+    await area.selectOption("GU");
+    const ok = await sendStartNow(page);
+    expect(ok.status()).toBe(200);
+    const [row] = await rowsFor("zbm", ok.request().postDataJSON().submission_id as string);
+    expect(row).toMatchObject({ service_area: "GU" });
+  });
+
+  test("'outside' is declined in both apps and on the assessment; nothing is stored", async ({ page }) => {
+    const cases = [
+      [ZBM_BASE_URL, "zbm", { form: "contact", submission_id: randomUUID(), fields: { name: "A", business: "B", problem: "C", reach: "D", state: "outside" } }],
+      [ZBC_BASE_URL, "zbc", { form: "clipper", submission_id: randomUUID(), fields: { name: "A", email: "a@example.com", platform: "tiktok", state: "outside" } }],
+      [ZBC_BASE_URL, "zbc", { form: "campaign", submission_id: randomUUID(), fields: { name: "A", organization: "B", promoting: "C", focus: "brands", reach: "D", state: "outside" } }],
+    ] as const;
+    for (const [base, app, data] of cases) {
+      const res = await page.request.post(`${base}/api/lead`, { data, failOnStatusCode: false });
+      expect(res.status(), `${app} ${data.form}`).toBe(422);
+      expect(await res.json()).toEqual({ ok: false, error: { code: "region_unavailable" } });
+      expect(await rowsFor(app, data.submission_id)).toHaveLength(0);
+    }
+  });
+
+  test("a missing area, or a code outside the exact set, is a field error, not a lead", async ({ page }) => {
+    for (const state of [undefined, "", "CA", "US-PR", "VI", "ON"]) {
+      const res = await page.request.post(`${ZBM_BASE_URL}/api/lead`, {
+        data: { form: "contact", submission_id: randomUUID(), fields: { name: "A", business: "B", problem: "C", reach: "D", ...(state === undefined ? {} : { state }) } },
+        failOnStatusCode: false,
+      });
+      expect(res.status(), String(state)).toBe(422);
+      expect((await res.json()).error.fields).toEqual({ state: "Choose your state or territory." });
+    }
+  });
 });

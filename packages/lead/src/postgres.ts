@@ -71,12 +71,12 @@ export function postgresStore(options: PgOptions): LeadStore {
       try {
         const rows = await sql`
           INSERT INTO leads
-            (submission_id, app, form, payload, payload_hash, services, source, user_agent)
+            (submission_id, app, form, payload, payload_hash, services, source, service_area, user_agent)
           VALUES (
             ${record.submission_id}::uuid, ${record.app}, ${record.form},
             ${sql.json(record.payload as postgres.JSONValue)}::jsonb, ${record.payload_hash},
             ARRAY(SELECT jsonb_array_elements_text(${sql.json(record.services)}::jsonb)),
-            ${record.source}, ${record.user_agent}
+            ${record.source}, ${record.service_area}, ${record.user_agent}
           )
           ON CONFLICT (app, submission_id) DO NOTHING
           RETURNING id`;

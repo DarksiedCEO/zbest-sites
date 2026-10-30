@@ -1,3 +1,5 @@
+import { REGION_COPY } from "@zbest/lead/region";
+
 /**
  * Lead route wire contract (Brief §6.2), shared by both apps' route handlers,
  * the typed adapters and the forms. Each app owns its own form names and zod
@@ -16,12 +18,14 @@ export type LeadErrorBody =
   | { ok: false; error: { code: "rate_limited"; retry_after_s: number } }
   | { ok: false; error: { code: "not_configured" } }
   | { ok: false; error: { code: "conflict" } }
+  /** Outside the service area (50 US states, DC, PR, GU): nothing stored or sent. */
+  | { ok: false; error: { code: "region_unavailable" } }
   | { ok: false; error: { code: "unavailable" } };
 
 export type LeadResponse = { ok: true; submission_id: string } | LeadErrorBody;
 
 /** Why a submission was not saved, as the form tells the visitor. */
-export type LeadFailure = "failed" | "rate_limited" | "not_configured" | "unavailable" | "conflict";
+export type LeadFailure = "failed" | "rate_limited" | "not_configured" | "unavailable" | "conflict" | "region_unavailable";
 
 export type LeadResult =
   | { status: "accepted" }
@@ -40,6 +44,7 @@ export const FAILURE_COPY: Record<LeadFailure, string> = {
   unavailable: "We couldn’t save that just now, so nothing was sent. Please try again in a few minutes.",
   not_configured: "This form isn’t accepting submissions yet, so nothing was saved or sent.",
   rate_limited: "Too many attempts from your connection. Nothing was saved — please wait a few minutes and try again.",
+  region_unavailable: REGION_COPY.refused,
 };
 
 /**
@@ -48,7 +53,11 @@ export const FAILURE_COPY: Record<LeadFailure, string> = {
  */
 export function failureOf(body: unknown): LeadFailure {
   const code = (body as { error?: { code?: unknown } } | null)?.error?.code;
-  return code === "rate_limited" || code === "not_configured" || code === "unavailable" || code === "conflict"
+  return code === "rate_limited" ||
+    code === "not_configured" ||
+    code === "unavailable" ||
+    code === "conflict" ||
+    code === "region_unavailable"
     ? code
     : "failed";
 }

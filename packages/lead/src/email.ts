@@ -64,6 +64,8 @@ export function leadEmail(record: LeadRecord, receivedAt: Date): LeadEmail {
     `Submission: ${record.submission_id}`,
     `Received: ${receivedAt.toISOString()}`,
     `Source tag: ${record.source ?? "—"}`,
+    // An enum code, validated server-side: never visitor free text.
+    `Region: ${record.service_area}`,
     ...(record.services.length ? [`Services: ${record.services.join(", ")}`] : []),
     "",
     // Everything between the fences was typed by the visitor and is

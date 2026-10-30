@@ -81,6 +81,7 @@ describe.skipIf(!url)("postgres store (integration)", () => {
       payload_hash: payloadHash({ name: "Ada" }),
       services: ["out-of-home", "tv-streaming"],
       source: "bb-i405",
+      service_area: "PR",
       user_agent: "UA",
     };
     const results = await Promise.all([store.insert(record), store.insert(record), store.insert(record)]);
@@ -99,6 +100,7 @@ describe.skipIf(!url)("postgres store (integration)", () => {
       form: "start",
       services: ["out-of-home", "tv-streaming"],
       source: "bb-i405",
+      service_area: "PR",
       notify_status: "pending",
       payload: { name: "Ada", services: ["out-of-home"], nested: { a: 1 } },
     });
@@ -112,7 +114,7 @@ describe.skipIf(!url)("postgres store (integration)", () => {
   it("the same submission_id in the other app is a different lead (key is per app)", async () => {
     const store = postgresStore(opts(url!));
     const id = randomUUID();
-    const base = { submission_id: id, form: "x", payload: {}, payload_hash: "h1", services: [], source: null, user_agent: null };
+    const base = { submission_id: id, form: "x", payload: {}, payload_hash: "h1", services: [], source: null, service_area: "US-CA", user_agent: null };
     expect((await store.insert({ ...base, app: "zbm" })).inserted).toBe(true);
     expect((await store.insert({ ...base, app: "zbc" })).inserted).toBe(true);
     expect((await store.insert({ ...base, app: "zbc" })).inserted).toBe(false);
@@ -129,6 +131,7 @@ describe.skipIf(!url)("postgres store (integration)", () => {
         payload_hash: "h",
         services: [],
         source: null,
+        service_area: "US-CA",
         user_agent: null,
       })
       .catch((e: unknown) => e);
@@ -148,6 +151,7 @@ describe.skipIf(!url)("postgres store (integration)", () => {
         payload_hash: "h",
         services: [],
         source: null,
+        service_area: "US-CA",
         user_agent: null,
       })
       .catch((e: unknown) => e);
@@ -197,6 +201,17 @@ describe.skipIf(!url)("postgres store (integration)", () => {
     await sql`DELETE FROM leads WHERE form = 'purge-test'`;
   });
 
+  it("004: the table itself refuses anything outside the service area (defence in depth)", async () => {
+    const insert = (area: string | null) =>
+      sql`INSERT INTO leads (submission_id, app, form, payload, payload_hash, service_area)
+          VALUES (${randomUUID()}::uuid, 'zbm', 'region-test', '{}'::jsonb, 'h', ${area})`;
+    for (const bad of ["outside", "CA", "US-PR", "US-GU", "VI", "AS", "MP", "GB", "us-ca", ""]) {
+      await expect(insert(bad), bad).rejects.toMatchObject({ code: "23514" });
+    }
+    for (const ok of ["US-CA", "US-WY", "US-DC", "PR", "GU", null]) await insert(ok);
+    await sql`DELETE FROM leads WHERE form = 'region-test'`;
+  });
+
   it("002 cleared ip_hash and the app no longer writes it", async () => {
     const [{ n }] = (await sql`SELECT count(*)::int AS n FROM leads WHERE ip_hash IS NOT NULL`) as unknown as [{ n: number }];
     expect(n).toBe(0);
@@ -217,6 +232,7 @@ describe.skipIf(!neonShaped)("postgres store with a Neon-shaped URL (TLS + SCRAM
       payload_hash: "h",
       services: [],
       source: null,
+      service_area: "US-CA",
       user_agent: null,
     });
     expect(result).toEqual({ inserted: true });
@@ -549,6 +565,7 @@ describe.skipIf(!neonShaped)("TLS modes and startup options (integration)", () =
         payload_hash: "h",
         services: [],
         source: null,
+        service_area: "US-CA",
         user_agent: null,
       })
       .then(

@@ -199,7 +199,7 @@ test.describe("/start — universal intake", () => {
     expect(await checked(page)).toEqual([]);
     // Amended Oct 25, 2026: the route is wired, so the stub marker is gone.
     await expect(form(page)).not.toContainText("Stub");
-    for (const label of ["Name", "Business", "Best way to reach you"]) {
+    for (const label of ["Name", "Business", "State or territory", "Best way to reach you"]) {
       await expect(form(page).getByLabel(label, { exact: true })).toBeVisible();
     }
     await capture(page, "start", testInfo.project.name);
@@ -259,6 +259,7 @@ test.describe("/start — universal intake", () => {
     await form(page).getByLabel("Business", { exact: true }).fill("Test Co");
     await form(page).getByLabel("Best way to reach you", { exact: true }).fill("test@example.com");
     await form(page).getByLabel("Budget").selectOption("25k-100k");
+    await form(page).getByLabel("State or territory", { exact: true }).selectOption("US-CA");
     await formReady(form(page));
     const [response] = await Promise.all([
       page.waitForResponse((r) => r.url().endsWith("/api/lead")),
@@ -271,6 +272,7 @@ test.describe("/start — universal intake", () => {
     expect(sent.fields.services).toBe("tv-streaming,out-of-home");
     expect(sent.fields.source).toBe("bb-test");
     expect(sent.fields.budget).toBe("25k-100k");
+    expect(sent.fields.state).toBe("US-CA");
     await expect(page.locator('[data-lead-result="accepted"]')).toContainText("Received");
     await capture(page, "start-accepted", testInfo.project.name);
   });
@@ -292,6 +294,7 @@ test.describe("/start — server contract on the lead route", () => {
     timing: "",
     details: "",
     source: "",
+    state: "US-CA",
   };
 
   test("a minimal valid intake is acknowledged", async ({ page }) => {

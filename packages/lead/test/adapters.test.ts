@@ -13,6 +13,7 @@ const record = (over: Partial<LeadRecord> = {}): LeadRecord => ({
   payload_hash: "h",
   services: ["out-of-home"],
   source: "bb-i405",
+  service_area: "US-CA",
   user_agent: null,
   ...over,
 });

@@ -3,6 +3,7 @@ import { leadEmail } from "./email";
 import { payloadHash } from "./hash";
 import { clientIp } from "./ip";
 import { consoleLogger, type LeadLogger } from "./log";
+import { regionServed, type Region } from "./region";
 import { DeliveryError, type LeadApp, type LeadRecord } from "./types";
 
 /**
@@ -41,6 +42,12 @@ export type ParsedLead =
       payload: Record<string, unknown>;
       services?: string[];
       source?: string | null;
+      /**
+       * Where the business is (self-declared, validated by the app with
+       * REGION from ./region). Required: the pipeline refuses an unserved
+       * region before anything is stored (service-area rule).
+       */
+      region: Region;
       /** The success body for this form (e.g. it may carry a scored result). */
       body: unknown;
     };
@@ -53,6 +60,7 @@ export type LeadErrorBody =
   | { ok: false; error: { code: "rate_limited"; retry_after_s: number } }
   | { ok: false; error: { code: "not_configured" } }
   | { ok: false; error: { code: "conflict" } }
+  | { ok: false; error: { code: "region_unavailable" } }
   | { ok: false; error: { code: "unavailable" } };
 
 export type HandleLeadOptions = {
@@ -233,15 +241,26 @@ async function handle(request: Request, opts: HandleLeadOptions, log: LeadLogger
   if (parsed.kind === "bad_request") return fail({ ok: false, error: { code: "bad_request" } }, 400);
   if (parsed.kind === "reject") return reply(parsed.body, parsed.status);
 
+  // Service area (founder decision 2026-10-30: 50 US states, DC, PR, GU). Outside it the
+  // visitor gets a polite 422 and NOTHING is stored or sent. Checked here, in
+  // the shared pipeline, so no form can skip it. Charged like any 422.
+  if (!regionServed(parsed.region)) {
+    log("info", "region_refused", { app, form: parsed.form, code: parsed.region.state });
+    return fail({ ok: false, error: { code: "region_unavailable" } }, 422);
+  }
+
   // 7. Store. The row is the lead; without it there is no success to claim.
   const record: LeadRecord = {
     submission_id: parsed.submission_id,
     app,
     form: parsed.form,
     payload: parsed.payload,
-    payload_hash: payloadHash({ form: parsed.form, payload: parsed.payload }),
+    // The region is part of what was submitted: a changed one is a changed lead (409).
+    payload_hash: payloadHash({ form: parsed.form, payload: parsed.payload, region: parsed.region }),
     services: parsed.services ?? [],
     source: parsed.source || null,
+    // regionServed() narrowed it: always one of SERVICE_AREAS here.
+    service_area: parsed.region.state,
     // No ip_hash: nothing ever read it, so it is no longer stored (privacy
     // sweep 2026-10-30, data minimisation; sql/002_retention.sql nulls old rows).
     user_agent: request.headers.get("user-agent")?.slice(0, 500) ?? null,

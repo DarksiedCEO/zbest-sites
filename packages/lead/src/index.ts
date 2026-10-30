@@ -33,3 +33,4 @@ export { resendNotifier } from "./resend";
 export { fakeStore, fakeNotifier } from "./fake";
 export { clientIp } from "./ip";
 export * from "./types";
+export { REGION, regionServed, SERVICE_AREAS, OUTSIDE, REGION_COPY, type Region } from "./region";

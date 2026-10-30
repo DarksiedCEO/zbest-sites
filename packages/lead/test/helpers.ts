@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import type { LeadLogger, LogFields } from "../src/log";
 import type { ParsedLead } from "../src/pipeline";
+import { REGION } from "../src/region";
 
 export const tempOutbox = () => mkdtempSync(path.join(tmpdir(), "lead-outbox-"));
 
@@ -52,11 +53,18 @@ export function toyParse(json: unknown): ParsedLead {
   if (!fields.name) {
     return { kind: "reject", status: 422, body: { ok: false, error: { code: "validation", fields: { name: "Enter your name." } } } };
   }
+  // Region: as an app parses it; a toy request without one is a California lead.
+  const region = REGION.safeParse({ state: fields.state ?? "US-CA" });
+  if (!region.success) {
+    return { kind: "reject", status: 422, body: { ok: false, error: { code: "validation", fields: { state: "Choose your state or territory." } } } };
+  }
+  const { state: _s, ...payload } = fields;
   return {
     kind: "lead",
     form: "start",
     submission_id: j.submission_id,
-    payload: fields,
+    payload,
+    region: region.data,
     services: fields.services ? fields.services.split(",") : [],
     source: fields.source || null,
     body: { ok: true, submission_id: j.submission_id },
