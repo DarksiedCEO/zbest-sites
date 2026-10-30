@@ -2,33 +2,45 @@
 
 Target: **WCAG 2.2 Level AA** on both sites (Z Best Media, Z Best Clips).
 
-This file records what is checked automatically on every change, what still has to be checked by a person at each phase gate, and what has not been done yet. The public claim on `/websites` ("built to WCAG 2.2 AA as the target and checked automatically on every change") must stay true to this file. It must not claim screen-reader testing until the screen-reader pass below is recorded as done.
+This file records what is checked automatically, what still has to be checked by a person at each phase gate, and what has not been done yet.
 
-Origin: the WCAG 2.2 AA audit of `main` at 6960b6b (Oct 30 2026), which found 4 Serious, 6 Moderate and 10 Minor issues on ZBM and 2 Critical issues on ZBC. The fixes are on branch `a11y-wcag22aa`.
+**Public wording.** The Websites service page (`/websites`) says client sites are "built to WCAG 2.2 AA as the target, with automated accessibility checks and keyboard testing before launch". That line is a promise about **client** deliverables, so it must not promise more than a client build gets. It promises checks before launch, not on every change after handoff. Any statement about **this** site's own process belongs on the accessibility statement page (`/legal/accessibility`, legal branch), not in the service copy. Neither may claim screen-reader testing until the screen-reader pass below is recorded as done.
 
-## Automated, on every change (blocks merge)
+Origin: the WCAG 2.2 AA audit of `main` at 6960b6b (Oct 30 2026), which found 4 Serious, 6 Moderate and 10 Minor issues on ZBM and 2 Critical issues on ZBC. The fixes are on branch `a11y-wcag22aa`. The AEGIS review of that branch (findings F1–F9) shaped the gate below.
 
-`e2e/tests/a11y.spec.ts` runs inside the required `e2e` check (`.github/workflows/ci.yml`), on both gate projects: desktop-1440 (Chromium) and mobile-390 (iPhone 14 on WebKit). **A failure blocks the merge.**
+## Automated on every PR (blocks merge)
+
+`e2e/tests/a11y.spec.ts` runs inside the required `e2e` check (`.github/workflows/ci.yml`). The gate runs as two parallel jobs, `e2e (desktop-1440)` on Chromium and `e2e (mobile-390)` on WebKit with the iPhone 14 profile. The job named `e2e` fails unless both pass, and that is the check branch protection requires. **A failure blocks the merge.**
 
 | Check | What it covers |
 |---|---|
-| axe-core (`@axe-core/playwright` 4.13.0, pinned), tags `wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`, `wcag22aa` | Every ZBM route (20, including the unlinked `/search-intelligence` and the 404) and every ZBC route (13), in each state a visitor can reach: consent banner open, banner details open, banner dismissed with the nav menu and the first FAQ answer open, and every form submitted empty (error state). **Zero violations allowed. No rule is disabled.** |
-| axe best-practice rules `heading-order`, `page-has-heading-one`, `landmark-one-main`, `skip-link` | The same states. These guard the audit's heading and skip-link fixes, which axe does not tag as WCAG. |
+| axe-core (`@axe-core/playwright` 4.13.0, pinned), tags `wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`, `wcag22aa`, plus best-practice `heading-order`, `page-has-heading-one`, `landmark-one-main`, `skip-link` | Every ZBM route (20, including the unlinked `/search-intelligence` and the 404) and every ZBC route (13). Each is scanned in every state a visitor can reach: consent banner open, banner details open, banner dismissed, nav menu and the first FAQ answer open, and every form submitted empty (error state). axe runs once per state, and the gate asserts that the four best-practice rules actually ran. **Zero violations allowed. No rule is disabled.** |
+| axe "needs review" contrast | An undecided `color-contrast` result **fails** the gate, with three named exceptions in `e2e/support/a11y.ts`. (1) Two decorative `aria-hidden` glyphs that axe cannot measure: the `→` after link labels and the `▾` on menu buttons. (2) Page text covered by an open overlay (the banner or a menu panel); that text is measured in the "banner dismissed" state with nothing over it. (3) Text inside an overlay, which the gate measures itself against the overlay's own opaque background and requires at 4.5:1, or 3:1 for large text. |
+| Form control borders (WCAG 1.4.11; axe has no rule for it) | Every visible text field, select and textarea, and the box of every custom radio and checkbox, must have a border of at least 3:1 against the background just outside it. Checked in the banner-dismissed and form-error states on every route. Proven to fail on the old faint borders (`/35`, about 1.7:1). |
 | Sitemap sweep | Any route in `sitemap.xml` that is not in the spec's lists is scanned too, so a new page cannot ship unscanned. |
-| 2.4.11 Focus Not Obscured | Tab and Shift+Tab through `/`, `/start`, `/revenue-recovery`, `/contact`, `/faq` (ZBM) and `/`, `/launch-a-campaign` (ZBC) with the banner open, and Shift+Tab with it dismissed. No focused element may be entirely covered by the sticky header or the banner, or sit outside the viewport. |
+| 2.4.11 Focus Not Obscured | Tab and Shift+Tab with the banner open, and Shift+Tab with it dismissed, on seven routes: `/`, `/start`, `/revenue-recovery`, `/contact` and `/faq` on ZBM, and `/` and `/launch-a-campaign` on ZBC. No focused element may be entirely covered by the sticky header or the banner, or sit outside the viewport. The nightly run walks every route. |
 | 1.4.10 Reflow at 400% zoom | At 320×256: the banner fits within half the viewport with its heading on screen, and every link in the open mobile menu is visible when focused. |
 | 2.4.1 Skip link | The first Tab stop is "Skip to content". It is visible when focused and moves focus to `<main>`. |
-| 2.4.3 Focus order | "Change cookie settings" moves focus into the banner and returns it to the button after a choice. An empty submit on every form moves focus to the first invalid control. While sending, the submit button keeps focus. The success or failure message takes focus when the response arrives. |
+| 2.4.3 Focus order | "Change cookie settings" moves focus into the banner and returns it to the button after a choice. **Escape** collapses the banner details and returns focus to their toggle. On a reopened banner, Escape closes it without changing the stored choice. On a first visit, the banner stays until a choice is made. An empty submit on every form moves focus to the first invalid control. While sending, the submit button keeps focus, and the success or failure message takes focus when the response arrives. A server rejection for a field the form does not show produces a visible summary that takes focus, and the form stays usable. |
 | 1.4.3 Contrast mid-scroll | With motion on, the homepage hero is never faded and passes axe `color-contrast` at 150, 300 and 450 px of scroll. |
 
-Also enforced by the required `lint` check: `eslint-plugin-jsx-a11y` rules from `eslint-config-next`. For example, it flagged `aria-invalid` on radio inputs during this work.
+**Lint (required `lint` check).** eslint-plugin-jsx-a11y's 31 recommended rules run at **error** level on every `.tsx` file in both apps and in `packages/ui`, where the shared forms, banner and nav live (`packages/config/eslint/a11y.mjs`). An error fails `lint`. Before this change, eslint-config-next ran six of these rules as warnings, which can never fail `eslint .`.
 
-What automation cannot tell you:
+## Automated nightly (does not block merges)
+
+`.github/workflows/a11y-nightly.yml` runs every night and on every push to `main`. A failure opens an issue, or comments on the open one. It adds what is too slow for every PR:
+
+- 2.4.11 focus walks on **every** route of both sites (`e2e/tests/a11y.nightly.spec.ts`);
+- each form's **success screen**, reached with a real submission to the gate's fake lead transport: focus must land on the result, axe must be clean, and borders must pass 1.4.11;
+- all of the accessibility specs on **Firefox** (`firefox-1440`), alongside Chromium desktop and WebKit mobile;
+- the PR spec's `@keyboard` tests **three times** over with retries off, so a flake that the PR gate's single retry would hide shows up here.
+
+**What automation cannot tell you:**
 
 - whether a screen reader announces things sensibly;
 - whether the focus order makes sense to a person;
 - whether link text and headings are meaningful out of context;
-- anything in Firefox or Safari desktop. The gate runs Chromium and WebKit-mobile only.
+- anything in desktop Safari.
 
 ## Manual, at every phase gate
 
@@ -45,7 +57,7 @@ On every new or changed route, at desktop width and at 390 px:
 - [ ] The FAQ answers open and close with Enter and Space.
 - [ ] Each form, submitted empty with Enter, puts focus on the first field that needs fixing, and the message under that field says what to fix.
 - [ ] Each form, submitted correctly with Enter, keeps focus on Send while it is sending, then moves focus to the confirmation.
-- [ ] On the Cookie Policy page, "Change cookie settings" moves focus into the banner. After a choice, focus returns to the button.
+- [ ] On the Cookie Policy page, "Change cookie settings" moves focus into the banner. After a choice, focus returns to the button. Escape closes the details, then the banner, without changing the choice.
 - [ ] At 400% browser zoom (or a 320 px wide window), nothing needs sideways scrolling. The open menu and the banner scroll and are fully reachable.
 
 ### Screen reader
@@ -67,8 +79,9 @@ At each phase gate, use NVDA with Firefox or Chrome on Windows, VoiceOver with S
 - m2: required fields are not marked programmatically (`aria-required`).
 - m4: the "Sending…" state is not announced through a live region.
 - m5: some small targets pass only through the 2.5.8 spacing exception.
-- m6: there is no authored `:focus-visible` style; the site relies on the browser default. Firefox and Safari are UNVERIFIED.
+- m6: there is no authored `:focus-visible` style; the site relies on the browser default.
 - m9: no "opens in a new tab" cue.
 - m10: without JavaScript, the mobile menu and the FAQ answers cannot be reached.
 - Not executed: 200% text-only zoom (1.4.4) and Windows High Contrast / forced-colors.
-- The accessibility statement page (`/accessibility`) is being added on a separate branch.
+- The 1.4.11 border check reads background colours, not background images or gradients. A control placed over an image would need a manual check.
+- The accessibility statement page (`/legal/accessibility`) is on the legal branch, not this one.
