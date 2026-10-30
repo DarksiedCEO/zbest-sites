@@ -42,6 +42,7 @@ const PRIVACY_EMAIL = "[PRIVACY EMAIL]";
 const LEGAL_EMAIL = "[LEGAL NOTICES EMAIL]";
 const MAILING_ADDRESS = "[BUSINESS MAILING ADDRESS]";
 const ACCESSIBILITY_EMAIL = "[ACCESSIBILITY EMAIL — CONFIRM]";
+const UK_REPRESENTATIVE = "[UK REPRESENTATIVE]";
 
 /* -------------------------------------------------------------------------- */
 /* Privacy Policy                                                             */
@@ -293,6 +294,9 @@ const privacyPolicy: InEffectLegalDocument = {
           p: `If you are in the United Kingdom, the UK General Data Protection Regulation and the Data Protection Act 2018 apply. ${LEGAL_ISSUER} is the controller of your personal data, and you can reach us at ${PRIVACY_EMAIL} or ${MAILING_ADDRESS}.`,
         },
         {
+          p: `Because we offer our services to businesses in the United Kingdom and are not established there, we have appointed a representative under Article 27 of the UK GDPR: ${UK_REPRESENTATIVE}. You or the Information Commissioner’s Office can contact our representative instead of, or as well as, us about anything to do with how we handle your personal data.`,
+        },
+        {
           table: {
             caption: "Why we use your information, and our lawful basis (UK)",
             head: ["Purpose", "Lawful basis"],
@@ -333,7 +337,7 @@ const privacyPolicy: InEffectLegalDocument = {
           p: "Access and correction: you can ask to see the personal information we hold about you and to have it corrected, using the process in “Your rights and choices”; we respond within 30 days. If you’re not satisfied with our answer, you can complain to the Office of the Privacy Commissioner of Canada (priv.gc.ca).",
         },
         {
-          p: "Commercial email: when we follow up by email, we do so as Canada’s Anti-Spam Legislation allows — identifying ourselves, including our contact details and honoring any request to stop.",
+          p: "Commercial email: when you send us an enquiry, Canada’s Anti-Spam Legislation lets us send you commercial messages about it for six months. After those six months we send commercial messages only if you have agreed to receive them. Every message identifies us, includes our contact details and lets you unsubscribe, and we honor any request to stop within 10 business days. Replies to your own questions are not limited by this.",
         },
       ],
     },
