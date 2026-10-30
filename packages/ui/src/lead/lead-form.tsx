@@ -2,7 +2,9 @@
 
 import { useId, useRef, useState, type FormEvent } from "react";
 import { LedgerRule } from "../components/ledger-rule";
+import { REGION_FIELD_NAME } from "@zbest/lead/region";
 import { FAILURE_COPY, HONEYPOT_FIELD, submitLead, type LeadFailure } from "./contract";
+import { RegionFields } from "./region-fields";
 import { SubmitStatus } from "./submit-status";
 import { NOT_READY_LABEL, useHydrated } from "./use-hydrated";
 
@@ -19,8 +21,10 @@ export type LeadField = {
   /**
    * "checkboxes" posts every ticked value joined with "," (option values must
    * not contain one); "hidden" posts `defaultValue` and renders no control.
+   * "region" renders the "State or territory" select and posts `state`;
+   * its name and label are unused.
    */
-  kind?: "text" | "email" | "url" | "textarea" | "select" | "checkboxes" | "hidden";
+  kind?: "text" | "email" | "url" | "textarea" | "select" | "checkboxes" | "hidden" | "region";
   options?: { value: string; label: string; hint?: string }[];
   optional?: boolean;
   autoComplete?: string;
@@ -28,10 +32,13 @@ export type LeadField = {
   defaultValue?: string | string[];
 };
 
-/** A field's posted value: checkbox groups join their ticked values. */
-function valueOf(data: FormData, field: LeadField): string {
-  if (field.kind === "checkboxes") return data.getAll(field.name).map(String).join(",");
-  return String(data.get(field.name) ?? "");
+/** A field's posted values: checkbox groups join their ticked values. */
+function entriesOf(data: FormData, field: LeadField): [string, string][] {
+  if (field.kind === "region") {
+    return [[REGION_FIELD_NAME, String(data.get(REGION_FIELD_NAME) ?? "")]];
+  }
+  if (field.kind === "checkboxes") return [[field.name, data.getAll(field.name).map(String).join(",")]];
+  return [[field.name, String(data.get(field.name) ?? "")]];
 }
 
 type State =
@@ -74,7 +81,7 @@ export function LeadForm({
     if (state.kind === "submitting") return;
     submissionId.current ??= crypto.randomUUID();
     const data = new FormData(event.currentTarget);
-    const values = Object.fromEntries(fields.map((f) => [f.name, valueOf(data, f)]));
+    const values = Object.fromEntries(fields.flatMap((f) => entriesOf(data, f)));
     setState({ kind: "submitting" });
     const result = await submitLead({
       form,
@@ -121,6 +128,10 @@ export function LeadForm({
         const id = `${baseId}-${field.name}`;
         const error = errors[field.name];
         const initial = typeof field.defaultValue === "string" ? field.defaultValue : undefined;
+
+        if (field.kind === "region") {
+          return <RegionFields key="region" idPrefix={baseId} errors={errors} controlClassName={CONTROL} />;
+        }
 
         if (field.kind === "hidden") {
           return <input key={field.name} type="hidden" name={field.name} defaultValue={initial ?? ""} />;
