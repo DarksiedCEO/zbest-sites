@@ -215,7 +215,7 @@ const privacyPolicy: InEffectLegalDocument = {
           p: "Agents: you can have someone else make a request for you. We may ask for your signed permission and confirm your identity directly with you, unless the agent holds a valid power of attorney.",
         },
         {
-          p: "Timing: we confirm receipt within 10 business days and respond within 45 days. If we need more time (up to another 45 days), we’ll tell you why.",
+          p: "Timing: we confirm receipt within 10 business days and respond within 30 days (one month for UK residents). If a request is complex and we need more time, we’ll tell you why within that period; the extension never goes beyond what the law where you live allows.",
         },
         {
           p: `Appeals: if we decline your request in whole or part, we’ll explain why. You can appeal by replying with the subject “Privacy appeal” within 60 days. We’ll answer within 60 days of receiving the appeal. If you’re not satisfied, you may contact your state attorney general (and, in California, the California Privacy Protection Agency).`,
