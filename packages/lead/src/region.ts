@@ -77,9 +77,14 @@ export const REGION_COPY = {
 } as const;
 
 /** The region as the forms post it: `state`, one of SERVICE_AREAS or "outside". */
-export const REGION = z.object({
-  state: z.string({ error: REGION_COPY.choose }).trim().pipe(z.enum(AREA_VALUES, { error: REGION_COPY.choose })),
-}) satisfies z.ZodType<Region, unknown>;
+export const REGION = z.object(
+  {
+    state: z.string({ error: REGION_COPY.choose }).trim().pipe(z.enum(AREA_VALUES, { error: REGION_COPY.choose })),
+  },
+  // A missing or non-object `region` (assessment/readiness requests) says the
+  // same thing as a missing `state`, not zod's "expected object" (AEGIS R-M2).
+  { error: REGION_COPY.choose },
+) satisfies z.ZodType<Region, unknown>;
 
 /** The founder's rule: served exactly when the area is one of SERVICE_AREAS. */
 export function regionServed(region: Region): region is { state: ServiceArea } {

@@ -874,6 +874,31 @@ test.describe("Service area (founder decisions 2026-10-30): 50 US states, DC, PR
     }
   });
 
+  test("assessment and readiness: a missing or invalid region is the same field error on `state` (spec amendment 2026-10-30)", async ({ page }) => {
+    const answers = (ids: string[]) => ids.map((q) => ({ question_id: q, value: 0 }));
+    const cases = [
+      ["assessment", "fixture-2026-09-18.2", ["follow_up", "conversion", "offer", "trust", "tracking", "creative", "visibility", "traffic"]],
+      ["readiness", "fixture-2026-09-20.1", ["business_profile", "entity_consistency", "reviews", "crawlability", "structured_data", "answer_content", "brand_citations", "local_listings"]],
+    ] as const;
+    for (const [form, version, ids] of cases) {
+      for (const region of [undefined, null, {}, { state: "US-VI" }]) {
+        const res = await page.request.post(`${ZBM_BASE_URL}/api/lead`, {
+          data: {
+            form,
+            submission_id: randomUUID(),
+            rule_set_version: version,
+            contact: { name: "A", business: "B", website: "example.com", reach: "r@example.com" },
+            ...(region === undefined ? {} : { region }),
+            answers: answers([...ids]),
+          },
+          failOnStatusCode: false,
+        });
+        expect(res.status(), `${form} ${JSON.stringify(region)}`).toBe(422);
+        expect((await res.json()).error.fields, `${form} ${JSON.stringify(region)}`).toEqual({ state: "Choose your state or territory." });
+      }
+    }
+  });
+
   test("a missing area, or a code outside the exact set, is a field error, not a lead", async ({ page }) => {
     for (const state of [undefined, "", "CA", "US-PR", "US-VI", "UM", "ON"]) {
       const res = await page.request.post(`${ZBM_BASE_URL}/api/lead`, {
