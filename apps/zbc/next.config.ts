@@ -13,6 +13,8 @@ const nextConfig: NextConfig = {
   // This is also what lets next/font run from inside @zbest/ui. @zbest/lead
   // (the server-only lead pipeline) ships as TypeScript source too.
   transpilePackages: ["@zbest/ui", "@zbest/lead"],
+  // No "X-Powered-By: Next.js": it only advertises the framework (sweep L2).
+  poweredByHeader: false,
   // CSP, HSTS and friends (packages/ui/src/security-headers.ts).
   async headers() {
     return securityHeaders();

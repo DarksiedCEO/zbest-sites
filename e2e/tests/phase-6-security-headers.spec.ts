@@ -68,6 +68,8 @@ for (const [app, base, extra] of [
       expect(h["referrer-policy"], p).toBe("strict-origin-when-cross-origin");
       expect(h["permissions-policy"], p).toContain("camera=()");
       expect(h["x-frame-options"], p).toBe("DENY");
+      // poweredByHeader: false (security sweep 2026-10-30, L2).
+      expect(h["x-powered-by"], `${p} x-powered-by`).toBeUndefined();
       await page.evaluate(() => document.fonts.ready);
       // next/font adds "<Family> Fallback" faces that point at system fonts
       // (local(Arial)). They are not fetched, so the CSP cannot affect them,
@@ -104,6 +106,29 @@ for (const [app, base, extra] of [
     await expect(banner).toBeHidden();
     expect(await violations(page)).toEqual([]);
     expect(consoleCsp).toEqual([]);
+  });
+
+  test(`${app}: Global Privacy Control is honoured as "Reject non-essential" without a banner`, async ({ page }) => {
+    // Privacy sweep 2026-10-30, F9. An earlier "accept" is overridden too.
+    await page.addInitScript(() => {
+      Object.defineProperty(Navigator.prototype, "globalPrivacyControl", { get: () => true, configurable: true });
+      if (!sessionStorage.getItem("seeded")) {
+        sessionStorage.setItem("seeded", "1");
+        localStorage.setItem("zbest-cookie-consent", JSON.stringify({ choice: "accepted-all", at: "2026-01-01T00:00:00.000Z" }));
+      }
+    });
+    await page.goto(`${base}/`, { waitUntil: "load" });
+    const banner = page.locator('[aria-labelledby="cookie-consent-heading"]');
+    await expect
+      .poll(() => page.evaluate(() => window.localStorage.getItem("zbest-cookie-consent")))
+      .toContain('"rejected-non-essential"');
+    await expect(banner).toBeHidden();
+    // Reopened from Cookie Settings, it does not offer "Accept all".
+    await page.goto(`${base}/legal/cookie-policy`, { waitUntil: "load" });
+    await page.getByRole("button", { name: "Change cookie settings" }).click();
+    await expect(banner).toBeVisible();
+    await expect(banner.getByRole("button", { name: "Accept all" })).toHaveCount(0);
+    await expect(banner.locator("[data-gpc-note]")).toBeVisible();
   });
 }
 

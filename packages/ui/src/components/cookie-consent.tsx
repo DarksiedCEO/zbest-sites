@@ -12,6 +12,19 @@ const STORAGE_KEY = "zbest-cookie-consent";
 const OPEN_EVENT = "zbest:cookie-settings";
 
 /**
+ * Global Privacy Control (privacy sweep 2026-10-30, F9): a browser that sends
+ * GPC has already said no to sale/sharing, so it is recorded as "Reject
+ * non-essential" without asking, and "Accept all" is not offered to it.
+ */
+const gpcOn = () => {
+  try {
+    return (navigator as Navigator & { globalPrivacyControl?: boolean }).globalPrivacyControl === true;
+  } catch {
+    return false;
+  }
+};
+
+/**
  * Cookie consent banner (Brief §3.2, §5; Legal Brief Part One §C).
  *
  * Rejecting non-essential cookies is a first-class button, not something behind
@@ -36,14 +49,28 @@ export function CookieConsent({
 }) {
   const [visible, setVisible] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
+  const [gpc, setGpc] = useState(false);
 
   useEffect(() => {
     // Storage can throw in private mode or with site data blocked; a banner
     // that crashes the page is worse than one that shows twice.
+    const signal = gpcOn();
+    setGpc(signal);
     try {
-      if (!window.localStorage.getItem(STORAGE_KEY)) setVisible(true);
+      const stored = window.localStorage.getItem(STORAGE_KEY);
+      if (signal) {
+        // GPC wins over any earlier choice, and needs no banner.
+        if (!stored?.includes('"rejected-non-essential"')) {
+          window.localStorage.setItem(
+            STORAGE_KEY,
+            JSON.stringify({ choice: "rejected-non-essential", at: new Date().toISOString(), gpc: true }),
+          );
+        }
+      } else if (!stored) {
+        setVisible(true);
+      }
     } catch {
-      setVisible(true);
+      if (!signal) setVisible(true);
     }
 
     // "Cookie Settings" (§A3, §B3) has to be able to reopen a choice that was
@@ -107,13 +134,19 @@ export function CookieConsent({
             >
               Reject non-essential
             </button>
-            <button
-              type="button"
-              onClick={() => choose("accepted-all")}
-              className="type-label bg-accent px-4 py-2.5 text-base"
-            >
-              Accept all
-            </button>
+            {gpc ? (
+              <p className="type-small text-text-secondary" data-gpc-note>
+                Your browser’s Global Privacy Control is on, so non-essential cookies stay off.
+              </p>
+            ) : (
+              <button
+                type="button"
+                onClick={() => choose("accepted-all")}
+                className="type-label bg-accent px-4 py-2.5 text-base"
+              >
+                Accept all
+              </button>
+            )}
           </div>
         </div>
 

@@ -52,7 +52,7 @@ type Row = {
   payload: Record<string, unknown>;
   services: string[];
   source: string | null;
-  ip_hash: string | null;
+  ip_hash?: string | null;
   user_agent: string | null;
 };
 type Email = { to: string[]; idempotency_key: string; subject: string; text: string; replyTo?: string };
@@ -148,9 +148,9 @@ test.describe("Success through the fake transport (§6.2)", () => {
     });
     expect(rows[0]!.payload).toMatchObject({ name, business: "Lead Gate Co", reach: "lead-gate@example.com" });
     // The gate server trusts x-forwarded-for, which `next start` fills from the socket
-    // when absent (this test sends none — see the R1 caution in playwright.config.ts),
-    // so the loopback address is hashed — never stored raw.
-    expect(rows[0]!.ip_hash).toMatch(/^[0-9a-f]{64}$/);
+    // when absent (this test sends none — see the R1 caution in playwright.config.ts).
+    // Nothing derived from the address is stored (privacy sweep 2026-10-30): no ip_hash.
+    expect(rows[0]).not.toHaveProperty("ip_hash");
     expect(JSON.stringify(rows[0])).not.toContain("127.0.0.1");
 
     const emails = await emailsFor("zbm", id);
