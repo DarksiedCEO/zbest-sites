@@ -83,7 +83,12 @@ export function LegalShell({
                         {String(n).padStart(2, "0")}
                       </span>
                       <div>
-                        <h3 className="type-body font-semibold">{heading}</h3>
+                        {/* h2 when the part has no heading of its own, so the outline never skips h1 → h3 (WCAG 1.3.1). */}
+                        {part.heading ? (
+                          <h3 className="type-body font-semibold">{heading}</h3>
+                        ) : (
+                          <h2 className="type-body font-semibold">{heading}</h2>
+                        )}
                         <p
                           data-placeholder
                           className="type-small mt-1.5 text-text-secondary"

@@ -48,9 +48,10 @@ export function Footer({
           <div className="grid grid-cols-2 gap-x-10 gap-y-stack sm:grid-cols-3 lg:flex lg:gap-14">
             {columns.map((column) => (
               <div key={column.heading}>
-                <p className="type-label mb-3 text-text-secondary">
+                {/* A real heading (WCAG 1.3.1): it names the link list below. */}
+                <h2 className="type-label mb-3 text-text-secondary">
                   {column.heading}
-                </p>
+                </h2>
                 <ul className="flex flex-col gap-2">
                   {column.links.map((link) => (
                     <li key={`${link.label}-${link.href}`}>
