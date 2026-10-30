@@ -13,8 +13,8 @@ Legal pages — Z Best Media: founder decision Oct 30 2026 put real Privacy
 Policy, Terms of Service, Cookie Policy and Refund and Cancellation Policy
 (/legal/refunds, must match the MSA/SOW refund terms) text IN EFFECT now, plus
 an Accessibility Statement (/legal/accessibility) whose known limitations must
-be updated in the same commit as each accessibility fix. Service area: the 50
-US states, DC, Puerto Rico and Guam only.
+be updated in the same commit as each accessibility fix. Service area: the
+United States, including DC and all U.S. territories (PR, GU, VI, AS, MP).
 Text lives in apps/zbm/lib/legal.ts and must match what the code collects,
 stores, sends and sets in the browser: change it in the same commit as any
 such code change. ZBM legal pages show no draft banner. Bracketed

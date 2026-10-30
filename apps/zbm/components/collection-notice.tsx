@@ -14,8 +14,8 @@ export function CollectionNotice() {
       <Link href="/legal/terms-of-service" className="underline underline-offset-4">
         Terms of Service
       </Link>{" "}
-      and confirm your business is in our service area (the 50 US states, DC, Puerto Rico or
-      Guam). See our{" "}
+      and confirm your business is in our service area: the United States, including DC and all
+      U.S. territories. See our{" "}
       <Link href="/legal/privacy-policy#california" className="underline underline-offset-4">
         Privacy Policy
       </Link>{" "}

@@ -105,7 +105,7 @@ const privacyPolicy: InEffectLegalDocument = {
           },
         },
         {
-          p: "We ask where your business is located because we only serve clients in the 50 US states, the District of Columbia, Puerto Rico and Guam. If you choose a place outside that area, the form tells you so, and nothing you entered is saved or reaches us.",
+          p: "We ask where your business is located because we only serve clients in the United States, including the District of Columbia and all U.S. territories (Puerto Rico, Guam, the U.S. Virgin Islands, American Samoa and the Northern Mariana Islands). If you choose a place outside that area, the form tells you so, and nothing you entered is saved or reaches us.",
         },
         {
           p: "Please don’t put sensitive personal information — such as health information, financial account numbers, government ID numbers or passwords — into a free-text box. We don’t ask for it and don’t need it.",
@@ -331,7 +331,7 @@ const privacyPolicy: InEffectLegalDocument = {
       heading: "Where we operate and international transfers",
       blocks: [
         {
-          p: "We are based in Long Beach, California, and serve clients only in the 50 US states, the District of Columbia, Puerto Rico and Guam. Anyone may read the site, but we decline enquiries from outside that area (see our [Terms of Service](/legal/terms-of-service#service-area)).",
+          p: "We are based in Long Beach, California, and serve clients only in the United States, including the District of Columbia and all U.S. territories (Puerto Rico, Guam, the U.S. Virgin Islands, American Samoa and the Northern Mariana Islands). Anyone may read the site, but we decline enquiries from outside that area (see our [Terms of Service](/legal/terms-of-service#service-area)).",
         },
         {
           p: "Information you send us is stored and processed in the United States, and may also be processed in other countries where our service providers operate. Data-protection laws there may differ from those where you are.",
@@ -371,7 +371,7 @@ const termsOfService: InEffectLegalDocument = {
   summary: [
     "These terms cover using our website and its free tools. They don’t cover paid services — those are governed by the written agreement we sign with each client.",
     "Free assessments are informational estimates based on your answers. They aren’t a guarantee of results and aren’t legal, tax, accounting or financial advice.",
-    "We serve clients only in the 50 US states, the District of Columbia, Puerto Rico and Guam. Anyone may read the site, but we decline enquiries from elsewhere.",
+    "We serve clients only in the United States, including the District of Columbia and all U.S. territories (Puerto Rico, Guam, the U.S. Virgin Islands, American Samoa and the Northern Mariana Islands). Anyone may read the site, but we decline enquiries from elsewhere.",
     "Use the site lawfully and don’t try to break, overload or scrape it.",
     "California law applies, and disputes go to the courts in Los Angeles County — or small claims court. There is no mandatory arbitration and no class-action waiver.",
   ],
@@ -405,7 +405,7 @@ const termsOfService: InEffectLegalDocument = {
       heading: "Service area",
       blocks: [
         {
-          p: "We serve clients only in the 50 US states, the District of Columbia, Puerto Rico and Guam. We do not offer our services anywhere else, or to anyone who is named on — or owned or controlled by someone named on — a US sanctions list. Anyone may read the site, but we decline enquiries from outside our service area, and we may ask where you or your business is located before replying.",
+          p: "We serve clients only in the United States, including the District of Columbia and all U.S. territories (Puerto Rico, Guam, the U.S. Virgin Islands, American Samoa and the Northern Mariana Islands). We operate only under US law and do not offer our services anywhere else, or to anyone who is named on — or owned or controlled by someone named on — a US sanctions list. Anyone may read the site, but we decline enquiries from outside our service area, and we may ask where you or your business is located before replying.",
         },
         {
           p: "By submitting a form you confirm that you and the business you represent are located in our service area and are not a sanctioned person as described above.",
@@ -822,7 +822,7 @@ const refundPolicy: InEffectLegalDocument = {
           p: "It restates the refund and cancellation terms of the MSA and our standard SOWs. Your project is governed by the versions of the MSA and the SOW you accepted; if this page and those documents ever differ, the MSA and your SOW control.",
         },
         {
-          p: "We work only with businesses, not with individual consumers, and only with businesses located in the 50 US states, the District of Columbia, Puerto Rico and Guam. Our website’s free tools cost nothing, so there is nothing to refund. Nothing in this policy takes away any right you have under applicable law, or under the rules of your bank or card network.",
+          p: "We work only with businesses, not with individual consumers, and only with businesses located in the United States, including the District of Columbia and all U.S. territories (Puerto Rico, Guam, the U.S. Virgin Islands, American Samoa and the Northern Mariana Islands). Our website’s free tools cost nothing, so there is nothing to refund. Nothing in this policy takes away any right you have under applicable law, or under the rules of your bank or card network.",
         },
       ],
     },
