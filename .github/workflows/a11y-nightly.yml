@@ -1,0 +1,112 @@
+# Nightly accessibility gate (AEGIS F3). The required per-PR gate is
+# e2e/tests/a11y.spec.ts inside CI / e2e; this adds what is too slow for every
+# PR, and never blocks a merge itself:
+#   - e2e/tests/a11y.nightly.spec.ts: WCAG 2.4.11 focus walks on EVERY route
+#     of both sites, and axe + the 1.4.11 border check on every form's
+#     success screen;
+#   - the same accessibility specs on Firefox (firefox-1440), alongside
+#     Chromium desktop and WebKit mobile;
+#   - the PR spec's @keyboard tests three times over with retries off, so a
+#     flake the PR gate's single retry hides shows up here.
+# A failing run opens an issue, or comments on the open one.
+#
+# Third-party actions are pinned to full commit SHAs (tag in the comment),
+# the same pins as ci.yml.
+
+name: a11y-nightly
+
+on:
+  schedule:
+    # 10:17 UTC: 03:17 in Los Angeles (PDT), outside US working hours.
+    - cron: "17 10 * * *"
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: a11y-nightly-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "22"
+  TURBO_TELEMETRY_DISABLED: "1"
+  # Enables a11y.nightly.spec.ts and the firefox-1440 project (e2e/playwright.config.ts).
+  A11Y_NIGHTLY: "1"
+
+jobs:
+  a11y:
+    name: a11y nightly (${{ matrix.project }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - project: desktop-1440
+            browser: chromium
+          - project: mobile-390
+            browser: webkit
+          - project: firefox-1440
+            browser: firefox
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Install Playwright browser
+        run: pnpm --filter e2e exec playwright install --with-deps ${{ matrix.browser }}
+      # Every accessibility test, PR set plus nightly set, on this browser.
+      - name: Accessibility specs (${{ matrix.project }})
+        run: >-
+          pnpm --filter e2e exec playwright test
+          tests/a11y.spec.ts tests/a11y.nightly.spec.ts
+          --project=${{ matrix.project }}
+      # The keyboard tests again, three times each, with no retry to absorb a flake.
+      - name: Keyboard tests x3, no retries (${{ matrix.project }})
+        if: ${{ !cancelled() }}
+        run: >-
+          pnpm --filter e2e exec playwright test tests/a11y.spec.ts
+          --project=${{ matrix.project }} --grep @keyboard --repeat-each=3 --retries=0
+      - name: Upload output
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: a11y-nightly-${{ matrix.project }}-${{ github.sha }}
+          path: |
+            e2e/playwright-report/
+            e2e/test-results/
+          retention-days: 14
+
+  report:
+    name: open an issue on failure
+    needs: [a11y]
+    if: ${{ failure() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - name: Open or update the nightly accessibility issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          title="Nightly accessibility gate failing"
+          body="The a11y-nightly run failed on ${SHA}: ${RUN_URL}"
+          existing=$(gh issue list --state open --search "\"${title}\" in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+          else
+            gh issue create --title "$title" --body "$body
+
+          See docs/accessibility.md for what this run covers. The required per-PR gate (CI / e2e) is unaffected; this run adds full-route focus walks, success screens, Firefox and repeat runs."
+          fi
