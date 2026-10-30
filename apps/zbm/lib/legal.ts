@@ -105,7 +105,7 @@ const privacyPolicy: InEffectLegalDocument = {
           },
         },
         {
-          p: "We ask where your business is located because we only serve clients in the 50 US states, the District of Columbia, Puerto Rico and Guam. If you choose a place outside that area, the form tells you so and nothing you entered is stored or sent to us.",
+          p: "We ask where your business is located because we only serve clients in the 50 US states, the District of Columbia, Puerto Rico and Guam. If you choose a place outside that area, the form tells you so, and nothing you entered is saved or reaches us.",
         },
         {
           p: "Please don’t put sensitive personal information — such as health information, financial account numbers, government ID numbers or passwords — into a free-text box. We don’t ask for it and don’t need it.",
