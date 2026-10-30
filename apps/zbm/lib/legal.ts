@@ -13,8 +13,16 @@ import { legalDocumentStrings, legalPlaceholders, type ConsentCategory, type InE
  * notes that came with this change. In particular:
  *   - lead fields:     apps/zbm/lib/lead.ts, lib/assessment/contract.ts,
  *                      lib/visibility/contract.ts
- *   - what is stored:  packages/lead/sql/001_leads.sql, src/pipeline.ts
- *   - IP handling:     packages/lead/src/ip.ts (HMAC stored, SHA-256 rate key)
+ *   - what is stored:  packages/lead/sql/001_leads.sql, 002_retention.sql,
+ *                      003_region.sql, src/pipeline.ts
+ *   - retention:       packages/lead/src/retention.ts + /api/cron/purge-leads
+ *                      (730 days rows, 90 days user agent: the env defaults)
+ *   - IP handling:     packages/lead/src/ip.ts (no IP or IP hash stored with a
+ *                      lead; rate-limit key is the keyed HMAC, ~10-minute life)
+ *   - service area:    packages/lead/src/region.ts (country, province)
+ *
+ * These statements describe the code AFTER site-hardening-2026-10-30
+ * (1a96d3e, d04aa17, 3e29c3b, 37b67dc), which merges before this text ships.
  *   - email:           packages/lead/src/resend.ts, src/email.ts
  *   - browser storage: packages/ui/src/components/cookie-consent.tsx
  *   - no analytics, no ad pixels, self-hosted fonts, CSP 'self':
@@ -46,7 +54,7 @@ const privacyPolicy: InEffectLegalDocument = {
   summary: [
     "We collect what you type into our forms — your name, your business, how to reach you, and your answers — so we can reply and, for the free assessment, show you a result.",
     "We don’t sell or share your personal information for advertising. The site has no analytics, no advertising pixels and no third-party tracking scripts.",
-    "We never store your IP address in our records in readable form. To stop spam and abuse we use, at most, a keyed one-way code made from it.",
+    "We don’t store your IP address, or any code made from it, with what you send us. To stop spam, a keyed one-way code made from it is kept for about 10 minutes. Our hosting provider’s request logs record IP addresses for a short period.",
     "A small number of service providers help us run the site and deliver your message to us. They may use your information only to do that work for us.",
     `You can ask to see, correct or delete your information at any time by emailing ${PRIVACY_EMAIL}. We give these rights to everyone, wherever you live.`,
   ],
@@ -78,21 +86,24 @@ const privacyPolicy: InEffectLegalDocument = {
             rows: [
               [
                 "Contact form",
-                "Your name, your business name, what you’re looking to solve, and the best way to reach you (for example an email address or phone number).",
+                "Your name, your business name, what you’re looking to solve, the best way to reach you (for example an email address or phone number), and your country (and province or territory, if you’re in Canada).",
                 "To read your message and reply.",
               ],
               [
                 "Start a Project (intake form)",
-                "The services you’re interested in, your name, business name and the best way to reach you. Optionally: your website, a budget range, a timing range and any other details you add.",
+                "The services you’re interested in, your name, business name, the best way to reach you, and your country (and province or territory, if you’re in Canada). Optionally: your website, a budget range, a timing range and any other details you add.",
                 "To understand the project and reply with a useful next step.",
               ],
               [
                 "Free assessments (for example the Revenue Recovery assessment)",
-                "Your name, business name, business website and the best way to reach you, plus your answers to the assessment’s multiple-choice questions.",
+                "Your name, business name, business website, the best way to reach you and your country (and province or territory, if you’re in Canada), plus your answers to the assessment’s multiple-choice questions.",
                 "To score your answers, show you the result, and follow up with you about it.",
               ],
             ],
           },
+        },
+        {
+          p: "We ask for your country because we only serve businesses in the United States, the United Kingdom and Canada (outside Quebec). If you choose a place outside that area, the form tells you so and nothing you entered is stored or sent to us.",
         },
         {
           p: "Please don’t put sensitive personal information — such as health information, financial account numbers, government ID numbers or passwords — into a free-text box. We don’t ask for it and don’t need it.",
@@ -100,7 +111,7 @@ const privacyPolicy: InEffectLegalDocument = {
         { p: "Information collected automatically when you submit a form. With each submission we also record:" },
         {
           list: [
-            "At most, a keyed one-way code (an HMAC-SHA-256 hash) made from your IP address. We never store the IP address itself. The code lets us recognize repeated abuse from the same source without keeping your address.",
+            "Nothing about your IP address is stored with your submission. To limit how often forms can be sent, a keyed one-way code (an HMAC-SHA-256 hash) made from your IP address is held for about 10 minutes and then discarded.",
             "Your browser’s user-agent string (it names your browser and operating system), shortened to 500 characters and deleted automatically after 90 days, so we can investigate spam and fix problems that affect particular browsers.",
             "The date and time of the submission, and a random submission ID your browser creates so a double-click doesn’t send the same form twice.",
             "If you reached the intake form from one of our campaign links, the short campaign tag in that link (for example from a billboard or an ad), so we know which campaign brought you. It identifies the campaign, not you.",
@@ -145,8 +156,8 @@ const privacyPolicy: InEffectLegalDocument = {
             caption: "Service providers that handle personal information from the site",
             head: ["Provider type", "What they do for us", "What they receive"],
             rows: [
-              ["Website hosting (Vercel)", "Serves the site and runs the code that receives form submissions.", "Your requests to the site, including your IP address and browser details, and the content of any form you submit."],
-              ["Database hosting", "Stores form submissions.", "Everything listed under “What we collect” for the forms, except your raw IP address."],
+              ["Website hosting (Vercel)", "Serves the site, runs the code that receives form submissions, and keeps short-lived request logs.", "Your requests to the site, including your IP address, browser details and the page addresses you visit, and the content of any form you submit."],
+              ["Database hosting", "Stores form submissions.", "The form contents, country, user-agent string, campaign tag, submission ID and time listed under “What we collect”. No IP address."],
               ["Email delivery (Resend)", "Delivers each new submission to our inbox as an email.", "The content of your submission."],
               ["Business email (our email provider)", "Holds the notification emails and our correspondence with you.", "The content of your submission and any emails you exchange with us."],
               ["Rate-limit store (if enabled)", "Counts submissions per source to stop floods of spam.", "Only a keyed, one-way hash of your IP address, kept for about 10 minutes to limit abuse."],
@@ -172,7 +183,11 @@ const privacyPolicy: InEffectLegalDocument = {
             rows: [
               [
                 "Form submissions, including anything stored with them",
-                "Deleted automatically 24 months after you send them, unless you become a client (your contract then governs what happens next) or you ask us to delete them sooner.",
+                "Deleted automatically 24 months after you send them, or sooner if you ask us to delete them.",
+              ],
+              [
+                "Records of work for clients",
+                "If you become a client, the records of our work together are kept as your client agreement says.",
               ],
               [
                 "Your browser’s user-agent string, stored with a submission",
@@ -183,13 +198,14 @@ const privacyPolicy: InEffectLegalDocument = {
                 "We delete them from our inbox on the same 24-month schedule. Our email-delivery provider keeps its own copy under its retention terms.",
               ],
               ["Rate-limit counters", "A keyed, one-way hash of your IP address, kept for about 10 minutes to limit abuse."],
+              ["Request logs at our hosting provider (IP address, browser details, page address)", "Available to us for no more than 30 days, depending on our hosting plan, then deleted from our view. The provider handles its own operational records under its privacy policy."],
               ["Your cookie-banner choice", "Stored only in your own browser until you clear it. We never receive it."],
               ["Records of privacy requests", "24 months, to show we handled them as the law requires."],
             ],
           },
         },
         {
-          p: "We may keep information longer if we must do so to comply with the law, resolve a dispute or enforce our agreements, and only for as long as that need lasts.",
+          p: "Legal holds: if we must keep specific information to comply with the law, or because of a dispute, an investigation or a claim, we may pause deletion of that information only, and only for as long as the hold lasts. We then delete it on the normal schedule.",
         },
       ],
     },
@@ -239,9 +255,10 @@ const privacyPolicy: InEffectLegalDocument = {
             caption: "Categories of personal information we collect",
             head: ["CCPA category", "Examples from our forms", "Source", "Disclosed for a business purpose to"],
             rows: [
-              ["Identifiers", "Name, email address or phone number you give us, submission ID and, if we keep it, the hashed IP code", "You; your browser", "Hosting, database, email delivery and business email providers"],
+              ["Identifiers", "Name, email address or phone number you give us, submission ID; IP address in our hosting provider’s short-lived request logs", "You; your browser", "Hosting, database, email delivery and business email providers"],
               ["Customer records (Cal. Civ. Code § 1798.80(e))", "Name, contact details", "You", "Same as above"],
               ["Commercial information", "Services you’re interested in, budget and timing ranges", "You", "Same as above"],
+              ["Geolocation (coarse, self-declared)", "Your country, and province or territory in Canada — never a precise location", "You", "Same as above"],
               ["Professional information", "Your business name and website", "You", "Same as above"],
               ["Internet or network activity", "Browser user-agent, campaign tag in the link you followed", "Your browser", "Hosting and database providers"],
               ["Inferences", "Your free assessment result, which describes your business", "Our scoring of your answers", "Hosting, database, email delivery and business email providers"],
@@ -321,11 +338,11 @@ const privacyPolicy: InEffectLegalDocument = {
       ],
     },
     {
-      id: "signals",
+      id: "your-privacy-choices",
       heading: "Do Not Track and Global Privacy Control",
       blocks: [
         {
-          p: "Some browsers send a “Do Not Track” (DNT) or Global Privacy Control (GPC) signal. Our site does not track you across other websites over time, does not allow other companies to do so through our site, and does not sell or share personal information, so these signals have nothing to switch off today and our site doesn’t change its behavior when it receives them.",
+          p: "Some browsers send a “Do Not Track” (DNT) or Global Privacy Control (GPC) signal. Our site does not track you across other websites over time, does not allow other companies to do so through our site, and does not sell or share personal information, so there is nothing for these signals to switch off today. If your browser sends Global Privacy Control, our cookie banner records “Reject non-essential” for you automatically, doesn’t ask, and doesn’t offer “Accept all”.",
         },
         {
           p: "If we ever add an advertising or analytics tool that would sell or share personal information, we will treat a GPC signal as a valid request to opt out of selling and sharing for that browser, and we will update this policy before the tool goes live.",
@@ -349,7 +366,7 @@ const privacyPolicy: InEffectLegalDocument = {
           list: [
             "The site is served only over encrypted HTTPS connections, and browsers are told to refuse unencrypted connections to it (HSTS).",
             "A strict content security policy allows the site to load scripts, styles, fonts and images only from our own domain.",
-            "We never store your IP address in readable form; at most we keep a keyed one-way code made from it. Our application logs record event codes and IDs, never form contents, IP addresses or email addresses.",
+            "Our database stores no IP addresses, and our application logs record event codes and IDs, never form contents, IP addresses or email addresses.",
             "Form submissions are sent to the database over encrypted connections, and access to them is limited to the people at Z Best Media who need it to respond to you.",
             "Forms are protected against automated abuse with rate limits and spam traps.",
           ],
@@ -670,7 +687,7 @@ const cookiePolicy: InEffectLegalDocument = {
                 "Local storage (not a cookie)",
                 "Z Best Media (first party)",
                 "Strictly necessary. Remembers your choice on the cookie banner so it isn’t shown on every page.",
-                "Your choice (“accepted-all” or “rejected-non-essential”) and the time you made it.",
+                "Your choice (“accepted-all” or “rejected-non-essential”), the time it was made, and whether your browser’s Global Privacy Control signal made it for you.",
                 "Until you clear your browser’s site data. It is never sent to us.",
               ],
             ],
@@ -710,7 +727,7 @@ const cookiePolicy: InEffectLegalDocument = {
           p: "The cookie banner lets you “Accept all” or “Reject non-essential”, with equal prominence. Because the site has no non-essential cookies today, both choices currently lead to the same experience; we record your choice so it is ready to apply if that ever changes. You can change it at any time with the “Change cookie settings” button on this page, or through “Cookie Settings” in the site footer.",
         },
         {
-          p: "If we ever add an optional analytics or advertising tool, we will update this policy before it goes live, keep it switched off unless you accept it, and ask you again — an earlier “Accept all”, given before the tool existed, won’t count as consent to it. We will treat a Global Privacy Control signal as a request to opt out of any selling or sharing of personal information.",
+          p: "If we ever add an optional analytics or advertising tool, we will update this policy before it goes live, keep it switched off unless you accept it, and ask you again — an earlier “Accept all”, given before the tool existed, won’t count as consent to it. If your browser sends Global Privacy Control, we record “Reject non-essential” for you automatically and don’t show the banner; that will also count as a request to opt out of any selling or sharing of personal information.",
         },
         {
           p: "You can also use your browser’s settings to block cookies or clear site data. Clearing site data for zbestmedia.com removes your banner choice, and the banner will ask again on your next visit. Blocking storage entirely won’t stop the site from working; the banner may just appear more often.",
