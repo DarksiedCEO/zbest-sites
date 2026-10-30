@@ -39,7 +39,7 @@ export function LegalShell({
 }) {
   let n = 0;
   return (
-    <main className="mx-auto max-w-[90rem] px-gutter py-section lg:px-gutter-wide">
+    <main id="main" className="mx-auto max-w-[90rem] px-gutter py-section lg:px-gutter-wide">
       <div
         role="note"
         aria-label="Legal draft notice"

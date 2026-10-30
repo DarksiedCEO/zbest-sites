@@ -216,7 +216,7 @@ test.describe("Home (§A4)", () => {
   test("hero stat block shows non-outcome facts only, no counter claim", async ({ page }) => {
     await visit(page, byPath("/"));
     const rows = await page.evaluate(() =>
-      [...document.querySelectorAll("main header dl > div > div")].map((row) => [
+      [...document.querySelectorAll("main header dl > div")].map((row) => [
         row.querySelector("dt")?.textContent?.trim(),
         row.querySelector("dd")?.textContent?.trim(),
       ]),

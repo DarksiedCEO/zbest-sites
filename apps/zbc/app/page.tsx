@@ -24,7 +24,7 @@ const EXAMPLES = [
 
 export default function HowItWorksPage() {
   return (
-    <main>
+    <main id="main">
       <PageHeader
         label="How It Works"
         title="One source. Dozens of clips. Real reach."

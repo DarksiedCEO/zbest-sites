@@ -16,7 +16,7 @@ export const metadata = pageMetadata(SITE, {
  */
 export default function BrandsPage() {
   return (
-    <main data-page-focus="brands">
+    <main id="main" data-page-focus="brands">
       <PageHeader label="Brands" title="Build an audience that keeps showing up.">
         <Lead>
           Your showroom floor, your treatment room, your storefront — turned into a real,

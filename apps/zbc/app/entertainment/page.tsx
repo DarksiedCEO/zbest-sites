@@ -19,7 +19,7 @@ export const metadata = pageMetadata(SITE, {
  */
 export default function EntertainmentPage() {
   return (
-    <main data-page-focus="entertainment">
+    <main id="main" data-page-focus="entertainment">
       <PageHeader label="Entertainment" title="Get discovered by people who’ve never heard of you.">
         <Lead>
           Music, film, television, streaming content, sports — and the artists, creators,

@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 
 export default function DevSystemPage() {
   return (
-    <main className="mx-auto max-w-[90rem] px-gutter py-section lg:px-gutter-wide">
+    <main id="main" className="mx-auto max-w-[90rem] px-gutter py-section lg:px-gutter-wide">
       <header className="mb-section">
         <p className="type-label text-accent">Phase 2 — design system</p>
         <h1 className="type-display mt-3">Z Best Media</h1>

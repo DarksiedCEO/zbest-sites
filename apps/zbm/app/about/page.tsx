@@ -16,7 +16,7 @@ export const metadata = pageMetadata(SITE, {
  */
 export default function AboutPage() {
   return (
-    <main>
+    <main id="main">
       <PageHeader label="About" title="An advertising agency built on evidence, not promises.">
         <Lead>
           Z Best Media is a full-service advertising agency — digital, TV, radio,

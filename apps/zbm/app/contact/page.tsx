@@ -15,7 +15,7 @@ export const metadata = pageMetadata(SITE, {
 /** Contact (Brief §A4), form per §6.1 posting to the §6.2 lead route. */
 export default function ContactPage() {
   return (
-    <main>
+    <main id="main">
       <PageHeader
         label="Contact"
         title="Tell us what’s actually going on. We’ll tell you honestly whether we’re the right fit."

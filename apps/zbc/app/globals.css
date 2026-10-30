@@ -13,4 +13,10 @@
        scroll-padding-bottom itself while it is open. */
     scroll-padding-top: 5rem;
   }
+
+  /* The skip link focuses <main> (tabindex=-1) so the next Tab continues from
+     the content; the container itself needs no ring. */
+  main[tabindex="-1"]:focus {
+    outline: none;
+  }
 }

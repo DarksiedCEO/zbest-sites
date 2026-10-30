@@ -22,6 +22,7 @@ export { Nav } from "./components/nav";
 export type { NavItem } from "./components/nav";
 export { NotFoundContent } from "./components/not-found-content";
 export { ScrollScrub } from "./components/scroll-scrub";
+export { SkipLink } from "./components/skip-link";
 export { StatBlock } from "./components/stat-block";
 export type { StatRow } from "./components/stat-block";
 export { FOCUS_AREAS } from "./focus";
