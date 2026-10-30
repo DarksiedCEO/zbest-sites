@@ -299,7 +299,7 @@ for (const app of APPS) {
         // Every section is a placeholder: as many markers as section headings,
         // plus the entity line.
         const counts = await page.evaluate(() => ({
-          sections: document.querySelectorAll("main ol h3").length,
+          sections: document.querySelectorAll("main ol :is(h2, h3)").length,
           placeholders: document.querySelectorAll("main ol [data-placeholder]").length,
         }));
         expect(counts.sections).toBeGreaterThanOrEqual(3);

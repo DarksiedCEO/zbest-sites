@@ -21,7 +21,8 @@ export function SkipLink({ className = "" }: { className?: string }) {
         if (!main.hasAttribute("tabindex")) main.setAttribute("tabindex", "-1");
         main.focus();
       }}
-      className={`type-label sr-only z-[70] bg-accent px-4 py-2.5 text-base focus:not-sr-only focus:fixed focus:left-4 focus:top-3 ${className}`}
+      // Styles apply only while focused, so the hidden link has no box at all.
+      className={`type-label sr-only z-[70] text-base focus:not-sr-only focus:fixed focus:left-4 focus:top-3 focus:bg-accent focus:px-4 focus:py-2.5 ${className}`}
     >
       Skip to content
     </a>
