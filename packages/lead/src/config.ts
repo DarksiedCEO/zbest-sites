@@ -30,6 +30,7 @@ export type Transport = {
   store: LeadStore;
   /** null only when LEAD_NOTIFY=disabled was set on purpose. */
   notifier: LeadNotifier | null;
+  /** Keyed HMAC of a client address (LEAD_IP_HASH_SECRET). Rate-limit keys only. */
   hashIp: (ip: string) => string;
 };
 

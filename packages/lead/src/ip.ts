@@ -1,4 +1,4 @@
-import { createHash, createHmac } from "node:crypto";
+import { createHmac } from "node:crypto";
 import { isIP } from "node:net";
 
 /**
@@ -125,9 +125,10 @@ export function clientIp(headers: Headers, source: IpSource | null): ClientAddre
   return value ? normalizeIp(value) : null;
 }
 
-/** Brief §6.2 `ip_hash`: HMAC-SHA256 so the stored value cannot be reversed by a lookup table. */
+/**
+ * HMAC-SHA256 with LEAD_IP_HASH_SECRET, so the value cannot be reversed by a
+ * lookup table. Used for the rate-limit key (truncated), which is the only
+ * place a derivative of the client address goes.
+ */
 export const hmacIp = (secret: string) => (ip: string) =>
   createHmac("sha256", secret).update(ip).digest("hex");
-
-/** Rate-limit keys only (never stored): a plain hash so no raw IP leaves the process. */
-export const plainIpKey = (ip: string) => createHash("sha256").update(ip).digest("hex").slice(0, 32);
