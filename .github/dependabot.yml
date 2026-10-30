@@ -2,6 +2,11 @@
 # Every PR they open runs the full CI gate, including CI / audit.
 # Security updates (Dependabot alerts) are separate and arrive as soon as an
 # advisory is published; turn them on in Settings → Code security.
+#
+# Cooldown (AEGIS H-L2): version-update PRs wait until a release is 14 days
+# old, matching the repo's rule of only pinning versions at least two weeks
+# old (supply-chain hygiene: most malicious releases are pulled within days).
+# Cooldown applies to version updates only; security updates are not delayed.
 version: 2
 updates:
   - package-ecosystem: npm
@@ -10,6 +15,8 @@ updates:
       interval: weekly
       day: monday
     open-pull-requests-limit: 5
+    cooldown:
+      default-days: 14
     groups:
       # One PR a week for everything that is not a major bump.
       minor-and-patch:
@@ -23,6 +30,8 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    cooldown:
+      default-days: 14
     groups:
       actions:
         patterns: ["*"]
