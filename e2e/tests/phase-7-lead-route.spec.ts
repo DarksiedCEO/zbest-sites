@@ -818,7 +818,7 @@ test.describe("Before hydration (AEGIS r5 N1)", () => {
   }
 });
 
-test.describe("Service area (founder decision 2026-10-30): 50 US states, DC, Puerto Rico, Guam", () => {
+test.describe("Service area (founder decisions 2026-10-30): 50 US states, DC, PR, GU, VI, AS, MP", () => {
   test("'Outside these areas' gets the polite decline, nothing is stored or sent; a served area then goes through; captured", async ({
     page,
   }, testInfo) => {
@@ -829,10 +829,12 @@ test.describe("Service area (founder decision 2026-10-30): 50 US states, DC, Pue
     const form = startForm(page);
     const area = form.getByLabel("State or territory", { exact: true });
     const options = await area.locator("option").allTextContents();
-    expect(options).toHaveLength(55); // "Choose one", 53 areas, "Outside these areas"
-    expect(options.slice(-4)).toEqual(["District of Columbia", "Puerto Rico", "Guam", "Outside these areas"]);
+    expect(options).toHaveLength(58); // "Choose one", 56 areas, "Outside these areas"
+    expect(options.slice(-7)).toEqual([
+      "District of Columbia", "Puerto Rico", "Guam", "US Virgin Islands", "American Samoa", "Northern Mariana Islands", "Outside these areas",
+    ]);
     await expect(area).toHaveAccessibleDescription(
-      "We currently work with businesses in the 50 US states, the District of Columbia, Puerto Rico and Guam.",
+      "We currently work with businesses in the 50 US states, the District of Columbia and the US territories: Puerto Rico, Guam, the US Virgin Islands, American Samoa and the Northern Mariana Islands.",
     );
 
     await area.selectOption("outside");
@@ -842,7 +844,7 @@ test.describe("Service area (founder decision 2026-10-30): 50 US states, DC, Pue
     const alert = form.locator('[data-lead-failure="region_unavailable"]');
     await expect(alert).toHaveAttribute("role", "alert");
     await expect(alert).toHaveText(
-      "Sorry — we can only work with businesses in the 50 US states, the District of Columbia, Puerto Rico and Guam right now, so nothing was saved or sent.",
+      "Sorry — we can only work with businesses in the 50 US states, the District of Columbia and the US territories right now, so nothing was saved or sent.",
     );
     await expect(page.locator('[data-lead-result="accepted"]')).toHaveCount(0);
     const id = refused.request().postDataJSON().submission_id as string;
@@ -851,11 +853,11 @@ test.describe("Service area (founder decision 2026-10-30): 50 US states, DC, Pue
     expect(await rowsMentioning("zbm", name)).toHaveLength(0);
     await capture(page, "start-region-refused", testInfo.project.name);
 
-    await area.selectOption("GU");
+    await area.selectOption("VI");
     const ok = await sendStartNow(page);
     expect(ok.status()).toBe(200);
     const [row] = await rowsFor("zbm", ok.request().postDataJSON().submission_id as string);
-    expect(row).toMatchObject({ service_area: "GU" });
+    expect(row).toMatchObject({ service_area: "VI" });
   });
 
   test("'outside' is declined in both apps and on the assessment; nothing is stored", async ({ page }) => {
@@ -873,7 +875,7 @@ test.describe("Service area (founder decision 2026-10-30): 50 US states, DC, Pue
   });
 
   test("a missing area, or a code outside the exact set, is a field error, not a lead", async ({ page }) => {
-    for (const state of [undefined, "", "CA", "US-PR", "VI", "ON"]) {
+    for (const state of [undefined, "", "CA", "US-PR", "US-VI", "UM", "ON"]) {
       const res = await page.request.post(`${ZBM_BASE_URL}/api/lead`, {
         data: { form: "contact", submission_id: randomUUID(), fields: { name: "A", business: "B", problem: "C", reach: "D", ...(state === undefined ? {} : { state }) } },
         failOnStatusCode: false,

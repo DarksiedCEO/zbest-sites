@@ -3,8 +3,8 @@
 import { OUTSIDE, REGION_COPY, REGION_FIELD_NAME, SERVICE_AREAS } from "@zbest/lead/region";
 
 /**
- * "State or territory" (founder decision 2026-10-30: the 50 US states, DC,
- * Puerto Rico and Guam). Options and copy come from @zbest/lead/region, the
+ * "State or territory" (founder decisions 2026-10-30: the 50 US states, DC
+ * and the five inhabited US territories). Options and copy come from @zbest/lead/region, the
  * same list the server validates against, so the two cannot drift.
  *
  * One native select with a visible label and a hint saying where we work, so

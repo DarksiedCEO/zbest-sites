@@ -6,7 +6,7 @@ import { memoryLimiter } from "../src/rate-limit";
 import { OUTSIDE, REGION, REGION_COPY, SERVICE_AREAS, regionServed } from "../src/region";
 import { captureLogger, readJsonl, tempOutbox, toyParse } from "./helpers";
 
-/** Service area (founder decision 2026-10-30: the 50 US states, DC, Puerto Rico and Guam). */
+/** Service area (founder decisions 2026-10-30: the 50 US states, DC, and PR, GU, VI, AS, MP). */
 
 const NONCE = "gate-nonce-0123456789abcdef";
 const env = (dir: string) => ({
@@ -30,14 +30,14 @@ const opts = (dir = tempOutbox(), limit = 100) => ({
   limiters: { perIp: memoryLimiter({ limit, windowSec: 600 }) },
 });
 
-describe("REGION schema: exactly the 50 states, DC, Puerto Rico and Guam", () => {
-  it("lists 53 areas with ISO codes, plus the one declined option", () => {
+describe("REGION schema: exactly the 50 states, DC and the five inhabited territories", () => {
+  it("lists 56 areas with ISO codes, plus the one declined option", () => {
     const codes = SERVICE_AREAS.map((a) => a.value);
-    expect(codes).toHaveLength(53);
-    expect(new Set(codes).size).toBe(53);
+    expect(codes).toHaveLength(56);
+    expect(new Set(codes).size).toBe(56);
     expect(codes.filter((c) => /^US-[A-Z]{2}$/.test(c) && c !== "US-DC")).toHaveLength(50);
-    expect(codes.slice(-3)).toEqual(["US-DC", "PR", "GU"]);
-    for (const absent of ["US-PR", "US-GU", "VI", "AS", "MP", "CA", "GB"]) expect(codes as readonly string[]).not.toContain(absent);
+    expect(codes.slice(-6)).toEqual(["US-DC", "PR", "GU", "VI", "AS", "MP"]);
+    for (const absent of ["US-PR", "US-GU", "US-VI", "US-AS", "US-MP", "UM", "US-UM", "CA", "GB"]) expect(codes as readonly string[]).not.toContain(absent);
     expect(OUTSIDE).toEqual({ value: "outside", label: "Outside these areas" });
   });
 
@@ -49,8 +49,9 @@ describe("REGION schema: exactly the 50 states, DC, Puerto Rico and Guam", () =>
   it("accepts a served area or 'outside'; anything else (or nothing) is a field error", () => {
     expect(REGION.parse({ state: "US-CA" })).toEqual({ state: "US-CA" });
     expect(REGION.parse({ state: " GU " })).toEqual({ state: "GU" });
+    for (const t of ["VI", "AS", "MP"]) expect(REGION.parse({ state: t })).toEqual({ state: t });
     expect(REGION.parse({ state: "outside" })).toEqual({ state: "outside" });
-    for (const bad of [{}, { state: "" }, { state: "CA" }, { state: "us-ca" }, { state: "US-PR" }, { state: "FR" }, { state: 5 }]) {
+    for (const bad of [{}, { state: "" }, { state: "CA" }, { state: "us-ca" }, { state: "US-PR" }, { state: "US-VI" }, { state: "UM" }, { state: "vi" }, { state: "FR" }, { state: 5 }]) {
       const issues = REGION.safeParse(bad).error?.issues.map((i) => [i.path.join("."), i.message]);
       expect(issues, JSON.stringify(bad)).toEqual([["state", REGION_COPY.choose]]);
     }
