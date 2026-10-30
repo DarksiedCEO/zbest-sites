@@ -80,9 +80,12 @@ export function LeadForm({
   const formRef = useRef<HTMLFormElement>(null);
   const resultRef = useRef<HTMLDivElement>(null);
   const failureRef = useRef<HTMLParagraphElement>(null);
+  const summaryRef = useRef<HTMLDivElement>(null);
   const inFlight = useRef(false);
   useOutcomeFocus(state.kind, {
-    invalid: () => firstInvalid(formRef.current),
+    // No rendered field marked invalid (the server rejected one this form
+    // does not show): the summary takes focus instead of nothing.
+    invalid: () => firstInvalid(formRef.current) ?? summaryRef.current,
     failed: () => failureRef.current,
     accepted: () => resultRef.current,
   });
@@ -95,20 +98,28 @@ export function LeadForm({
     const data = new FormData(event.currentTarget);
     const values = Object.fromEntries(fields.flatMap((f) => entriesOf(data, f)));
     setState({ kind: "submitting" });
-    const result = await submitLead({
-      form,
-      submissionId: submissionId.current,
-      fields: values,
-      honeypot: String(data.get(HONEYPOT_FIELD) ?? ""),
-    });
-    if (result.status === "accepted") setState({ kind: "accepted" });
-    else if (result.status === "invalid") setState({ kind: "invalid", fields: result.fields });
-    else {
-      // A changed resubmission under a stored id: the next send is a new lead.
-      if (result.status === "conflict") submissionId.current = null;
-      setState({ kind: "failed", reason: result.status });
+    // try/finally (AEGIS F8): if the adapter ever throws, the form must not
+    // stay locked in "submitting" with the guard set — it shows the
+    // unknown-outcome failure and can be retried (same submission id).
+    try {
+      const result = await submitLead({
+        form,
+        submissionId: submissionId.current,
+        fields: values,
+        honeypot: String(data.get(HONEYPOT_FIELD) ?? ""),
+      });
+      if (result.status === "accepted") setState({ kind: "accepted" });
+      else if (result.status === "invalid") setState({ kind: "invalid", fields: result.fields });
+      else {
+        // A changed resubmission under a stored id: the next send is a new lead.
+        if (result.status === "conflict") submissionId.current = null;
+        setState({ kind: "failed", reason: result.status });
+      }
+    } catch {
+      setState({ kind: "failed", reason: "failed" });
+    } finally {
+      inFlight.current = false;
     }
-    inFlight.current = false;
   };
 
   if (state.kind === "accepted") {
@@ -124,6 +135,7 @@ export function LeadForm({
   }
 
   const errors = state.kind === "invalid" ? state.fields : {};
+  const unshownErrors = Object.entries(errors).filter(([name]) => !fields.some((f) => f.name === name));
 
   return (
     // method="post": if someone submits before hydration, the browser's native
@@ -260,9 +272,21 @@ export function LeadForm({
         </p>
       ) : null}
       {state.kind === "invalid" ? (
-        <p role="alert" className="sr-only">
-          Some fields need attention.
-        </p>
+        // Screen-reader-only while every rejected field is shown with its own
+        // message. A rejection for a field this form does not render has no
+        // other place to appear, so the summary becomes visible and says it.
+        <div
+          ref={summaryRef}
+          tabIndex={-1}
+          role="alert"
+          data-lead-invalid-summary
+          className={unshownErrors.length ? "type-small mt-4 text-accent" : "sr-only"}
+        >
+          <p>Some fields need attention.</p>
+          {unshownErrors.map(([name, message]) => (
+            <p key={name}>{message}</p>
+          ))}
+        </div>
       ) : null}
       {/* Disabled until hydrated (AEGIS r5 N1): a native submit before then
           would post the page and lose the lead. A disabled default button

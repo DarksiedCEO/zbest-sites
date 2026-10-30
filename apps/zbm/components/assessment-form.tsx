@@ -154,23 +154,30 @@ export function AssessmentForm() {
     const honeypot = text(HONEYPOT_FIELD);
 
     setState({ kind: "submitting" });
-    const outcome = await submitAssessment({
-      form: "assessment",
-      submission_id: submissionId.current,
-      rule_set_version: ACTIVE_RULE_SET.version,
-      contact: { name: text("name"), business: text("business"), website: text("website"), reach: text("reach") },
-      region: { state: text("state") },
-      answers,
-      ...(honeypot ? { company_url: honeypot } : {}),
-    });
-    if (outcome.status === "scored") setState({ kind: "scored", result: outcome.result });
-    else if (outcome.status === "invalid") setState({ kind: "invalid", fields: outcome.fields });
-    else if (outcome.status === "superseded") setState({ kind: "superseded" });
-    else {
-      if (outcome.reason === "conflict") submissionId.current = null;
-      setState({ kind: "failed", reason: outcome.reason });
+    // try/finally (AEGIS F8): a throwing adapter must not leave the form
+    // locked in "submitting"; it shows the unknown-outcome failure instead.
+    try {
+      const outcome = await submitAssessment({
+        form: "assessment",
+        submission_id: submissionId.current,
+        rule_set_version: ACTIVE_RULE_SET.version,
+        contact: { name: text("name"), business: text("business"), website: text("website"), reach: text("reach") },
+        region: { state: text("state") },
+        answers,
+        ...(honeypot ? { company_url: honeypot } : {}),
+      });
+      if (outcome.status === "scored") setState({ kind: "scored", result: outcome.result });
+      else if (outcome.status === "invalid") setState({ kind: "invalid", fields: outcome.fields });
+      else if (outcome.status === "superseded") setState({ kind: "superseded" });
+      else {
+        if (outcome.reason === "conflict") submissionId.current = null;
+        setState({ kind: "failed", reason: outcome.reason });
+      }
+    } catch {
+      setState({ kind: "failed", reason: "failed" });
+    } finally {
+      inFlight.current = false;
     }
-    inFlight.current = false;
   };
 
   if (state.kind === "scored") return <Result ref={resultRef} result={state.result} />;
