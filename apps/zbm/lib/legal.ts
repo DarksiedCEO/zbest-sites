@@ -782,7 +782,7 @@ const accessibilityStatement: InEffectLegalDocument = {
           p: "We want everyone to be able to use this website, including people who use screen readers, keyboard navigation, magnification, voice control or other assistive technology.",
         },
         {
-          p: "Our goal is to conform to the Web Content Accessibility Guidelines (WCAG) 2.2, Level AA. We check the site with automated tools and by hand, including keyboard-only navigation and reflow at 320 pixels wide, and we treat accessibility failures as bugs.",
+          p: "Our goal is to conform to the Web Content Accessibility Guidelines (WCAG) 2.2, Level AA. On October 30, 2026 we tested the site by hand and with automated scans, including keyboard-only navigation and reflow at 320 pixels wide. We are adding automated accessibility checks to our release process, and we treat accessibility failures as bugs.",
         },
       ],
     },
@@ -791,7 +791,7 @@ const accessibilityStatement: InEffectLegalDocument = {
       heading: "Conformance status",
       blocks: [
         {
-          p: "This site partially conforms to WCAG 2.2 Level AA: some parts of the content don’t yet fully meet the standard. An accessibility audit on October 30, 2026 found no blocking issues, and automated scans found no color-contrast, labeling, name or role failures. It did find the limitations below.",
+          p: "This site partially conforms to WCAG 2.2 Level AA: some parts of the content don’t yet fully meet the standard. An accessibility audit on October 30, 2026 found no blocking issues, and its automated scans found no text color-contrast, labeling, name or role failures. It did find the limitations below, including one about the contrast of form field outlines (a non-text element).",
         },
       ],
     },
