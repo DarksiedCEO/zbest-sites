@@ -205,10 +205,10 @@ describe.skipIf(!url)("postgres store (integration)", () => {
     const insert = (area: string | null) =>
       sql`INSERT INTO leads (submission_id, app, form, payload, payload_hash, service_area)
           VALUES (${randomUUID()}::uuid, 'zbm', 'region-test', '{}'::jsonb, 'h', ${area})`;
-    for (const bad of ["outside", "CA", "US-PR", "US-GU", "VI", "AS", "MP", "GB", "us-ca", ""]) {
+    for (const bad of ["outside", "CA", "US-PR", "US-GU", "US-VI", "US-AS", "US-MP", "UM", "GB", "us-ca", "vi", ""]) {
       await expect(insert(bad), bad).rejects.toMatchObject({ code: "23514" });
     }
-    for (const ok of ["US-CA", "US-WY", "US-DC", "PR", "GU", null]) await insert(ok);
+    for (const ok of ["US-CA", "US-WY", "US-DC", "PR", "GU", "VI", "AS", "MP", null]) await insert(ok);
     await sql`DELETE FROM leads WHERE form = 'region-test'`;
   });
 

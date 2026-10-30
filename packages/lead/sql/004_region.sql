@@ -1,5 +1,6 @@
--- Service area (founder decision, 2026-10-30 11:50): the 50 US states, the
--- District of Columbia, Puerto Rico and Guam. Every lead form asks for the
+-- Service area (founder decisions, 2026-10-30 11:50 and 12:51): the 50 US
+-- states, the District of Columbia and the five inhabited US territories
+-- (PR, GU, VI, AS, MP): 56 codes. Every lead form asks for the
 -- business's state or territory; only a served one is ever stored (the
 -- pipeline declines "Outside these areas" before the insert, storing
 -- nothing). Nullable: rows from before this change have none.
@@ -18,7 +19,7 @@ BEGIN
         'US-MA','US-MI','US-MN','US-MS','US-MO','US-MT','US-NE','US-NV','US-NH','US-NJ',
         'US-NM','US-NY','US-NC','US-ND','US-OH','US-OK','US-OR','US-PA','US-RI','US-SC',
         'US-SD','US-TN','US-TX','US-UT','US-VT','US-VA','US-WA','US-WV','US-WI','US-WY',
-        'US-DC','PR','GU'
+        'US-DC','PR','GU','VI','AS','MP'
       )
     );
   END IF;

@@ -5,9 +5,10 @@ import { z } from "zod";
 z.config({ jitless: true });
 
 /**
- * Service area (founder decision, 2026-10-30 11:50): the 50 US states, the
- * District of Columbia, Puerto Rico and Guam. Nothing else: no Canada, no
- * UK, no other territory or country.
+ * Service area (founder decisions, 2026-10-30 11:50 and 12:51): the 50 US
+ * states, the District of Columbia and all five inhabited US territories
+ * (Puerto Rico, Guam, US Virgin Islands, American Samoa, Northern Mariana
+ * Islands): 56 codes. Nothing else: no Canada, no UK, no other country.
  *
  * Pure and client-safe (no `server-only`), so the forms render their options
  * from the same list the server validates against (Backend Spec §9: option
@@ -20,7 +21,7 @@ z.config({ jitless: true });
  * value is a field error (422), so it is never stored either.
  *
  * Codes are ISO 3166-2 for the states and DC (US-CA, US-DC) and ISO 3166-1
- * alpha-2 for Puerto Rico and Guam (PR, GU), as the founder specified.
+ * alpha-2 for the territories (PR, GU, VI, AS, MP), as the founder specified.
  */
 
 export const US_STATES = [
@@ -45,6 +46,9 @@ export const SERVICE_AREAS = [
   { value: "US-DC", label: "District of Columbia" },
   { value: "PR", label: "Puerto Rico" },
   { value: "GU", label: "Guam" },
+  { value: "VI", label: "US Virgin Islands" },
+  { value: "AS", label: "American Samoa" },
+  { value: "MP", label: "Northern Mariana Islands" },
 ] as const;
 
 /** The one option that is declined. */
@@ -65,11 +69,11 @@ export const REGION_FIELD_NAME = "state";
 export const REGION_COPY = {
   label: "State or territory",
   /** Shown under the select, so nobody fills the form to find out. */
-  hint: "We currently work with businesses in the 50 US states, the District of Columbia, Puerto Rico and Guam.",
+  hint: "We currently work with businesses in the 50 US states, the District of Columbia and the US territories: Puerto Rico, Guam, the US Virgin Islands, American Samoa and the Northern Mariana Islands.",
   choose: "Choose your state or territory.",
   /** The polite decline (422 region_unavailable). Says nothing was kept. */
   refused:
-    "Sorry — we can only work with businesses in the 50 US states, the District of Columbia, Puerto Rico and Guam right now, so nothing was saved or sent.",
+    "Sorry — we can only work with businesses in the 50 US states, the District of Columbia and the US territories right now, so nothing was saved or sent.",
 } as const;
 
 /** The region as the forms post it: `state`, one of SERVICE_AREAS or "outside". */
