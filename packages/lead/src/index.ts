@@ -15,6 +15,8 @@ export { postgresStore, postgresPurger } from "./postgres";
 export {
   handlePurge,
   handleHealth,
+  resetHealthCache,
+  HEALTH_CACHE_MS,
   purgeHealth,
   PURGE_OVERDUE_HOURS,
   type PurgeLedger,

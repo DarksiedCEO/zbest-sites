@@ -58,7 +58,7 @@ export function retentionCutoffs(now: Date, policy: RetentionPolicy): { leads: D
   };
 }
 
-export type PurgeResult = { deleted: number; uaCleared: number };
+export type PurgeResult = { deleted: number; uaCleared: number; ipHashCleared: number };
 
 export interface LeadPurger {
   /** Purges, and records `ranAt` as this app's last successful run (one transaction). */
@@ -124,7 +124,13 @@ export async function handlePurge(request: Request, opts: HandlePurgeOptions): P
     const now = (opts.now ?? (() => new Date()))();
     const cutoffs = retentionCutoffs(now, retention.policy);
     const result = await purger.purge(app, cutoffs, now);
-    log("info", "purged", { app, deleted: result.deleted, ua_cleared: result.uaCleared, days: retention.policy.leadDays });
+    log("info", "purged", {
+      app,
+      deleted: result.deleted,
+      ua_cleared: result.uaCleared,
+      ip_hash_cleared: result.ipHashCleared,
+      days: retention.policy.leadDays,
+    });
     return json({ ok: true, deleted: result.deleted, ua_cleared: result.uaCleared }, 200);
   } catch {
     // No error object: it may carry a host or a value.
@@ -153,7 +159,19 @@ export type HealthOptions = {
   now?: () => Date;
   /** Test seam; production builds it from POSTGRES_URL. */
   ledger?: PurgeLedger;
+  /** How long a computed status is reused on this instance (default 60 s; 0 disables). */
+  cacheMs?: number;
 };
+
+/** One computed status per app per instance, reused for HEALTH_CACHE_MS. */
+export const HEALTH_CACHE_MS = 60_000;
+type HealthResult = { status: PurgeHealth; ageHours?: number };
+const healthCache = new Map<LeadApp, { at: number; result: Promise<HealthResult> }>();
+
+/** Test seam: forget cached statuses. */
+export function resetHealthCache() {
+  healthCache.clear();
+}
 
 /**
  * Whether the retention promise is actually being kept for this app. Every
@@ -192,18 +210,28 @@ export async function purgeHealth(opts: HealthOptions): Promise<{ status: PurgeH
 
 /**
  * GET /api/health: 200 when the retention purge is healthy, 503 when
- * degraded, so any uptime monitor alerts on it. Statuses only, no values.
+ * degraded, so any uptime monitor alerts on it. The body is minimal,
+ * `{"ok":bool,"status":"<code>"}`: no ages, counts or config values.
+ *
+ * Public, so it must not be a lever on the database (AEGIS H-M2): each
+ * instance computes the status at most once per HEALTH_CACHE_MS (concurrent
+ * requests share the one in-flight check), which also limits the
+ * error-level `purge_degraded` log to once a minute per instance, and the
+ * CDN may serve the same answer for 60 s (s-maxage). A monitor therefore
+ * sees a change within about two minutes, well inside the 48 h window.
  */
 export async function handleHealth(_request: Request, opts: HealthOptions): Promise<Response> {
-  let purge: { status: PurgeHealth; ageHours?: number };
-  try {
-    purge = await purgeHealth(opts);
-  } catch {
-    purge = { status: "unknown" };
+  const ttl = opts.cacheMs ?? HEALTH_CACHE_MS;
+  const nowMs = (opts.now ?? (() => new Date()))().getTime();
+  let entry = ttl > 0 ? healthCache.get(opts.app) : undefined;
+  if (!entry || nowMs - entry.at >= ttl || nowMs < entry.at) {
+    entry = { at: nowMs, result: purgeHealth(opts).catch((): HealthResult => ({ status: "unknown" })) };
+    if (ttl > 0) healthCache.set(opts.app, entry);
   }
+  const purge = await entry.result;
   const ok = purge.status === "ok";
   return Response.json(
-    { ok, checks: { retention_purge: { status: purge.status, ...(purge.ageHours === undefined ? {} : { age_hours: purge.ageHours }) } } },
-    { status: ok ? 200 : 503, headers: { "Cache-Control": "no-store" } },
+    { ok, status: purge.status },
+    { status: ok ? 200 : 503, headers: { "Cache-Control": `public, max-age=0, s-maxage=${Math.round(HEALTH_CACHE_MS / 1000)}` } },
   );
 }

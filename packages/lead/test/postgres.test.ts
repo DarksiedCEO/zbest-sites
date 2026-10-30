@@ -171,17 +171,21 @@ describe.skipIf(!url)("postgres store (integration)", () => {
     const recentZbm = await row("zbm", 10, "UA-recent"); // kept, UA kept
     const midZbm = await row("zbm", 91, "UA-mid"); // kept, UA blanked
     const oldZbc = await row("zbc", 900, "UA-zbc"); // other app: untouched by the zbm run
+    // An ip_hash written by a pre-hardening deployment after 002 ran: cleared on the next purge (AEGIS H-L1).
+    await sql`UPDATE leads SET ip_hash = 'legacy-hash' WHERE submission_id IN (${recentZbm}::uuid, ${oldZbc}::uuid)`;
 
     const purger = postgresPurger(opts(url!));
     const cutoffs = retentionCutoffs(now, { leadDays: 730, uaDays: 90 });
-    expect(await purger.purge("zbm", cutoffs, now)).toEqual({ deleted: 1, uaCleared: 2 });
+    expect(await purger.purge("zbm", cutoffs, now)).toEqual({ deleted: 1, uaCleared: 2, ipHashCleared: 1 });
     // The ledger records the successful run, in the same transaction.
     expect(await purger.lastSuccess("zbm")).toEqual(now);
     expect(await purger.lastSuccess("zbc")).toBeNull();
     const later = new Date(now.getTime() + 86_400_000);
-    expect(await purger.purge("zbm", cutoffs, later)).toEqual({ deleted: 0, uaCleared: 0 });
+    expect(await purger.purge("zbm", cutoffs, later)).toEqual({ deleted: 0, uaCleared: 0, ipHashCleared: 0 });
     expect(await purger.lastSuccess("zbm")).toEqual(later);
 
+    const hashes = await sql`SELECT submission_id::text AS id, ip_hash FROM leads WHERE form = 'purge-test' AND ip_hash IS NOT NULL`;
+    expect(hashes.map((h) => h.id)).toEqual([oldZbc]); // zbm cleared; zbc is the other app's run
     const left = await sql`SELECT submission_id::text AS id, user_agent FROM leads WHERE form = 'purge-test' ORDER BY created_at`;
     expect(Object.fromEntries(left.map((r) => [r.id, r.user_agent]))).toEqual({
       [oldZbc]: "UA-zbc",

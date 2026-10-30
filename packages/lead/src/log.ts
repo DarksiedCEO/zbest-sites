@@ -20,6 +20,7 @@ const ALLOWED = [
   // Retention purge counts (numbers only).
   "deleted",
   "ua_cleared",
+  "ip_hash_cleared",
   "days",
 ] as const;
 
