@@ -268,6 +268,58 @@ const privacyPolicy: InEffectLegalDocument = {
       ],
     },
     {
+      id: "united-kingdom",
+      heading: "Visitors in the United Kingdom",
+      blocks: [
+        {
+          p: `If you are in the United Kingdom, the UK General Data Protection Regulation and the Data Protection Act 2018 apply. ${LEGAL_ISSUER} is the controller of your personal data, and you can reach us at ${PRIVACY_EMAIL} or ${MAILING_ADDRESS}.`,
+        },
+        {
+          table: {
+            caption: "Why we use your information, and our lawful basis (UK)",
+            head: ["Purpose", "Lawful basis"],
+            rows: [
+              ["Replying to your message and following up on it", "Our legitimate interests in answering business enquiries and developing our business"],
+              ["Scoping a project you ask about, or giving you a free assessment you request", "Taking steps at your request before entering into a contract"],
+              ["Keeping the site and our forms secure, and preventing spam and abuse", "Our legitimate interests in protecting our systems and the people who use them"],
+              ["Meeting legal obligations, and establishing or defending legal claims", "Legal obligation, or our legitimate interests"],
+            ],
+          },
+        },
+        {
+          p: "Giving us your details is voluntary, but we can’t reply without a way to reach you. We don’t make decisions about you based solely on automated processing that have legal or similarly significant effects; the free assessment scores your business’s answers and a person reviews every submission.",
+        },
+        {
+          p: "Your rights: you can ask to access, correct or erase your personal data, to restrict how we use it, to object to our use of it — including an absolute right to object to direct marketing — and to receive it in a portable format. Use the process in “Your rights and choices”; we respond within one month. You also have the right to complain to the Information Commissioner’s Office (ico.org.uk), though we’d appreciate the chance to put things right first.",
+        },
+        {
+          p: "Transfers to the United States: our hosting and email-delivery providers process UK data under the UK International Data Transfer Addendum to the European Commission’s Standard Contractual Clauses, and our email-delivery provider also participates in the UK Extension to the EU-US Data Privacy Framework. We require the same, or another safeguard recognized under UK law, from any other provider that handles your data. You can ask us for a copy of the relevant safeguards.",
+        },
+        { p: "Retention is described in “How long we keep it”." },
+      ],
+    },
+    {
+      id: "canada",
+      heading: "Visitors in Canada",
+      blocks: [
+        {
+          p: `If you are in Canada (outside Quebec, where we don’t offer services), the Personal Information Protection and Electronic Documents Act (PIPEDA) applies. Our founder is the person accountable for our compliance and can be reached at ${PRIVACY_EMAIL} or ${MAILING_ADDRESS}.`,
+        },
+        {
+          p: "Consent and purposes: by submitting a form you consent to our collecting and using your information for the purposes in “How we use it” — mainly to reply to you. You can withdraw your consent at any time by telling us, subject to legal or contractual restrictions; we may then be unable to respond to your request. We collect only what we need for those purposes.",
+        },
+        {
+          p: "Cross-border processing: your information is stored and processed in the United States by us and our service providers, and may be accessible to courts, law-enforcement and national-security authorities there under US law.",
+        },
+        {
+          p: "Access and correction: you can ask to see the personal information we hold about you and to have it corrected, using the process in “Your rights and choices”; we respond within 30 days. If you’re not satisfied with our answer, you can complain to the Office of the Privacy Commissioner of Canada (priv.gc.ca).",
+        },
+        {
+          p: "Commercial email: when we follow up by email, we do so as Canada’s Anti-Spam Legislation allows — identifying ourselves, including our contact details and honoring any request to stop.",
+        },
+      ],
+    },
+    {
       id: "signals",
       heading: "Do Not Track and Global Privacy Control",
       blocks: [
@@ -308,10 +360,13 @@ const privacyPolicy: InEffectLegalDocument = {
     },
     {
       id: "international",
-      heading: "Visitors outside the United States",
+      heading: "Where we operate and international transfers",
       blocks: [
         {
-          p: "We are based in California and serve businesses in the United States. Information you send us is processed in the United States and may also be processed in other countries where our service providers operate. Data-protection laws there may differ from those where you live. By using our forms from outside the United States, you understand that your information will be handled in the United States as this policy describes.",
+          p: "We are based in California and serve businesses in the United States, the United Kingdom and Canada (outside Quebec). We don’t offer our services to people or businesses in France or Quebec, or to anyone in a country subject to comprehensive US sanctions, and we decline enquiries from elsewhere (see our [Terms of Service](/legal/terms-of-service#service-area)).",
+        },
+        {
+          p: "Information you send us is stored and processed in the United States, and may also be processed in other countries where our service providers operate. Data-protection laws there may differ from those where you live. The sections for the United Kingdom and Canada explain how we protect information that comes from those countries.",
         },
       ],
     },
