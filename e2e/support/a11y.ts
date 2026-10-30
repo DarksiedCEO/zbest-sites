@@ -49,10 +49,12 @@ export const CONTRAST_REVIEW_ALLOWLIST: { name: string; reason: string; match: (
  * The only axe reasons exemption (c) applies to: something overlapping the
  * text's box. `bgOverlap` — an element overlaps it; `elmPartiallyObscuring` —
  * an element under it covers only part of it (the translucent <hr> beneath
- * the fixed banner on /about). Any other reason inside an overlay —
+ * the fixed banner on /about); `elmPartiallyObscured` — the same seen from
+ * the other side (a form field scrolled under the sticky header, ZBC
+ * /become-a-clipper after the empty-submit focus scroll). Any other reason inside an overlay —
  * pseudoContent, bgImage, bgGradient, imgNode, … — stays undecided and fails.
  */
-const OVERLAP_REASONS = ["bgOverlap", "elmPartiallyObscuring"];
+const OVERLAP_REASONS = ["bgOverlap", "elmPartiallyObscuring", "elmPartiallyObscured"];
 
 export type IncompleteNode = {
   target: string;
@@ -157,6 +159,10 @@ export const banner = (page: Page) => page.getByRole("dialog", { name: "Cookies 
  *          a filter, a blend mode, or another painted element in the overlay
  *          touching the text's box). The spec has a probe proving a
  *          pseudo-element background behind banner text fails the gate.
+ *          The sticky site header counts as an overlay too, but its panel is
+ *          translucent (bg-base/95): there the background is BOUNDED, with
+ *          black and then white composited under the panel, and the text must
+ *          clear the ratio against the whole range, or it stays undecided.
  */
 export async function expectNoViolations(page: Page, label: string) {
   const results = await new AxeBuilder({ page })
@@ -192,7 +198,9 @@ export async function expectNoViolations(page: Page, label: string) {
         ...[...document.querySelectorAll('[aria-expanded="true"][aria-controls]')].map((b) =>
           document.getElementById(b.getAttribute("aria-controls")!),
         ),
-      ].filter((o): o is HTMLElement => !!o && ["absolute", "fixed"].includes(getComputedStyle(o).position));
+        // The sticky site header: scrolled page content passes under it.
+        document.querySelector<HTMLElement>("header:has(> nav[aria-label='Primary'])"),
+      ].filter((o): o is HTMLElement => !!o && ["absolute", "fixed", "sticky"].includes(getComputedStyle(o).position));
       const dialog = overlays.find((o) => o.contains(el)) ?? null;
       let overlapsOverlay = false;
       let inOverlay: null | { ratio: number; required: number } = null;
@@ -256,7 +264,10 @@ export async function expectNoViolations(page: Page, label: string) {
         let opaque = false;
         for (let n2: HTMLElement | null = layered ? null : el; n2; n2 = n2.parentElement) {
           const cs = getComputedStyle(n2);
-          if (cs.backgroundImage !== "none") break; // cannot compute: stays undecided
+          if (cs.backgroundImage !== "none") {
+            layered = true; // cannot compute: stays undecided
+            break;
+          }
           const c = rgba(cs.backgroundColor);
           if (c[3] > 0) layers.push(c);
           if (c[3] >= 1) {
@@ -265,19 +276,37 @@ export async function expectNoViolations(page: Page, label: string) {
           }
           if (n2 === dialog) break;
         }
+        const lum = ([r, g, b2]: RGBA) => {
+          const ch = (v: number) => ((v /= 255) <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+          return 0.2126 * ch(r) + 0.7152 * ch(g) + 0.0722 * ch(b2);
+        };
+        const cs = getComputedStyle(el);
+        const px = parseFloat(cs.fontSize);
+        const required = px >= 24 || (px >= 18.66 && Number(cs.fontWeight) >= 700) ? 3 : 4.5;
+        const text = rgba(cs.color);
         if (opaque) {
           let bg: RGBA = [0, 0, 0, 0];
           for (const c of layers.reverse()) bg = over(c, bg);
-          const fg = over(rgba(getComputedStyle(el).color), bg);
-          const lum = ([r, g, b2]: RGBA) => {
-            const ch = (v: number) => ((v /= 255) <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
-            return 0.2126 * ch(r) + 0.7152 * ch(g) + 0.0722 * ch(b2);
-          };
+          const fg = over(text, bg);
           const [hi, lo] = [lum(fg), lum(bg)].sort((x, y) => y - x);
-          const cs = getComputedStyle(el);
-          const px = parseFloat(cs.fontSize);
-          const large = px >= 24 || (px >= 18.66 && Number(cs.fontWeight) >= 700);
-          inOverlay = { ratio: (hi! + 0.05) / (lo! + 0.05), required: large ? 3 : 4.5 };
+          inOverlay = { ratio: (hi! + 0.05) / (lo! + 0.05), required };
+        } else if (!layered && layers.length && text[3] >= 1) {
+          // A TRANSLUCENT overlay (the sticky header's bg-base/95): what shows
+          // through is unknown, so bound it. Whatever is behind lies between
+          // black and white; composite the overlay over both. The background's
+          // luminance can be anything in that range, so the text passes only
+          // if it is lighter (or darker) than the whole range by the required
+          // ratio. Inside the range it stays undecided, and fails.
+          const panel = (under: RGBA) => {
+            let bg = under;
+            for (const c of [...layers].reverse()) bg = over(c, bg);
+            return bg;
+          };
+          const lo = lum(panel([0, 0, 0, 1]));
+          const hi = lum(panel([255, 255, 255, 1]));
+          const lf = lum(text);
+          if (lf >= hi) inOverlay = { ratio: (lf + 0.05) / (hi + 0.05), required };
+          else if (lf <= lo) inOverlay = { ratio: (lo + 0.05) / (lf + 0.05), required };
         }
       }
       return {

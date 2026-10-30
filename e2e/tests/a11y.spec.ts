@@ -270,6 +270,43 @@ test.describe("keyboard @keyboard", () => {
     expect(await page.evaluate(() => localStorage.getItem("zbest-cookie-consent"))).toBeNull();
   });
 
+  // GPC (site-region) + focus safety + Escape, merged (AEGIS r1 F6, r2): with
+  // Global Privacy Control on, no banner shows and a rejection is stored.
+  // Reopening by keyboard focuses the heading, "Accept all" is absent,
+  // Escape collapses the details, then closes the banner, focus returns to
+  // the button, and the GPC rejection is still what is stored.
+  test("GPC: reopen by keyboard, no Accept all, Escape closes without changing the stored rejection", async ({ page }) => {
+    await page.addInitScript(() => {
+      Object.defineProperty(Navigator.prototype, "globalPrivacyControl", { get: () => true, configurable: true });
+    });
+    await page.goto(ZBM_BASE_URL + "/legal/cookie-policy", { waitUntil: "networkidle" });
+    await expect(banner(page)).toBeHidden();
+    const stored = () => page.evaluate(() => localStorage.getItem("zbest-cookie-consent"));
+    await expect.poll(stored).toContain('"rejected-non-essential"');
+    const before = await stored();
+
+    const opener = page.getByRole("button", { name: "Change cookie settings" });
+    await opener.focus();
+    await page.keyboard.press("Enter");
+    await expect(banner(page)).toBeVisible();
+    await expect(page.locator("#cookie-consent-heading")).toBeFocused();
+    await expect(banner(page).getByRole("button", { name: "Accept all" })).toHaveCount(0);
+    await expect(banner(page).locator("[data-gpc-note]")).toBeVisible();
+
+    const toggle = banner(page).getByRole("button", { name: "What we store" });
+    await toggle.focus();
+    await page.keyboard.press("Enter");
+    await expect(page.locator("#cookie-consent-detail")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.locator("#cookie-consent-detail")).toBeHidden();
+    await expect(toggle).toBeFocused();
+
+    await page.keyboard.press("Escape");
+    await expect(banner(page)).toBeHidden();
+    await expect(opener).toBeFocused();
+    expect(await stored(), "Escape left the GPC rejection as it was").toBe(before);
+  });
+
   // AEGIS r2 N2: "Change cookie settings" pressed while the FIRST-VISIT
   // banner is still up (nothing stored yet). Escape must not dismiss it.
   test("Escape does not dismiss a first-visit banner reopened before any choice", async ({ page }) => {
