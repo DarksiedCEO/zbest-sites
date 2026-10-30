@@ -432,7 +432,7 @@ export const SERVICES: Service[] = [
         "Full websites — design, copy, and build on a modern stack",
         "Mobile-first performance — pages that load fast on the phone most of your visitors use",
         "Lead capture that works — forms, click-to-call, and booking wired end to end and tested before launch",
-        "Accessibility — built to WCAG 2.2 AA as the target and checked automatically on every change",
+        "Accessibility — built to WCAG 2.2 AA as the target, with automated accessibility checks and keyboard testing before launch",
         "Search-ready structure — clean markup, metadata, and structured data so search engines and AI assistants can read the site",
         "Analytics and conversion tracking set up from day one",
       ],
