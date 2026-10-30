@@ -37,15 +37,56 @@ const gpcOn = () => {
  * the visitor chose; wiring it to real tags is the job of whoever adds the first
  * tag, and they must read it before loading anything non-essential.
  *
- * Category descriptions below are PLACEHOLDER text pending attorney review
- * (CLAUDE.md, Brief §5) and are marked as such in the UI.
+ * ZBM's in-effect Cookie Policy (Oct 30 2026) PROMISES two things that tag
+ * must deliver: (1) the policy is updated before the tag goes live, and (2)
+ * every visitor is asked again — a choice made while nothing optional existed
+ * is not consent to the new tool. So the first tag also adds a consent
+ * version to the stored value and re-shows the banner when it does not match.
+ *
+ * The default category descriptions are PLACEHOLDER text pending attorney
+ * review (CLAUDE.md, Brief §5) and are marked as such in the UI. Z Best Media
+ * passes its own in-effect text (founder decision Oct 30 2026); Z Best Clips
+ * keeps the defaults.
  */
+export type ConsentCategory = { name: string; body: string };
+
+/** ZBC (and the default): placeholder rows, still pending attorney review. */
+const DRAFT_CATEGORIES: ConsentCategory[] = [
+  {
+    name: "Strictly necessary",
+    body: "Required for the site to function. Cannot be switched off. Placeholder description.",
+  },
+  {
+    name: "Analytics",
+    body: "Traffic measurement so we can see which pages do their job. Placeholder description.",
+  },
+  {
+    name: "Advertising",
+    body: "Used to measure and retarget advertising campaigns. Placeholder description.",
+  },
+];
+
+const DRAFT_SUMMARY =
+  "We use strictly necessary cookies to run the site. Analytics and advertising cookies are optional and off unless you accept them.";
+
 export function CookieConsent({
   policyHref = "/legal/cookie-policy",
   className = "",
+  summary = DRAFT_SUMMARY,
+  categories = DRAFT_CATEGORIES,
+  draft = true,
 }: {
   policyHref?: string;
   className?: string;
+  /**
+   * The banner sentence. A site whose Cookie Policy is in effect passes text
+   * that matches what the site really stores (ZBM since Oct 30 2026).
+   */
+  summary?: string;
+  /** The "What we store" rows. */
+  categories?: ConsentCategory[];
+  /** Shows the "Draft — pending attorney review" label in the detail panel. */
+  draft?: boolean;
 }) {
   const [visible, setVisible] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
@@ -151,8 +192,7 @@ export function CookieConsent({
               Cookies on this site
             </p>
             <p className="type-small mt-1.5 max-w-prose text-text-secondary">
-              We use strictly necessary cookies to run the site. Analytics and
-              advertising cookies are optional and off unless you accept them.{" "}
+              {summary}{" "}
               <Link href={policyHref} className="underline underline-offset-4">
                 Cookie Policy
               </Link>
@@ -195,24 +235,13 @@ export function CookieConsent({
         </div>
 
         <div id="cookie-consent-detail" hidden={!showDetail} className="mt-5">
-          <p className="type-label mb-3 text-accent">
-            Draft — pending attorney review. Not yet in effect.
-          </p>
+          {draft ? (
+            <p className="type-label mb-3 text-accent">
+              Draft — pending attorney review. Not yet in effect.
+            </p>
+          ) : null}
           <LedgerRule />
-          {[
-            {
-              name: "Strictly necessary",
-              body: "Required for the site to function. Cannot be switched off. Placeholder description.",
-            },
-            {
-              name: "Analytics",
-              body: "Traffic measurement so we can see which pages do their job. Placeholder description.",
-            },
-            {
-              name: "Advertising",
-              body: "Used to measure and retarget advertising campaigns. Placeholder description.",
-            },
-          ].map((row, i, all) => (
+          {categories.map((row, i, all) => (
             <div key={row.name}>
               <div className="flex flex-col gap-1 py-ledger sm:flex-row sm:gap-8">
                 <p className="type-label w-44 shrink-0 text-text-secondary">

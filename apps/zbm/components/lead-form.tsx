@@ -1,4 +1,5 @@
 import { LeadForm as SharedLeadForm, type LeadField } from "@zbest/ui/lead";
+import Link from "next/link";
 import { NOT_SURE, SERVICES } from "@/content/services";
 import { INTAKE_BUDGETS, INTAKE_TIMINGS, type LeadForm as LeadFormName } from "@/lib/lead";
 
@@ -79,5 +80,22 @@ export function LeadForm({
   defaults?: Record<string, string | string[]>;
 }) {
   const fields = FIELDS[form].map((f) => (f.name in defaults ? { ...f, defaultValue: defaults[f.name] } : f));
-  return <SharedLeadForm form={form} fields={fields} submitLabel={submitLabel} />;
+  return (
+    <>
+      <SharedLeadForm form={form} fields={fields} submitLabel={submitLabel} />
+      {/*
+        Notice at collection (Privacy Policy, in effect Oct 30 2026). The
+        assessment carries its own note above the form, so it is not repeated.
+      */}
+      {form === "assessment" ? null : (
+        <p data-collection-notice className="type-small mt-4 text-text-secondary">
+          We save what you send so we can reply. See our{" "}
+          <Link href="/legal/privacy-policy" className="underline underline-offset-4">
+            Privacy Policy
+          </Link>
+          .
+        </p>
+      )}
+    </>
+  );
 }

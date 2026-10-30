@@ -273,7 +273,49 @@ for (const app of APPS) {
       }
     });
 
-    for (const doc of LEGAL) {
+    // Z Best Media's documents are IN EFFECT (founder decision Oct 30 2026,
+    // CLAUDE.md): real text, no draft banner. Z Best Clips keeps the shells.
+    for (const doc of app.slug === "zbm" ? LEGAL : []) {
+      test(`${doc.path} — in-effect document: no draft banner, real sections, dated`, async ({ page }) => {
+        await presetConsent(page);
+        const response = await page.goto(`${app.baseUrl}${doc.path}`, { waitUntil: "domcontentloaded" });
+        expect(response?.status()).toBe(200);
+
+        await expect(page.locator("[data-legal-document]")).toBeVisible();
+        expect(await page.locator("[data-legal-draft-banner]").count()).toBe(0);
+        const text = await page.locator("main").innerText();
+        expect(text).not.toContain(LEGAL_BANNER);
+        expect(text).not.toMatch(/attorney-drafted text pending|placeholder outline/i);
+
+        await expect(page.getByRole("heading", { level: 1 })).toHaveText(doc.title);
+        // Real sections with real text, each reachable from the contents list.
+        const sections = page.locator("main section[id] h2");
+        expect(await sections.count()).toBeGreaterThanOrEqual(5);
+        const toc = page.getByRole("navigation", { name: `${doc.title} contents` });
+        expect(await toc.getByRole("link").count()).toBe(await sections.count());
+        expect(text.length).toBeGreaterThan(2500);
+
+        // Issuer and effective date are stated up front.
+        await expect(page.locator("[data-legal-issuer]")).toContainText("Z Best Media");
+        await expect(page.locator("[data-legal-effective]")).toBeVisible();
+
+        // Anything unfilled is visibly marked, never passed off as text; only
+        // known tokens may appear. A production build refuses to ship any.
+        const tokens = await page.locator("main [data-placeholder]").allInnerTexts();
+        for (const t of tokens) expect(t).toMatch(/^\[[A-Z0-9][A-Z0-9 ,.'’/&—()-]*\]$/);
+
+        // Legal Brief cross-cutting note 2: no unconfirmed entity name.
+        expect(text).not.toMatch(/silverback|pussycat/i);
+        // Search Intelligence stays unlinked and unnamed (Brief §A4).
+        expect(text).not.toMatch(/search intelligence|visibility readiness/i);
+        expect(await page.locator('main a[href*="search-intelligence"]').count()).toBe(0);
+
+        // Still noindex until the placeholders are filled (lib/site.ts).
+        expect(await head(page, 'meta[name="robots"]')).toMatch(/noindex/);
+      });
+    }
+
+    for (const doc of app.slug === "zbm" ? [] : LEGAL) {
       test(`${doc.path} — shell carries the §5 banner and placeholders only`, async ({ page }) => {
         await presetConsent(page);
         const response = await page.goto(`${app.baseUrl}${doc.path}`, {
@@ -446,6 +488,18 @@ for (const app of APPS) {
 
       await page.getByRole("button", { name: "Change cookie settings" }).click();
       await expect(dialog).toBeVisible();
+
+      // The banner's detail must say what the Cookie Policy says. ZBM's is in
+      // effect (no draft label, nothing optional in use); ZBC's is a draft.
+      await dialog.getByRole("button", { name: "What we store" }).click();
+      const detail = dialog.locator("#cookie-consent-detail");
+      if (app.slug === "zbm") {
+        await expect(detail).not.toContainText("Draft — pending attorney review");
+        await expect(detail).toContainText("Not used on this site.");
+        await expect(dialog).toContainText("doesn’t use analytics or advertising cookies");
+      } else {
+        await expect(detail).toContainText("Draft — pending attorney review. Not yet in effect.");
+      }
       await dialog.getByRole("button", { name: "Accept all" }).click();
       expect(await page.evaluate((k) => window.localStorage.getItem(k), CONSENT_KEY)).toContain(
         "accepted-all",
