@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { LedgerRule } from "./ledger-rule";
 
 export type ConsentChoice = "accepted-all" | "rejected-non-essential";
@@ -50,6 +50,7 @@ export function CookieConsent({
   const [visible, setVisible] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
   const [gpc, setGpc] = useState(false);
+  const a11y = useBannerFocusSafety(visible);
 
   useEffect(() => {
     // Storage can throw in private mode or with site data blocked; a banner
@@ -95,16 +96,21 @@ export function CookieConsent({
   if (!visible) return null;
 
   return (
+    <>
+    {/* a11y (WCAG 2.4.11): in-flow spacer the height of the banner, so the
+        last items on the page can scroll clear of it. */}
+    <div aria-hidden="true" style={{ height: a11y.height }} />
     <div
+      ref={a11y.bannerRef}
       role="dialog"
       aria-modal="false"
       aria-labelledby="cookie-consent-heading"
-      className={`fixed inset-x-0 bottom-0 z-[60] border-t border-text-secondary/25 bg-panel ${className}`}
+      className={`fixed inset-x-0 bottom-0 z-[60] max-h-[50dvh] overflow-y-auto overscroll-contain border-t border-text-secondary/25 bg-panel ${className}`}
     >
       <div className="mx-auto max-w-[90rem] px-gutter py-5 lg:px-gutter-wide">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between lg:gap-10">
           <div>
-            <p id="cookie-consent-heading" className="type-title">
+            <p id="cookie-consent-heading" ref={a11y.headingRef} tabIndex={-1} className="type-title">
               Cookies on this site
             </p>
             <p className="type-small mt-1.5 max-w-prose text-text-secondary">
@@ -182,7 +188,73 @@ export function CookieConsent({
         </div>
       </div>
     </div>
+    </>
   );
+}
+
+/**
+ * Accessibility support for the banner, kept apart from the consent logic.
+ *
+ * - WCAG 2.4.11 Focus Not Obscured: while the banner is open, the document's
+ *   scroll-padding-bottom equals its height, so the browser scrolls any newly
+ *   focused element clear of it; the spacer above lets the page's last items
+ *   scroll that far. Chosen over "banner first in tab order", which only helps
+ *   until focus leaves the banner — every later tab stop would still be able
+ *   to land underneath it.
+ * - WCAG 1.4.10 Reflow: the banner is capped at half the viewport and scrolls
+ *   inside itself, so at 400% zoom its heading and buttons stay reachable.
+ * - WCAG 2.4.3 Focus Order: when "Change cookie settings" reopens the banner,
+ *   focus moves to its heading; once a choice is made it returns to the
+ *   button that opened it.
+ */
+function useBannerFocusSafety(visible: boolean) {
+  const bannerRef = useRef<HTMLDivElement>(null);
+  const headingRef = useRef<HTMLParagraphElement>(null);
+  const opener = useRef<HTMLElement | null>(null);
+  const [height, setHeight] = useState(0);
+
+  useEffect(() => {
+    const onOpen = () => {
+      const active = document.activeElement;
+      opener.current = active instanceof HTMLElement && active !== document.body ? active : null;
+    };
+    window.addEventListener(OPEN_EVENT, onOpen);
+    return () => window.removeEventListener(OPEN_EVENT, onOpen);
+  }, []);
+
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    const el = bannerRef.current;
+    if (!visible || !el) {
+      root.style.removeProperty("scroll-padding-bottom");
+      setHeight(0);
+      return;
+    }
+    const sync = () => {
+      const h = Math.ceil(el.getBoundingClientRect().height);
+      root.style.setProperty("scroll-padding-bottom", `${h}px`);
+      setHeight(h);
+    };
+    sync();
+    const observer = new ResizeObserver(sync);
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      root.style.removeProperty("scroll-padding-bottom");
+    };
+  }, [visible]);
+
+  useEffect(() => {
+    if (visible) {
+      if (opener.current) headingRef.current?.focus();
+    } else if (opener.current) {
+      const back = opener.current;
+      opener.current = null;
+      if (back.isConnected) back.focus();
+    }
+  }, [visible]);
+
+  return { bannerRef, headingRef, height };
 }
 
 /**

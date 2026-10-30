@@ -8,5 +8,9 @@
   html {
     background-color: var(--base);
     color-scheme: dark;
+    /* WCAG 2.4.11: keep a focused element from scrolling under the sticky
+       header (57px tall) when tabbing backwards. The consent banner sets
+       scroll-padding-bottom itself while it is open. */
+    scroll-padding-top: 5rem;
   }
 }
