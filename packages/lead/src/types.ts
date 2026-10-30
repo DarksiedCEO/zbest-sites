@@ -20,7 +20,7 @@ export type LeadRecord = {
   services: string[];
   /** Campaign tag from ?src= / ?utm_campaign=, lowercase, or null. */
   source: string | null;
-  /** Self-declared US state or territory (US-CA, US-DC, PR, GU); always a served one. A column, so leads filter by market. */
+  /** Self-declared US state or territory (US-CA, US-DC, PR, GU, VI, AS, MP); always a served one. A column, so leads filter by market. */
   service_area: string;
   user_agent: string | null;
 };

@@ -280,6 +280,7 @@ describe.skipIf(!url)("migrate script (integration)", () => {
     expect(first.status, first.stderr).toBe(0);
     expect(first.stdout).toContain("applied 001_leads.sql");
     expect(first.stdout).toContain("schema ok; unique key ok; round-trip insert ok (rolled back)");
+    expect(first.stdout).toContain("service area check ok (56 codes accepted, 14 near-misses refused; rolled back)");
 
     const second = run(target);
     expect(second.status, second.stderr).toBe(0);
@@ -289,6 +290,48 @@ describe.skipIf(!url)("migrate script (integration)", () => {
     expect(await db`SELECT version FROM schema_migrations ORDER BY version`).toEqual(MIGRATIONS.map((f) => ({ version: f.slice(0, 3) })));
     expect(await db`SELECT count(*)::int AS n FROM leads`).toEqual([{ n: 0 }]);
     await db.end();
+  });
+
+  it("R-M1: a database that already ran the 53-code 004 is fixed by 005, and VI/AS/MP then store", async () => {
+    // 001-004 exactly as 004 was first committed (53 codes), recorded as applied.
+    const sqlDir = path.join(import.meta.dirname, "..", "sql");
+    const target = await prepared(
+      "leads_migrate_r_m1",
+      ["002_retention.sql", "003_purge_runs.sql", "004_region.sql"].map((f) => readFileSync(path.join(sqlDir, f), "utf8")).join("\n") +
+        "\nINSERT INTO schema_migrations (version) VALUES ('002'), ('003'), ('004');",
+    );
+    const db = connect(target);
+    await expect(
+      db`INSERT INTO leads (submission_id, app, form, payload, payload_hash, service_area) VALUES (${randomUUID()}::uuid, 'zbm', 'x', '{}'::jsonb, 'h', 'VI')`,
+    ).rejects.toMatchObject({ code: "23514" });
+    const result = run(target);
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain("skip 004_region.sql (already applied)");
+    expect(result.stdout).toContain("applied 005_region_territories.sql");
+    expect(result.stdout).toContain("service area check ok (56 codes accepted");
+    for (const code of ["VI", "AS", "MP"]) {
+      await db`INSERT INTO leads (submission_id, app, form, payload, payload_hash, service_area) VALUES (${randomUUID()}::uuid, 'zbm', 'x', '{}'::jsonb, 'h', ${code})`;
+    }
+    await db.end();
+  });
+
+  it("R-M1: a service-area CHECK that drifted from the app's set fails the run, naming the codes", async () => {
+    const sql = admin();
+    await sql.unsafe("DROP DATABASE IF EXISTS leads_migrate_drift");
+    await sql.unsafe("CREATE DATABASE leads_migrate_drift");
+    await sql.end();
+    const target = dbUrl("leads_migrate_drift");
+    expect(run(target).status).toBe(0);
+    const db = connect(target);
+    // Someone narrows the constraint by hand (drops Guam, lets 'outside' in): every migration is already recorded.
+    await db.unsafe(`ALTER TABLE leads DROP CONSTRAINT leads_service_area_check;
+      ALTER TABLE leads ADD CONSTRAINT leads_service_area_check CHECK (service_area IS NULL OR service_area <> 'GU')`);
+    await db.end();
+    const result = run(target);
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain("leads_service_area_check does not match the app's 56 service areas; refuses: GU; accepts:");
+    expect(result.stderr).toContain('"outside"');
+    expect(result.stderr).toContain("Nothing was changed");
   });
 
   it("an incompatible pre-existing leads table is caught, not trusted", async () => {
