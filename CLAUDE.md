@@ -10,8 +10,7 @@ governs the frontend; Section 11 governs the Revenue Recovery assessment;
 Section 12 governs the AI Visibility Readiness Check. Do not build against
 guessed DTOs.
 Legal pages — Z Best Media: founder decision Oct 30 2026 put real Privacy
-Policy, Terms of Service and Cookie Policy text IN EFFECT now (attorney review
-later), plus an Accessibility Statement (/legal/accessibility) whose known
+Policy, Terms of Service and Cookie Policy text IN EFFECT now, plus an Accessibility Statement (/legal/accessibility) whose known
 limitations must be updated in the same commit as each accessibility fix.
 Text lives in apps/zbm/lib/legal.ts and must match what the code collects,
 stores, sends and sets in the browser: change it in the same commit as any
