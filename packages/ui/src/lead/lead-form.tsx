@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useRef, useState, type FormEvent } from "react";
+import { useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { LedgerRule } from "../components/ledger-rule";
 import { REGION_FIELD_NAME } from "@zbest/lead/region";
 import { FAILURE_COPY, HONEYPOT_FIELD, submitLead, type LeadFailure } from "./contract";
@@ -67,10 +67,13 @@ export function LeadForm({
   form,
   fields,
   submitLabel,
+  notice,
 }: {
   form: string;
   fields: LeadField[];
   submitLabel: string;
+  /** Notice at collection, rendered directly above the submit button. */
+  notice?: ReactNode;
 }) {
   const baseId = useId();
   const submissionId = useRef<string | null>(null);
@@ -291,6 +294,7 @@ export function LeadForm({
       {/* Disabled until hydrated (AEGIS r5 N1): a native submit before then
           would post the page and lose the lead. A disabled default button
           also blocks implicit submission (Enter in a field). */}
+      {notice}
       <button
         type="submit"
         disabled={!ready}
