@@ -1,5 +1,6 @@
 import postgres from "postgres";
 import type { PgOptions } from "./pg-url";
+import type { LeadPurger, PurgeResult } from "./retention";
 import { DeliveryError, type InsertResult, type LeadApp, type LeadRecord, type LeadStore, type NotifyStatus } from "./types";
 
 /**
@@ -70,12 +71,12 @@ export function postgresStore(options: PgOptions): LeadStore {
       try {
         const rows = await sql`
           INSERT INTO leads
-            (submission_id, app, form, payload, payload_hash, services, source, ip_hash, user_agent)
+            (submission_id, app, form, payload, payload_hash, services, source, user_agent)
           VALUES (
             ${record.submission_id}::uuid, ${record.app}, ${record.form},
             ${sql.json(record.payload as postgres.JSONValue)}::jsonb, ${record.payload_hash},
             ARRAY(SELECT jsonb_array_elements_text(${sql.json(record.services)}::jsonb)),
-            ${record.source}, ${record.ip_hash}, ${record.user_agent}
+            ${record.source}, ${record.user_agent}
           )
           ON CONFLICT (app, submission_id) DO NOTHING
           RETURNING id`;
@@ -95,6 +96,38 @@ export function postgresStore(options: PgOptions): LeadStore {
           SET notify_status = ${status}::text,
               notified_at = CASE WHEN ${status}::text = 'sent' THEN now() ELSE notified_at END
           WHERE app = ${app} AND submission_id = ${submissionId}::uuid`;
+      } catch (error) {
+        throw storeError(error);
+      }
+    },
+  };
+}
+
+/** The tagged-template shape purgeWith needs; postgres.Sql satisfies it, and so does a recording fake. */
+export type SqlTag = (strings: TemplateStringsArray, ...values: unknown[]) => PromiseLike<{ count: number }>;
+
+/**
+ * The retention statements (src/retention.ts), parameterised: the app and the
+ * cutoffs travel as bound values with explicit casts, never as SQL text.
+ * Scoped to one app, so each app's cron purges only its own rows even when
+ * both share a database. Both are idempotent.
+ */
+export async function purgeWith(sql: SqlTag, app: LeadApp, cutoffs: { leads: Date; userAgent: Date }): Promise<PurgeResult> {
+  const deleted = await sql`
+    DELETE FROM leads
+    WHERE app = ${app}::text AND created_at < ${cutoffs.leads.toISOString()}::timestamptz`;
+  const cleared = await sql`
+    UPDATE leads SET user_agent = NULL
+    WHERE app = ${app}::text AND user_agent IS NOT NULL AND created_at < ${cutoffs.userAgent.toISOString()}::timestamptz`;
+  return { deleted: deleted.count, uaCleared: cleared.count };
+}
+
+export function postgresPurger(options: PgOptions): LeadPurger {
+  const sql = client(options);
+  return {
+    async purge(app, cutoffs) {
+      try {
+        return await purgeWith(sql as unknown as SqlTag, app, cutoffs);
       } catch (error) {
         throw storeError(error);
       }

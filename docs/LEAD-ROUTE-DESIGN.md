@@ -109,7 +109,10 @@ The live site's older backend is the `zbm-server` service in the Railway project
   | Variable | Required | Meaning |
   |---|---|---|
   | `POSTGRES_URL` | yes | Lead store. Parsed by `src/pg-url.ts`, and the driver gets discrete options, never the raw URL (AEGIS H1/M1). Accepted params: `sslmode`; `channel_binding` (accepted, **not enforced**: the driver has no channel binding); `pgbouncer`, `supa`, `connection_limit`, `pool_timeout` (validated, then dropped as harmless hints); `options` **only** as `endpoint=<neon-id>`, passed to the server as the startup `options` parameter; `connect_timeout`. Any other param, or a repeated one, → `not_configured`, naming the key only. A remote host with no `sslmode` uses TLS. **Recommended: `?sslmode=verify-full`** for Neon and Supabase (public CAs). `require` encrypts but does not verify the certificate, as in libpq. Verification of an IP-literal host checks the chain only, not the name (a driver limit); vendor hosts are DNS names. A remote `sslmode=disable` is honoured as the operator's choice. Neon pooled/direct and Supabase pooler/direct formats are tested. |
-  | `LEAD_IP_HASH_SECRET` | yes (with Postgres) | HMAC key for `ip_hash`. The raw IP is never stored. |
+  | `LEAD_IP_HASH_SECRET` | yes (with Postgres) | HMAC key for the rate-limit key (≥ 16 chars). Since 2026-10-30 nothing derived from the IP is stored: `ip_hash` is no longer written (no code read it) and `sql/002_retention.sql` cleared old values. The raw IP is never stored. |
+  | `CRON_SECRET` | **yes, for the retention purge** (≥ 16 chars) | Vercel sends it as `Authorization: Bearer <CRON_SECRET>` on each cron call to `/api/cron/purge-leads` (`vercel.json`, daily). Without it the purge route refuses to run (`503`); a wrong or missing header is `401` and nothing is touched. |
+  | `LEAD_RETENTION_DAYS` | optional, default `730` | Leads are deleted this many days after **submission** (`created_at`). There is no "last contact" column, so disclosures must count from submission. Whole days 1–3650; anything else → `503 not_configured` on the purge. |
+  | `LEAD_UA_RETENTION_DAYS` | optional, default `90` | The stored user agent is blanked this many days after submission (must not exceed `LEAD_RETENTION_DAYS`). |
   | `RESEND_API_KEY`, `LEAD_NOTIFY_FROM`, `LEAD_NOTIFY_TO` | yes, unless `LEAD_NOTIFY=disabled` | Founder notification. |
   | `LEAD_NOTIFY=disabled` | optional | Explicit store-only mode, for running before the Resend domain is verified. Rows get `notify_status = 'disabled'`. It is never inferred from a missing key. |
   | `LEAD_RATE_LIMIT` | optional, default `8/600` | Requests per window (seconds) per trusted client IP, per app. |
@@ -195,7 +198,7 @@ The live site's older backend is the `zbm-server` service in the Railway project
 4. **Retention and deletion.**
    - How long are leads kept, and who handles a deletion request?
    - No period is set in the Brief. The Legal Brief hands this to the attorney.
-   - The table supports a purge by `created_at`. Nothing purges automatically until a period is chosen.
+   - **Built 2026-10-30:** a daily Vercel Cron purge per app (`/api/cron/purge-leads`, `packages/lead/src/retention.ts`) deletes leads `LEAD_RETENTION_DAYS` (default 730) after submission and blanks user agents after `LEAD_UA_RETENTION_DAYS` (default 90). A deletion request is handled by hand with `packages/lead/scripts/delete-lead.mjs` (runbook in its header); there is no public deletion endpoint.
 5. **Consent / privacy notice on forms.**
    - The Brief requires no consent checkbox, so none was added.
    - Counsel should say whether the forms need a "see our Privacy Policy" line once the policy is final (CCPA notice at collection). The policy is still a draft shell.
@@ -217,7 +220,6 @@ The live site's older backend is the `zbm-server` service in the Railway project
 
 ## 6. Not done here
 - No CRM and no backend forwarder (Option B later, behind a spec revision).
-- No automatic retention purge.
 - No CAPTCHA (Brief: none at launch).
 - Nothing was deployed, no Vercel env was set, and neither the `zbestmedia-ui` project nor anything on Railway was touched.
 

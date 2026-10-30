@@ -33,7 +33,7 @@ export function ipSourceFor(header: (typeof TRUSTED_PROXY_HEADERS)[number], hops
 
 export const VERCEL_IP_SOURCE: IpSource = { header: "x-vercel-forwarded-for", hop: "only" };
 
-/** A normalised client address: `address` for the HMAC, `key` for the rate limit. */
+/** A normalised client address: `key` (port-free, IPv6 by /64) is what the rate limit HMACs. */
 export type ClientAddress = { address: string; key: string };
 
 /**

@@ -20,8 +20,6 @@ export type LeadRecord = {
   services: string[];
   /** Campaign tag from ?src= / ?utm_campaign=, lowercase, or null. */
   source: string | null;
-  /** HMAC of the client IP. The raw IP is never stored. */
-  ip_hash: string | null;
   user_agent: string | null;
 };
 
