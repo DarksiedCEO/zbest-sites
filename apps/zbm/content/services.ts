@@ -400,7 +400,7 @@ export const SERVICES: Service[] = [
     slug: "z-best-clips",
     name: "Z Best Clips",
     group: "content",
-    summary: "Creator-powered short-form distribution. One source, hundreds of clips, real reach.",
+    summary: "Creator-powered short-form distribution. One source, dozens of clips, real reach.",
     href: "https://zbestclips.com",
     external: true,
   },

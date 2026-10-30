@@ -2,7 +2,7 @@
 
 import { animate } from "motion";
 import { useInView, useReducedMotion } from "motion/react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 const defaultFormat = (n: number) => Math.round(n).toLocaleString("en-US");
 
@@ -23,6 +23,14 @@ const defaultFormat = (n: number) => Math.round(n).toLocaleString("en-US");
  * since each tick sets state, listing it re-ran the effect mid-animation: the
  * cleanup stopped the tween and the once-only guard refused to restart it, so
  * the counter froze on whatever number it had reached.
+ *
+ * The server renders the FINAL value, never 0. The server cannot know the
+ * visitor's motion preference, and rendering 0 there made the reduced path
+ * depend on hydration: until the client effect ran, a reduced-motion visitor
+ * saw 0, and with JavaScript off the number never appeared (found as a flaky
+ * gate read on Sep 18). Only a client that allows motion rewinds to 0, in a
+ * layout effect, before the hydrated frame paints, so the tick still starts
+ * from zero.
  */
 export function Counter({
   value,
@@ -40,8 +48,14 @@ export function Counter({
   const formatRef = useRef(format);
   formatRef.current = format;
 
-  const [display, setDisplay] = useState(() => format(0));
+  const [display, setDisplay] = useState(() => format(value));
   const hasRun = useRef(false);
+
+  useLayoutEffect(() => {
+    if (hasRun.current) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    setDisplay(formatRef.current(0));
+  }, []);
 
   useEffect(() => {
     if (reduceMotion) {

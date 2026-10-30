@@ -1,6 +1,9 @@
 import { z } from "zod";
 import { INTAKE_SERVICE_VALUES } from "@/content/services";
 
+// No eval feature-check under the CSP (packages/ui/src/security-headers.ts).
+z.config({ jitless: true });
+
 /**
  * Lead form contract (Brief §6.1, §6.2), shared by the route handler and the
  * client adapter so the two cannot disagree about a field.

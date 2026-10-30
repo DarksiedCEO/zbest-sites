@@ -394,6 +394,7 @@ test.describe("Readiness check — the form, the result and §12.7 routing", () 
 
     const result = section.locator("[data-readiness-result]");
     await expect(result).toHaveAttribute("data-readiness-result", "gap_identified");
+    await expect(result).toContainText("Scored against a fixed set of rules. A full audit goes deeper.");
     await expect(section.locator("[data-readiness-category]")).toHaveText(reviews.name);
     await expect(section.locator("[data-readiness-rationale]")).toHaveText(reviews.description);
     await expect(section.locator("[data-readiness-remediation]")).toHaveText(reviews.fix);

@@ -1,11 +1,12 @@
+import Link from "next/link";
 import { ButtonLink, LedgerRule, pageMetadata } from "@zbest/ui";
 import {
   Body,
   CtaRow,
   FaqList,
-  FixtureNote,
   LedgerList,
   Lead,
+  Note,
   PageHeader,
   PageSection,
 } from "@/components/page";
@@ -128,10 +129,14 @@ export default function RevenueRecoveryPage() {
         label="Get an Assessment"
         title="Get your free assessment."
         intro={
-          <FixtureNote>
-            Fixture — eight questions return one prioritized leak, scored on fixture rules.
-            Nothing you enter is stored or sent.
-          </FixtureNote>
+          <Note>
+            Free. We save your answers and contact details so we can follow up with you. See
+            our{" "}
+            <Link href="/legal/privacy-policy" className="underline underline-offset-4">
+              Privacy Policy
+            </Link>
+            .
+          </Note>
         }
       >
         <div className="max-w-3xl">

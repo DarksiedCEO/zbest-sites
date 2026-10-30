@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
-import { mkdir, readFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { captureFullPage } from "../capture";
 import { GATE_NONCE, ZBC_BASE_URL, ZBM_BASE_URL } from "../playwright.config";
 
 /**
@@ -195,14 +196,11 @@ for (const app of APPS) {
         `server serves build ${buildId} — the one this gate built`,
       ).toBe(200);
 
-      await mkdir(SNAPSHOT_DIR, { recursive: true });
-      await page.screenshot({
-        path: path.join(
-          SNAPSHOT_DIR,
-          `${app.slug}-home-${testInfo.project.name}.png`,
-        ),
-        fullPage: true,
-      });
+      await captureFullPage(
+        page,
+        path.join(SNAPSHOT_DIR, `${app.slug}-home-${testInfo.project.name}.png`),
+        testInfo,
+      );
     });
   });
 }
