@@ -4,6 +4,9 @@ import { LEAD_FIELDS } from "@/lib/lead";
 import { ACTIVE_RULE_SET } from "./rules";
 import type { VisibilityReadinessResult } from "./score";
 
+// No eval feature-check under the CSP (packages/ui/src/security-headers.ts).
+z.config({ jitless: true });
+
 /**
  * AI Visibility Readiness Check wire contract — Backend Spec v0.4 §12.7.
  *

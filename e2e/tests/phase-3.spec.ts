@@ -1,6 +1,7 @@
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page, type TestInfo } from "@playwright/test";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { captureFullPage } from "../capture";
 import { ZBC_BASE_URL, ZBM_BASE_URL } from "../playwright.config";
 
 /**
@@ -108,10 +109,9 @@ async function presetConsent(page: Page) {
   }, CONSENT_KEY);
 }
 
-async function capture(page: Page, name: string) {
+async function capture(page: Page, name: string, testInfo: TestInfo) {
   await page.evaluate(() => document.fonts.ready);
-  await mkdir(SNAPSHOT_DIR, { recursive: true });
-  await page.screenshot({ path: path.join(SNAPSHOT_DIR, `${name}.png`), fullPage: true });
+  await captureFullPage(page, path.join(SNAPSHOT_DIR, `${name}.png`), testInfo);
 }
 
 const head = (page: Page, selector: string, attr = "content") =>
@@ -204,7 +204,7 @@ for (const app of APPS) {
         expect(html).not.toMatch(/search-intelligence/i);
         expect(html).not.toMatch(/href="\/dev/);
 
-        await capture(page, `${app.slug}-${p.slug}-${testInfo.project.name}`);
+        await capture(page, `${app.slug}-${p.slug}-${testInfo.project.name}`, testInfo);
       });
     }
 
@@ -500,7 +500,7 @@ test.describe("Z Best Clips — Entertainment/Brands color-coded system", () => 
       expect(await bg(header.locator('li[data-focus="entertainment"]:visible [data-focus-marker]'))).toBe(ENT);
       expect(await bg(header.locator('li[data-focus="brands"]:visible [data-focus-marker]'))).toBe(BRAND);
 
-      await capture(page, `zbc-focus-${f.focus}-nav-open-${testInfo.project.name}`);
+      await capture(page, `zbc-focus-${f.focus}-nav-open-${testInfo.project.name}`, testInfo);
     });
   }
 

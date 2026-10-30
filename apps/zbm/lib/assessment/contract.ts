@@ -4,6 +4,9 @@ import { LEAD_FIELDS } from "@/lib/lead";
 import { ACTIVE_RULE_SET } from "./rules";
 import type { FreeAssessmentResult } from "./score";
 
+// No eval feature-check under the CSP (packages/ui/src/security-headers.ts).
+z.config({ jitless: true });
+
 /**
  * Free assessment wire contract — Backend Spec v0.3 §11.3 and §11.5.
  *

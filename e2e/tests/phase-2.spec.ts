@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
-import { mkdir } from "node:fs/promises";
 import path from "node:path";
+import { captureFullPage } from "../capture";
 import { ZBC_BASE_URL, ZBM_BASE_URL } from "../playwright.config";
 
 /**
@@ -134,14 +134,11 @@ for (const app of APPS) {
         page.getByText("Illustrative example — not a client result").first(),
       ).toBeVisible();
 
-      await mkdir(SNAPSHOT_DIR, { recursive: true });
-      await page.screenshot({
-        path: path.join(
-          SNAPSHOT_DIR,
-          `${app.slug}-dev-system-${testInfo.project.name}.png`,
-        ),
-        fullPage: true,
-      });
+      await captureFullPage(
+        page,
+        path.join(SNAPSHOT_DIR, `${app.slug}-dev-system-${testInfo.project.name}.png`),
+        testInfo,
+      );
     });
 
     test("FAQ accordion is operable and announces state", async ({ page }) => {
@@ -225,6 +222,24 @@ for (const app of APPS) {
       await expect(
         page.locator("#counter .type-stat span[aria-label]").first(),
       ).toHaveAttribute("aria-label", "1,240,000");
+    });
+
+    // The reduced-motion read above used to race hydration: the server
+    // rendered "0" and only the client effect swapped in the final value, so a
+    // read before hydration saw "0" (the Sep 18 flake), and with JavaScript off
+    // the number never appeared at all. §9: content fully readable with motion
+    // off — so the served HTML itself must carry the final value.
+    test("counter's served HTML carries the final value, before any script runs", async ({ browser }) => {
+      for (const reducedMotion of ["reduce", "no-preference"] as const) {
+        const context = await browser.newContext({ javaScriptEnabled: false, reducedMotion });
+        const page = await context.newPage();
+        await page.goto(`${app.baseUrl}/dev/system`, { waitUntil: "domcontentloaded" });
+        expect(
+          await page.locator("#counter .type-stat").first().textContent(),
+          `no-JS, reducedMotion=${reducedMotion}`,
+        ).toBe("1,240,000");
+        await context.close();
+      }
     });
   });
 }

@@ -6,7 +6,7 @@ import { SITE } from "@/lib/site";
 export const metadata = pageMetadata(SITE, {
   title: "Become a Clipper",
   description:
-    "Turn footage into income. No experience required, no follower minimum. Paid on verified views, with rates disclosed per campaign.",
+    "Turn footage into income. No experience required, no follower minimum. Paid on approved posts and verified views, with rates disclosed per campaign.",
   path: "/become-a-clipper",
   ogImage: "/become-a-clipper/opengraph-image",
 });
@@ -46,7 +46,7 @@ export default function BecomeAClipperPage() {
             { title: "Get the source material", body: "approved footage, clear brief" },
             { title: "Cut and post", body: "your hook, your account" },
             { title: "Submit for review" },
-            { title: "Get paid on verified views" },
+            { title: "Get paid on approved posts and verified views" },
           ]}
         />
       </PageSection>

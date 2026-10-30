@@ -1,7 +1,7 @@
 import { formReady } from "../support/ready";
 import { expect, test, type Page } from "@playwright/test";
-import { mkdir } from "node:fs/promises";
 import path from "node:path";
+import { captureFullPage } from "../capture";
 import { ZBM_BASE_URL } from "../playwright.config";
 
 /**
@@ -170,11 +170,11 @@ for (const p of PAGES) {
       expect(hrefs.filter((h) => /search-intelligence/i.test(h))).toEqual([]);
 
       await page.evaluate(() => document.fonts.ready);
-      await mkdir(SNAPSHOT_DIR, { recursive: true });
-      await page.screenshot({
-        path: path.join(SNAPSHOT_DIR, `zbm-${p.slug}-${testInfo.project.name}.png`),
-        fullPage: true,
-      });
+      await captureFullPage(
+        page,
+        path.join(SNAPSHOT_DIR, `zbm-${p.slug}-${testInfo.project.name}.png`),
+        testInfo,
+      );
     });
   });
 }
@@ -268,6 +268,14 @@ test.describe("Home (§A4)", () => {
     await expect(page.getByRole("link", { name: "See What We Do" })).toHaveAttribute("href", "#what-we-do");
   });
 
+  // The Sep 17 ruling put ZBC's clip volume at "dozens"; this card on the ZBM
+  // home still said "hundreds" after the ZBC sweep.
+  test("the Z Best Clips card says dozens of clips, never hundreds", async ({ page }) => {
+    await visit(page, byPath("/"));
+    await expect(page.locator("#what-we-do")).toContainText("One source, dozens of clips, real reach.");
+    expect(await mainText(page)).not.toMatch(/[Hh]undreds of/);
+  });
+
   test("featured Revenue Recovery carries the six leaks, the decision-10 assessment CTA and its fixture label", async ({ page }) => {
     await visit(page, byPath("/"));
     const section = page.locator("#revenue-recovery");
@@ -284,7 +292,11 @@ test.describe("Home (§A4)", () => {
     const cta = section.getByRole("link", { name: "Get your free assessment" });
     await expect(cta).toHaveAttribute("href", "/revenue-recovery#assessment");
     await expect(section).toContainText("One prioritized leak — the one we’d fix first — and what fixing it looks like.");
-    await expect(section.locator("[data-fixture-note]")).toContainText("Fixture");
+    await expect(section.locator("[data-note]")).toHaveText("Free. We save your answers and contact details so we can follow up with you. See our Privacy Policy.");
+    await expect(section.locator("[data-note]").getByRole("link", { name: "Privacy Policy" })).toHaveAttribute(
+      "href",
+      "/legal/privacy-policy",
+    );
   });
 
   test("How we work carries no case study cards", async ({ page }) => {
@@ -409,13 +421,17 @@ test.describe("Revenue Recovery (§A4, filtered live carry-over)", () => {
     await expect(panel).not.toContainText(/60[- ]?sec|quantified/i);
   });
 
-  test("assessment form: fixture-labeled, validates, and confirms receipt only once stored", async ({ page }) => {
+  test("assessment form: says what is saved, validates, and confirms receipt only once stored", async ({ page }) => {
     await visit(page, byPath("/revenue-recovery"));
     const section = page.locator("#assessment");
-    await expect(section.locator("[data-fixture-note]")).toContainText("Fixture");
+    await expect(section.locator("[data-note]")).toHaveText("Free. We save your answers and contact details so we can follow up with you. See our Privacy Policy.");
+    await expect(section.locator("[data-note]").getByRole("link", { name: "Privacy Policy" })).toHaveAttribute(
+      "href",
+      "/legal/privacy-policy",
+    );
     const form = section.locator('form[data-lead-form="assessment"]');
     await formReady(form);
-    await expect(form).toContainText("fixture rules");
+    await expect(form).toContainText("This form scores your answers against a fixed set of rules.");
     await expect(form).not.toContainText("Stub");
     for (const label of ["Name", "Business", "Website", "Best way to reach you"]) {
       await expect(form.getByLabel(label, { exact: true })).toBeVisible();
@@ -447,7 +463,7 @@ test.describe("Revenue Recovery (§A4, filtered live carry-over)", () => {
     expect(response.headers()["x-zbest-lead-transport"]).toBe("fake");
     const result = section.locator('[data-lead-result="accepted"]');
     await expect(result).toContainText("Received");
-    await expect(result).toContainText("Scored on fixture rules");
+    await expect(result).toContainText("Scored against a fixed set of rules. A full audit goes deeper.");
   });
 });
 

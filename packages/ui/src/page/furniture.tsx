@@ -224,6 +224,16 @@ export function FixtureNote({ children }: { children: ReactNode }) {
   );
 }
 
+/** Same look as FixtureNote, for a note that is not a placeholder. */
+export function Note({ children }: { children: ReactNode }) {
+  return (
+    <p data-note className="type-small flex items-start gap-2 text-text-secondary">
+      <span aria-hidden="true" className="mt-[0.45em] inline-block size-1.5 shrink-0 bg-accent" />
+      <span>{children}</span>
+    </p>
+  );
+}
+
 export function FaqList({ items }: { items: FaqItem[] }) {
   return <FAQ items={items} />;
 }
