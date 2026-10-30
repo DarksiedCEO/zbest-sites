@@ -15,8 +15,10 @@ const defaultFormat = (n: number) => Math.round(n).toLocaleString("en-US");
  * content to stay fully readable with motion off — so the reduced path is not a
  * shorter animation, it is the final value rendered immediately.
  *
- * The element carries its final value in aria-label and the animating text is
- * aria-hidden, so assistive tech is never read a number mid-count.
+ * The final value is carried as visually hidden text and the animating text is
+ * aria-hidden, so assistive tech is never read a number mid-count. (It used to
+ * sit in aria-label on the <span>, which ARIA 1.2 prohibits on a role-less
+ * element and screen readers often ignore — WCAG 1.3.1/4.1.2.)
  *
  * `format` is held in a ref rather than listed as an effect dependency. An
  * inline or default-parameter function is a new identity on every render, and
@@ -75,7 +77,8 @@ export function Counter({
   }, [inView, reduceMotion, value]);
 
   return (
-    <span ref={ref} className={className} aria-label={format(value)}>
+    <span ref={ref} className={className} data-counter>
+      <span className="sr-only">{format(value)}</span>
       <span aria-hidden="true">{display}</span>
     </span>
   );

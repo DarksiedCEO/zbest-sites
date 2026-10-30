@@ -107,8 +107,10 @@ export function Nav({
         </Link>
 
         <ul className="hidden items-center gap-7 lg:flex">
-          {items.map((item) => {
-            const menuId = `${baseId}-${item.label}`;
+          {items.map((item, index) => {
+            // Index, not label: a label with a space ("Focus Areas") made two
+            // IDREFs in aria-controls, neither of which resolved (WCAG 4.1.2).
+            const menuId = `${baseId}-menu-${index}`;
             const isOpen = openMenu === item.label;
             return (
               <li key={item.label} className="relative">
