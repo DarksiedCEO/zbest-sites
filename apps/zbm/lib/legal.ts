@@ -33,7 +33,6 @@ export const LEGAL_LAST_UPDATED = "[EFFECTIVE DATE]";
 const PRIVACY_EMAIL = "[PRIVACY EMAIL]";
 const LEGAL_EMAIL = "[LEGAL NOTICES EMAIL]";
 const MAILING_ADDRESS = "[BUSINESS MAILING ADDRESS]";
-const RETENTION = "[LEAD RETENTION PERIOD]";
 
 /* -------------------------------------------------------------------------- */
 /* Privacy Policy                                                             */
@@ -101,7 +100,7 @@ const privacyPolicy: InEffectLegalDocument = {
         {
           list: [
             "A keyed one-way code (an HMAC-SHA-256 hash) made from your IP address. We never store the IP address itself. The code lets us recognize repeated abuse from the same source without keeping your address.",
-            "Your browser’s user-agent string (it names your browser and operating system), shortened to 500 characters, so we can investigate spam and fix problems that affect particular browsers.",
+            "Your browser’s user-agent string (it names your browser and operating system), shortened to 500 characters and deleted automatically after 90 days, so we can investigate spam and fix problems that affect particular browsers.",
             "The date and time of the submission, and a random submission ID your browser creates so a double-click doesn’t send the same form twice.",
             "If you reached the intake form from one of our campaign links, the short campaign tag in that link (for example from a billboard or an ad), so we know which campaign brought you. It identifies the campaign, not you.",
           ],
@@ -171,8 +170,16 @@ const privacyPolicy: InEffectLegalDocument = {
             head: ["Information", "How long we keep it"],
             rows: [
               [
-                "Form submissions, the hashed IP code and user-agent stored with them, and the notification emails",
-                `${RETENTION} after our last contact with you, unless you become a client or ask us to delete it sooner. If you become a client, your contract governs what happens next.`,
+                "Form submissions, including anything stored with them",
+                "Deleted automatically 24 months after you send them, unless you become a client (your contract then governs what happens next) or you ask us to delete them sooner.",
+              ],
+              [
+                "Your browser’s user-agent string, stored with a submission",
+                "Deleted automatically 90 days after you send the form.",
+              ],
+              [
+                "Notification emails about your submission",
+                "We delete them from our inbox on the same 24-month schedule. Our email-delivery provider keeps its own copy under its retention terms.",
               ],
               ["Rate-limit counters", "Only as a one-way hash. Held briefly in temporary server memory, or — if a shared rate-limit store is enabled — deleted automatically after the counting window (10 minutes by default)."],
               ["Your cookie-banner choice", "Stored only in your own browser until you clear it. We never receive it."],
