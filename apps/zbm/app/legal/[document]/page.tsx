@@ -14,13 +14,16 @@ import { SITE } from "@/lib/site";
 export const dynamicParams = false;
 
 export function generateStaticParams() {
-  // In effect since Andre's Oct 30 2026 decision, so a production deploy must
-  // never publish one with a fact still missing. Vercel sets VERCEL_ENV at
-  // build time; preview and local builds render the gaps visibly marked.
+  // In effect since Andre's Oct 30 2026 decision, so no production build may
+  // finish with a fact still missing — on Vercel, Railway or anywhere else
+  // (AEGIS L13). Exceptions: a Vercel preview, and the e2e gate, which sets
+  // ZBEST_ALLOW_LEGAL_PLACEHOLDERS=1 on the builds it starts. Local and
+  // preview builds render the gaps visibly marked.
   const missing = unfilledLegalPlaceholders();
-  if (process.env.VERCEL_ENV === "production" && missing.length) {
+  const exempt = process.env.VERCEL_ENV === "preview" || process.env.ZBEST_ALLOW_LEGAL_PLACEHOLDERS === "1";
+  if (process.env.NODE_ENV === "production" && !exempt && missing.length) {
     throw new Error(
-      `ZBM legal documents still contain placeholders: ${missing.join(", ")}. Fill them in apps/zbm/lib/legal.ts before a production deploy.`,
+      `ZBM legal documents still contain placeholders: ${missing.join(", ")}. Fill them in apps/zbm/lib/legal.ts before a production build.`,
     );
   }
   return Object.keys(LEGAL_DOCUMENTS).map((document) => ({ document }));

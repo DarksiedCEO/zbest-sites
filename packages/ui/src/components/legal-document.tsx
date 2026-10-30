@@ -10,7 +10,8 @@ import { LedgerRule } from "./ledger-rule";
  * component only lays it out.
  *
  * Inline syntax inside any string:
- *   [Link text](/path)      an internal link (site-relative paths only)
+ *   [Link text](/path)      an internal link (site-relative paths only;
+ *                           "//host" is not a link and renders as text)
  *   [UPPER CASE TOKEN]      a fact still to be supplied. Rendered visibly
  *                           marked with data-placeholder so it can never pass
  *                           for real text, and found by legalPlaceholders()
@@ -40,7 +41,7 @@ export type InEffectLegalDocument = {
 
 /** A placeholder is a bracketed token of capitals that is not a link label. */
 const PLACEHOLDER = /\[([A-Z0-9][A-Z0-9 ,.'’/&—()-]*)\](?!\()/g;
-const TOKEN = /\[([^\]]+)\]\((\/[^)\s]*)\)|\[([A-Z0-9][A-Z0-9 ,.'’/&—()-]*)\](?!\()/g;
+const TOKEN = /\[([^\]]+)\]\((\/(?!\/)[^)\s]*)\)|\[([A-Z0-9][A-Z0-9 ,.'’/&—()-]*)\](?!\()/g;
 
 function inline(text: string): ReactNode[] {
   const out: ReactNode[] = [];

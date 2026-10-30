@@ -29,8 +29,9 @@ import { legalDocumentStrings, legalPlaceholders, type ConsentCategory, type InE
  *                      packages/ui/src/security-headers.ts, src/fonts/*
  *
  * [UPPER CASE] tokens are facts Andre has not supplied yet. They render
- * visibly marked, and a Vercel production build refuses to ship while any
- * remain (app/legal/[document]/page.tsx).
+ * visibly marked, and any production build (NODE_ENV=production) refuses to
+ * finish while any remain, except a Vercel preview or the e2e gate
+ * (app/legal/[document]/page.tsx).
  */
 
 /** Shown on every document. Replace both tokens when the documents go live. */
@@ -236,7 +237,7 @@ const privacyPolicy: InEffectLegalDocument = {
           p: "Timing: we confirm receipt within 10 business days and respond within 30 days (one month for UK residents). If a request is complex and we need more time, we’ll tell you why within that period; the extension never goes beyond what the law where you live allows.",
         },
         {
-          p: `Appeals: if we decline your request in whole or part, we’ll explain why. You can appeal by replying with the subject “Privacy appeal” within 60 days. We’ll answer within 60 days of receiving the appeal. If you’re not satisfied, you may contact your state attorney general (and, in California, the California Privacy Protection Agency).`,
+          p: `Appeals: if we decline your request in whole or part, we’ll explain why. You can appeal by replying with the subject “Privacy appeal” within 60 days. We’ll answer within 45 days of receiving the appeal. If you’re not satisfied, you may contact your state attorney general (and, in California, the California Privacy Protection Agency).`,
         },
         {
           p: "No discrimination: we will never deny you service, charge you a different price or treat you differently because you exercised a privacy right.",
@@ -248,7 +249,7 @@ const privacyPolicy: InEffectLegalDocument = {
       heading: "California residents",
       blocks: [
         {
-          p: "The California Consumer Privacy Act, as amended by the California Privacy Rights Act (together, the “CCPA”), applies to for-profit companies that meet any one of these thresholds: annual gross revenue above $26,625,000 (the 2025 inflation-adjusted figure); buying, selling or sharing the personal information of 100,000 or more California consumers or households a year; or earning half or more of annual revenue from selling or sharing personal information. Based on our size, Z Best Media does not currently meet any of them. We follow the CCPA’s rules anyway, and the rights in “Your rights and choices” are the CCPA rights to know, delete and correct.",
+          p: "The California Consumer Privacy Act, as amended by the California Privacy Rights Act (together, the “CCPA”), applies to for-profit companies that meet any one of these thresholds: annual gross revenue above $25 million, as adjusted for inflation by the California Privacy Protection Agency; buying, selling or sharing the personal information of 100,000 or more California consumers or households a year; or earning half or more of annual revenue from selling or sharing personal information. Based on our size, Z Best Media does not currently meet any of them. We follow the CCPA’s rules anyway, and the rights in “Your rights and choices” are the CCPA rights to know, delete and correct.",
         },
         { p: "Notice at collection and disclosures for the past 12 months, using the CCPA’s categories:" },
         {
@@ -279,7 +280,7 @@ const privacyPolicy: InEffectLegalDocument = {
       heading: "Residents of other US states",
       blocks: [
         {
-          p: "Virginia, Colorado, Connecticut, Texas, Oregon and more than a dozen other states have comprehensive privacy laws. Most apply only above a volume threshold — commonly 100,000 residents of that state a year (35,000 in Connecticut since July 1, 2026, and in Maryland, Delaware, New Hampshire and Rhode Island; 25,000 in Montana) — or to companies that sell personal data. Texas and Nebraska don’t apply to small businesses, apart from a rule against selling sensitive data without consent. Most of these laws also don’t cover people acting in a business capacity, which is how most people contact us.",
+          p: "Virginia, Colorado, Connecticut, Texas, Oregon and more than a dozen other states have comprehensive privacy laws. Most apply only above a volume threshold — typically tens of thousands of residents of that state a year, depending on the state — or to companies that sell personal data. Texas and Nebraska don’t apply to small businesses, apart from a rule against selling sensitive data without consent. Most of these laws also don’t cover people acting in a business capacity, which is how most people contact us.",
         },
         {
           p: "We don’t believe any of these laws currently applies to us, but we honor the same rights for everyone: access, correction, deletion, a portable copy, and an appeal, through the single process in “Your rights and choices”. We don’t sell personal data, use it for targeted advertising, or use it for profiling that produces legal or similarly significant effects, so there is nothing to opt out of.",
@@ -492,7 +493,7 @@ const termsOfService: InEffectLegalDocument = {
           p: "We may change a tool’s questions or rules at any time. If they change while you’re filling one in, the tool tells you, saves nothing and asks you to reload the current version, rather than scoring you against rules you weren’t shown. The tools are free, and we may change, suspend or retire them at any time.",
         },
         {
-          p: "Examples, figures and scenarios on the site are illustrative unless we say otherwise. Results described anywhere on the site are not typical or guaranteed.",
+          p: "Examples, figures and scenarios on the site are illustrative unless we say otherwise. They are not a prediction or promise of what your business will achieve.",
         },
       ],
     },
