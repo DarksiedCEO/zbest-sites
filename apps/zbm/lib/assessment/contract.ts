@@ -1,5 +1,5 @@
 import { failureOf, type LeadErrorBody, type LeadFailure } from "@zbest/ui/lead/contract";
-import { REGION } from "@zbest/lead/region";
+import { REGION, REGION_FIELD_NAME } from "@zbest/lead/region";
 import { z } from "zod";
 import { LEAD_FIELDS } from "@/lib/lead";
 import { ACTIVE_RULE_SET } from "./rules";
@@ -37,10 +37,11 @@ export const ASSESSMENT_REQUEST = z.object({
   rule_set_version: z.string().min(1),
   contact: LEAD_FIELDS.assessment,
   /**
-   * Service area (founder decision 2026-10-30): the business's US state or
-   * territory, `{ state }`. A sibling of `contact`, which keeps
-   * the spec's four fields unchanged. ADDITION to the certified request:
-   * needs a spec revision before backend acceptance.
+   * Service area (founder decisions 2026-10-30): the business's US state or
+   * territory, `{ state }`. A sibling of `contact`, which keeps the spec's
+   * four contact fields unchanged. Added to the certified request by the
+   * spec amendment of 2026-10-30 (docs/backend-interface-spec-v0.4.md §11.3,
+   * docs/SPEC-AMENDMENT-2026-10-30-service-area.md); pending backend acceptance.
    */
   region: REGION,
   answers: z.array(ANSWER).max(32, { error: "Too many answers.", abort: true }).superRefine((answers, ctx) => {
@@ -71,7 +72,9 @@ export function fieldErrors(issues: readonly z.core.$ZodIssue[]): Record<string,
   for (const issue of issues) {
     const [head, second] = issue.path;
     const key =
-      head === "contact" || head === "region" ? String(second ?? head)
+      head === "contact" ? String(second ?? head)
+      // A region error is shown under the "State or territory" select, whose field is `state`.
+      : head === "region" ? String(second ?? REGION_FIELD_NAME)
       : head === "answers" ? (typeof second === "string" ? `answers.${second}` : "answers")
       : String(head ?? "form");
     errors[key] ??= issue.message;

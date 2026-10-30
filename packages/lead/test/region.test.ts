@@ -57,6 +57,13 @@ describe("REGION schema: exactly the 50 states, DC and the five inhabited territ
     }
   });
 
+  it("a missing or non-object region says 'Choose your state or territory.', not zod's default", () => {
+    for (const bad of [undefined, null, "US-CA", 5, []]) {
+      const issues = REGION.safeParse(bad).error?.issues.map((i) => [i.path.join("."), i.message]);
+      expect(issues, JSON.stringify(bad)).toEqual([["", REGION_COPY.choose]]);
+    }
+  });
+
   it("serves every listed area and declines 'outside'", () => {
     for (const a of SERVICE_AREAS) expect(regionServed({ state: a.value }), a.value).toBe(true);
     expect(regionServed({ state: "outside" })).toBe(false);
