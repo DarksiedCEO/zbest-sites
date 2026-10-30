@@ -26,9 +26,11 @@ on:
 permissions:
   contents: read
 
+# A push to main must not cancel a nightly that is already running, and the
+# other way round: runs queue instead (AEGIS r2 N3).
 concurrency:
   group: a11y-nightly-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 env:
   NODE_VERSION: "22"
@@ -83,10 +85,11 @@ jobs:
             e2e/test-results/
           retention-days: 14
 
+  # Reports a failed OR cancelled (e.g. timed-out) run.
   report:
     name: open an issue on failure
     needs: [a11y]
-    if: ${{ failure() }}
+    if: ${{ failure() || cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -98,10 +101,11 @@ jobs:
           GH_REPO: ${{ github.repository }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           SHA: ${{ github.sha }}
+          RESULT: ${{ needs.a11y.result }}
         run: |
           set -euo pipefail
           title="Nightly accessibility gate failing"
-          body="The a11y-nightly run failed on ${SHA}: ${RUN_URL}"
+          body="The a11y-nightly run ended '${RESULT}' on ${SHA}: ${RUN_URL}"
           existing=$(gh issue list --state open --search "\"${title}\" in:title" --json number --jq '.[0].number // empty')
           if [ -n "$existing" ]; then
             gh issue comment "$existing" --body "$body"
