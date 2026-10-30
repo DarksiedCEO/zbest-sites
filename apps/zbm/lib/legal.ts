@@ -35,15 +35,15 @@ import { legalDocumentStrings, legalPlaceholders, type ConsentCategory, type InE
  */
 
 /** Shown on every document. Replace both tokens when the documents go live. */
-export const LEGAL_ISSUER = "[LEGAL ENTITY NAME], doing business as Z Best Media";
+export const LEGAL_ISSUER = "[LEGAL ENTITY NAME]";
 export const LEGAL_EFFECTIVE_DATE = "[EFFECTIVE DATE]";
 export const LEGAL_LAST_UPDATED = "[EFFECTIVE DATE]";
 
-const PRIVACY_EMAIL = "[PRIVACY EMAIL]";
-const LEGAL_EMAIL = "[LEGAL NOTICES EMAIL]";
+const PRIVACY_EMAIL = "privacy@zbestmedia.com";
+const LEGAL_EMAIL = "legalnotice@zbestmedia.com";
 const MAILING_ADDRESS = "[BUSINESS MAILING ADDRESS]";
-const ACCESSIBILITY_EMAIL = "[ACCESSIBILITY EMAIL — CONFIRM]";
-const BILLING_EMAIL = "[BILLING EMAIL]";
+const ACCESSIBILITY_EMAIL = "privacy@zbestmedia.com";
+const BILLING_EMAIL = "billing@zbestmedia.com";
 
 /* -------------------------------------------------------------------------- */
 /* Privacy Policy                                                             */
