@@ -43,7 +43,6 @@ const PRIVACY_EMAIL = "[PRIVACY EMAIL]";
 const LEGAL_EMAIL = "[LEGAL NOTICES EMAIL]";
 const MAILING_ADDRESS = "[BUSINESS MAILING ADDRESS]";
 const ACCESSIBILITY_EMAIL = "[ACCESSIBILITY EMAIL — CONFIRM]";
-const UK_REPRESENTATIVE = "[UK REPRESENTATIVE]";
 
 /* -------------------------------------------------------------------------- */
 /* Privacy Policy                                                             */
@@ -88,24 +87,24 @@ const privacyPolicy: InEffectLegalDocument = {
             rows: [
               [
                 "Contact form",
-                "Your name, your business name, what you’re looking to solve, the best way to reach you (for example an email address or phone number), and your country (and province or territory, if you’re in Canada).",
+                "Your name, your business name, what you’re looking to solve, the best way to reach you (for example an email address or phone number), and where your business is located.",
                 "To read your message and reply.",
               ],
               [
                 "Start a Project (intake form)",
-                "The services you’re interested in, your name, business name, the best way to reach you, and your country (and province or territory, if you’re in Canada). Optionally: your website, a budget range, a timing range and any other details you add.",
+                "The services you’re interested in, your name, business name, the best way to reach you, and where your business is located. Optionally: your website, a budget range, a timing range and any other details you add.",
                 "To understand the project and reply with a useful next step.",
               ],
               [
                 "Free assessments (for example the Revenue Recovery assessment)",
-                "Your name, business name, business website, the best way to reach you and your country (and province or territory, if you’re in Canada), plus your answers to the assessment’s multiple-choice questions.",
+                "Your name, business name, business website, the best way to reach you and where your business is located, plus your answers to the assessment’s multiple-choice questions.",
                 "To score your answers, show you the result, and follow up with you about it.",
               ],
             ],
           },
         },
         {
-          p: "We ask for your country because we only serve businesses in the United States, the United Kingdom and Canada (outside Quebec). If you choose a place outside that area, the form tells you so and nothing you entered is stored or sent to us.",
+          p: "We ask where your business is located because we only serve clients in the 50 US states, the District of Columbia, Puerto Rico and Guam. If you choose a place outside that area, the form tells you so and nothing you entered is stored or sent to us.",
         },
         {
           p: "Please don’t put sensitive personal information — such as health information, financial account numbers, government ID numbers or passwords — into a free-text box. We don’t ask for it and don’t need it.",
@@ -234,7 +233,7 @@ const privacyPolicy: InEffectLegalDocument = {
           p: "Agents: you can have someone else make a request for you. We may ask for your signed permission and confirm your identity directly with you, unless the agent holds a valid power of attorney.",
         },
         {
-          p: "Timing: we confirm receipt within 10 business days and respond within 30 days (one month for UK residents). If a request is complex and we need more time, we’ll tell you why within that period; the extension never goes beyond what the law where you live allows.",
+          p: "Timing: we confirm receipt within 10 business days and respond within 30 days. If a request is complex and we need more time, we’ll tell you why within that period; the extension never goes beyond what the law where you live allows.",
         },
         {
           p: `Appeals: if we decline your request in whole or part, we’ll explain why. You can appeal by replying with the subject “Privacy appeal” within 60 days. We’ll answer within 45 days of receiving the appeal. If you’re not satisfied, you may contact your state attorney general (and, in California, the California Privacy Protection Agency).`,
@@ -260,7 +259,7 @@ const privacyPolicy: InEffectLegalDocument = {
               ["Identifiers", "Name, email address or phone number you give us, submission ID; IP address in our hosting provider’s short-lived request logs", "You; your browser", "Hosting, database, email delivery and business email providers"],
               ["Customer records (Cal. Civ. Code § 1798.80(e))", "Name, contact details", "You", "Same as above"],
               ["Commercial information", "Services you’re interested in, budget and timing ranges", "You", "Same as above"],
-              ["Geolocation (coarse, self-declared)", "Your country, and province or territory in Canada — never a precise location", "You", "Same as above"],
+              ["Geolocation (coarse, self-declared)", "Where your business is located, as you choose it on the form — never a precise location", "You", "Same as above"],
               ["Professional information", "Your business name and website", "You", "Same as above"],
               ["Internet or network activity", "Browser user-agent, campaign tag in the link you followed", "Your browser", "Hosting and database providers"],
               ["Inferences", "Your free assessment result, which describes your business", "Our scoring of your answers", "Hosting, database, email delivery and business email providers"],
@@ -284,61 +283,6 @@ const privacyPolicy: InEffectLegalDocument = {
         },
         {
           p: "We don’t believe any of these laws currently applies to us, but we honor the same rights for everyone: access, correction, deletion, a portable copy, and an appeal, through the single process in “Your rights and choices”. We don’t sell personal data, use it for targeted advertising, or use it for profiling that produces legal or similarly significant effects, so there is nothing to opt out of.",
-        },
-      ],
-    },
-    {
-      id: "united-kingdom",
-      heading: "Visitors in the United Kingdom",
-      blocks: [
-        {
-          p: `If you are in the United Kingdom, the UK General Data Protection Regulation and the Data Protection Act 2018 apply. ${LEGAL_ISSUER} is the controller of your personal data, and you can reach us at ${PRIVACY_EMAIL} or ${MAILING_ADDRESS}.`,
-        },
-        {
-          p: `Because we offer our services to businesses in the United Kingdom and are not established there, we have appointed a representative under Article 27 of the UK GDPR: ${UK_REPRESENTATIVE}. You or the Information Commissioner’s Office can contact our representative instead of, or as well as, us about anything to do with how we handle your personal data.`,
-        },
-        {
-          table: {
-            caption: "Why we use your information, and our lawful basis (UK)",
-            head: ["Purpose", "Lawful basis"],
-            rows: [
-              ["Replying to your message and following up on it", "Our legitimate interests in answering business enquiries and developing our business"],
-              ["Scoping a project you ask about, or giving you a free assessment you request", "Taking steps at your request before entering into a contract"],
-              ["Keeping the site and our forms secure, and preventing spam and abuse", "Our legitimate interests in protecting our systems and the people who use them"],
-              ["Meeting legal obligations, and establishing or defending legal claims", "Legal obligation, or our legitimate interests"],
-            ],
-          },
-        },
-        {
-          p: "Giving us your details is voluntary, but we can’t reply without a way to reach you. We don’t make decisions about you based solely on automated processing that have legal or similarly significant effects; the free assessment scores your business’s answers and a person reviews every submission.",
-        },
-        {
-          p: "Your rights: you can ask to access, correct or erase your personal data, to restrict how we use it, to object to our use of it — including an absolute right to object to direct marketing — and to receive it in a portable format. Use the process in “Your rights and choices”; we respond within one month. You also have the right to complain to the Information Commissioner’s Office (ico.org.uk), though we’d appreciate the chance to put things right first.",
-        },
-        {
-          p: "Transfers to the United States: our hosting and email-delivery providers process UK data under the UK International Data Transfer Addendum to the European Commission’s Standard Contractual Clauses, and our email-delivery provider also participates in the UK Extension to the EU-US Data Privacy Framework. We require the same, or another safeguard recognized under UK law, from any other provider that handles your data. You can ask us for a copy of the relevant safeguards.",
-        },
-        { p: "Retention is described in “How long we keep it”." },
-      ],
-    },
-    {
-      id: "canada",
-      heading: "Visitors in Canada",
-      blocks: [
-        {
-          p: `If you are in Canada (outside Quebec, where we don’t offer services), the Personal Information Protection and Electronic Documents Act (PIPEDA) applies. Our founder is the person accountable for our compliance and can be reached at ${PRIVACY_EMAIL} or ${MAILING_ADDRESS}.`,
-        },
-        {
-          p: "Consent and purposes: by submitting a form you consent to our collecting and using your information for the purposes in “How we use it” — mainly to reply to you. You can withdraw your consent at any time by telling us, subject to legal or contractual restrictions; we may then be unable to respond to your request. We collect only what we need for those purposes.",
-        },
-        {
-          p: "Cross-border processing: your information is stored and processed in the United States by us and our service providers, and may be accessible to courts, law-enforcement and national-security authorities there under US law.",
-        },
-        {
-          p: "Access and correction: you can ask to see the personal information we hold about you and to have it corrected, using the process in “Your rights and choices”; we respond within 30 days. If you’re not satisfied with our answer, you can complain to the Office of the Privacy Commissioner of Canada (priv.gc.ca).",
-        },
-        {
-          p: "Commercial email: when you send us an enquiry, Canada’s Anti-Spam Legislation lets us send you commercial messages about it for six months. After those six months we send commercial messages only if you have agreed to receive them. Every message identifies us, includes our contact details and lets you unsubscribe, and we honor any request to stop within 10 business days. Replies to your own questions are not limited by this.",
         },
       ],
     },
@@ -386,10 +330,10 @@ const privacyPolicy: InEffectLegalDocument = {
       heading: "Where we operate and international transfers",
       blocks: [
         {
-          p: "We are based in California and serve businesses in the United States, the United Kingdom and Canada (outside Quebec). We don’t offer our services to people or businesses in France or Quebec, or to anyone in a country subject to comprehensive US sanctions, and we decline enquiries from elsewhere (see our [Terms of Service](/legal/terms-of-service#service-area)).",
+          p: "We are based in Long Beach, California, and serve clients only in the 50 US states, the District of Columbia, Puerto Rico and Guam. Anyone may read the site, but we decline enquiries from outside that area (see our [Terms of Service](/legal/terms-of-service#service-area)).",
         },
         {
-          p: "Information you send us is stored and processed in the United States, and may also be processed in other countries where our service providers operate. Data-protection laws there may differ from those where you live. The sections for the United Kingdom and Canada explain how we protect information that comes from those countries.",
+          p: "Information you send us is stored and processed in the United States, and may also be processed in other countries where our service providers operate. Data-protection laws there may differ from those where you are.",
         },
       ],
     },
@@ -426,7 +370,7 @@ const termsOfService: InEffectLegalDocument = {
   summary: [
     "These terms cover using our website and its free tools. They don’t cover paid services — those are governed by the written agreement we sign with each client.",
     "Free assessments are informational estimates based on your answers. They aren’t a guarantee of results and aren’t legal, tax, accounting or financial advice.",
-    "We serve clients in the United States, the United Kingdom and Canada (excluding Quebec), and not in France, Quebec or sanctioned countries.",
+    "We serve clients only in the 50 US states, the District of Columbia, Puerto Rico and Guam. Anyone may read the site, but we decline enquiries from elsewhere.",
     "Use the site lawfully and don’t try to break, overload or scrape it.",
     "California law applies, and disputes go to the courts in Los Angeles County — or small claims court. There is no mandatory arbitration and no class-action waiver.",
   ],
@@ -460,10 +404,10 @@ const termsOfService: InEffectLegalDocument = {
       heading: "Service area",
       blocks: [
         {
-          p: "We serve clients in the United States, the United Kingdom and Canada (excluding Quebec). We do not offer our services to people or businesses located in France or the Province of Quebec, or to anyone who is located in, or organized or ordinarily resident in, a country or region subject to comprehensive US sanctions, or who is named on — or owned or controlled by someone named on — a US sanctions list. We decline enquiries from outside our service area, and we may ask where you or your business is located before replying.",
+          p: "We serve clients only in the 50 US states, the District of Columbia, Puerto Rico and Guam. We do not offer our services anywhere else, or to anyone who is named on — or owned or controlled by someone named on — a US sanctions list. Anyone may read the site, but we decline enquiries from outside our service area, and we may ask where you or your business is located before replying.",
         },
         {
-          p: "By submitting a form you confirm that you and the business you represent are within our service area and are not a sanctioned person as described above.",
+          p: "By submitting a form you confirm that you and the business you represent are located in our service area and are not a sanctioned person as described above.",
         },
       ],
     },
