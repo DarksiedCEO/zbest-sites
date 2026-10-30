@@ -1,3 +1,3 @@
-import base from "@zbest/config/eslint/base";
+import react from "@zbest/config/eslint/react";
 
-export default base;
+export default react;

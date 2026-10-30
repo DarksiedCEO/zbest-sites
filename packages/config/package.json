@@ -9,12 +9,14 @@
     "./tsconfig/react-library.json": "./tsconfig/react-library.json",
     "./eslint/base": "./eslint/base.mjs",
     "./eslint/next": "./eslint/next.mjs",
-    "./tailwind/preset.css": "./tailwind/preset.css"
+    "./tailwind/preset.css": "./tailwind/preset.css",
+    "./eslint/react": "./eslint/react.mjs"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",
     "eslint": "9.39.5",
     "eslint-config-next": "16.4.3",
+    "eslint-plugin-jsx-a11y": "6.10.2",
     "typescript-eslint": "8.70.0"
   },
   "scripts": {
