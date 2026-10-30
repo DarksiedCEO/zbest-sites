@@ -17,6 +17,10 @@ const ALLOWED = [
   "missing",
   "mode",
   "limiter",
+  // Retention purge counts (numbers only).
+  "deleted",
+  "ua_cleared",
+  "days",
 ] as const;
 
 export type LogFields = Partial<Record<(typeof ALLOWED)[number], string | number>>;

@@ -1,12 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { spawn, spawnSync } from "node:child_process";
 import { lookup } from "node:dns/promises";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { parsePostgresUrl } from "../src/pg-url";
-import { postgresStore } from "../src/postgres";
+import { postgresPurger, postgresStore } from "../src/postgres";
+import { retentionCutoffs } from "../src/retention";
 import { payloadHash } from "../src/hash";
 import { DeliveryError } from "../src/types";
 
@@ -44,6 +45,8 @@ const connect = (raw: string, extra: postgres.Options<Record<string, never>> = {
   });
 };
 
+const MIGRATIONS = readdirSync(path.join(import.meta.dirname, "..", "sql")).filter((f) => /^\d{3}_.+\.sql$/.test(f)).sort();
+
 describe.skipIf(!url)("postgres store (integration)", () => {
   let sql: postgres.Sql;
 
@@ -52,6 +55,10 @@ describe.skipIf(!url)("postgres store (integration)", () => {
     await sql.unsafe(readFileSync(path.join(import.meta.dirname, "..", "sql", "001_leads.sql"), "utf8"));
     // The migration is idempotent: applying it twice is a no-op.
     await sql.unsafe(readFileSync(path.join(import.meta.dirname, "..", "sql", "001_leads.sql"), "utf8"));
+    // Every later migration, in order (each is idempotent too).
+    for (const file of MIGRATIONS.filter((f) => !f.startsWith("001_"))) {
+      await sql.unsafe(readFileSync(path.join(import.meta.dirname, "..", "sql", file), "utf8"));
+    }
     await sql`TRUNCATE leads`;
     // The Neon-shaped test below connects as a separate, TLS-only SCRAM role.
     await sql.unsafe(
@@ -73,7 +80,6 @@ describe.skipIf(!url)("postgres store (integration)", () => {
       payload_hash: payloadHash({ name: "Ada" }),
       services: ["out-of-home", "tv-streaming"],
       source: "bb-i405",
-      ip_hash: "h".repeat(64),
       user_agent: "UA",
     };
     const results = await Promise.all([store.insert(record), store.insert(record), store.insert(record)]);
@@ -105,7 +111,7 @@ describe.skipIf(!url)("postgres store (integration)", () => {
   it("the same submission_id in the other app is a different lead (key is per app)", async () => {
     const store = postgresStore(opts(url!));
     const id = randomUUID();
-    const base = { submission_id: id, form: "x", payload: {}, payload_hash: "h1", services: [], source: null, ip_hash: null, user_agent: null };
+    const base = { submission_id: id, form: "x", payload: {}, payload_hash: "h1", services: [], source: null, user_agent: null };
     expect((await store.insert({ ...base, app: "zbm" })).inserted).toBe(true);
     expect((await store.insert({ ...base, app: "zbc" })).inserted).toBe(true);
     expect((await store.insert({ ...base, app: "zbc" })).inserted).toBe(false);
@@ -122,7 +128,6 @@ describe.skipIf(!url)("postgres store (integration)", () => {
         payload_hash: "h",
         services: [],
         source: null,
-        ip_hash: null,
         user_agent: null,
       })
       .catch((e: unknown) => e);
@@ -142,12 +147,50 @@ describe.skipIf(!url)("postgres store (integration)", () => {
         payload_hash: "h",
         services: [],
         source: null,
-        ip_hash: null,
         user_agent: null,
       })
       .catch((e: unknown) => e);
     expect(error).toBeInstanceOf(DeliveryError);
   }, 15_000);
+
+  it("retention purge: deletes only this app's rows older than the cutoff; blanks old user agents; idempotent", async () => {
+    const now = new Date("2026-10-30T12:00:00.000Z");
+    const day = 86_400_000;
+    const row = async (app: "zbm" | "zbc", ageDays: number, ua: string | null) => {
+      const id = randomUUID();
+      const created = new Date(now.getTime() - ageDays * day).toISOString();
+      await sql`
+        INSERT INTO leads (submission_id, app, form, payload, payload_hash, user_agent, created_at)
+        VALUES (${id}::uuid, ${app}, 'purge-test', '{}'::jsonb, 'h', ${ua}, ${created}::timestamptz)`;
+      return id;
+    };
+    await sql`DELETE FROM leads WHERE form = 'purge-test'`;
+    const oldZbm = await row("zbm", 731, "UA-old");
+    const edgeZbm = await row("zbm", 729.99, "UA-edge"); // inside 730 days: kept, UA blanked
+    const recentZbm = await row("zbm", 10, "UA-recent"); // kept, UA kept
+    const midZbm = await row("zbm", 91, "UA-mid"); // kept, UA blanked
+    const oldZbc = await row("zbc", 900, "UA-zbc"); // other app: untouched by the zbm run
+
+    const purger = postgresPurger(opts(url!));
+    const cutoffs = retentionCutoffs(now, { leadDays: 730, uaDays: 90 });
+    expect(await purger.purge("zbm", cutoffs)).toEqual({ deleted: 1, uaCleared: 2 });
+    expect(await purger.purge("zbm", cutoffs)).toEqual({ deleted: 0, uaCleared: 0 });
+
+    const left = await sql`SELECT submission_id::text AS id, user_agent FROM leads WHERE form = 'purge-test' ORDER BY created_at`;
+    expect(Object.fromEntries(left.map((r) => [r.id, r.user_agent]))).toEqual({
+      [oldZbc]: "UA-zbc",
+      [edgeZbm]: null,
+      [midZbm]: null,
+      [recentZbm]: "UA-recent",
+    });
+    expect(left.map((r) => r.id)).not.toContain(oldZbm);
+    await sql`DELETE FROM leads WHERE form = 'purge-test'`;
+  });
+
+  it("002 cleared ip_hash and the app no longer writes it", async () => {
+    const [{ n }] = (await sql`SELECT count(*)::int AS n FROM leads WHERE ip_hash IS NOT NULL`) as unknown as [{ n: number }];
+    expect(n).toBe(0);
+  });
 });
 
 describe.skipIf(!neonShaped)("postgres store with a Neon-shaped URL (TLS + SCRAM + channel_binding)", () => {
@@ -164,7 +207,6 @@ describe.skipIf(!neonShaped)("postgres store with a Neon-shaped URL (TLS + SCRAM
       payload_hash: "h",
       services: [],
       source: null,
-      ip_hash: null,
       user_agent: null,
     });
     expect(result).toEqual({ inserted: true });
@@ -215,10 +257,10 @@ describe.skipIf(!url)("migrate script (integration)", () => {
 
     const second = run(target);
     expect(second.status, second.stderr).toBe(0);
-    expect(second.stdout).toContain("skip 001_leads.sql (already applied)");
+    for (const f of MIGRATIONS) expect(second.stdout).toContain(`skip ${f} (already applied)`);
 
     const db = connect(target);
-    expect(await db`SELECT version FROM schema_migrations`).toEqual([{ version: "001" }]);
+    expect(await db`SELECT version FROM schema_migrations ORDER BY version`).toEqual(MIGRATIONS.map((f) => ({ version: f.slice(0, 3) })));
     expect(await db`SELECT count(*)::int AS n FROM leads`).toEqual([{ n: 0 }]);
     await db.end();
   });
@@ -497,7 +539,6 @@ describe.skipIf(!neonShaped)("TLS modes and startup options (integration)", () =
         payload_hash: "h",
         services: [],
         source: null,
-        ip_hash: null,
         user_agent: null,
       })
       .then(

@@ -242,7 +242,8 @@ async function handle(request: Request, opts: HandleLeadOptions, log: LeadLogger
     payload_hash: payloadHash({ form: parsed.form, payload: parsed.payload }),
     services: parsed.services ?? [],
     source: parsed.source || null,
-    ip_hash: transport.hashIp(ip.address),
+    // No ip_hash: nothing ever read it, so it is no longer stored (privacy
+    // sweep 2026-10-30, data minimisation; sql/002_retention.sql nulls old rows).
     user_agent: request.headers.get("user-agent")?.slice(0, 500) ?? null,
   };
   const ids = { app, form: record.form, submission_id: record.submission_id, mode: transport.mode };

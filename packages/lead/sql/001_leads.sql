@@ -13,8 +13,8 @@
 --
 -- PII: payload holds what the visitor typed. ip_hash is an HMAC of the client
 -- IP (LEAD_IP_HASH_SECRET); the raw IP is never stored. No retention period is
--- set — that is a founder/counsel decision (docs/LEAD-ROUTE-DESIGN.md §5.4).
--- Once chosen, a purge is:  DELETE FROM leads WHERE created_at < now() - interval '<period>';
+-- set here: see 002_retention.sql (daily purge, LEAD_RETENTION_DAYS, default 730).
+-- (ip_hash is no longer written; 002 clears old values.)
 
 CREATE TABLE IF NOT EXISTS leads (
   id             uuid        PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -585,7 +585,6 @@ describe("L6, L7 — email", () => {
     payload_hash: "h",
     services: [],
     source: null,
-    ip_hash: null,
     user_agent: null,
   };
 
@@ -781,14 +780,18 @@ describe("AEGIS r4 — R1 hops, R2 key normalisation, single-value Vercel header
     expect(ports).toEqual([200, 429, 429, 429, 429, 429, 429, 429, 429, 429]);
   });
 
-  it("R2: ip_hash is the HMAC of the full normalised address — port-free, never the /64 key", async () => {
+  it("privacy sweep 2026-10-30: no ip_hash and no address in any stored row (data minimisation)", async () => {
     const dir = tempOutbox();
     const o = { app: "zbm" as const, parse: toyParse, env: fakeEnv(dir), logger: captureLogger().logger, limiters: both(open()) };
     await handleLead(req(body(), { "x-forwarded-for": "198.51.100.30:5678" }), o);
     await handleLead(req(body(), { "x-forwarded-for": "[2001:db8:1:1::5]:443" }), o);
-    const rows = readJsonl<{ ip_hash: string }>(dir, "rows.jsonl");
-    const hash = hmacIp("fake-transport-not-a-secret");
-    expect(rows.map((r) => r.ip_hash)).toEqual([hash("198.51.100.30"), hash("2001:0db8:0001:0001:0000:0000:0000:0005")]);
+    const rows = readJsonl<Record<string, unknown>>(dir, "rows.jsonl");
+    expect(rows).toHaveLength(2);
+    for (const row of rows) expect(row).not.toHaveProperty("ip_hash");
+    const text = JSON.stringify(rows);
+    for (const leak of ["198.51.100.30", "2001:db8", "2001:0db8", hmacIp("fake-transport-not-a-secret")("198.51.100.30")]) {
+      expect(text).not.toContain(leak);
+    }
   });
 
   it("R2: a trusted header carrying a non-address is 503, never a bucket", async () => {
