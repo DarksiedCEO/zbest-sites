@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { LedgerRule } from "./ledger-rule";
 
 export type ConsentChoice = "accepted-all" | "rejected-non-essential";
@@ -43,50 +43,27 @@ const gpcOn = () => {
  * is not consent to the new tool. So the first tag also adds a consent
  * version to the stored value and re-shows the banner when it does not match.
  *
- * The default category descriptions are PLACEHOLDER text pending attorney
- * review (CLAUDE.md, Brief §5) and are marked as such in the UI. Z Best Media
- * passes its own in-effect text (founder decision Oct 30 2026); Z Best Clips
- * keeps the defaults.
+ * Every visible string about what is stored comes from the app (summary,
+ * categories, detailNotice): this shared module carries no site-specific or
+ * status text, so nothing one site says is bundled into the other.
  */
 export type ConsentCategory = { name: string; body: string };
-
-/** ZBC (and the default): placeholder rows, still pending attorney review. */
-const DRAFT_CATEGORIES: ConsentCategory[] = [
-  {
-    name: "Strictly necessary",
-    body: "Required for the site to function. Cannot be switched off. Placeholder description.",
-  },
-  {
-    name: "Analytics",
-    body: "Traffic measurement so we can see which pages do their job. Placeholder description.",
-  },
-  {
-    name: "Advertising",
-    body: "Used to measure and retarget advertising campaigns. Placeholder description.",
-  },
-];
-
-const DRAFT_SUMMARY =
-  "We use strictly necessary cookies to run the site. Analytics and advertising cookies are optional and off unless you accept them.";
 
 export function CookieConsent({
   policyHref = "/legal/cookie-policy",
   className = "",
-  summary = DRAFT_SUMMARY,
-  categories = DRAFT_CATEGORIES,
-  draft = true,
+  summary,
+  categories,
+  detailNotice,
 }: {
   policyHref?: string;
   className?: string;
-  /**
-   * The banner sentence. A site whose Cookie Policy is in effect passes text
-   * that matches what the site really stores (ZBM since Oct 30 2026).
-   */
-  summary?: string;
-  /** The "What we store" rows. */
-  categories?: ConsentCategory[];
-  /** Shows the "Draft — pending attorney review" label in the detail panel. */
-  draft?: boolean;
+  /** The banner sentence. Each app supplies text that matches its site. */
+  summary: string;
+  /** The "What we store" rows. Each app supplies its own. */
+  categories: ConsentCategory[];
+  /** Optional app-supplied line shown above the rows in the detail panel. */
+  detailNotice?: ReactNode;
 }) {
   const [visible, setVisible] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
@@ -235,11 +212,7 @@ export function CookieConsent({
         </div>
 
         <div id="cookie-consent-detail" hidden={!showDetail} className="mt-5">
-          {draft ? (
-            <p className="type-label mb-3 text-accent">
-              Draft — pending attorney review. Not yet in effect.
-            </p>
-          ) : null}
+          {detailNotice ? <p className="type-label mb-3 text-accent">{detailNotice}</p> : null}
           <LedgerRule />
           {categories.map((row, i, all) => (
             <div key={row.name}>

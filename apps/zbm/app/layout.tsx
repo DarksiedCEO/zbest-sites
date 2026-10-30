@@ -22,7 +22,7 @@ export default function RootLayout({
         <Nav brandName={SITE.name} items={NAV_ITEMS} cta={NAV_CTA} />
         {children}
         <Footer brandName={SITE.name} columns={FOOTER_COLUMNS} />
-        <CookieConsent summary={CONSENT_SUMMARY} categories={CONSENT_CATEGORIES} draft={false} />
+        <CookieConsent summary={CONSENT_SUMMARY} categories={CONSENT_CATEGORIES} />
       </body>
     </html>
   );
