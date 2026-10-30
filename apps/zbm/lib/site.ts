@@ -77,6 +77,7 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
     links: [
       { label: "Privacy Policy", href: "/legal/privacy-policy" },
       { label: "Terms of Service", href: "/legal/terms-of-service" },
+      { label: "Refunds and Cancellation", href: "/legal/refunds" },
       { label: "Cookie Settings", href: "/legal/cookie-policy" },
       { label: "Accessibility Statement", href: "/legal/accessibility" },
       // Reserved slot (privacy sweep 2026-10-30, F9): CCPA's "Your Privacy
@@ -122,6 +123,7 @@ export const ROUTES: Route[] = [
   { path: "/legal/terms-of-service", built: true, indexable: false },
   { path: "/legal/cookie-policy", built: true, indexable: false },
   { path: "/legal/accessibility", built: true, indexable: false },
+  { path: "/legal/refunds", built: true, indexable: false },
 ];
 
 /*

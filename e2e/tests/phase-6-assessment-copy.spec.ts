@@ -18,6 +18,7 @@ const UNLISTED = [
   "/legal/terms-of-service",
   "/legal/cookie-policy",
   "/legal/accessibility",
+  "/legal/refunds",
   "/this-page-does-not-exist",
 ];
 

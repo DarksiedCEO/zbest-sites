@@ -68,3 +68,21 @@ test("Accessibility Statement: linked from the footer, in effect, honest about l
   // A contact route is given (an address, or a visibly marked token until it is filled).
   await expect(page.locator("section#feedback")).toContainText("email");
 });
+
+test("Refund and Cancellation Policy: in the footer, in effect, with a billing contact", async ({ page }) => {
+  await presetConsent(page);
+  await page.goto(`${ZBM_BASE_URL}/`, { waitUntil: "domcontentloaded" });
+  const link = page.getByRole("contentinfo").getByRole("link", { name: "Refunds and Cancellation" });
+  await expect(link).toHaveAttribute("href", "/legal/refunds");
+
+  const res = await page.goto(`${ZBM_BASE_URL}/legal/refunds`, { waitUntil: "domcontentloaded" });
+  expect(res?.status()).toBe(200);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Refund and Cancellation Policy");
+  expect(await page.locator("[data-legal-draft-banner]").count()).toBe(0);
+  for (const id of ["full-refunds", "cancel", "defects", "charges", "request", "how-paid", "contact"]) {
+    await expect(page.locator(`section#${id}`)).toHaveCount(1);
+  }
+  await expect(page.locator("section#cancel")).toContainText("15 days’ written notice");
+  await expect(page.locator("section#how-paid")).toContainText("within 10 business days after the refund becomes due");
+  expect(await page.locator("meta[name=robots]").getAttribute("content")).toMatch(/noindex/);
+});
