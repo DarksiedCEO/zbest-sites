@@ -28,7 +28,9 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  NODE_VERSION: "22"
+  # Same major as the Vercel runtime (zbm-site-v2 / zbc-site-v1: nodeVersion
+  # 24.x), so CI builds and tests on what production runs (AEGIS H-L4).
+  NODE_VERSION: "24"
   # Turbo telemetry off; no remote cache is configured.
   TURBO_TELEMETRY_DISABLED: "1"
 
