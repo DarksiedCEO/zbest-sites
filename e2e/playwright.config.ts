@@ -110,6 +110,8 @@ const serve = (pkg: string, port: number) =>
 
 export default defineConfig({
   testDir: "./tests",
+  // The nightly accessibility extension runs only from a11y-nightly.yml.
+  testIgnore: process.env.A11Y_NIGHTLY ? [] : ["**/*.nightly.spec.ts"],
   globalSetup: "./global-setup.ts",
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
@@ -131,6 +133,16 @@ export default defineConfig({
       name: "mobile-390",
       use: { ...devices["iPhone 14"], viewport: { width: 390, height: 844 } },
     },
+    // Nightly only (a11y-nightly.yml): the accessibility specs on Firefox.
+    ...(process.env.A11Y_NIGHTLY
+      ? [
+          {
+            name: "firefox-1440",
+            testMatch: /a11y(\.nightly)?\.spec\.ts$/,
+            use: { ...devices["Desktop Firefox"], viewport: { width: 1440, height: 900 } },
+          },
+        ]
+      : []),
   ],
   webServer: [
     {
