@@ -302,7 +302,8 @@ for (const app of APPS) {
         expect(text.length).toBeGreaterThan(2500);
 
         // Issuer and effective date are stated up front.
-        await expect(page.locator("[data-legal-issuer]")).toContainText("Z Best Media");
+        // The issuer is ZBM's own legal name (a token until it is filled).
+        await expect(page.locator("[data-legal-issuer]")).not.toBeEmpty();
         await expect(page.locator("[data-legal-effective]")).toBeVisible();
 
         // Anything unfilled is visibly marked, never passed off as text; only

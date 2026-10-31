@@ -112,6 +112,7 @@ export function LegalDocument({
 }) {
   return (
     <main
+      id="main"
       data-legal-document
       className="mx-auto max-w-[90rem] px-gutter py-section lg:px-gutter-wide"
     >
