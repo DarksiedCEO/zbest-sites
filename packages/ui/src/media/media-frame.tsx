@@ -57,8 +57,12 @@ export type MediaFrameProps = {
   loading?: "eager" | "lazy";
   /** Phone only. */
   chrome?: "feed" | "clip";
-  /** Phone `feed`: false for an organic post (no "Sponsored" label). */
-  sponsored?: boolean;
+  /**
+   * Phone `feed`: the platform's disclosure label beside the handle —
+   * "Sponsored" (paid, the default), "Paid partnership" (a creator post), or
+   * false for an organic post.
+   */
+  feedLabel?: string | false;
   /** Phone `feed`/`clip` handle; browser address. */
   handle?: string;
   url?: string;
@@ -92,7 +96,7 @@ export function MediaFrame({
   caption,
   badge = "full",
   chrome,
-  sponsored = true,
+  feedLabel = "Sponsored",
   handle,
   url,
   timecode = "00:00:00:00",
@@ -193,7 +197,7 @@ export function MediaFrame({
               <div aria-hidden="true" className="flex items-center gap-2 px-3 py-2">
                 <span className="size-6 rounded-full border border-accent/70 bg-panel" />
                 <span className="type-small text-[0.75rem] font-medium text-text-primary">{handle}</span>
-                {sponsored ? <span className="ml-auto type-label text-[0.6rem] text-text-secondary">Sponsored</span> : null}
+                {feedLabel ? <span className="ml-auto type-label text-[0.6rem] text-text-secondary">{feedLabel}</span> : null}
               </div>
             ) : null}
             {window()}

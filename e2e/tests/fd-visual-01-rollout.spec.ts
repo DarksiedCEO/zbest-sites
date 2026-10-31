@@ -11,6 +11,8 @@ import { ZBM_BASE_URL } from "../playwright.config";
  *
  *   - the hero carries its lead image, in the frame where that work runs, and
  *     the image is loaded and fully visible on first paint (no empty frames);
+ *     the Services hub instead carries one tile per act in its hero and one
+ *     image-previewing list per act, each showing an image at both viewports;
  *   - reduced motion: the frame is still — scrolling moves nothing — and the
  *     full page is captured;
  *   - motion on: the first frame (viewport, before any scroll) is captured,
@@ -23,7 +25,15 @@ import { ZBM_BASE_URL } from "../playwright.config";
 
 const CONSENT_KEY = "zbest-cookie-consent";
 
-type RolloutPage = { name: string; base: string; path: string; asset: string; frame: string };
+/**
+ * What the page must carry: a hero image (`asset` in a `frame`), or — for a
+ * page whose launch visual is not a hero image — `previews` image-previewing
+ * service lists (Services hub).
+ */
+type RolloutPage = { name: string; base: string; path: string } & (
+  | { asset: string; frame: string; previews?: undefined }
+  | { previews: number; acts: number; asset?: undefined; frame?: undefined }
+);
 
 const BATCHES: Record<string, RolloutPage[]> = {
   "batch-1": [
@@ -31,6 +41,12 @@ const BATCHES: Record<string, RolloutPage[]> = {
     { name: "zbm-tv-streaming", base: ZBM_BASE_URL, path: "/tv-streaming", asset: "quellmont-tv-keys", frame: "player" },
     { name: "zbm-radio-audio", base: ZBM_BASE_URL, path: "/radio-audio", asset: "saltgrove-radio", frame: "plate" },
     { name: "zbm-social-media", base: ZBM_BASE_URL, path: "/social-media", asset: "marenvale-social", frame: "phone" },
+  ],
+  "batch-2": [
+    { name: "zbm-creative-production", base: ZBM_BASE_URL, path: "/creative-production", asset: "saltgrove-brand-system", frame: "plate" },
+    { name: "zbm-influencer-marketing", base: ZBM_BASE_URL, path: "/influencer-marketing", asset: "marenvale-influencer", frame: "phone" },
+    { name: "zbm-websites", base: ZBM_BASE_URL, path: "/websites", asset: "marenvale-website", frame: "plate" },
+    { name: "zbm-services", base: ZBM_BASE_URL, path: "/services", previews: 3, acts: 3 },
   ],
 };
 
@@ -60,6 +76,27 @@ async function hero(page: Page) {
   });
 }
 
+/** Image-previewing lists on the page, and any of their visible frames not showing its image. */
+async function previews(page: Page) {
+  return page.evaluate(() => {
+    const lists = [...document.querySelectorAll("[data-service-preview]")];
+    const missing = lists.flatMap((list) =>
+      [...list.querySelectorAll("[data-media-frame]")].flatMap((frame) => {
+        const r = frame.getBoundingClientRect();
+        if (r.width === 0 || r.height === 0) return []; // not rendered at this viewport
+        const img = frame.querySelector("img");
+        return img && img.complete && img.naturalWidth > 0 ? [] : [frame.getAttribute("data-asset-id")];
+      }),
+    );
+    const framed = lists.filter((l) => [...l.querySelectorAll("[data-media-frame]")].some((f) => f.getBoundingClientRect().width > 0));
+    const acts = [...document.querySelectorAll("header [data-hero-acts] [data-media-frame]")].filter((f) => {
+      const img = f.querySelector("img");
+      return img && img.complete && img.naturalWidth > 0 && f.getBoundingClientRect().width > 0;
+    }).length;
+    return { lists: lists.length, framed: framed.length, missing, acts };
+  });
+}
+
 /** Scroll the whole page in steps, running the crop check at each one. */
 async function cutsThroughScroll(page: Page, where: string) {
   const height = await page.evaluate(() => document.documentElement.scrollHeight);
@@ -78,20 +115,28 @@ for (const [batch, pages] of Object.entries(BATCHES)) {
 
   for (const p of pages) {
     test.describe(`${batch} — ${p.name}`, () => {
-      test("reduced motion: the hero image is in place and still; full page captured", async ({ page }, testInfo) => {
+      test("reduced motion: the page's media is in place and still; full page captured", async ({ page }, testInfo) => {
         await presetConsent(page);
         await page.emulateMedia({ reducedMotion: "reduce" });
         await page.goto(p.base + p.path, { waitUntil: "networkidle" });
 
-        const h = await hero(page);
-        expect(h, "no hero image").not.toBeNull();
-        expect(h!.asset).toBe(p.asset);
-        expect(h!.frame).toBe(p.frame);
-        expect(h!.shown, "hero image not shown on first paint").toBe(true);
+        if (p.previews !== undefined) {
+          const v = await previews(page);
+          expect(v.lists, "image-previewing lists").toBe(p.previews);
+          expect(v.framed, "lists showing an image at this viewport").toBe(p.previews);
+          expect(v.missing, "preview frames without their image, before any scroll").toEqual([]);
+          expect(v.acts, "hero act tiles showing their image").toBe(p.acts);
+        } else {
+          const h = await hero(page);
+          expect(h, "no hero image").not.toBeNull();
+          expect(h!.asset).toBe(p.asset);
+          expect(h!.frame).toBe(p.frame);
+          expect(h!.shown, "hero image not shown on first paint").toBe(true);
 
-        await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight / 3));
-        await page.waitForTimeout(300);
-        expect((await hero(page))!.transform, "the hero moved with scroll under reduced motion").toBe("none");
+          await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight / 3));
+          await page.waitForTimeout(300);
+          expect((await hero(page))!.transform, "the hero moved with scroll under reduced motion").toBe("none");
+        }
         expect(await cutWords(page, p.name), "a frame cuts a word").toEqual([]);
 
         await page.evaluate(() => window.scrollTo(0, 0));
@@ -100,22 +145,25 @@ for (const [batch, pages] of Object.entries(BATCHES)) {
         await captureFullPage(page, path.join(dir, `${p.name}-${testInfo.project.name}-reduced.png`), testInfo);
       });
 
-      test("motion on: first frame captured; the hero drifts with scroll; no frame cuts a word", async ({ page }, testInfo) => {
+      test("motion on: first frame captured; the page's media moves with scroll as built; no frame cuts a word", async ({ page }, testInfo) => {
         await presetConsent(page);
         await page.emulateMedia({ reducedMotion: "no-preference" });
         await page.goto(p.base + p.path, { waitUntil: "networkidle" });
         expect(await page.evaluate(() => window.scrollY)).toBe(0);
 
-        const first = await hero(page);
-        expect(first?.shown, "hero image not shown on first paint").toBe(true);
+        const first = p.previews === undefined ? await hero(page) : null;
+        if (first) expect(first.shown, "hero image not shown on first paint").toBe(true);
+        else expect((await previews(page)).missing, "preview frames without their image on first paint").toEqual([]);
         await page.evaluate(() => document.fonts.ready);
         await mkdir(dir, { recursive: true });
         await page.screenshot({ path: path.join(dir, `${p.name}-${testInfo.project.name}-first-frame.png`) });
 
-        // Once the hero image starts to leave the viewport, it drifts.
-        await page.evaluate((top) => window.scrollTo(0, top + 200), first!.top);
-        await page.waitForTimeout(400);
-        expect((await hero(page))!.transform, "the hero did not move with scroll").not.toBe("none");
+        if (first) {
+          // Once the hero image starts to leave the viewport, it drifts.
+          await page.evaluate((top) => window.scrollTo(0, top + 200), first.top);
+          await page.waitForTimeout(400);
+          expect((await hero(page))!.transform, "the hero did not move with scroll").not.toBe("none");
+        }
 
         expect(await cutsThroughScroll(page, p.name), "a frame cuts a word").toEqual([]);
       });

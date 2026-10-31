@@ -24,7 +24,7 @@ export const SERVICE_IMAGE: Record<string, AssetId> = {
  * (§3.3). A slug is listed here once its rollout batch lands; until then its
  * page renders as before.
  */
-export type ServiceHero = Pick<MediaFrameProps, "asset" | "frame" | "chrome" | "sponsored" | "handle" | "timecode" | "url"> & {
+export type ServiceHero = Pick<MediaFrameProps, "asset" | "frame" | "chrome" | "feedLabel" | "handle" | "timecode" | "url"> & {
   /** Narrow frames (phones) are capped so they don't tower over the claim. */
   narrow?: boolean;
 };
@@ -32,5 +32,10 @@ export type ServiceHero = Pick<MediaFrameProps, "asset" | "frame" | "chrome" | "
 export const SERVICE_HERO: Partial<Record<string, ServiceHero>> = {
   "tv-streaming": { asset: "quellmont-tv-keys", frame: "player", timecode: "00:00:14:00" },
   "radio-audio": { asset: "saltgrove-radio", frame: "plate" },
-  "social-media": { asset: "marenvale-social", frame: "phone", chrome: "feed", sponsored: false, handle: "marenvale.aesthetics", narrow: true },
+  "social-media": { asset: "marenvale-social", frame: "phone", chrome: "feed", feedLabel: false, handle: "marenvale.aesthetics", narrow: true },
+  "creative-production": { asset: "saltgrove-brand-system", frame: "plate" },
+  // A creator's post, disclosed twice: the platform label and the #ad in the creative.
+  "influencer-marketing": { asset: "marenvale-influencer", frame: "phone", chrome: "feed", feedLabel: "Paid partnership", handle: "creator", narrow: true },
+  // The site shot already carries its browser chrome, so it sits on a plate.
+  websites: { asset: "marenvale-website", frame: "plate" },
 };

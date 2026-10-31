@@ -33,7 +33,8 @@
       "caption": "Out-of-Home · bulletin · street-side, Los Angeles",
       "pages": [
         "zbm:/",
-        "zbm:/out-of-home"
+        "zbm:/out-of-home",
+        "zbm:/services"
       ],
       "plannedPages": [
         "zbm:/out-of-home"
@@ -69,7 +70,8 @@
       "caption": "TV & Streaming · spot key frame · connected TV",
       "pages": [
         "zbm:/",
-        "zbm:/tv-streaming"
+        "zbm:/tv-streaming",
+        "zbm:/services"
       ],
       "plannedPages": []
     },
@@ -106,7 +108,8 @@
       "caption": "Digital Advertising · square feed ad · paid social",
       "pages": [
         "zbm:/",
-        "zbm:/digital-advertising"
+        "zbm:/digital-advertising",
+        "zbm:/services"
       ],
       "plannedPages": []
     },
@@ -140,7 +143,8 @@
       "caption": "Social Media · 4:5 feed post · organic",
       "pages": [
         "zbm:/",
-        "zbm:/social-media"
+        "zbm:/social-media",
+        "zbm:/services"
       ],
       "plannedPages": []
     },
@@ -174,7 +178,8 @@
       "caption": "Radio & Audio · spot key art · local radio",
       "pages": [
         "zbm:/",
-        "zbm:/radio-audio"
+        "zbm:/radio-audio",
+        "zbm:/services"
       ],
       "plannedPages": []
     },
@@ -211,11 +216,11 @@
       "alt": "Concept: the Saltgrove brand system laid out on navy linen — a menu, coffee-cup sleeve, takeaway bag, business card, coaster and table card.",
       "caption": "Creative & Production · brand system · print and packaging",
       "pages": [
-        "zbm:/"
+        "zbm:/",
+        "zbm:/creative-production",
+        "zbm:/services"
       ],
-      "plannedPages": [
-        "zbm:/creative-production"
-      ]
+      "plannedPages": []
     },
     {
       "id": "marenvale-influencer",
@@ -247,11 +252,11 @@
       "alt": "Concept: a creator post for Maren Vale Aesthetics marked #ad — a hand holds a serum bottle in morning light, captioned “3 weeks in. Still just me, but rested.”",
       "caption": "Influencer & Creator · creator post, disclosed #ad · 4:5 feed",
       "pages": [
-        "zbm:/"
+        "zbm:/",
+        "zbm:/influencer-marketing",
+        "zbm:/services"
       ],
-      "plannedPages": [
-        "zbm:/influencer-marketing"
-      ]
+      "plannedPages": []
     },
     {
       "id": "marenvale-website",
@@ -284,11 +289,11 @@
       "alt": "Concept: the Maren Vale homepage in a browser window — “Look rested. Not done.” beside a serum bottle, with a “Book a consultation” button.",
       "caption": "Websites & Landing Pages · homepage · desktop",
       "pages": [
-        "zbm:/"
+        "zbm:/",
+        "zbm:/websites",
+        "zbm:/services"
       ],
-      "plannedPages": [
-        "zbm:/websites"
-      ]
+      "plannedPages": []
     },
     {
       "id": "saltgrove-transit",
@@ -453,7 +458,8 @@
       "alt": "Concept: a phone on a dark desk showing a vertical-video editing timeline of a palm-lined skyline at sunset, beside headphones and a coffee cup.",
       "caption": "Become a Clipper · editing timeline · clipper workflow",
       "pages": [
-        "zbm:/"
+        "zbm:/",
+        "zbm:/services"
       ],
       "plannedPages": [
         "zbc:/become-a-clipper"
