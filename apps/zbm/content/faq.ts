@@ -97,7 +97,7 @@ export const OUT_OF_HOME_FAQ: FaqItem[] = [
   },
   {
     question: "Do you only sell your own inventory?",
-    answer: "No — we plan across Lamar, Clear Channel, OUTFRONT, and regional operators.",
+    answer: "No — we plan across major out-of-home networks and regional operators.",
   },
   {
     question: "Do you offer digital billboards, or only static?",

@@ -468,7 +468,7 @@ export const SERVICES: Service[] = [
         {
           question: "How does this connect to Revenue Recovery?",
           answer:
-            "Revenue Recovery finds where visitors drop off. Many of those leaks live on the page itself — a broken mobile form, a slow load, the wrong page for the ad. This is where they get fixed.",
+            "Revenue Recovery points to where visitors drop off. When a leak lives on the page itself — the wrong page for the ad, an unclear next step — this is where it gets fixed.",
         },
       ],
     },

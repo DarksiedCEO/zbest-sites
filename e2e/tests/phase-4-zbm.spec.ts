@@ -225,7 +225,8 @@ test.describe("Home (§A4)", () => {
     expect(rows).toEqual([
       // Amended Oct 4, 2026: the full-service catalog replaces "Disciplines | 4".
       ["Services", "10"],
-      ["Platforms we plan across", "Google · Meta · TikTok · Lamar · Clear Channel · OUTFRONT"],
+      // RTS-5: no out-of-home operator named as if we had a relationship.
+      ["Platforms we plan across", "Google · Meta · TikTok · major out-of-home networks"],
       ["Standard", "Audit first. Evidence. Then scale."],
     ]);
     // Founder ruling Sep 17: no founding-year claim anywhere on the page.
@@ -628,6 +629,53 @@ test.describe("Copy revision (founder rulings, Sep 17 — audit at 1fc360f)", ()
     expect(text).toContain("Cross-operator sourcing — the right board, not the operator we happen to know");
     expect(text).not.toMatch(/plan and buy|bought across/);
     expect(await head(page, 'meta[name="description"]')).not.toMatch(/bought across/);
+  });
+
+  test("RTS-5: no OOH operator is named as a partner; a cited study says we are not affiliated", async ({ page }) => {
+    for (const p of ["/", "/out-of-home", "/faq"]) {
+      await visit(page, byPath(p));
+      const text = await mainText(page);
+      expect(text, p).not.toMatch(/Lamar|OUTFRONT/);
+      if (p === "/out-of-home") {
+        expect(text).toContain("We plan across major out-of-home networks");
+        // The Kantar study is a citation, not a relationship.
+        expect(text).toContain("Z Best Media is not affiliated with Clear Channel Outdoor or Kantar.");
+        expect(await head(page, 'meta[name="description"]')).not.toMatch(/Lamar|Clear Channel|OUTFRONT/);
+      } else {
+        expect(text, p).not.toMatch(/Clear Channel/);
+      }
+    }
+  });
+
+  test("RTS-5: Revenue Recovery lists only the check the backend runs today; the rest are marked coming", async ({ page }) => {
+    await visit(page, byPath("/revenue-recovery"));
+    const checks = page.locator("#automated-checks");
+    await expect(checks.locator('[data-check-status="live"] h3')).toHaveText(["Stacked discount codes"]);
+    await expect(checks.locator('[data-check-status="coming"] h3')).toHaveText([
+      "Affiliate commission on coupon-driven orders",
+      "Abandoned carts without a recovery flow",
+      "Subscription renewals never triggered",
+      "Orders invisible to server-side attribution",
+      "Cross-channel attribution gaps",
+      "Platform integration gaps",
+      "Contract pricing drift",
+    ]);
+    await expect(checks.locator('[data-check-status="coming"]').first()).toContainText("Coming");
+    await expect(checks).toContainText("reviewed by a person");
+    const text = await mainText(page);
+    expect(text).not.toMatch(/slow load|load fast|page speed|core web vitals|mobile form/i);
+    await page.goto(`${ZBM_BASE_URL}/websites`, { waitUntil: "domcontentloaded" });
+    expect(await mainText(page)).not.toMatch(/slow load|broken mobile form/i);
+  });
+
+  test("RTS-5: Search Intelligence tiers are marked planned", async ({ page }) => {
+    await visit(page, byPath("/search-intelligence"));
+    const pricing = page.locator("#pricing");
+    const statuses = await pricing.locator("[data-tier-status]:visible").allInnerTexts();
+    expect(statuses.length).toBe(3);
+    for (const s of statuses) expect(s.trim()).toBe("Planned");
+    await expect(pricing).toContainText("planned");
+    expect(await mainText(page)).not.toContain("Three published tiers");
   });
 
   test("Search Intelligence drops the competitor-admission clause", async ({ page }) => {

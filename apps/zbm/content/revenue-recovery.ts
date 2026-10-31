@@ -85,12 +85,42 @@ export const INDUSTRY_PATTERNS = {
   })) satisfies LedgerItem[],
 };
 
+/**
+ * Red team RTS-5 (2026-10-30): what the backend checks automatically TODAY.
+ * Source of truth: DarksiedCEO/zbm-zbc main,
+ * services/detection-py/src/store_connector/translate.py AGENT_COVERAGE —
+ * on a connected Shopify store only discount-misuse-v1 runs; every other
+ * agent reports "not covered" (no data source is connected). Titles are the
+ * report's own (src/rr_report.py AGENT_TITLES). Move a check to `live` only
+ * when AGENT_COVERAGE marks it covered.
+ */
+export const AUTOMATED_CHECKS = {
+  label: "What we check automatically today",
+  intro:
+    "When you connect your Shopify store, one check runs on your own order records today. The others are being built and are marked “Coming”. Everything else in an Audit — your pages, offer, trust signals, follow-up and creative — is reviewed by a person, and the report says which findings came from a person.",
+  live: [
+    {
+      title: "Stacked discount codes",
+      body: "Orders where more than one discount code was applied, read from your store’s own order data.",
+    },
+  ],
+  coming: [
+    "Affiliate commission on coupon-driven orders",
+    "Abandoned carts without a recovery flow",
+    "Subscription renewals never triggered",
+    "Orders invisible to server-side attribution",
+    "Cross-channel attribution gaps",
+    "Platform integration gaps",
+    "Contract pricing drift",
+  ],
+};
+
 /** live 455–513 */
 export const AUDIT_DELIVERABLE = {
   label: "The Audit Deliverable",
   title: "See what you receive before you ever submit.",
   intro:
-    "Executive summary, a prioritized leak report with an owner and priority against every action, an explicit confidence label, and the uncertainties we could not resolve — stated, not hidden. We report what we can evidence. We do not guess at dollar figures; we show the priority, confidence, and uncertainty behind each finding so you know what to fix first.",
+    "Executive summary, a prioritized leak report with an owner and priority against every action, an explicit confidence label, and the uncertainties we could not resolve — stated, not hidden. We report what we can evidence. We do not guess at dollar figures; we show the priority, confidence, and uncertainty behind each finding so you know what to fix first. Most of the Audit is a review by a person; the automated checks it includes today are listed below.",
   parts: [
     { title: "Executive Summary", body: "A concise view of the biggest revenue leaks, business impact, and what to fix first." },
     { title: "Leak Severity Matrix", body: "A structured read on which issues are critical, high, moderate, or low impact." },

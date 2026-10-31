@@ -57,7 +57,8 @@ export default function HomePage() {
                 { label: "Services", value: String(SERVICES.length) },
                 {
                   label: "Platforms we plan across",
-                  value: "Google · Meta · TikTok · Lamar · Clear Channel · OUTFRONT",
+                  // RTS-5: no out-of-home operator named as if we had an account with it.
+                  value: "Google · Meta · TikTok · major out-of-home networks",
                 },
                 { label: "Standard", value: "Audit first. Evidence. Then scale." },
               ]}

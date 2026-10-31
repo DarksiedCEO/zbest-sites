@@ -14,6 +14,7 @@ import { AssessmentForm } from "@/components/assessment-form";
 import { REVENUE_RECOVERY_FAQ } from "@/content/faq";
 import {
   AUDIT_DELIVERABLE,
+  AUTOMATED_CHECKS,
   DEFINITION,
   ENGAGEMENTS,
   INDUSTRY_PATTERNS,
@@ -95,6 +96,27 @@ export default function RevenueRecoveryPage() {
         intro={<Lead>{AUDIT_DELIVERABLE.intro}</Lead>}
       >
         <LedgerList items={AUDIT_DELIVERABLE.parts} />
+      </PageSection>
+
+      {/* RTS-5: only what the backend runs today is listed as live (content/revenue-recovery.ts). */}
+      <PageSection id="automated-checks" label={AUTOMATED_CHECKS.label} intro={<Lead>{AUTOMATED_CHECKS.intro}</Lead>}>
+        <ul className="border-t border-text-secondary/45">
+          {AUTOMATED_CHECKS.live.map((check) => (
+            <li key={check.title} data-check-status="live" className="grid gap-2 border-b border-text-secondary/20 py-ledger sm:grid-cols-[minmax(0,17rem)_1fr]">
+              <div>
+                <h3 className="type-title">{check.title}</h3>
+                <p className="type-label mt-1 text-accent">Live</p>
+              </div>
+              <p className="type-body text-text-secondary">{check.body}</p>
+            </li>
+          ))}
+          {AUTOMATED_CHECKS.coming.map((title) => (
+            <li key={title} data-check-status="coming" className="grid gap-2 border-b border-text-secondary/20 py-ledger sm:grid-cols-[minmax(0,17rem)_1fr]">
+              <h3 className="type-title text-text-secondary">{title}</h3>
+              <p className="type-label text-text-secondary">Coming — not yet part of an Audit</p>
+            </li>
+          ))}
+        </ul>
       </PageSection>
 
       <PageSection label={ENGAGEMENTS.label} title={ENGAGEMENTS.title} intro={<Lead>{ENGAGEMENTS.intro}</Lead>}>
