@@ -73,6 +73,13 @@
 
 When the founder delivers the files, the only work left is adding each file to the manifest. No layout work.
 
+### Approved assets (as of 2026-10-31, 20 of 36)
+- **Location:** branch `design-inputs/story-pass`, folder `design-inputs/story-pass/`. Read `RULES.md` and `REVIEW.md` there first. Every file in that folder is founder-approved and canonical; copy them into the app assets unchanged.
+- **Approved:** all 6 `rr-*`, `da-work-campaign`, `tv-work-set`, `radio-work-studio`, `ooh-work-planning`, `social-work-calendar`, `creative-work-storyboard`, `creative-work-shoot`, `influencer-work-filming`, `web-work-wireframes`, `home-how-we-work`, `zbc-step1-brief` through `zbc-step4-results`.
+- **Use each file's own aspect ratio.** Several differ from the prompt list (e.g. `rr-broken-form` is 16:9; `rr-slow-page`, `creative-work-shoot` and `influencer-work-filming` are 4:5; all four `zbc-step*` are 16:9). Slots read width/height from the manifest; never crop to force the listed ratio.
+- **`zbc-step*` are 832 px wide.** Render them only inside the 4-column How It Works timeline (`sizes` ≤ 416px on desktop). Never full-width or hero.
+- The other 16 are enhancements; their slots stay empty (render nothing) until files land.
+
 ## 5. Launch blockers (target Nov 8; founder is weighing a move to about Nov 15)
 | Item | Owner |
 |---|---|
