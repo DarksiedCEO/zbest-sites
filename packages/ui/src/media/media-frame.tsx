@@ -2,6 +2,7 @@ import Image from "next/image";
 import type { CSSProperties, ReactElement, ReactNode } from "react";
 import { asset, type AssetId } from "./assets";
 import { ConceptBadge } from "./concept-badge";
+import { cropPosition } from "./crop";
 
 /**
  * Where the work runs (FD-VISUAL-01 §3.3): every asset sits inside a real-world
@@ -26,6 +27,11 @@ import { ConceptBadge } from "./concept-badge";
  * label for all of them (amendment §3.2.5 as amended 2026-10-30). CI checks
  * the rendered page (e2e/tests/fd-visual-01-media.spec.ts).
  *
+ * Crops never cut a word: the crop for each window shape comes from the
+ * manifest's text blocks (./crop.ts), and a shape that cannot keep every block
+ * whole or out throws here, so the build fails. `mobileAspect` gives the
+ * window a second shape below 1024px, with its own crop.
+ *
  * `wrapImage` lets a showpiece put the picture inside its own motion element;
  * it is only usable from a client component.
  */
@@ -39,8 +45,10 @@ export type MediaFrameProps = {
   priority?: boolean;
   /** Aspect of the image window, e.g. "4 / 5". Defaults to the asset's own. */
   aspect?: string;
-  /** Crop focus; defaults to the manifest entry's `focus`. */
-  objectPosition?: string;
+  /** Window aspect below 1024px, when it differs from `aspect`. */
+  mobileAspect?: string;
+  /** Largest push-in `wrapImage` applies about the window's centre (crop.ts). */
+  zoom?: number;
   /** Caption override; `false` hides it (the asset must then be captioned nearby). */
   caption?: ReactNode | false;
   /** "group": badged by the enclosing ConceptGroup instead (crops of one source). */
@@ -49,6 +57,8 @@ export type MediaFrameProps = {
   loading?: "eager" | "lazy";
   /** Phone only. */
   chrome?: "feed" | "clip";
+  /** Phone `feed`: false for an organic post (no "Sponsored" label). */
+  sponsored?: boolean;
   /** Phone `feed`/`clip` handle; browser address. */
   handle?: string;
   url?: string;
@@ -77,10 +87,12 @@ export function MediaFrame({
   priority = false,
   loading,
   aspect,
-  objectPosition,
+  mobileAspect,
+  zoom = 1,
   caption,
   badge = "full",
   chrome,
+  sponsored = true,
   handle,
   url,
   timecode = "00:00:00:00",
@@ -90,6 +102,19 @@ export function MediaFrame({
 }: MediaFrameProps) {
   const a = asset(id);
   const isConcept = a.class === "concept";
+  const ratio = aspect ?? `${a.width} / ${a.height}`;
+  const mobileRatio = mobileAspect ?? ratio;
+  const crop = (shape: string) => {
+    const position = cropPosition(a, shape, zoom);
+    if (!position) {
+      throw new Error(
+        `MediaFrame: "${a.id}" at ${shape} would cut through its own type (packages/ui/assets/manifest.json "text"). Use a shape that keeps every block whole or out.`,
+      );
+    }
+    return position;
+  };
+  const position = crop(ratio);
+  const mobilePosition = mobileRatio === ratio ? position : crop(mobileRatio);
 
   const img = (
     <Image
@@ -103,17 +128,21 @@ export function MediaFrame({
       // the static import), so a frame is never blank while its file loads.
       placeholder="blur"
       quality={80}
-      className="object-cover"
-      style={{ objectPosition: objectPosition ?? a.focus }}
+      className="object-cover [object-position:var(--crop)] max-lg:[object-position:var(--crop-m)]"
+      style={{ "--crop": position, "--crop-m": mobilePosition } as CSSProperties}
     />
   );
 
-  const windowStyle: CSSProperties = { aspectRatio: aspect ?? `${a.width} / ${a.height}` };
+  const windowStyle = { "--ar": ratio, "--ar-m": mobileRatio } as CSSProperties;
   const badgeEl =
     isConcept && badge !== "group" ? <ConceptBadge compact={badge === "compact"} className="shrink-0" /> : null;
 
   const window = (extra = "") => (
-    <div className={`relative overflow-hidden bg-base ${extra}`} style={windowStyle} data-frame-window>
+    <div
+      className={`relative overflow-hidden bg-base [aspect-ratio:var(--ar)] max-lg:[aspect-ratio:var(--ar-m)] ${extra}`}
+      style={windowStyle}
+      data-frame-window
+    >
       {wrapImage ? wrapImage(img) : img}
       {overlay}
     </div>
@@ -164,7 +193,7 @@ export function MediaFrame({
               <div aria-hidden="true" className="flex items-center gap-2 px-3 py-2">
                 <span className="size-6 rounded-full border border-accent/70 bg-panel" />
                 <span className="type-small text-[0.75rem] font-medium text-text-primary">{handle}</span>
-                <span className="ml-auto type-label text-[0.6rem] text-text-secondary">Sponsored</span>
+                {sponsored ? <span className="ml-auto type-label text-[0.6rem] text-text-secondary">Sponsored</span> : null}
               </div>
             ) : null}
             {window()}

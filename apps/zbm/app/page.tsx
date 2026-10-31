@@ -1,7 +1,8 @@
-import { ButtonLink, LedgerRule, pageMetadata, ServicePreview, StatBlock, type AssetId } from "@zbest/ui";
+import { ButtonLink, LedgerRule, pageMetadata, ServicePreview, StatBlock } from "@zbest/ui";
 import Link from "next/link";
 import { HomeReel } from "@/components/home-reel";
 import { CtaRow, LedgerList, Lead, Note, PageSection } from "@/components/page";
+import { SERVICE_IMAGE } from "@/content/service-media";
 import { SERVICES } from "@/content/services";
 import { ASSESSMENT_HREF, SITE } from "@/lib/site";
 
@@ -19,22 +20,6 @@ export const metadata = pageMetadata(SITE, { path: "/" });
  * stat block, Section 2 (every service, from content/services.ts), the Scale
  * step and the closing CTA now cover the full-service catalog.
  */
-/**
- * Each service's lead image (FD-VISUAL-01 §3.1 concept work; placements per the
- * founder's Oct 30 list). Revenue Recovery has none until its process visual
- * exists; its row leaves the preview as it was.
- */
-const SERVICE_IMAGE: Record<string, AssetId> = {
-  "digital-advertising": "quellmont-feed-sticker",
-  "tv-streaming": "quellmont-tv-keys",
-  "radio-audio": "saltgrove-radio",
-  "out-of-home": "ironhold-billboard",
-  "social-media": "marenvale-social",
-  "creative-production": "saltgrove-brand-system",
-  "influencer-marketing": "marenvale-influencer",
-  "z-best-clips": "zbc-clipper-phone",
-  websites: "marenvale-website",
-};
 
 export default function HomePage() {
   return (
