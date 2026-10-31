@@ -20,7 +20,10 @@ import { ZBC_BASE_URL, ZBM_BASE_URL } from "../playwright.config";
  *          source, carries no badge of its own, every frame in the group is
  *          a crop of that source, and the group label is visible and reads
  *          "Concept — N clips cut from one source" with N = the crops shown;
- *   4. concept alt text starts with "Concept:" and matches the manifest.
+ *   4. concept alt text starts with "Concept:" and matches the manifest;
+ *   5. no frame is ever blank (founder pilot review, 2026-10-30): on load,
+ *      before any scroll, every image in a visible frame is either loaded or
+ *      showing its inline blurred preview.
  *
  * Runs with the gate's default reduced motion, so every showpiece is in its
  * static frame and nothing is covered mid-animation.
@@ -84,6 +87,17 @@ for (const { site, base, extra } of SITES) {
       };
       page.on("response", onResponse);
       await page.goto(base + route, { waitUntil: "networkidle" });
+      const blank = await page.evaluate(() =>
+        [...document.querySelectorAll("[data-media-frame] img")].flatMap((el) => {
+          const img = el as HTMLImageElement;
+          const r = img.getBoundingClientRect();
+          if (r.width === 0 || r.height === 0) return [];
+          const loaded = img.complete && img.naturalWidth > 0;
+          const preview = /url\(["']?data:/.test(img.style.backgroundImage);
+          return loaded || preview ? [] : [img.closest("[data-asset-id]")?.getAttribute("data-asset-id") ?? img.src];
+        }),
+      );
+      for (const id of blank) problems.push(`${site}${route}: frame for "${id}" is blank before scroll (not loaded, no preview)`);
       await scrollThrough(page);
       await page.waitForLoadState("networkidle");
       page.off("response", onResponse);

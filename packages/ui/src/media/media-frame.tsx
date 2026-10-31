@@ -99,6 +99,9 @@ export function MediaFrame({
       sizes={sizes}
       priority={priority}
       loading={priority ? undefined : loading}
+      // An inline blurred preview of this same image (generated at build from
+      // the static import), so a frame is never blank while its file loads.
+      placeholder="blur"
       quality={80}
       className="object-cover"
       style={{ objectPosition: objectPosition ?? a.focus }}

@@ -75,7 +75,12 @@ export function ServicePreview({ items }: { items: PreviewItem[] }) {
                       asset={item.asset}
                       frame="plate"
                       aspect="1 / 1"
-                      sizes="104px"
+                      // Loaded with the page, not on scroll, so the row's image is
+                      // there whenever its frame is. Hidden at lg (the panel takes
+                      // over), where "1px" makes the browser fetch only the
+                      // smallest file.
+                      loading="eager"
+                      sizes="(min-width: 1024px) 1px, 104px"
                       caption={false}
                       badge="compact"
                       className="[&_[data-concept-badge]]:left-1.5 [&_[data-concept-badge]]:top-1.5"
@@ -103,6 +108,7 @@ export function ServicePreview({ items }: { items: PreviewItem[] }) {
                 <MediaFrame
                   asset={current.asset}
                   frame={current.frame ?? "plate"}
+                  loading="eager"
                   sizes="(min-width: 1440px) 520px, 36vw"
                 />
               </motion.div>

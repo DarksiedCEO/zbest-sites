@@ -174,3 +174,30 @@ for (const pilot of PILOTS) {
     });
   });
 }
+
+/**
+ * Founder pilot review (2026-10-30): a service-row preview must have its image
+ * whenever its frame is. Rows load their images with the page, not on scroll.
+ */
+test("zbm-home — every service-row image is present without scrolling; the Digital Advertising row is captured in view", async ({ page }, testInfo) => {
+  await presetConsent(page);
+  await page.goto(`${ZBM_BASE_URL}/`, { waitUntil: "networkidle" });
+  expect(await page.evaluate(() => window.scrollY)).toBe(0);
+  const missing = await page.evaluate(() =>
+    [...document.querySelectorAll("[data-service-preview] [data-media-frame]")].flatMap((frame) => {
+      const r = frame.getBoundingClientRect();
+      if (r.width === 0 || r.height === 0) return []; // not rendered at this viewport
+      const img = frame.querySelector("img");
+      return img && img.complete && img.naturalWidth > 0 ? [] : [frame.getAttribute("data-asset-id")];
+    }),
+  );
+  expect(missing, "service-row frames without their image, before any scroll").toEqual([]);
+
+  const row = page.locator("[data-service-preview] li", { hasText: "Digital Advertising" });
+  await row.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(300);
+  await mkdir(SNAPSHOT_DIR, { recursive: true });
+  const target = testInfo.project.name === "mobile-390" ? row : page.locator("[data-service-preview]");
+  await target.screenshot({ path: path.join(SNAPSHOT_DIR, `zbm-home-${testInfo.project.name}-digital-advertising-row.png`) });
+});
+
