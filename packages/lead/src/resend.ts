@@ -1,4 +1,4 @@
-import { DeliveryError, type LeadEmail, type LeadNotifier } from "./types";
+import { DeliveryError, type LeadEmail, type LeadNotifier, type LookupResult } from "./types";
 
 /**
  * Brief §6.2 notification: one email per new lead (or a digest) to the founder's inbox via
@@ -57,11 +57,14 @@ export function resendNotifier(opts: {
      * AEGIS r4 M2: GET /emails/{id} → `last_event` (Resend's documented
      * values: sent, delivered, delivery_delayed, bounced, complained,
      * suppressed, failed, opened, clicked, queued, scheduled, canceled).
-     * Null on any failure: the caller tries again later. Only the event
-     * string is kept; the rest of the body (which holds the message) is discarded.
+     * AEGIS r5 N2/N3: a failure says why — 401/403 "unauthorized" (the key
+     * may only send: delivery checks need a Full access key), 404
+     * "not_found", anything else "unavailable" with its status (0: no
+     * answer). Only the event string is kept; the rest of the body (which
+     * holds the message) is discarded.
      */
-    async lastEvent(emailId: string) {
-      if (!/^[A-Za-z0-9-]{1,100}$/.test(emailId)) return null;
+    async lastEvent(emailId: string): Promise<LookupResult> {
+      if (!/^[A-Za-z0-9-]{1,100}$/.test(emailId)) return { error: "not_found", status: 0 };
       const wait = lastLookup + lookupGapMs - Date.now();
       if (wait > 0) await new Promise((r) => setTimeout(r, wait));
       lastLookup = Date.now();
@@ -71,11 +74,13 @@ export function resendNotifier(opts: {
           headers: { Authorization: `Bearer ${opts.apiKey}` },
           signal: AbortSignal.timeout(opts.timeoutMs ?? 8000),
         });
-        if (!response.ok) return null;
+        if (response.status === 401 || response.status === 403) return { error: "unauthorized", status: response.status };
+        if (response.status === 404) return { error: "not_found", status: 404 };
+        if (!response.ok) return { error: "unavailable", status: response.status };
         const body = (await response.json()) as { last_event?: unknown };
-        return typeof body?.last_event === "string" ? body.last_event.slice(0, 40) : "";
+        return { event: typeof body?.last_event === "string" ? body.last_event.slice(0, 40) : "" };
       } catch {
-        return null;
+        return { error: "unavailable", status: 0 };
       }
     },
   };

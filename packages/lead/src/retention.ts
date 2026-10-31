@@ -75,7 +75,9 @@ export interface PurgeLedger {
   leadState?(
     app: LeadApp,
     window: { unsentBefore: Date; retryAfter: Date },
-  ): Promise<{ unsent: number; digestPending: number; quarantined24h: number; stored24h: number; expiredUnreported?: number; undelivered24h?: number }>;
+  ): Promise<{ unsent: number; digestPending: number; quarantined24h: number; stored24h: number; expiredUnreported?: number; undelivered24h?: number; abandoned7d?: number; unverifiable24h?: number }>;
+  /** The delivery check's own state (AEGIS r5 N2/N3). */
+  deliveryCheckState?(app: LeadApp): Promise<{ unauthorized: boolean; failingSince: Date | null }>;
   /** Bytes the lead tables occupy (pg_total_relation_size; AEGIS r3 M4). */
   dbBytes?(): Promise<number>;
   /** Columns the app writes that the database lacks (AEGIS F4: migrations 004/006/007/008 not applied). */
@@ -200,7 +202,21 @@ export type PurgeHealth =
    * (AEGIS r4 M2). If the founder inbox is on Resend's suppression list,
    * remove it there (docs/LEAD-ROUTE-DESIGN.md §8).
    */
-  | "delivery_failed";
+  | "delivery_failed"
+  /** Delivery lookups have been failing (not 401/403) for over DELIVERY_CHECK_FAILING_HOURS (AEGIS r5 N3). */
+  | "delivery_check_failing"
+  /**
+   * WARNING, not degraded (/api/health answers 200 with this status): the
+   * delivery check cannot run — Resend refused the lookup as unauthorized
+   * (a sending-only API key; delivery checks need a Full access key), or an
+   * accepted email came back without a usable id in the last 24 h (AEGIS r5 N2/N4).
+   */
+  | "delivery_unverifiable";
+
+/** Statuses that are warnings: reported, logged at warn, but /api/health still answers 200. */
+export const HEALTH_WARNINGS: ReadonlySet<PurgeHealth> = new Set<PurgeHealth>(["delivery_unverifiable"]);
+/** Lookups failing for longer than this degrade health (AEGIS r5 N3). */
+export const DELIVERY_CHECK_FAILING_HOURS = 6;
 
 export type HealthOptions = {
   app: LeadApp;
@@ -225,8 +241,9 @@ export function resetHealthCache() {
 
 /**
  * Whether the retention promise is actually being kept for this app. Every
- * status but "ok" is DEGRADED and is logged at error level, so a log alert
- * or an uptime check on /api/health catches a purge that stopped.
+ * status but "ok" and the HEALTH_WARNINGS is DEGRADED and is logged at error
+ * level, so a log alert or an uptime check on /api/health catches a purge
+ * that stopped. A warning is logged at warn level and answered 200.
  */
 export async function purgeHealth(opts: HealthOptions): Promise<{ status: PurgeHealth; ageHours?: number }> {
   const log = opts.logger ?? consoleLogger;
@@ -296,10 +313,23 @@ export async function purgeHealth(opts: HealthOptions): Promise<{ status: PurgeH
     }
     // Every cap or guard trip degrades health (AEGIS r2 H1(c)).
     if (state.stored24h >= resolveCaps(env).hardLimit) return degraded("storage_guard");
-    if ((state.undelivered24h ?? 0) > 0) return degraded("delivery_failed");
+    if ((state.undelivered24h ?? 0) > 0 || (state.abandoned7d ?? 0) > 0) return degraded("delivery_failed");
     if (state.quarantined24h > 0) return degraded("quarantined");
     if ((state.expiredUnreported ?? 0) > 0) return degraded("notify_expired");
     if (state.digestPending > 0 || state.unsent > 0) return degraded("notify_backlog");
+    let check: { unauthorized: boolean; failingSince: Date | null } = { unauthorized: false, failingSince: null };
+    if (ledger.deliveryCheckState) {
+      try {
+        check = await ledger.deliveryCheckState(app);
+      } catch {
+        return degraded("unknown");
+      }
+    }
+    if (check.failingSince && nowMs - check.failingSince.getTime() > DELIVERY_CHECK_FAILING_HOURS * 3_600_000) return degraded("delivery_check_failing");
+    if (check.unauthorized || (state.unverifiable24h ?? 0) > 0) {
+      log("warn", "purge_degraded", { app, status: "delivery_unverifiable" });
+      return { status: "delivery_unverifiable", ageHours };
+    }
   } else if (ledger.unsentOlderThan) {
     let unsent: number;
     try {
@@ -313,8 +343,9 @@ export async function purgeHealth(opts: HealthOptions): Promise<{ status: PurgeH
 }
 
 /**
- * GET /api/health: 200 when the retention purge is healthy, 503 when
- * degraded, so any uptime monitor alerts on it. The body is minimal,
+ * GET /api/health: 200 when the retention purge is healthy (or only a
+ * warning such as delivery_unverifiable applies), 503 when degraded, so any
+ * uptime monitor alerts on it. The body is minimal,
  * `{"ok":bool,"status":"<code>"}`: no ages, counts or config values.
  *
  * Public, so it must not be a lever on the database (AEGIS H-M2): each
@@ -333,7 +364,7 @@ export async function handleHealth(_request: Request, opts: HealthOptions): Prom
     if (ttl > 0) healthCache.set(opts.app, entry);
   }
   const purge = await entry.result;
-  const ok = purge.status === "ok";
+  const ok = purge.status === "ok" || HEALTH_WARNINGS.has(purge.status);
   return Response.json(
     { ok, status: purge.status },
     { status: ok ? 200 : 503, headers: { "Cache-Control": `public, max-age=0, s-maxage=${Math.round(HEALTH_CACHE_MS / 1000)}` } },

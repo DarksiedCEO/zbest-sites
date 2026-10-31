@@ -37,25 +37,28 @@ const CRON = "k".repeat(32);
 
 type Mode = "ok" | "hang-after-deliver" | "down";
 function fakeResend() {
-  const keys = new Map<string, { body: string; inflight: boolean }>();
+  const keys = new Map<string, { body: string; inflight: boolean; id: string }>();
   const deliveries: { key: string; subject: string; text: string }[] = [];
   const modes: Mode[] = [];
   let latency = 0;
   const fetchImpl = (async (_u: string, init: RequestInit) => {
+    // AEGIS r4 M2: delivery lookups (GET /emails/{id}) — everything is delivered here.
+    if ((init.method ?? "GET") === "GET") return new Response(JSON.stringify({ last_event: "delivered" }), { status: 200 });
     const key = (init.headers as Record<string, string>)["Idempotency-Key"]!;
     const body = String(init.body);
     const k = keys.get(key);
-    const done = (s: number) => new Response(JSON.stringify({}), { status: s });
-    if (k) return done(k.inflight || k.body !== body ? 409 : 200);
+    const done = (s: number, id?: string) => new Response(JSON.stringify(id ? { id } : {}), { status: s });
+    if (k) return k.inflight || k.body !== body ? done(409) : done(200, k.id);
     const mode = modes.shift() ?? "ok";
     if (mode === "down") return done(500);
-    keys.set(key, { body, inflight: true });
+    const id = randomUUID();
+    keys.set(key, { body, inflight: true, id });
     await sleep(latency);
     const p = JSON.parse(body);
     deliveries.push({ key, subject: p.subject, text: p.text });
     keys.get(key)!.inflight = false;
     if (mode === "hang-after-deliver") await new Promise((_, rej) => init.signal!.addEventListener("abort", () => rej(new Error("aborted"))));
-    return done(200);
+    return done(200, id);
   }) as unknown as typeof fetch;
   return {
     deliveries,
@@ -65,7 +68,7 @@ function fakeResend() {
     // 2 s: long enough that a loaded CI host never times out an in-process
     // fake send by accident (AEGIS r4 rerun flake), short enough for the
     // hang-after-deliver cases.
-    notifier: resendNotifier({ apiKey: "re_fake", from: "a@b.test", to: ["f@b.test"], fetchImpl, timeoutMs: 2_000 }),
+    notifier: resendNotifier({ apiKey: "re_fake", from: "a@b.test", to: ["f@b.test"], fetchImpl, timeoutMs: 2_000, lookupGapMs: 0 }),
   };
 }
 const transportOf = (store: ReturnType<typeof postgresStore>, notifier: ReturnType<typeof resendNotifier> | null): TransportConfig => ({
@@ -173,7 +176,7 @@ describe.skipIf(!url)("AEGIS r2 — lead caps, outbox and digests (integration)"
     expect(run.digest).toBe(250);
     expect(r.deliveries.filter((d) => d.key.startsWith("digest-"))).toHaveLength(3);
     expect(await statusCounts()).toEqual({ sent: 251 });
-  });
+  }, 60_000);
 
   it("M2 (P3b): the inline send reached Resend then timed out — retries reuse the identical body and key, the lead is delivered once and marked sent", async () => {
     const r = fakeResend();

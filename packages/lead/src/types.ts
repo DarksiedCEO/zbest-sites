@@ -124,7 +124,20 @@ export interface LeadStore {
  * email; `outcomeUnknown` marks an attempt that ended without a known outcome
  * (sticky: once unknown, always flagged).
  */
-export type NotifyExtra = { emailId?: string; outcomeUnknown?: boolean };
+export type NotifyExtra = { emailId?: string; outcomeUnknown?: boolean; /** Accepted without a usable email id (AEGIS r5 N4). */ unverifiable?: boolean };
+
+/** What a delivery lookup found (AEGIS r4 M2, r5 N2/N3). */
+export type LookupResult =
+  | { event: string }
+  /** 401/403: the API key may not read emails (a sending-only key). */
+  | { error: "unauthorized"; status: number }
+  /** 404: the provider does not know this email id. */
+  | { error: "not_found"; status: number }
+  /** Anything else (429, 5xx, timeout: status 0): try again later. */
+  | { error: "unavailable"; status: number };
+
+/** What a delivery result did to a lead (AEGIS r5 N2). */
+export type DeliveryOutcome = { resent: number; abandoned: number };
 
 /** Which batches: lead digests, or the count email for expired leads (AEGIS r3 M3). */
 export type BatchKind = "digest" | "expired";
@@ -172,18 +185,22 @@ export interface NotifyOutbox {
   markBatchSent(app: LeadApp, kind: BatchKind, key: string, submissionIds: string[], emailId?: string): Promise<number>;
   /** A send of batch `key` ended without a known outcome (timeout, network, 409): its leads are flagged if it is ever dissolved (AEGIS r4 L6). */
   markBatchUnknown(app: LeadApp, key: string): Promise<void>;
+  /** AEGIS r4 M2: up to `limit` Resend email ids of sent leads whose delivery is not final yet, oldest first. */
+  deliveriesToCheck(app: LeadApp, limit: number): Promise<string[]>;
   /**
-   * AEGIS r4 M2: up to `limit` Resend email ids of sent leads not yet
-   * checked, sent after `since`, oldest first.
+   * What a lookup found for an email. 'delivered' is final. 'pending' (a
+   * non-final event) records when it was checked. 'undelivered' and
+   * 'unconfirmed' re-send its leads in a digest, flagged, after a growing
+   * wait — at most MAX_RESENDS times; after that they are 'abandoned' (AEGIS r5 N2).
    */
-  deliveriesToCheck(app: LeadApp, since: Date, limit: number): Promise<string[]>;
+  recordDelivery(app: LeadApp, emailId: string, outcome: "delivered" | "pending" | "undelivered" | "unconfirmed"): Promise<DeliveryOutcome>;
   /**
-   * What Resend reported for an email: 'delivered' is final; 'undelivered'
-   * (and 'unconfirmed') put its leads back in the digest, flagged.
+   * Sent leads whose email a lookup has answered with a non-final event and
+   * that were sent before `before`: treated as 'unconfirmed' (AEGIS r5 N2).
    */
-  recordDelivery(app: LeadApp, emailId: string, outcome: "delivered" | "undelivered"): Promise<number>;
-  /** Sent leads still unchecked from before `before`: 'unconfirmed', back in the digest, flagged. */
-  expireDeliveryChecks(app: LeadApp, before: Date): Promise<number>;
+  expireDeliveryChecks(app: LeadApp, before: Date): Promise<DeliveryOutcome>;
+  /** The delivery check's own state for health (AEGIS r5 N2/N3). */
+  recordCheckState(app: LeadApp, state: "ok" | "unauthorized" | "failing", code?: string): Promise<void>;
   /**
    * Dissolves a batch that can no longer be re-sent under its key (past the
    * key window, or its rows changed). Digest leads become 'delivery_unknown'
@@ -204,9 +221,9 @@ export interface LeadNotifier {
   send(email: LeadEmail, idempotencyKey: string): Promise<void | { id?: string }>;
   /**
    * AEGIS r4 M2: the provider's last event for an accepted email (Resend
-   * `last_event`), or null when it cannot be read now.
+   * `last_event`), or why it could not be read (AEGIS r5 N2/N3).
    */
-  lastEvent?(emailId: string): Promise<string | null>;
+  lastEvent?(emailId: string): Promise<LookupResult>;
 }
 
 export type RateDecision = { allowed: true } | { allowed: false; retryAfterSec: number };

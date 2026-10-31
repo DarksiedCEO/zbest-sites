@@ -13,6 +13,10 @@ import { handleNotifyRetry } from "@zbest/lead";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// AEGIS r5 N6: an explicit limit, valid on every Vercel plan with or without
+// Fluid compute (docs/LEAD-ROUTE-DESIGN.md §8). The retry cron time-boxes its
+// delivery check to 20 s, well inside it.
+export const maxDuration = 60;
 
 export function GET(request: Request) {
   return handleNotifyRetry(request, { app: "zbm" });

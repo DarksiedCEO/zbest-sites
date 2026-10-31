@@ -2,7 +2,7 @@ import postgres from "postgres";
 import type { PgOptions } from "./pg-url";
 import type { LeadPurger, PurgeLedger, PurgeResult } from "./retention";
 import { randomBytes } from "node:crypto";
-import { DEDUPE_WINDOW_HOURS, DeliveryError, type Batch, type BatchKind, type BatchSummary, type InsertResult, type NotifyExtra, type LeadApp, type LeadRecord, type LeadStore, type NotifyOutbox, type NotifyStatus, type StoredLead } from "./types";
+import { DEDUPE_WINDOW_HOURS, DeliveryError, type Batch, type BatchKind, type BatchSummary, type DeliveryOutcome, type InsertResult, type NotifyExtra, type LeadApp, type LeadRecord, type LeadStore, type NotifyOutbox, type NotifyStatus, type StoredLead } from "./types";
 
 /**
  * Brief §6.2 store: one row per lead in the `leads` table
@@ -113,6 +113,38 @@ const withTimeouts = async (tx: Tx, ms: number) => {
   await tx`SELECT set_config('statement_timeout', ${String(ms)}, true), set_config('lock_timeout', ${String(ms)}, true)`;
 };
 
+/** Rows per transaction for bulk status changes, and the most pages a call runs (50,000 rows). */
+const PAGE = 500;
+const MAX_PAGES = 100;
+
+/** At most this many re-sends of a lead whose email was not delivered or never confirmed (AEGIS r5 N2). */
+export const MAX_RESENDS = 3;
+
+/**
+ * AEGIS r5 N2: the leads in `rows` (a locking id-ordered SELECT) were not
+ * delivered. Under the cap each goes back in the digest after a growing wait
+ * (1 h, 4 h, 16 h); at the cap it is 'abandoned' and stays 'sent' (it is not
+ * re-sent again; /api/health is degraded).
+ */
+async function notDelivered(tx: Tx, rows: postgres.PendingQuery<postgres.Row[]>, outcome: "undelivered" | "unconfirmed"): Promise<DeliveryOutcome> {
+  const changed = await tx`
+    UPDATE leads
+    SET notify_undelivered_at = now(),
+        notify_checked_at = NULL,
+        notify_batch = CASE WHEN notify_resends < ${MAX_RESENDS}::int THEN NULL ELSE notify_batch END,
+        notify_batch_at = CASE WHEN notify_resends < ${MAX_RESENDS}::int THEN NULL ELSE notify_batch_at END,
+        notify_batch_hash = CASE WHEN notify_resends < ${MAX_RESENDS}::int THEN NULL ELSE notify_batch_hash END,
+        notify_status = CASE WHEN notify_resends < ${MAX_RESENDS}::int THEN 'deferred' ELSE notify_status END,
+        notify_delivery = CASE WHEN notify_resends < ${MAX_RESENDS}::int THEN ${outcome}::text ELSE 'abandoned' END,
+        notify_next_at = CASE WHEN notify_resends < ${MAX_RESENDS}::int
+                              THEN now() + make_interval(hours => (4 ^ notify_resends)::int) ELSE NULL END,
+        notify_resends = least(notify_resends + 1, ${MAX_RESENDS}::int)
+    WHERE id IN (${rows})
+    RETURNING notify_delivery`;
+  const abandoned = changed.filter((r) => r.notify_delivery === "abandoned").length;
+  return { resent: changed.length - abandoned, abandoned };
+}
+
 /**
  * A batch's content, read inside the transaction that holds its rows: a
  * digest's leads in full (at most DIGEST_CHUNK), an expired batch's count
@@ -164,19 +196,42 @@ export function postgresStore(
    * SQLSTATE-only DeliveryError. Every statement that locks several rows
    * locks them in id order (AEGIS r4 L1), so concurrent runs cannot
    * deadlock on them; a deadlock reported anyway (40P01: Postgres rolled the
-   * transaction back) is retried once.
+   * transaction back) is retried once. So is a lock or statement timeout
+   * (55P03, 57014) in the cron's own statements (no request deadline): a
+   * brief lock wait behind another run on a slow host must not fail the whole
+   * run (AEGIS r5 rerun). A visitor's insert is never retried here: its
+   * request deadline governs it.
    */
+  const retryable = (error: unknown, deadline?: number) => {
+    const code = (error as { code?: unknown })?.code;
+    return code === "40P01" || (deadline === undefined && (code === "55P03" || code === "57014"));
+  };
   const run = async <T>(fn: (tx: Tx) => Promise<T>, deadline?: number): Promise<T> => {
     try {
       try {
         return await once(fn, deadline);
       } catch (error) {
-        if ((error as { code?: unknown })?.code !== "40P01") throw error;
+        if (!retryable(error, deadline)) throw error;
         return await once(fn, deadline);
       }
     } catch (error) {
       throw storeError(error);
     }
+  };
+  /**
+   * AEGIS r5 (L3 follow-up): a bulk status change, PAGE rows per transaction,
+   * so each statement stays well inside the statement timeout however large
+   * the backlog (12,000 rows in one UPDATE timed out on a loaded host). Each
+   * page picks its ids once in a MATERIALIZED CTE (see formBatch, r5 N1).
+   */
+  const paged = async (statement: (tx: Tx) => PromiseLike<{ count: number }>) => {
+    let total = 0;
+    for (let pages = 0; pages < MAX_PAGES; pages++) {
+      const n = await run(async (tx) => (await statement(tx)).count);
+      total += n;
+      if (n < PAGE) break;
+    }
+    return total;
   };
   const cols = (tx: Tx) => tx.unsafe(STORED_COLUMNS_SQL);
   const leased = (rows: unknown) => (rows as Record<string, unknown>[]).map(storedLead);
@@ -229,8 +284,10 @@ export function postgresStore(
               notify_attempts = notify_attempts + CASE WHEN ${status}::text = 'failed' THEN 1 ELSE 0 END,
               notify_next_at = ${retryAt ? retryAt.toISOString() : null}::timestamptz,
               notify_email_id = coalesce(${extra.emailId ?? null}::text, CASE WHEN ${status}::text = 'sent' THEN NULL ELSE notify_email_id END),
-              notify_delivery = CASE WHEN ${status}::text = 'sent' THEN NULL ELSE notify_delivery END,
-              notify_outcome_unknown = notify_outcome_unknown OR ${extra.outcomeUnknown === true}::boolean
+              notify_delivery = CASE WHEN ${extra.unverifiable === true}::boolean THEN 'unverifiable'
+                                     WHEN ${status}::text = 'sent' THEN NULL ELSE notify_delivery END,
+              notify_checked_at = CASE WHEN ${status}::text = 'sent' THEN NULL ELSE notify_checked_at END,
+              notify_outcome_unknown = notify_outcome_unknown OR ${extra.outcomeUnknown === true || extra.unverifiable === true}::boolean
           WHERE app = ${app} AND submission_id = ${submissionId}::uuid`;
       });
     },
@@ -272,48 +329,42 @@ export function postgresStore(
       );
     },
     async expireOld(app: LeadApp, createdBefore: Date) {
-      return run(async (tx) => {
-        const r = await tx`
-          UPDATE leads SET notify_status = 'expired_notify', notify_next_at = NULL
-          WHERE id IN (
-            SELECT id FROM leads
-            WHERE app = ${app}::text AND notify_status IN ('pending', 'failed')
-              AND created_at <= ${createdBefore.toISOString()}::timestamptz
-            ORDER BY id FOR UPDATE)`;
-        return r.count;
-      });
+      return paged((tx) => tx`
+        WITH picked AS MATERIALIZED (
+          SELECT id FROM leads
+          WHERE app = ${app}::text AND notify_status IN ('pending', 'failed')
+            AND created_at <= ${createdBefore.toISOString()}::timestamptz
+          ORDER BY id LIMIT ${PAGE}::int FOR UPDATE)
+        UPDATE leads SET notify_status = 'expired_notify', notify_next_at = NULL
+        WHERE id IN (SELECT id FROM picked)`);
     },
     async markUnknown(app: LeadApp, firstAttemptBefore: Date) {
       // AEGIS r4 L6: only an attempt whose outcome is unknown (a timeout, a
       // 409, or a 'pending' row whose attempt never recorded an outcome) is
       // treated as possibly delivered; definite failures stay re-sendable.
-      return run(async (tx) => {
-        const r = await tx`
-          UPDATE leads SET notify_status = 'delivery_unknown', notify_next_at = NULL
-          WHERE id IN (
-            SELECT id FROM leads
-            WHERE app = ${app}::text AND notify_status IN ('pending', 'failed')
-              AND notify_first_attempt_at < ${firstAttemptBefore.toISOString()}::timestamptz
-              AND (notify_outcome_unknown OR notify_status = 'pending')
-            ORDER BY id FOR UPDATE)`;
-        return r.count;
-      });
+      return paged((tx) => tx`
+        WITH picked AS MATERIALIZED (
+          SELECT id FROM leads
+          WHERE app = ${app}::text AND notify_status IN ('pending', 'failed')
+            AND notify_first_attempt_at < ${firstAttemptBefore.toISOString()}::timestamptz
+            AND (notify_outcome_unknown OR notify_status = 'pending')
+          ORDER BY id LIMIT ${PAGE}::int FOR UPDATE)
+        UPDATE leads SET notify_status = 'delivery_unknown', notify_next_at = NULL
+        WHERE id IN (SELECT id FROM picked)`);
     },
     async moveToDigest(app: LeadApp, createdBefore: Date) {
-      return run(async (tx) => {
-        const r = await tx`
-          UPDATE leads
-          SET notify_status = CASE
-                WHEN notify_outcome_unknown OR (notify_status = 'pending' AND notify_first_attempt_at IS NOT NULL) THEN 'delivery_unknown'
-                ELSE 'deferred' END,
-              notify_next_at = NULL
-          WHERE id IN (
-            SELECT id FROM leads
-            WHERE app = ${app}::text AND notify_status IN ('pending', 'failed')
-              AND created_at < ${createdBefore.toISOString()}::timestamptz
-            ORDER BY id FOR UPDATE)`;
-        return r.count;
-      });
+      return paged((tx) => tx`
+        WITH picked AS MATERIALIZED (
+          SELECT id FROM leads
+          WHERE app = ${app}::text AND notify_status IN ('pending', 'failed')
+            AND created_at < ${createdBefore.toISOString()}::timestamptz
+          ORDER BY id LIMIT ${PAGE}::int FOR UPDATE)
+        UPDATE leads
+        SET notify_status = CASE
+              WHEN notify_outcome_unknown OR (notify_status = 'pending' AND notify_first_attempt_at IS NOT NULL) THEN 'delivery_unknown'
+              ELSE 'deferred' END,
+            notify_next_at = NULL
+        WHERE id IN (SELECT id FROM picked)`);
     },
     async claimBatch(app: LeadApp, kind: BatchKind): Promise<Batch | null> {
       const { from } = BATCH_STATUSES[kind];
@@ -327,14 +378,23 @@ export function postgresStore(
           ORDER BY min(notify_batch_at), notify_batch
           LIMIT 10`;
         for (const { key } of keys) {
-          // Every row of the batch, locked in id order (AEGIS r4 L1: the same
-          // order as every other multi-row statement), whatever its lease:
+          // Every row of the batch, locked in id order, whatever its lease:
           // the batch is taken whole or not at all (AEGIS r3 H1). Ids only.
+          // SKIP LOCKED (AEGIS r5 rerun): never wait on another run — a batch
+          // with any row held elsewhere is busy and skipped, so lock waits
+          // cannot chain across runs into a statement timeout.
+          // First without locks: a batch another run holds the lease on is
+          // skipped without touching its rows.
+          const [{ total, due }] = (await tx`
+            SELECT count(*)::int AS total, coalesce(bool_and(notify_next_at IS NULL OR notify_next_at <= now()), false) AS due
+            FROM leads
+            WHERE app = ${app}::text AND notify_batch = ${key as string}::text`) as unknown as [{ total: number; due: boolean }];
+          if (!total || !due) continue;
           const locked = await tx`
             SELECT id, (notify_next_at IS NULL OR notify_next_at <= now()) AS due
             FROM leads WHERE app = ${app}::text AND notify_batch = ${key as string}::text
-            ORDER BY id FOR UPDATE`;
-          if (!locked.length || locked.some((r) => r.due !== true)) continue;
+            ORDER BY id FOR UPDATE SKIP LOCKED`;
+          if (!locked.length || locked.length !== total || locked.some((r) => r.due !== true)) continue;
           await tx`
             UPDATE leads SET notify_next_at = now() + interval '10 minutes'
             WHERE app = ${app}::text AND notify_batch = ${key as string}::text`;
@@ -350,18 +410,26 @@ export function postgresStore(
       return run(async (tx) => {
         // Unbatched rows, oldest first; SKIP LOCKED never waits, so it cannot
         // deadlock. Ids only: an expired batch never loads payloads (r4 L3).
+        // AEGIS r5 N1: the ids are picked ONCE, in a MATERIALIZED CTE. As a
+        // plain `IN (subquery … LIMIT n)` the planner may re-run the subquery
+        // per outer row (nested loop), and SKIP LOCKED then skips the rows
+        // this statement already updated, so the LIMIT held per re-scan, not
+        // overall (169-lead "100-lead" digests were seen).
         const r = await tx`
-          UPDATE leads
-          SET notify_batch = ${key}::text, notify_batch_at = now(), notify_next_at = now() + interval '10 minutes'
-          WHERE id IN (
+          WITH picked AS MATERIALIZED (
             SELECT id FROM leads
             WHERE app = ${app}::text AND notify_batch IS NULL
               AND notify_status IN ${tx(from)}
               AND (notify_next_at IS NULL OR notify_next_at <= now())
             ORDER BY created_at, id
             LIMIT ${limit}::int
-            FOR UPDATE SKIP LOCKED)`;
+            FOR UPDATE SKIP LOCKED)
+          UPDATE leads
+          SET notify_batch = ${key}::text, notify_batch_at = now(), notify_next_at = now() + interval '10 minutes'
+          WHERE id IN (SELECT id FROM picked)`;
         if (r.count === 0) return null;
+        // And never trusted: a batch over its limit fails the run loudly (rolled back).
+        if (r.count > limit) throw Object.assign(new Error("batch over limit"), { code: "BATCH_OVER_LIMIT" });
         const batch = await loadBatch(tx, app, kind, key);
         const hash = seal(batch);
         await tx`UPDATE leads SET notify_batch_hash = ${hash}::text WHERE app = ${app}::text AND notify_batch = ${key}::text`;
@@ -379,7 +447,10 @@ export function postgresStore(
               notified_at = CASE WHEN ${done}::text = 'sent' THEN now() ELSE notified_at END,
               notify_next_at = NULL,
               notify_email_id = ${emailId ?? null}::text,
-              notify_delivery = NULL
+              -- AEGIS r5 N4: accepted without a usable id cannot be checked.
+              notify_delivery = CASE WHEN ${emailId ?? null}::text IS NULL AND ${done}::text = 'sent' THEN 'unverifiable' ELSE NULL END,
+              notify_outcome_unknown = notify_outcome_unknown OR (${emailId ?? null}::text IS NULL AND ${done}::text = 'sent'),
+              notify_checked_at = NULL
           WHERE id IN (
             SELECT id FROM leads
             WHERE app = ${app}::text AND notify_batch = ${key}::text
@@ -411,48 +482,63 @@ export function postgresStore(
             ORDER BY id FOR UPDATE)`;
       });
     },
-    async deliveriesToCheck(app: LeadApp, since: Date, limit: number) {
+    async deliveriesToCheck(app: LeadApp, limit: number) {
       return run(async (tx) => {
         const rows = await tx`
           SELECT notify_email_id AS id FROM leads
-          WHERE app = ${app}::text AND notify_status = 'sent' AND notify_email_id IS NOT NULL
-            AND notify_delivery IS NULL AND notified_at > ${since.toISOString()}::timestamptz
+          WHERE app = ${app}::text AND notify_status = 'sent' AND notify_email_id IS NOT NULL AND notify_delivery IS NULL
           GROUP BY notify_email_id
-          ORDER BY min(notified_at), notify_email_id
+          ORDER BY min(notify_checked_at) NULLS FIRST, min(notified_at), notify_email_id
           LIMIT ${limit}::int`;
         return rows.map((r) => String(r.id));
       });
     },
-    async recordDelivery(app: LeadApp, emailId: string, outcome: "delivered" | "undelivered") {
+    async recordDelivery(app: LeadApp, emailId: string, outcome: "delivered" | "pending" | "undelivered" | "unconfirmed") {
       return run(async (tx) => {
-        const r = await tx`
-          UPDATE leads
-          SET notify_delivery = ${outcome}::text,
-              notify_status = CASE WHEN ${outcome}::text = 'delivered' THEN notify_status ELSE 'deferred' END,
-              notify_undelivered_at = CASE WHEN ${outcome}::text = 'delivered' THEN notify_undelivered_at ELSE now() END,
-              notify_batch = CASE WHEN ${outcome}::text = 'delivered' THEN notify_batch ELSE NULL END,
-              notify_batch_at = CASE WHEN ${outcome}::text = 'delivered' THEN notify_batch_at ELSE NULL END,
-              notify_batch_hash = CASE WHEN ${outcome}::text = 'delivered' THEN notify_batch_hash ELSE NULL END,
-              notify_next_at = NULL
-          WHERE id IN (
-            SELECT id FROM leads
-            WHERE app = ${app}::text AND notify_status = 'sent' AND notify_email_id = ${emailId}::text AND notify_delivery IS NULL
-            ORDER BY id FOR UPDATE)`;
-        return r.count;
+        const where = tx`
+          SELECT id FROM leads
+          WHERE app = ${app}::text AND notify_status = 'sent' AND notify_email_id = ${emailId}::text AND notify_delivery IS NULL
+          ORDER BY id FOR UPDATE`;
+        if (outcome === "delivered" || outcome === "pending") {
+          await tx`
+            UPDATE leads
+            SET notify_delivery = CASE WHEN ${outcome}::text = 'delivered' THEN 'delivered' ELSE NULL END,
+                notify_checked_at = now()
+            WHERE id IN (${where})`;
+          return { resent: 0, abandoned: 0 };
+        }
+        return notDelivered(tx, where, outcome);
       });
     },
     async expireDeliveryChecks(app: LeadApp, before: Date) {
-      return run(async (tx) => {
-        const r = await tx`
-          UPDATE leads
-          SET notify_delivery = 'unconfirmed', notify_status = 'deferred', notify_undelivered_at = now(),
-              notify_batch = NULL, notify_batch_at = NULL, notify_batch_hash = NULL, notify_next_at = NULL
-          WHERE id IN (
+      return run(async (tx) =>
+        notDelivered(
+          tx,
+          tx`
             SELECT id FROM leads
             WHERE app = ${app}::text AND notify_status = 'sent' AND notify_email_id IS NOT NULL
-              AND notify_delivery IS NULL AND notified_at <= ${before.toISOString()}::timestamptz
-            ORDER BY id FOR UPDATE)`;
-        return r.count;
+              AND notify_delivery IS NULL AND notify_checked_at IS NOT NULL
+              AND notified_at <= ${before.toISOString()}::timestamptz
+            ORDER BY id FOR UPDATE`,
+          "unconfirmed",
+        ),
+      );
+    },
+    async recordCheckState(app: LeadApp, state: "ok" | "unauthorized" | "failing", code?: string) {
+      await run(async (tx) => {
+        await tx`
+          INSERT INTO lead_delivery_checks AS c (app, last_success_at, failing_since, last_error, updated_at)
+          VALUES (
+            ${app}::text,
+            CASE WHEN ${state}::text = 'ok' THEN now() END,
+            CASE WHEN ${state}::text = 'failing' THEN now() END,
+            CASE WHEN ${state}::text = 'ok' THEN NULL ELSE ${state === "unauthorized" ? "unauthorized" : (code ?? "failing")}::text END,
+            now())
+          ON CONFLICT (app) DO UPDATE SET
+            last_success_at = CASE WHEN ${state}::text = 'ok' THEN now() ELSE c.last_success_at END,
+            failing_since = CASE WHEN ${state}::text = 'failing' THEN coalesce(c.failing_since, now()) ELSE NULL END,
+            last_error = EXCLUDED.last_error,
+            updated_at = now()`;
       });
     },
   };
@@ -496,7 +582,7 @@ export async function purgeWith(
   return { deleted: deleted.count, uaCleared: cleared.count, ipHashCleared: ipCleared.count };
 }
 
-/** Columns migrations 004, 006, 007, 008 and 009 add, which this code writes (AEGIS F4). */
+/** Columns migrations 004 and 006–010 add, which this code writes (AEGIS F4). */
 export const REQUIRED_LEAD_COLUMNS = [
   "service_area",
   "content_hash",
@@ -512,9 +598,11 @@ export const REQUIRED_LEAD_COLUMNS = [
   "notify_delivery",
   "notify_undelivered_at",
   "notify_outcome_unknown",
+  "notify_resends",
+  "notify_checked_at",
 ] as const;
 
-export function postgresPurger(options: PgOptions): LeadPurger & PurgeLedger & Required<Pick<PurgeLedger, "leadState" | "missingColumns" | "dbBytes">> {
+export function postgresPurger(options: PgOptions): LeadPurger & PurgeLedger & Required<Pick<PurgeLedger, "leadState" | "missingColumns" | "dbBytes" | "deliveryCheckState">> {
   const sql = client(options);
   return {
     async purge(app, cutoffs, ranAt) {
@@ -546,7 +634,9 @@ export function postgresPurger(options: PgOptions): LeadPurger & PurgeLedger & R
             count(*) FILTER (WHERE quarantined AND created_at > now() - interval '24 hours')::int AS quarantined_24h,
             count(*) FILTER (WHERE created_at > now() - interval '24 hours')::int AS stored_24h,
             count(*) FILTER (WHERE notify_status = 'expired_notify')::int AS expired_unreported,
-            count(*) FILTER (WHERE notify_undelivered_at > now() - interval '24 hours')::int AS undelivered_24h
+            count(*) FILTER (WHERE notify_undelivered_at > now() - interval '24 hours')::int AS undelivered_24h,
+            count(*) FILTER (WHERE notify_delivery = 'abandoned' AND notify_undelivered_at > now() - interval '7 days')::int AS abandoned_7d,
+            count(*) FILTER (WHERE notify_delivery = 'unverifiable' AND notified_at > now() - interval '24 hours')::int AS unverifiable_24h
           FROM leads WHERE app = ${app}::text`;
         return {
           unsent: Number(row?.unsent ?? 0),
@@ -555,6 +645,20 @@ export function postgresPurger(options: PgOptions): LeadPurger & PurgeLedger & R
           stored24h: Number(row?.stored_24h ?? 0),
           expiredUnreported: Number(row?.expired_unreported ?? 0),
           undelivered24h: Number(row?.undelivered_24h ?? 0),
+          abandoned7d: Number(row?.abandoned_7d ?? 0),
+          unverifiable24h: Number(row?.unverifiable_24h ?? 0),
+        };
+      } catch (error) {
+        throw storeError(error);
+      }
+    },
+    async deliveryCheckState(app) {
+      // AEGIS r5 N2/N3: the delivery check's own state.
+      try {
+        const [row] = await sql`SELECT failing_since, last_error FROM lead_delivery_checks WHERE app = ${app}::text`;
+        return {
+          unauthorized: row?.last_error === "unauthorized",
+          failingSince: (row?.failing_since as Date | null | undefined) ?? null,
         };
       } catch (error) {
         throw storeError(error);

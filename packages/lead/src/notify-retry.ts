@@ -2,16 +2,12 @@ import { resolveTransport, type Env, type TransportConfig } from "./config";
 import { consoleLogger, type LeadLogger } from "./log";
 import { checkDeliveries, deliverLead, KEY_WINDOW_MS, sendBatches, DIGEST_ALERT_DEFAULT } from "./notify";
 import { cronAuthorized, notifyRetryDays } from "./retention";
-import type { LeadApp } from "./types";
+import { DeliveryError, type LeadApp } from "./types";
 
 /**
  * Chaos red team CH-8; AEGIS F1, r2 M1–M3, L2: founder emails are retried.
  *
  * The leads table is the durable outbox. Each run of /api/cron/retry-notify:
- *   0. checks delivery of recently sent emails with Resend (AEGIS r4 M2,
- *      notify.ts checkDeliveries): a lead whose email bounced, was
- *      suppressed, complained about or failed goes back in this run's digest,
- *      flagged, and /api/health reports delivery_failed;
  *   1. leads still 'pending'/'failed' and older than LEAD_NOTIFY_RETRY_DAYS
  *      (default 3) become 'expired_notify': never emailed one by one, but
  *      counted in a count email, sent as an immutable batch like a digest
@@ -33,7 +29,12 @@ import type { LeadApp } from "./types";
  *      100 per email, as many as needed (r2 M1). Each batch is immutable:
  *      formed and fixed (leads, key, body hash) before its first send, taken
  *      whole by one run, re-sent unchanged after a failure, and only its own
- *      leads are marked sent when Resend accepts it (r3 H1).
+ *      leads are marked sent when Resend accepts it (r3 H1);
+ *   6. last, within 20 s: delivery of recently sent emails is checked with
+ *      Resend (r4 M2, r5 N2–N6, notify.ts checkDeliveries). Not delivered →
+ *      re-sent in a later digest, flagged, with growing waits, at most 3
+ *      times; a sending-only API key makes the check a health warning
+ *      (delivery_unverifiable) and re-sends nothing.
  *
  * Schedule (vercel.json): daily, because Vercel Hobby runs a cron job at
  * most once a day and rejects a deployment with a more frequent schedule. The
@@ -72,6 +73,8 @@ export type NotifyRetryOptions = {
   now?: () => Date;
   /** Test seam; production resolves the transport from env. */
   transport?: TransportConfig;
+  /** Test seam: the delivery check's time budget (default DELIVERY_CHECK_BUDGET_MS, 20 s). */
+  deliveryBudgetMs?: number;
 };
 
 const json = (body: unknown, status: number) => Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
@@ -104,9 +107,6 @@ export async function handleNotifyRetry(request: Request, opts: NotifyRetryOptio
     const nowMs = (opts.now ?? (() => new Date()))().getTime();
     const days = notifyRetryDays(env);
     const ctx = { app, store, notifier, log, now: () => nowMs };
-
-    // 0. Delivery of recent sends (r4 M2): not delivered → back in the digest, flagged.
-    await checkDeliveries({ ...ctx, outbox });
 
     // 1. Too old to retry: counted in a count email, retried until accepted (r2 M3, r3 M3).
     const expired = await outbox.expireOld(app, new Date(nowMs - days * 86_400_000));
@@ -145,9 +145,16 @@ export async function handleNotifyRetry(request: Request, opts: NotifyRetryOptio
     const alertAt = /^\d{1,7}$/.test(raw) ? Number(raw) : DIGEST_ALERT_DEFAULT;
     const digest = await sendBatches({ ...ctx, outbox }, "digest", { alertAt });
 
+    // 6. Last, time-boxed (r5 N6): delivery of sent emails (r4 M2, r5 N2–N4).
+    // A lead whose email was not delivered is re-sent in a later digest,
+    // after a growing wait, at most 3 times.
+    await checkDeliveries({ ...ctx, outbox }, opts.deliveryBudgetMs);
+
     return json({ ok: true, sent, failed, digest: digest.sent, expired }, 200);
-  } catch {
-    log("error", "notify_retry_failed", { app });
+  } catch (error) {
+    // A code and SQLSTATE only (storeError strips everything else), so a failing run says why.
+    const detail = error instanceof DeliveryError ? error.detail : undefined;
+    log("error", "notify_retry_failed", { app, code: error instanceof DeliveryError ? error.code : "internal", sqlstate: detail ?? "unknown" });
     return json({ ok: false, error: { code: "unavailable" } }, 503);
   }
 }

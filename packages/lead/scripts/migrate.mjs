@@ -15,6 +15,8 @@
  *   5. the notify-status CHECK accepts every status in src/notify-status.ts
  *      and refuses near-misses (AEGIS r4 L4: e.g. 007 re-run by hand after
  *      008 would drop 'expired_reported', and the app would then fail 23514);
+ *   6. the notify-status and notify-delivery CHECKs allow EXACTLY the app's
+ *      values, no extras (AEGIS r5 N7), and lead_delivery_checks exists;
  * All of it runs in ONE transaction under a transaction-scoped advisory lock,
  * so concurrent runs serialise and a failed run changes nothing.
  *
@@ -51,7 +53,9 @@ const SERVICE_CODES = (await loadTs("region.ts")).SERVICE_AREAS.map((a) => a.val
  * case and whitespace variants, and the empty string.
  */
 /** Every notify_status the app writes (AEGIS r4 L4), and values the CHECK must refuse. */
-const NOTIFY_STATUSES = [...(await loadTs("notify-status.ts")).NOTIFY_STATUSES];
+const statusModule = await loadTs("notify-status.ts");
+const NOTIFY_STATUSES = [...statusModule.NOTIFY_STATUSES];
+const NOTIFY_DELIVERY_VALUES = [...statusModule.NOTIFY_DELIVERY_VALUES];
 const REFUSED_STATUSES = ["", "SENT", "expired", "unknown", " sent"];
 
 const REFUSED_CODES = ["outside", "US-PR", "US-GU", "US-VI", "US-AS", "US-MP", "UM", "US-UM", "CA", "GB", "us-ca", "vi", " US-CA", ""];
@@ -73,7 +77,7 @@ const BASE = {
   created_at: "timestamp with time zone",
 };
 
-/** After every migration: exactly what the app writes (004 service area, 006 content hash, 007 notify outbox, 008 batch hash, 009 delivery check). */
+/** After every migration: exactly what the app writes (004 service area, 006 content hash, 007 notify outbox, 008 batch hash, 009 delivery check, 010 re-send cap). */
 const EXPECTED = {
   ...BASE,
   service_area: "text",
@@ -90,6 +94,8 @@ const EXPECTED = {
   notify_delivery: "text",
   notify_undelivered_at: "timestamp with time zone",
   notify_outcome_unknown: "boolean",
+  notify_resends: "integer",
+  notify_checked_at: "timestamp with time zone",
 };
 
 /**
@@ -307,6 +313,39 @@ try {
       );
     }
     lines.push(`notify status check ok (${NOTIFY_STATUSES.length} statuses accepted, ${REFUSED_STATUSES.length} near-misses refused; rolled back)`);
+
+    // 6. AEGIS r5 N7: both CHECKs allow EXACTLY the app's values — no extras,
+    //    none missing — read from the constraint definitions themselves.
+    const defs = Object.fromEntries(
+      (
+        await tx`
+          SELECT conname, pg_get_constraintdef(oid) AS def FROM pg_constraint
+          WHERE conrelid = 'leads'::regclass AND contype = 'c'
+            AND conname IN ('leads_notify_status_check', 'leads_notify_delivery_check')`
+      ).map((r) => [r.conname, String(r.def)]),
+    );
+    const exact = (name, expected, nullable) => {
+      const def = defs[name];
+      if (!def) throw new CheckFailed(`${name} is missing. Run the migrations (or fix the constraint) before launch.`);
+      const allowed = new Set([...def.matchAll(/'([^']*)'::text/g)].map((m) => m[1]));
+      const missing = expected.filter((v) => !allowed.has(v));
+      const extra = [...allowed].filter((v) => !expected.includes(v));
+      const nullOk = /IS NULL/.test(def);
+      if (missing.length || extra.length || nullOk !== nullable) {
+        throw new CheckFailed(
+          `${name} does not allow exactly the app's values` +
+            (missing.length ? `; missing: ${missing.join(", ")}` : "") +
+            (extra.length ? `; extra: ${extra.map((v) => JSON.stringify(v)).join(", ")}` : "") +
+            (nullOk !== nullable ? `; NULL ${nullable ? "must" : "must not"} be allowed` : "") +
+            ". Fix the constraint before launch.",
+        );
+      }
+    };
+    exact("leads_notify_status_check", NOTIFY_STATUSES, false);
+    exact("leads_notify_delivery_check", NOTIFY_DELIVERY_VALUES, true);
+    const [checks] = await tx`SELECT to_regclass('lead_delivery_checks') IS NOT NULL AS present`;
+    if (!checks?.present) throw new CheckFailed("lead_delivery_checks table is missing. Fix the schema before launch.");
+    lines.push(`notify constraints exact (${NOTIFY_STATUSES.length} statuses, ${NOTIFY_DELIVERY_VALUES.length} delivery values); delivery check table ok`);
     return lines;
   });
   for (const line of report) console.log(line);
