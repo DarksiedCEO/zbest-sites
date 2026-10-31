@@ -22,7 +22,12 @@ import { ZBC_BASE_URL, ZBM_BASE_URL } from "../playwright.config";
 const SNAPSHOT_DIR = path.join(import.meta.dirname, "..", "snapshots", "phase-3");
 const REPO_ROOT = path.join(import.meta.dirname, "..", "..");
 const CONSENT_KEY = "zbest-cookie-consent";
-const LEGAL_BANNER = "Draft — pending attorney review. Not yet in effect.";
+/**
+ * Founder decision, Oct 30 2026: neither site may carry review-status or draft
+ * wording about its legal documents. ZBC shows this notice until launch.
+ */
+const STATUS_WORDING = /pending attorney|attorney review|not yet in effect|\bdraft\b/i;
+const ZBC_LEGAL_NOTICE = "Z Best Clips is not yet accepting clients. These terms will be published before launch.";
 
 const LEGAL = [
   { path: "/legal/privacy-policy", title: "Privacy Policy", slug: "legal-privacy-policy" },
@@ -283,10 +288,10 @@ for (const app of APPS) {
         expect(response?.status()).toBe(200);
 
         await expect(page.locator("[data-legal-document]")).toBeVisible();
-        expect(await page.locator("[data-legal-draft-banner]").count()).toBe(0);
+        expect(await page.locator("[data-legal-notice]").count()).toBe(0);
         const text = await page.locator("main").innerText();
-        expect(text).not.toContain(LEGAL_BANNER);
-        expect(text).not.toMatch(/attorney-drafted text pending|placeholder outline/i);
+        expect(text).not.toMatch(STATUS_WORDING);
+        expect(await head(page, 'meta[name="description"]')).not.toMatch(STATUS_WORDING);
 
         await expect(page.getByRole("heading", { level: 1 })).toHaveText(doc.title);
         // Real sections with real text, each reachable from the contents list.
@@ -317,21 +322,21 @@ for (const app of APPS) {
     }
 
     for (const doc of app.slug === "zbm" ? [] : LEGAL) {
-      test(`${doc.path} — shell carries the §5 banner and placeholders only`, async ({ page }) => {
+      test(`${doc.path} — outline carries the not-yet-accepting-clients notice and no status wording`, async ({ page }) => {
         await presetConsent(page);
         const response = await page.goto(`${app.baseUrl}${doc.path}`, {
           waitUntil: "domcontentloaded",
         });
         expect(response?.status()).toBe(200);
 
-        const banner = page.locator("[data-legal-draft-banner]");
+        const banner = page.locator("[data-legal-notice]");
         await expect(banner).toBeVisible();
-        await expect(banner).toContainText(LEGAL_BANNER);
+        await expect(banner).toHaveText(ZBC_LEGAL_NOTICE);
         // Above the fold and ahead of the title — it cannot be scrolled past
         // on the way to the content.
         await expect(banner).toBeInViewport();
         const bannerFirst = await page.evaluate(() => {
-          const b = document.querySelector("[data-legal-draft-banner]");
+          const b = document.querySelector("[data-legal-notice]");
           const h1 = document.querySelector("main h1");
           return !!b && !!h1 && !!(b.compareDocumentPosition(h1) & Node.DOCUMENT_POSITION_FOLLOWING);
         });
@@ -347,14 +352,15 @@ for (const app of APPS) {
         }));
         expect(counts.sections).toBeGreaterThanOrEqual(3);
         expect(counts.placeholders).toBe(counts.sections);
-        await expect(page.getByText("[Legal entity — pending attorney confirmation]")).toBeVisible();
+        await expect(page.getByText("[Legal entity — to be confirmed]")).toBeVisible();
 
-        // Legal Brief cross-cutting note 2 leaves the contracting entity to the
-        // attorney; no name from that note may appear on a shell.
+        // The contracting entity is unconfirmed; no candidate name appears.
         const text = await page.locator("main").innerText();
         expect(text).not.toMatch(/silverback|pussycat/i);
+        expect(text).not.toMatch(STATUS_WORDING);
+        expect(await head(page, 'meta[name="description"]')).not.toMatch(STATUS_WORDING);
 
-        // Draft text must not be indexed as the company's policy.
+        // An outline must not be indexed as the company's terms.
         expect(await head(page, 'meta[name="robots"]')).toMatch(/noindex/);
       });
     }
@@ -490,17 +496,18 @@ for (const app of APPS) {
       await page.getByRole("button", { name: "Change cookie settings" }).click();
       await expect(dialog).toBeVisible();
 
-      // The banner's detail must say what the Cookie Policy says. ZBM's is in
-      // effect (no draft label, nothing optional in use); ZBC's is a draft.
+      // The banner's detail says what each site really stores; neither carries
+      // review-status wording (founder decision Oct 30 2026).
       await dialog.getByRole("button", { name: "What we store" }).click();
       const detail = dialog.locator("#cookie-consent-detail");
       if (app.slug === "zbm") {
-        await expect(detail).not.toContainText("Draft — pending attorney review");
         await expect(detail).toContainText("Not used on this site.");
         await expect(dialog).toContainText("doesn’t use analytics or advertising cookies");
       } else {
-        await expect(detail).toContainText("Draft — pending attorney review. Not yet in effect.");
+        await expect(detail).toContainText(ZBC_LEGAL_NOTICE);
+        await expect(detail).toContainText("Not used on this site.");
       }
+      expect(await dialog.innerText()).not.toMatch(STATUS_WORDING);
       await dialog.getByRole("button", { name: "Accept all" }).click();
       expect(await page.evaluate((k) => window.localStorage.getItem(k), CONSENT_KEY)).toContain(
         "accepted-all",

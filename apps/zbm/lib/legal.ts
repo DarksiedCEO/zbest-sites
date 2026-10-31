@@ -3,9 +3,9 @@ import { legalDocumentStrings, legalPlaceholders, type ConsentCategory, type InE
 /**
  * Z Best Media legal documents — IN EFFECT (founder decision, Oct 30 2026).
  *
- * Privacy, Terms and Cookie documents are published and in effect.
- * Z Best Clips is unchanged: its pages are
- * still LegalShell outlines with the draft banner (CLAUDE.md).
+ * Privacy, Terms, Cookie, Refund and Accessibility documents are in effect.
+ * Z Best Clips' pages are LegalShell outlines with its not-yet-accepting-
+ * clients notice until it publishes its terms (CLAUDE.md).
  *
  * EVERY FACTUAL STATEMENT HERE MUST MATCH THE CODE. Before changing what the
  * site collects, stores, sends or sets in the browser, change this file in the

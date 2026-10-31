@@ -16,7 +16,7 @@ export { Footer } from "./components/footer";
 export type { FooterColumn } from "./components/footer";
 export { IllustrativeBadge } from "./components/illustrative-badge";
 export { LedgerRule } from "./components/ledger-rule";
-export { LegalShell, LEGAL_DRAFT_BANNER } from "./components/legal-shell";
+export { LegalShell } from "./components/legal-shell";
 export type { LegalPart } from "./components/legal-shell";
 export { LegalDocument, legalDocumentStrings, legalPlaceholders } from "./components/legal-document";
 export type { InEffectLegalDocument, LegalBlock, LegalSection } from "./components/legal-document";

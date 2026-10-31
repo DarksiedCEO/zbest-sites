@@ -62,7 +62,7 @@ test("Accessibility Statement: linked from the footer, in effect, honest about l
   const res = await page.goto(`${ZBM_BASE_URL}/legal/accessibility`, { waitUntil: "domcontentloaded" });
   expect(res?.status()).toBe(200);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Accessibility Statement");
-  expect(await page.locator("[data-legal-draft-banner]").count()).toBe(0);
+  expect(await page.locator("[data-legal-notice]").count()).toBe(0);
   await expect(page.locator("section#status")).toContainText("partially conforms to WCAG 2.2 Level AA");
   expect(await page.locator("section#limitations li").count()).toBeGreaterThanOrEqual(1);
   // A contact route is given (an address, or a visibly marked token until it is filled).
@@ -78,7 +78,7 @@ test("Refund and Cancellation Policy: in the footer, in effect, with a billing c
   const res = await page.goto(`${ZBM_BASE_URL}/legal/refunds`, { waitUntil: "domcontentloaded" });
   expect(res?.status()).toBe(200);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Refund and Cancellation Policy");
-  expect(await page.locator("[data-legal-draft-banner]").count()).toBe(0);
+  expect(await page.locator("[data-legal-notice]").count()).toBe(0);
   for (const id of ["full-refunds", "cancel", "defects", "charges", "request", "how-paid", "contact"]) {
     await expect(page.locator(`section#${id}`)).toHaveCount(1);
   }
