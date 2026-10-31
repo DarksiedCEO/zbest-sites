@@ -21,8 +21,15 @@ import { legalDocumentStrings, legalPlaceholders, type ConsentCategory, type InE
  *                      lead; rate-limit key is the keyed HMAC, ~10-minute life)
  *   - service area:    packages/lead/src/region.ts (country, province)
  *
- * These statements describe the code AFTER site-hardening-2026-10-30
- * (1a96d3e, d04aa17, 3e29c3b, 37b67dc), which merges before this text ships.
+ * MERGE-ORDER DEPENDENCY: these statements describe the lead pipeline from
+ * PR #7 (site hardening: HMAC rate key, retention purge, no ip_hash), PR #8
+ * (service area) and PR #9 (a11y gate), which this branch is built on. If
+ * this file is ever moved onto a base without them, the privacy and
+ * accessibility text becomes false. The retention promise also depends on
+ * deployment state: CRON_SECRET set (>= 16 chars), migrations 002-005
+ * applied, the daily /api/cron/purge-leads running (/api/health reports a
+ * stopped purge), and LEAD_RETENTION_DAYS / LEAD_UA_RETENTION_DAYS left at
+ * their defaults (730 / 90).
  *   - email:           packages/lead/src/resend.ts, src/email.ts
  *   - browser storage: packages/ui/src/components/cookie-consent.tsx
  *   - no analytics, no ad pixels, self-hosted fonts, CSP 'self':
@@ -197,12 +204,13 @@ const privacyPolicy: InEffectLegalDocument = {
               ],
               [
                 "Notification emails about your submission",
-                "We delete them from our inbox on the same 24-month schedule. Our email-delivery provider keeps its own copy under its retention terms.",
+                "We delete them from our inbox by hand on the same 24-month schedule. Our email-delivery provider keeps its own copy under its retention terms.",
               ],
               ["Rate-limit counters", "A keyed, one-way hash of your IP address, kept for about 10 minutes to limit abuse."],
               ["Request logs at our hosting provider (IP address, browser details, page address)", "Available to us for no more than 30 days, depending on our hosting plan, then deleted from our view. The provider handles its own operational records under its privacy policy."],
               ["Your cookie-banner choice", "Stored only in your own browser until you clear it. We never receive it."],
               ["Records of privacy requests", "24 months, to show we handled them as the law requires."],
+              ["Database backups", "Deleted information can remain in our database provider’s automatic backups until they roll off, which takes up to 30 days depending on our plan. Backups are used only to restore the service."],
             ],
           },
         },
@@ -706,16 +714,21 @@ const cookiePolicy: InEffectLegalDocument = {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Source: the independent WCAG 2.2 AA audit of main 6960b6b, Oct 30 2026
- * (drafting notes). Each "known limitation" below is a finding from it. When a
- * fix lands, remove its line here in the same commit, and update the date.
+ * Must match what the code and CI actually do: docs/accessibility.md (from PR
+ * #9, a11y-wcag22aa) is the source. The per-PR axe + keyboard gate
+ * (e2e/tests/a11y.spec.ts in the required e2e check) and the nightly run
+ * (a11y-nightly.yml) are described as they are built. "Known limitations"
+ * mirrors that file's "Known open items". The screen-reader pass is NOT done:
+ * claim none until docs/accessibility.md records it. When an item is fixed or
+ * found, change this in the same commit.
  */
 const accessibilityStatement: InEffectLegalDocument = {
   title: "Accessibility Statement",
-  subtitle: "How accessible zbestmedia.com is today, what we’re fixing, and how to tell us about a problem.",
+  subtitle: "How accessible zbestmedia.com is today, how we check it, and how to tell us about a problem.",
   summary: [
     "We aim to meet the Web Content Accessibility Guidelines (WCAG) 2.2 at Level AA.",
-    "Today the site partially conforms. An audit on October 30, 2026 found a few problems, listed below, and we are fixing them.",
+    "Every change to the site is checked automatically for accessibility before it can be published, and fuller keyboard checks run every night.",
+    "The site partially conforms today. The remaining gaps are listed below. We have not yet tested with screen readers.",
     "We don’t use accessibility overlays. We fix the site itself.",
     `If anything is hard to use, email ${ACCESSIBILITY_EMAIL} and we’ll help another way while we fix it.`,
   ],
@@ -725,10 +738,28 @@ const accessibilityStatement: InEffectLegalDocument = {
       heading: "Our commitment",
       blocks: [
         {
-          p: "We want everyone to be able to use this website, including people who use screen readers, keyboard navigation, magnification, voice control or other assistive technology.",
+          p: "We want everyone to be able to use this website, including people who use screen readers, keyboard navigation, magnification, voice control or other assistive technology. Our goal is to conform to the Web Content Accessibility Guidelines (WCAG) 2.2, Level AA, and we treat accessibility failures as bugs.",
+        },
+      ],
+    },
+    {
+      id: "checks",
+      heading: "How we check the site",
+      blocks: [
+        { p: "Before any change to the site can be published, automated tests must pass:" },
+        {
+          list: [
+            "Every page is scanned with the axe-core accessibility engine against WCAG 2.0, 2.1 and 2.2 Level A and AA rules, in every state a visitor can reach: with the cookie notice open and closed, with menus open, and with each form showing its error messages. Any violation stops the change.",
+            "Form field and checkbox outlines are measured for contrast, which the scanner can’t check on its own.",
+            "Keyboard tests confirm the “Skip to content” link, that focused items are never hidden under the header or the cookie notice, that focus moves sensibly through the cookie notice and the forms, and that the menus and cookie notice work at 400% zoom.",
+            "These run in Chromium at desktop size and in WebKit at phone size.",
+          ],
         },
         {
-          p: "Our goal is to conform to the Web Content Accessibility Guidelines (WCAG) 2.2, Level AA. On October 30, 2026 we tested the site by hand and with automated scans, including keyboard-only navigation and reflow at 320 pixels wide. We are adding automated accessibility checks to our release process, and we treat accessibility failures as bugs.",
+          p: "Every night, the same checks run again, also in Firefox, together with keyboard walks through every page and checks of each form’s confirmation screen.",
+        },
+        {
+          p: "Automated tests can’t tell whether a screen reader announces things sensibly, so people also check the site by keyboard at each stage of its development. We have not yet tested the site with the NVDA, JAWS, VoiceOver or TalkBack screen readers, or in desktop Safari.",
         },
       ],
     },
@@ -737,7 +768,7 @@ const accessibilityStatement: InEffectLegalDocument = {
       heading: "Conformance status",
       blocks: [
         {
-          p: "This site partially conforms to WCAG 2.2 Level AA: some parts of the content don’t yet fully meet the standard. An accessibility audit on October 30, 2026 found no blocking issues, and its automated scans found no text color-contrast, labeling, name or role failures. It did find the limitations below, including one about the contrast of form field outlines (a non-text element).",
+          p: "This site partially conforms to WCAG 2.2 Level AA: some parts of the content don’t yet fully meet the standard. An accessibility audit on October 30, 2026 found no blocking issues; we fixed the serious and moderate issues it found, and the items below remain.",
         },
       ],
     },
@@ -747,16 +778,17 @@ const accessibilityStatement: InEffectLegalDocument = {
       blocks: [
         {
           list: [
-            "While the cookie notice is open, it can cover the item you have tabbed to. Choosing an option in the notice removes the problem. Tabbing backward can also place the focused item under the top navigation bar.",
-            "When the site is zoomed to 400%, the opened mobile menu can’t scroll to its lower links. Every page is also linked from the footer.",
-            "Form field outlines are lower in contrast than the standard requires.",
-            "After you submit a form, keyboard focus returns to the top of the page instead of moving to the first error or to the confirmation.",
-            "Some section titles are styled as headings but are not coded as headings.",
-            "The opening text on the homepage fades as you scroll. Turning on “reduce motion” in your device settings turns this off.",
+            "Required form fields are not yet marked as required in a way assistive technology announces.",
+            "While a form is sending, the “Sending…” status is not announced by screen readers.",
+            "Links that open in a new tab don’t say so.",
+            "The focus outline is your browser’s default style rather than one designed for the site.",
+            "Without JavaScript, the mobile menu and the FAQ answers can’t be opened. Every page is also linked from the footer.",
+            "Some small links meet the size requirement only through the spacing allowed around them.",
+            "We have not yet tested text-only zoom at 200%, or Windows High Contrast mode.",
           ],
         },
         {
-          p: "We have not yet completed testing with the NVDA, JAWS, VoiceOver or TalkBack screen readers. The site has no video or audio content today; when it does, we will provide captions and transcripts.",
+          p: "The site has no video or audio content today; when it does, we will provide captions and transcripts.",
         },
       ],
     },
@@ -775,7 +807,7 @@ const accessibilityStatement: InEffectLegalDocument = {
       blocks: [
         {
           list: [
-            "Pages are built with semantic HTML: a page language, one main heading per page, landmarks, labeled form fields and real buttons and links.",
+            "Pages are built with semantic HTML: a page language, a skip link, one main heading per page, landmarks, labeled form fields and real buttons and links.",
             "The site respects your device’s “reduce motion” setting.",
             "We don’t use accessibility overlays or widgets that change the page for you; we fix the underlying code.",
             "We review this statement whenever we fix a limitation or find a new one, and update the date at the top.",
