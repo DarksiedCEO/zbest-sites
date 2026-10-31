@@ -20,16 +20,27 @@ export const metadata = pageMetadata(SITE, {
  * services as image-previewing rows (§4.2 service-row preview), from the same
  * lead images as Home (content/service-media.ts). The §5 "three acts"
  * full-bleed compositions are post-launch; the hero carries a small version
- * of them: one tile per act, each the first lead image in that act's list.
+ * of them: one tile per act, three different brands (ACT_TILE_SERVICE).
  *
  * "Who we serve" names industries only — no client names, no logos, no
  * results (Brief §9; Sep 17 rulings).
  */
-/** Each act's first service that has a lead image: its hero tile. */
+/**
+ * The hero's act tiles: one lead image per act, three different concept
+ * brands, so no headline repeats side by side (independent review of #13,
+ * 2026-10-31). Each is that act's own service image.
+ */
+const ACT_TILE_SERVICE: Record<string, string> = {
+  media: "digital-advertising", // Quellmont Motors
+  content: "creative-production", // Saltgrove Hospitality
+  conversion: "websites", // Maren Vale Aesthetics
+};
 const ACT_TILES = SERVICE_GROUPS.flatMap((group) => {
-  const first = SERVICES.find((s) => s.group === group.id && SERVICE_IMAGE[s.slug]);
-  return first ? [{ act: group.title, service: first.name, asset: SERVICE_IMAGE[first.slug]! }] : [];
+  const service = SERVICES.find((s) => s.slug === ACT_TILE_SERVICE[group.id] && s.group === group.id);
+  const image = service ? SERVICE_IMAGE[service.slug] : undefined;
+  return service && image ? [{ act: group.title, service: service.name, asset: image }] : [];
 });
+if (ACT_TILES.length !== SERVICE_GROUPS.length) throw new Error("Services hub: every act needs a hero tile from its own services");
 
 export default function ServicesPage() {
   return (

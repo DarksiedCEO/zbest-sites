@@ -1,5 +1,5 @@
 {
-  "$comment": "FD-VISUAL-01 §3.2.4 asset manifest. Every image or video served by either app must have an entry here; CI fails otherwise (scripts/check-media.mjs, e2e/tests/fd-visual-01-media.spec.ts). 'pages' lists where the asset renders today and is checked against the built sites; 'plannedPages' is the founder-approved placement not yet built. 'focus' is the object-position used when a frame crops the asset. 'text' lists the creative's own type as boxes in 0–1 image coordinates ([x0, y0, x1, y1]); every crop keeps each block whole or crops it out entirely, and a 'keep' block (a disclosure) always stays whole (packages/ui/src/media/crop.ts).",
+  "$comment": "FD-VISUAL-01 §3.2.4 asset manifest. Every image or video served by either app must have an entry here; CI fails otherwise (scripts/check-media.mjs, e2e/tests/fd-visual-01-media.spec.ts). 'pages' lists where the asset renders today and is checked against the built sites; 'plannedPages' is the founder-approved placement not yet built. 'focus' is the object-position used when a frame crops the asset. 'text' lists the creative's own type as boxes in 0–1 image coordinates ([x0, y0, x1, y1]); every crop keeps each block whole or crops it out entirely, and a 'keep' block (a disclosure) always stays whole (packages/ui/src/media/crop.ts). 'handlesShown' lists invented social handles drawn in phone frames and whether each has been name-checked.",
   "version": 1,
   "assets": [
     {
@@ -111,7 +111,17 @@
         "zbm:/digital-advertising",
         "zbm:/services"
       ],
-      "plannedPages": []
+      "plannedPages": [],
+      "handlesShown": [
+        {
+          "handle": "quellmontmotors",
+          "pages": [
+            "zbm:/digital-advertising"
+          ],
+          "status": "unverified",
+          "note": "Invented social handle shown in a phone frame; not yet verified as unused on Instagram or TikTok. On the founder's name-check list with the §9 trademark checks (independent review of #13, 2026-10-31)."
+        }
+      ]
     },
     {
       "id": "marenvale-social",
@@ -146,7 +156,17 @@
         "zbm:/social-media",
         "zbm:/services"
       ],
-      "plannedPages": []
+      "plannedPages": [],
+      "handlesShown": [
+        {
+          "handle": "marenvale.aesthetics",
+          "pages": [
+            "zbm:/social-media"
+          ],
+          "status": "unverified",
+          "note": "Invented social handle shown in a phone frame; not yet verified as unused on Instagram or TikTok. On the founder's name-check list with the §9 trademark checks (independent review of #13, 2026-10-31)."
+        }
+      ]
     },
     {
       "id": "saltgrove-radio",
@@ -256,7 +276,17 @@
         "zbm:/influencer-marketing",
         "zbm:/services"
       ],
-      "plannedPages": []
+      "plannedPages": [],
+      "handlesShown": [
+        {
+          "handle": "creator",
+          "pages": [
+            "zbm:/influencer-marketing"
+          ],
+          "status": "unverified",
+          "note": "Generic placeholder handle shown in a phone frame; a plain word like this may belong to a real account. Not verified on Instagram or TikTok. On the founder's name-check list (independent review of #13, 2026-10-31)."
+        }
+      ]
     },
     {
       "id": "marenvale-website",
