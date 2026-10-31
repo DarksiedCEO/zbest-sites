@@ -75,8 +75,10 @@ export interface PurgeLedger {
   leadState?(
     app: LeadApp,
     window: { unsentBefore: Date; retryAfter: Date },
-  ): Promise<{ unsent: number; digestPending: number; quarantined24h: number; stored24h: number }>;
-  /** Columns the app writes that the database lacks (AEGIS F4: migrations 004/006/007 not applied). */
+  ): Promise<{ unsent: number; digestPending: number; quarantined24h: number; stored24h: number; expiredUnreported?: number }>;
+  /** Bytes the lead tables occupy (pg_total_relation_size; AEGIS r3 M4). */
+  dbBytes?(): Promise<number>;
+  /** Columns the app writes that the database lacks (AEGIS F4: migrations 004/006/007/008 not applied). */
   missingColumns?(): Promise<string[]>;
 }
 
@@ -87,6 +89,16 @@ export const DEFAULT_NOTIFY_RETRY_DAYS = 3;
 export function notifyRetryDays(env: Env): number {
   const raw = (env.LEAD_NOTIFY_RETRY_DAYS ?? "").trim();
   return /^\d{1,3}$/.test(raw) && Number(raw) >= 1 && Number(raw) <= 30 ? Number(raw) : DEFAULT_NOTIFY_RETRY_DAYS;
+}
+
+/** AEGIS r3 M4: the storage budget for the lead tables (Neon's free tier is 0.5 GB). */
+export const DEFAULT_LEAD_DB_BUDGET_MB = 400;
+/** Health degrades, with an error-level alert, at this share of the budget. */
+export const DB_BUDGET_ALERT_RATIO = 0.6;
+export function leadDbBudgetMb(env: Env): number | null {
+  const raw = (env.LEAD_DB_BUDGET_MB ?? "").trim();
+  if (raw === "") return DEFAULT_LEAD_DB_BUDGET_MB;
+  return /^\d{1,7}$/.test(raw) && Number(raw) >= 1 ? Number(raw) : null;
 }
 
 /** A purge older than this is overdue: two missed daily runs. */
@@ -177,7 +189,11 @@ export type PurgeHealth =
   /** A lead was quarantined in the last 24 h: the daily quarantine threshold tripped (AEGIS r2 H1). */
   | "quarantined"
   /** The storage guard is refusing new leads: LEAD_HARD_LIMIT_PER_DAY newly stored in 24 h (AEGIS r2 H1). */
-  | "storage_guard";
+  | "storage_guard"
+  /** Leads too old to retry whose count email Resend has not accepted yet (AEGIS r3 M3). */
+  | "notify_expired"
+  /** The lead tables use 60% or more of LEAD_DB_BUDGET_MB (default 400; AEGIS r3 M4). */
+  | "db_budget";
 
 export type HealthOptions = {
   app: LeadApp;
@@ -216,6 +232,8 @@ export async function purgeHealth(opts: HealthOptions): Promise<{ status: PurgeH
   if ((env.CRON_SECRET ?? "").trim().length < 16) return degraded("cron_secret_missing", "CRON_SECRET:min-16-chars");
   const retention = resolveRetention(env);
   if (!retention.ok) return degraded("misconfigured", retention.problems.join(","));
+  const budgetMb = leadDbBudgetMb(env);
+  if (budgetMb === null) return degraded("misconfigured", "LEAD_DB_BUDGET_MB:whole-megabytes");
   let ledger = opts.ledger;
   if (!ledger) {
     const url = (env.POSTGRES_URL ?? "").trim();
@@ -232,6 +250,20 @@ export async function purgeHealth(opts: HealthOptions): Promise<{ status: PurgeH
     }
     // Column names are ours (a fixed list), safe to log.
     if (missing.length) return degraded("schema_outdated", missing.join(","));
+  }
+  if (ledger.dbBytes) {
+    // AEGIS r3 M4: before the database fills, while there is time to act.
+    let bytes: number;
+    try {
+      bytes = await ledger.dbBytes();
+    } catch {
+      return degraded("unknown");
+    }
+    const usedMb = bytes / (1024 * 1024);
+    if (usedMb >= budgetMb * DB_BUDGET_ALERT_RATIO) {
+      log("error", "lead_db_budget", { app, used_mb: Math.round(usedMb), budget_mb: budgetMb });
+      return degraded("db_budget");
+    }
   }
   let last: Date | null;
   try {
@@ -258,6 +290,7 @@ export async function purgeHealth(opts: HealthOptions): Promise<{ status: PurgeH
     // Every cap or guard trip degrades health (AEGIS r2 H1(c)).
     if (state.stored24h >= resolveCaps(env).hardLimit) return degraded("storage_guard");
     if (state.quarantined24h > 0) return degraded("quarantined");
+    if ((state.expiredUnreported ?? 0) > 0) return degraded("notify_expired");
     if (state.digestPending > 0 || state.unsent > 0) return degraded("notify_backlog");
   } else if (ledger.unsentOlderThan) {
     let unsent: number;

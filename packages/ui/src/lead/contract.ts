@@ -7,8 +7,9 @@ import { REGION_COPY } from "@zbest/lead/region";
  * field schemas; only the envelope and the error codes are shared.
  *
  * The route is real now (docs/LEAD-ROUTE-DESIGN.md): a success means the lead
- * was stored. Every failure says nothing was saved, and says why in terms the
- * visitor can act on.
+ * was stored. Each failure says what is known — nothing saved where the
+ * server refused before storing, "may have reached us" where a store failure
+ * leaves it unknown (AEGIS r3 L1) — and what the visitor can do.
  */
 export type LeadErrorBody =
   | { ok: false; error: { code: "validation"; fields: Record<string, string> } }
@@ -58,7 +59,9 @@ export const FAILURE_COPY: Record<LeadFailure, string> = {
   failed: "We couldn’t confirm that went through — please try again.",
   conflict:
     "We already have an earlier version of this from you. Send again to submit these changes as a new message.",
-  unavailable: "We couldn’t save that just now, so nothing was sent. Please try again in a few minutes.",
+  // AEGIS r3 L1: a store timeout can still commit afterwards, so this never claims nothing was saved.
+  unavailable:
+    "We couldn’t confirm your message was saved. It may still have reached us. Sending it again is safe — we’ll only receive it once. If it keeps failing, please try again in a few minutes.",
   not_configured: "This form isn’t accepting submissions yet, so nothing was saved or sent.",
   rate_limited: "Too many attempts from your connection. Nothing was saved — please wait a few minutes and try again.",
   region_unavailable: REGION_COPY.refused,

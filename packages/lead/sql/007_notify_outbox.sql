@@ -31,7 +31,8 @@ ALTER TABLE leads ADD COLUMN IF NOT EXISTS notify_body_hash text;
 -- re-sent under the same key with the same body, never as a new digest (r2 L2).
 ALTER TABLE leads ADD COLUMN IF NOT EXISTS notify_batch text;
 ALTER TABLE leads ADD COLUMN IF NOT EXISTS notify_batch_at timestamptz;
--- Stored past the daily quarantine threshold: text cut to 2 KB, sent in a digest (r2 H1).
+-- Stored past a quarantine threshold: sent in a digest, flagged (r2 H1; since
+-- r3 M1 the full text is always kept, see 008 and docs/LEAD-ROUTE-DESIGN.md).
 ALTER TABLE leads ADD COLUMN IF NOT EXISTS quarantined boolean NOT NULL DEFAULT false;
 
 -- The 001 inline CHECK (auto-named leads_notify_status_check) is replaced.

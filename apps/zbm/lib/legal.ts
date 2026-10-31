@@ -19,7 +19,9 @@ import { legalDocumentStrings, legalPlaceholders, type ConsentCategory, type InE
  *                      (730 days rows, 90 days user agent: the env defaults)
  *   - IP handling:     packages/lead/src/ip.ts (no IP or IP hash stored with a
  *                      lead; rate-limit keys are keyed HMACs of the address and,
- *                      for IPv6, its /48, ~10-minute life, swept on a timer)
+ *                      for IPv6, its /48; the quarantine counter (AEGIS r3 M1)
+ *                      is a keyed HMAC of the IPv4 /24 or IPv6 /48; all
+ *                      ~10-minute life at the defaults, swept on a timer)
  *   - abuse controls:  form token (src/form-token.ts: no personal data, not
  *                      stored), content fingerprint (src/hash.ts contentHash,
  *                      sql/006_content_dedupe.sql), global per-minute cap
@@ -34,7 +36,9 @@ import { legalDocumentStrings, legalPlaceholders, type ConsentCategory, type InE
  * applied, the daily /api/cron/purge-leads running (/api/health reports a
  * stopped purge), and LEAD_RETENTION_DAYS / LEAD_UA_RETENTION_DAYS left at
  * their defaults (730 / 90).
- *   - email:           packages/lead/src/resend.ts, src/email.ts
+ *   - email:           packages/lead/src/resend.ts, src/email.ts, src/notify.ts
+ *                      (individual or summary emails; body hashes stored with
+ *                      the row: sql/007_notify_outbox.sql, 008_notify_batches.sql)
  *   - browser storage: packages/ui/src/components/cookie-consent.tsx
  *   - no analytics, no ad pixels, self-hosted fonts, CSP 'self':
  *                      packages/ui/src/security-headers.ts, src/fonts/*
@@ -67,7 +71,7 @@ const privacyPolicy: InEffectLegalDocument = {
   summary: [
     "We collect what you type into our forms — your name, your business, how to reach you, and your answers — so we can reply and, for the free assessment, show you a result.",
     "We don’t sell or share your personal information for advertising. The site has no analytics, no advertising pixels and no third-party tracking scripts.",
-    "We don’t store your IP address, or any code made from it, with what you send us. To stop spam, a keyed one-way code made from it is kept for about 10 minutes. Our hosting provider’s request logs record IP addresses for a short period.",
+    "We don’t store your IP address, or any code made from it, with what you send us. To stop spam, keyed one-way codes made from it and from its network block are kept for about 10 minutes. Our hosting provider’s request logs record IP addresses for a short period.",
     "A small number of service providers help us run the site and deliver your message to us. They may use your information only to do that work for us.",
     `You can ask to see, correct or delete your information at any time by emailing ${PRIVACY_EMAIL}. We give these rights to everyone, wherever you live.`,
   ],
@@ -124,10 +128,12 @@ const privacyPolicy: InEffectLegalDocument = {
         { p: "Information collected automatically when you submit a form. With each submission we also record:" },
         {
           list: [
-            "Nothing about your IP address is stored with your submission. To limit how often forms can be sent, a keyed one-way code (an HMAC-SHA-256 hash) made from your IP address — and, for an IPv6 address, a second one made from the network block it belongs to — is held for about 10 minutes and then discarded.",
+            "Nothing about your IP address is stored with your submission. To limit how often forms can be sent, a keyed one-way code (an HMAC-SHA-256 hash) made from your IP address — and a second one made from the network block it belongs to (the first three parts of an IPv4 address, or the first 48 bits of an IPv6 address) — is held for about 10 minutes and then discarded.",
             "Your browser’s user-agent string (it names your browser and operating system), shortened to 500 characters and deleted automatically after 90 days, so we can investigate spam and fix problems that affect particular browsers.",
             "The date and time of the submission, and a random submission ID your browser creates so a double-click doesn’t send the same form twice.",
             "A one-way fingerprint (a SHA-256 hash) of what you entered, stored with your submission and deleted with it, so the same message sent again within 24 hours reaches us once.",
+            "A one-way fingerprint (a SHA-256 hash) of each notification email about your submission that we send to ourselves, and when it was sent, stored with your submission and deleted with it, so the same email is never sent twice.",
+            "Whether your submission arrived while an unusually large number of submissions were coming from the same network or from everywhere at once. Such a submission is kept in full and reaches us in a summary email, marked so we check it before replying.",
             "If you reached the intake form from one of our campaign links, the short campaign tag in that link (for example from a billboard or an ad), so we know which campaign brought you. It identifies the campaign, not you.",
           ],
         },
@@ -171,10 +177,10 @@ const privacyPolicy: InEffectLegalDocument = {
             head: ["Provider type", "What they do for us", "What they receive"],
             rows: [
               ["Website hosting (Vercel)", "Serves the site, runs the code that receives form submissions, and keeps short-lived request logs.", "Your requests to the site, including your IP address, browser details and the page addresses you visit, and the content of any form you submit."],
-              ["Database hosting", "Stores form submissions.", "The form contents, the state or territory you chose, user-agent string, campaign tag, submission ID, time and content fingerprint listed under “What we collect”. No IP address."],
-              ["Email delivery (Resend)", "Delivers each new submission to our inbox as an email.", "The content of your submission."],
+              ["Database hosting", "Stores form submissions.", "The form contents, the state or territory you chose, user-agent string, campaign tag, submission ID, time, content fingerprint, email fingerprints and burst flag listed under “What we collect”. No IP address."],
+              ["Email delivery (Resend)", "Delivers each new submission to our inbox as an email: on its own, or in a summary email together with other submissions when many arrive at once or its own email could not be sent.", "The content of your submission."],
               ["Business email (our email provider)", "Holds the notification emails and our correspondence with you.", "The content of your submission and any emails you exchange with us."],
-              ["Rate-limit store (if enabled)", "Counts submissions per source to stop floods of spam.", "Only keyed, one-way hashes of your IP address (and, for IPv6, of its network block), kept for about 10 minutes to limit abuse."],
+              ["Rate-limit store (if enabled)", "Counts submissions per source to stop floods of spam.", "Only keyed, one-way hashes of your IP address and of its network block, kept for about 10 minutes to limit abuse."],
             ],
           },
         },
@@ -211,7 +217,7 @@ const privacyPolicy: InEffectLegalDocument = {
                 "Notification emails about your submission",
                 "We delete them from our inbox by hand on the same 24-month schedule. Our email-delivery provider keeps its own copy under its retention terms.",
               ],
-              ["Rate-limit counters", "Keyed, one-way hashes of your IP address (and, for IPv6, of its network block), kept for about 10 minutes to limit abuse."],
+              ["Rate-limit counters", "Keyed, one-way hashes of your IP address and of its network block, kept for about 10 minutes to limit abuse."],
               ["Request logs at our hosting provider (IP address, browser details, page address)", "Available to us for no more than 30 days, depending on our hosting plan, then deleted from our view. The provider handles its own operational records under its privacy policy."],
               ["Your cookie-banner choice", "Stored only in your own browser until you clear it. We never receive it."],
               ["Records of privacy requests", "24 months, to show we handled them as the law requires."],

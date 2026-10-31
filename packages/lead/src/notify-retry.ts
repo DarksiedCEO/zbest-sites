@@ -1,26 +1,34 @@
 import { resolveTransport, type Env, type TransportConfig } from "./config";
 import { consoleLogger, type LeadLogger } from "./log";
-import { deliverLead, expiredEmail, KEY_WINDOW_MS, sendDigests, DIGEST_ALERT_DEFAULT } from "./notify";
+import { deliverLead, KEY_WINDOW_MS, sendBatches, DIGEST_ALERT_DEFAULT } from "./notify";
 import { cronAuthorized, notifyRetryDays } from "./retention";
-import { DeliveryError, type LeadApp } from "./types";
+import type { LeadApp } from "./types";
 
 /**
  * Chaos red team CH-8; AEGIS F1, r2 M1–M3, L2: founder emails are retried.
  *
  * The leads table is the durable outbox. Each run of /api/cron/retry-notify:
  *   1. leads still 'pending'/'failed' and older than LEAD_NOTIFY_RETRY_DAYS
- *      (default 3) become 'expired_notify': never emailed one by one, counted
- *      once in a separate digest email (r2 M3);
+ *      (default 3) become 'expired_notify': never emailed one by one, but
+ *      counted in a count email, sent as an immutable batch like a digest
+ *      and retried under the same key until Resend accepts it; until then
+ *      /api/health is degraded (notify_expired), then they are
+ *      'expired_reported' (r2 M3, r3 M3);
  *   2. 'pending'/'failed' leads whose first attempt is over 23 h old become
  *      'delivery_unknown' (Resend keeps an idempotency key 24 h), so they go
  *      in the digest, flagged, instead of risking a second email (r2 M2);
- *   3. 'failed' leads, and 'pending' leads older than 5 minutes, are re-sent
- *      one by one with the SAME key and the SAME body (built from stored
- *      values), with backoff 15 min doubling to 24 h, 10 attempts max;
- *   4. every 'deferred' and 'delivery_unknown' lead goes out in digests of
- *      100 per email, as many as needed (r2 M1), each batch under a key
- *      recorded on its rows first, so a timed-out digest is re-sent under the
- *      same key, never duplicated (r2 L2).
+ *   3. 'pending'/'failed' leads older than LEAD_NOTIFY_INDIVIDUAL_HOURS
+ *      (default 1) go to the digest instead of being emailed one by one, so
+ *      the first runs after a deploy or an outage send a few digests, not
+ *      hundreds of single emails (r3 L3);
+ *   4. younger 'failed' leads, and 'pending' leads older than 5 minutes, are
+ *      re-sent one by one with the SAME key and the SAME body (built from
+ *      stored values), with backoff 15 min doubling, 10 attempts max;
+ *   5. every 'deferred' and 'delivery_unknown' lead goes out in digests of
+ *      100 per email, as many as needed (r2 M1). Each batch is immutable:
+ *      formed and fixed (leads, key, body hash) before its first send, taken
+ *      whole by one run, re-sent unchanged after a failure, and only its own
+ *      leads are marked sent when Resend accepts it (r3 H1).
  *
  * Schedule (vercel.json): daily, because Vercel Hobby runs a cron job at
  * most once a day and rejects a deployment with a more frequent schedule. The
@@ -39,7 +47,14 @@ export const NOTIFY_PENDING_GRACE_MS = 60_000;
 export const CRON_PENDING_GRACE_MS = 5 * 60_000;
 export const NOTIFY_MAX_ATTEMPTS = 10;
 const BATCH = 50;
-const MAX_INDIVIDUAL_PER_RUN = 500;
+/** Bounds the one-by-one retries in a run (r3 L3); the hourly email cap keeps the real number far lower. */
+const MAX_INDIVIDUAL_PER_RUN = 50;
+/** Leads older than this are not retried one by one: they go in the digest (r3 L3). */
+export const DEFAULT_NOTIFY_INDIVIDUAL_HOURS = 1;
+export function notifyIndividualHours(env: Env): number {
+  const raw = (env.LEAD_NOTIFY_INDIVIDUAL_HOURS ?? "").trim();
+  return /^\d{1,2}$/.test(raw) && Number(raw) >= 1 && Number(raw) <= 22 ? Number(raw) : DEFAULT_NOTIFY_INDIVIDUAL_HOURS;
+}
 
 /** Wait before the next try after `attempts` failures: 15 min doubling, capped at 24 h. */
 export const notifyBackoffMs = (attempts: number) =>
@@ -85,31 +100,27 @@ export async function handleNotifyRetry(request: Request, opts: NotifyRetryOptio
     const days = notifyRetryDays(env);
     const ctx = { app, store, notifier, log, now: () => nowMs };
 
-    // 1. Too old to retry: counted once, never emailed one by one (r2 M3).
+    // 1. Too old to retry: counted in a count email, retried until accepted (r2 M3, r3 M3).
     const expired = await outbox.expireOld(app, new Date(nowMs - days * 86_400_000));
-    if (expired > 0) {
-      log("warn", "notify_expired", { app, deleted: expired });
-      const day = new Date(nowMs).toISOString().slice(0, 10);
-      try {
-        await notifier.send(expiredEmail(app, expired, days), `digest-expired-${app}-${day}-${expired}`);
-      } catch (error) {
-        // The count is in the log; the rows stay 'expired_notify' (their contents are in the database).
-        log("error", "notify_digest_failed", { app, code: error instanceof DeliveryError ? error.code : "notify_failed" });
-      }
-    }
+    if (expired > 0) log("warn", "notify_expired", { app, deleted: expired });
+    await sendBatches({ ...ctx, outbox }, "expired", { days });
 
     // 2. Outcome unknown past Resend's key window: digest, flagged (r2 M2).
     await outbox.markUnknown(app, new Date(nowMs - KEY_WINDOW_MS));
 
-    // 3. One-by-one retries, identical body and key.
+    // 3. Over an hour old: digest, not one email each (r3 L3).
+    const moved = await outbox.moveToDigest(app, new Date(nowMs - notifyIndividualHours(env) * 3_600_000));
+    if (moved > 0) log("warn", "notify_moved_to_digest", { app, deleted: moved });
+
+    // 4. One-by-one retries of young leads, identical body and key.
     let sent = 0;
     let failed = 0;
     for (let handled = 0; handled < MAX_INDIVIDUAL_PER_RUN; ) {
       const due = await outbox.claimUnsent(app, {
         pendingBefore: new Date(nowMs - CRON_PENDING_GRACE_MS),
-        createdAfter: new Date(nowMs - days * 86_400_000),
+        createdAfter: new Date(nowMs - notifyIndividualHours(env) * 3_600_000),
         maxAttempts: NOTIFY_MAX_ATTEMPTS,
-        limit: BATCH,
+        limit: Math.min(BATCH, MAX_INDIVIDUAL_PER_RUN - handled),
       });
       if (!due.length) break;
       handled += due.length;
@@ -121,10 +132,10 @@ export async function handleNotifyRetry(request: Request, opts: NotifyRetryOptio
       }
     }
 
-    // 4. Every held lead, in as many digests as needed (r2 M1, L2).
+    // 5. Every held lead, in immutable digests (r2 M1, r3 H1).
     const raw = (env.LEAD_DIGEST_ALERT ?? "").trim();
     const alertAt = /^\d{1,7}$/.test(raw) ? Number(raw) : DIGEST_ALERT_DEFAULT;
-    const digest = await sendDigests({ ...ctx, outbox }, alertAt);
+    const digest = await sendBatches({ ...ctx, outbox }, "digest", { alertAt });
 
     return json({ ok: true, sent, failed, digest: digest.sent, expired }, 200);
   } catch {

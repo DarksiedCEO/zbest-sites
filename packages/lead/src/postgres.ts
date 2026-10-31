@@ -1,7 +1,7 @@
 import postgres from "postgres";
 import type { PgOptions } from "./pg-url";
 import type { LeadPurger, PurgeLedger, PurgeResult } from "./retention";
-import { DEDUPE_WINDOW_HOURS, DeliveryError, type InsertResult, type LeadApp, type LeadRecord, type LeadStore, type NotifyOutbox, type NotifyStatus, type StoredLead } from "./types";
+import { DEDUPE_WINDOW_HOURS, DeliveryError, type Batch, type BatchKind, type InsertResult, type LeadApp, type LeadRecord, type LeadStore, type NotifyOutbox, type NotifyStatus, type StoredLead } from "./types";
 
 /**
  * Brief §6.2 store: one row per lead in the `leads` table
@@ -73,7 +73,7 @@ type Tx = postgres.TransactionSql;
 /** The columns a StoredLead is read from (CH-8 outbox, AEGIS F1/F3, r2). */
 const STORED_COLUMNS_SQL =
   "submission_id, app, form, payload, payload_hash, content_hash, services, source, service_area, user_agent, created_at, " +
-  "notify_status, notify_attempts, notify_first_attempt_at, notify_body_hash, notify_batch, notify_batch_at, quarantined";
+  "notify_status, notify_attempts, notify_first_attempt_at, notify_body_hash, notify_batch, notify_batch_at, notify_batch_hash, quarantined";
 
 function storedLead(r: Record<string, unknown>): StoredLead {
   return {
@@ -94,9 +94,16 @@ function storedLead(r: Record<string, unknown>): StoredLead {
     notify_body_hash: (r.notify_body_hash as string | null) ?? null,
     notify_batch: (r.notify_batch as string | null) ?? null,
     notify_batch_at: (r.notify_batch_at as Date | null) ?? null,
+    notify_batch_hash: (r.notify_batch_hash as string | null) ?? null,
     quarantined: r.quarantined === true,
   };
 }
+/** Statuses each batch kind takes, and what an accepted batch becomes (AEGIS r3 H1, M3). */
+export const BATCH_STATUSES: Record<BatchKind, { from: string[]; done: string }> = {
+  digest: { from: ["deferred", "delivery_unknown"], done: "sent" },
+  expired: { from: ["expired_notify"], done: "expired_reported" },
+};
+
 const withTimeouts = async (tx: Tx, ms: number) => {
   await tx`SELECT set_config('statement_timeout', ${String(ms)}, true), set_config('lock_timeout', ${String(ms)}, true)`;
 };
@@ -192,11 +199,10 @@ export function postgresStore(
         return { firstAttemptAt: (row?.notify_first_attempt_at as Date) ?? new Date(), bodyHash: (row?.notify_body_hash as string) ?? bodyHash };
       });
     },
-    async quarantine(app: LeadApp, submissionId: string, payload: Record<string, unknown>) {
+    async quarantine(app: LeadApp, submissionId: string) {
+      // AEGIS r3 M1: a flag only; the stored text is never touched.
       await run(async (tx) => {
-        await tx`
-          UPDATE leads SET quarantined = true, payload = ${tx.json(payload as postgres.JSONValue)}::jsonb
-          WHERE app = ${app} AND submission_id = ${submissionId}::uuid`;
+        await tx`UPDATE leads SET quarantined = true WHERE app = ${app} AND submission_id = ${submissionId}::uuid`;
       });
     },
     async claimUnsent(app: LeadApp, { pendingBefore, createdAfter, maxAttempts, limit }) {
@@ -237,41 +243,93 @@ export function postgresStore(
         return r.count;
       });
     },
-    async claimDigest(app: LeadApp, limit: number) {
-      return run(async (tx) =>
-        leased(
+    async moveToDigest(app: LeadApp, createdBefore: Date) {
+      return run(async (tx) => {
+        const r = await tx`
+          UPDATE leads
+          SET notify_status = CASE WHEN notify_first_attempt_at IS NULL THEN 'deferred' ELSE 'delivery_unknown' END,
+              notify_next_at = NULL
+          WHERE app = ${app}::text AND notify_status IN ('pending', 'failed')
+            AND created_at < ${createdBefore.toISOString()}::timestamptz`;
+        return r.count;
+      });
+    },
+    async claimBatch(app: LeadApp, kind: BatchKind): Promise<Batch | null> {
+      const { from } = BATCH_STATUSES[kind];
+      return run(async (tx) => {
+        const keys = await tx`
+          SELECT notify_batch AS key FROM leads
+          WHERE app = ${app}::text AND notify_batch IS NOT NULL
+            AND notify_status IN ${tx(from)}
+            AND (notify_next_at IS NULL OR notify_next_at <= now())
+          GROUP BY notify_batch
+          ORDER BY min(notify_batch_at), notify_batch
+          LIMIT 10`;
+        for (const { key } of keys) {
+          // Every row of the batch, locked in id order (two runs cannot
+          // deadlock or split it), whatever its lease: the batch is taken
+          // whole or not at all (AEGIS r3 H1).
+          const rows = await tx`
+            SELECT ${cols(tx)}, (notify_next_at IS NULL OR notify_next_at <= now()) AS due
+            FROM leads WHERE app = ${app}::text AND notify_batch = ${key as string}::text
+            ORDER BY id FOR UPDATE`;
+          if (!rows.length || rows.some((r) => r.due !== true)) continue;
           await tx`
             UPDATE leads SET notify_next_at = now() + interval '10 minutes'
-            WHERE id IN (
-              SELECT id FROM leads
-              WHERE app = ${app}::text AND notify_status IN ('deferred', 'delivery_unknown')
-                AND (notify_next_at IS NULL OR notify_next_at <= now())
-              ORDER BY created_at
-              LIMIT ${limit}::int
-              FOR UPDATE SKIP LOCKED)
+            WHERE app = ${app}::text AND notify_batch = ${key as string}::text`;
+          return { key: key as string, leads: leased(rows) };
+        }
+        return null;
+      });
+    },
+    async formBatch(app: LeadApp, kind: BatchKind, limit: number, seal: (leads: StoredLead[]) => { key: string; hash: string }): Promise<Batch | null> {
+      const { from } = BATCH_STATUSES[kind];
+      return run(async (tx) => {
+        const rows = leased(
+          await tx`
+            SELECT ${cols(tx)} FROM leads
+            WHERE app = ${app}::text AND notify_batch IS NULL
+              AND notify_status IN ${tx(from)}
+              AND (notify_next_at IS NULL OR notify_next_at <= now())
+            ORDER BY created_at, id
+            LIMIT ${limit}::int
+            FOR UPDATE SKIP LOCKED`,
+        );
+        if (!rows.length) return null;
+        const { key, hash } = seal(rows);
+        const sealed = leased(
+          await tx`
+            UPDATE leads
+            SET notify_batch = ${key}::text, notify_batch_at = now(), notify_batch_hash = ${hash}::text,
+                notify_next_at = now() + interval '10 minutes'
+            WHERE app = ${app}::text AND submission_id = ANY(${rows.map((r) => r.submission_id)}::uuid[])
             RETURNING ${cols(tx)}`,
-        ),
-      );
-    },
-    async assignBatch(app: LeadApp, submissionIds: string[], key: string) {
-      await run(async (tx) => {
-        await tx`
-          UPDATE leads SET notify_batch = ${key}::text, notify_batch_at = now()
-          WHERE app = ${app}::text AND submission_id = ANY(${submissionIds}::uuid[])`;
+        );
+        return { key, leads: sealed };
       });
     },
-    async markBatchSent(app: LeadApp, key: string) {
-      await run(async (tx) => {
-        await tx`
-          UPDATE leads SET notify_status = 'sent', notified_at = now(), notify_next_at = NULL
-          WHERE app = ${app}::text AND notify_batch = ${key}::text`;
+    async markBatchSent(app: LeadApp, kind: BatchKind, key: string, submissionIds: string[]) {
+      const { from, done } = BATCH_STATUSES[kind];
+      return run(async (tx) => {
+        const r = await tx`
+          UPDATE leads
+          SET notify_status = ${done}::text,
+              notified_at = CASE WHEN ${done}::text = 'sent' THEN now() ELSE notified_at END,
+              notify_next_at = NULL
+          WHERE app = ${app}::text AND notify_batch = ${key}::text
+            AND submission_id = ANY(${submissionIds}::uuid[])
+            AND notify_status IN ${tx(from)}`;
+        return r.count;
       });
     },
-    async clearBatch(app: LeadApp, key: string) {
+    async clearBatch(app: LeadApp, kind: BatchKind, key: string) {
+      const { from } = BATCH_STATUSES[kind];
       await run(async (tx) => {
         await tx`
-          UPDATE leads SET notify_batch = NULL, notify_batch_at = NULL, notify_status = 'delivery_unknown', notify_next_at = NULL
-          WHERE app = ${app}::text AND notify_batch = ${key}::text AND notify_status <> 'sent'`;
+          UPDATE leads
+          SET notify_batch = NULL, notify_batch_at = NULL, notify_batch_hash = NULL, notify_next_at = NULL,
+              notify_status = CASE WHEN ${kind}::text = 'digest' THEN 'delivery_unknown' ELSE notify_status END
+          WHERE app = ${app}::text AND notify_batch = ${key}::text AND notify_status IN ${tx(from)}`;
       });
     },
   };
@@ -315,7 +373,7 @@ export async function purgeWith(
   return { deleted: deleted.count, uaCleared: cleared.count, ipHashCleared: ipCleared.count };
 }
 
-/** Columns migrations 004, 006 and 007 add, which this code writes (AEGIS F4). */
+/** Columns migrations 004, 006, 007 and 008 add, which this code writes (AEGIS F4). */
 export const REQUIRED_LEAD_COLUMNS = [
   "service_area",
   "content_hash",
@@ -325,10 +383,11 @@ export const REQUIRED_LEAD_COLUMNS = [
   "notify_body_hash",
   "notify_batch",
   "notify_batch_at",
+  "notify_batch_hash",
   "quarantined",
 ] as const;
 
-export function postgresPurger(options: PgOptions): LeadPurger & PurgeLedger & Required<Pick<PurgeLedger, "leadState" | "missingColumns">> {
+export function postgresPurger(options: PgOptions): LeadPurger & PurgeLedger & Required<Pick<PurgeLedger, "leadState" | "missingColumns" | "dbBytes">> {
   const sql = client(options);
   return {
     async purge(app, cutoffs, ranAt) {
@@ -358,14 +417,28 @@ export function postgresPurger(options: PgOptions): LeadPurger & PurgeLedger & R
                              AND created_at > ${retryAfter.toISOString()}::timestamptz)::int AS unsent,
             count(*) FILTER (WHERE notify_status IN ('deferred', 'delivery_unknown'))::int AS digest_pending,
             count(*) FILTER (WHERE quarantined AND created_at > now() - interval '24 hours')::int AS quarantined_24h,
-            count(*) FILTER (WHERE created_at > now() - interval '24 hours')::int AS stored_24h
+            count(*) FILTER (WHERE created_at > now() - interval '24 hours')::int AS stored_24h,
+            count(*) FILTER (WHERE notify_status = 'expired_notify')::int AS expired_unreported
           FROM leads WHERE app = ${app}::text`;
         return {
           unsent: Number(row?.unsent ?? 0),
           digestPending: Number(row?.digest_pending ?? 0),
           quarantined24h: Number(row?.quarantined_24h ?? 0),
           stored24h: Number(row?.stored_24h ?? 0),
+          expiredUnreported: Number(row?.expired_unreported ?? 0),
         };
+      } catch (error) {
+        throw storeError(error);
+      }
+    },
+    async dbBytes() {
+      // AEGIS r3 M4: what the lead tables occupy on disk (heap, TOAST and
+      // indexes) — shared by both apps when they share a database.
+      try {
+        const [row] = await sql`
+          SELECT (pg_total_relation_size(to_regclass('leads'))
+                  + coalesce(pg_total_relation_size(to_regclass('lead_purge_runs')), 0))::bigint AS bytes`;
+        return Number(row?.bytes ?? 0);
       } catch (error) {
         throw storeError(error);
       }

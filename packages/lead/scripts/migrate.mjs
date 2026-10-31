@@ -66,7 +66,7 @@ const BASE = {
   created_at: "timestamp with time zone",
 };
 
-/** After every migration: exactly what the app writes (004 service area, 006 content hash, 007 notify outbox). */
+/** After every migration: exactly what the app writes (004 service area, 006 content hash, 007 notify outbox, 008 batch hash). */
 const EXPECTED = {
   ...BASE,
   service_area: "text",
@@ -77,6 +77,7 @@ const EXPECTED = {
   notify_body_hash: "text",
   notify_batch: "text",
   notify_batch_at: "timestamp with time zone",
+  notify_batch_hash: "text",
   quarantined: "boolean",
 };
 

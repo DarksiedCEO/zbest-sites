@@ -1,7 +1,7 @@
 import { appendFileSync, mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { storable } from "./text";
-import { DEDUPE_WINDOW_HOURS, DeliveryError, type InsertResult, type LeadApp, type LeadEmail, type LeadNotifier, type LeadRecord, type LeadStore, type NotifyOutbox, type NotifyStatus, type StoredLead } from "./types";
+import { DEDUPE_WINDOW_HOURS, DeliveryError, type Batch, type BatchKind, type InsertResult, type LeadApp, type LeadEmail, type LeadNotifier, type LeadRecord, type LeadStore, type NotifyOutbox, type NotifyStatus, type StoredLead } from "./types";
 
 /**
  * TEST-ONLY transport: the store and the notifier append JSON lines to files
@@ -26,10 +26,11 @@ type RowState = {
   bodyHash: string | null;
   batch: string | null;
   batchAt: number | null;
+  batchHash: string | null;
   quarantined: boolean;
 };
 const newRow = (record: LeadRecord, createdAt: number): RowState => ({
-  record, createdAt, status: "pending", attempts: 0, nextAt: null, firstAttemptAt: null, bodyHash: null, batch: null, batchAt: null, quarantined: false,
+  record, createdAt, status: "pending", attempts: 0, nextAt: null, firstAttemptAt: null, bodyHash: null, batch: null, batchAt: null, batchHash: null, quarantined: false,
 });
 const stored = (r: RowState): StoredLead => ({
   ...r.record,
@@ -40,9 +41,15 @@ const stored = (r: RowState): StoredLead => ({
   notify_body_hash: r.bodyHash,
   notify_batch: r.batch,
   notify_batch_at: r.batchAt === null ? null : new Date(r.batchAt),
+  notify_batch_hash: r.batchHash,
   quarantined: r.quarantined,
 });
 const LEASE_MS = 10 * 60_000;
+/** As postgres.ts BATCH_STATUSES. */
+const KIND: Record<BatchKind, { from: NotifyStatus[]; done: NotifyStatus }> = {
+  digest: { from: ["deferred", "delivery_unknown"], done: "sent" },
+  expired: { from: ["expired_notify"], done: "expired_reported" },
+};
 type Outbox = { dir: string; seen: Map<string, string>; recent: Map<string, number>; rows: Map<string, RowState>; byContent: Map<string, string> };
 const outboxes = new Map<string, Outbox>();
 
@@ -108,16 +115,22 @@ function jsonbRefusal(value: unknown): "22P05" | "22P02" | null {
   return null;
 }
 
-export function fakeStore(dir: string): LeadStore & NotifyOutbox {
+/** `clock` is a test seam (AEGIS r3 invariant tests move time); production passes nothing. */
+export function fakeStore(dir: string, clock: () => number = () => Date.now()): LeadStore & NotifyOutbox {
   const box = outbox(dir);
   const row = (app: LeadApp, id: string) => box.rows.get(`${app}:${id}`);
   const lease = (rows: RowState[]) => {
-    const now = Date.now();
+    const now = clock();
     for (const r of rows) r.nextAt = now + LEASE_MS;
     return rows.map(stored);
   };
-  const due = (r: RowState) => r.nextAt === null || r.nextAt <= Date.now();
-  const byAge = (a: RowState, b: RowState) => a.createdAt - b.createdAt;
+  const due = (r: RowState) => r.nextAt === null || r.nextAt <= clock();
+  const byAge = (a: RowState, b: RowState) => a.createdAt - b.createdAt || (a.record.submission_id < b.record.submission_id ? -1 : 1);
+  const mine = (app: LeadApp) => [...box.rows.values()].filter((r) => r.record.app === app);
+  const setStatus = (r: RowState, status: NotifyStatus) => {
+    r.status = status;
+    log(r.record.app, r.record.submission_id, status);
+  };
   const log = (app: LeadApp, submissionId: string, status: NotifyStatus) =>
     append(box, "notify.jsonl", { app, submission_id: submissionId, notify_status: status });
   return {
@@ -131,7 +144,7 @@ export function fakeStore(dir: string): LeadStore & NotifyOutbox {
       }
       // Same normalised content within the window under another id: one lead (RTS-3), as postgres.ts.
       const contentKey = `${record.app}:${record.content_hash}`;
-      const at = Date.now();
+      const at = clock();
       const previous = box.recent.get(contentKey);
       if (previous !== undefined && at - previous < DEDUPE_WINDOW_HOURS * 3_600_000) {
         const r = box.rows.get(box.byContent.get(contentKey) ?? "");
@@ -156,16 +169,13 @@ export function fakeStore(dir: string): LeadStore & NotifyOutbox {
     async markAttempt(app: LeadApp, submissionId: string, bodyHash: string) {
       const r = row(app, submissionId);
       if (!r) return { firstAttemptAt: new Date(), bodyHash };
-      r.firstAttemptAt ??= Date.now();
+      r.firstAttemptAt ??= clock();
       r.bodyHash ??= bodyHash;
       return { firstAttemptAt: new Date(r.firstAttemptAt), bodyHash: r.bodyHash };
     },
-    async quarantine(app: LeadApp, submissionId: string, payload: Record<string, unknown>) {
+    async quarantine(app: LeadApp, submissionId: string) {
       const r = row(app, submissionId);
-      if (r) {
-        r.quarantined = true;
-        r.record = { ...r.record, payload };
-      }
+      if (r) r.quarantined = true;
       append(box, "quarantine.jsonl", { app, submission_id: submissionId });
     },
     async claimUnsent(app, { pendingBefore, createdAfter, maxAttempts, limit }): Promise<StoredLead[]> {
@@ -212,39 +222,64 @@ export function fakeStore(dir: string): LeadStore & NotifyOutbox {
       }
       return n;
     },
-    async claimDigest(app, limit): Promise<StoredLead[]> {
-      return lease(
-        [...box.rows.values()]
-          .filter((r) => r.record.app === app && (r.status === "deferred" || r.status === "delivery_unknown") && due(r))
-          .sort(byAge)
-          .slice(0, limit),
-      );
-    },
-    async assignBatch(app, submissionIds, key) {
-      for (const id of submissionIds) {
-        const r = row(app, id);
-        if (r) {
-          r.batch = key;
-          r.batchAt = Date.now();
-        }
-      }
-    },
-    async markBatchSent(app, key) {
-      for (const r of box.rows.values()) {
-        if (r.record.app === app && r.batch === key) {
-          r.status = "sent";
+    async moveToDigest(app, createdBefore) {
+      let n = 0;
+      for (const r of mine(app)) {
+        if ((r.status === "pending" || r.status === "failed") && r.createdAt < createdBefore.getTime()) {
+          setStatus(r, r.firstAttemptAt === null ? "deferred" : "delivery_unknown");
           r.nextAt = null;
-          log(app, r.record.submission_id, "sent");
+          n += 1;
         }
       }
+      return n;
     },
-    async clearBatch(app, key) {
-      for (const r of box.rows.values()) {
-        if (r.record.app === app && r.batch === key && r.status !== "sent") {
+    async claimBatch(app, kind): Promise<Batch | null> {
+      const { from } = KIND[kind];
+      const keys = new Map<string, number>();
+      for (const r of mine(app)) {
+        if (r.batch && from.includes(r.status) && due(r)) keys.set(r.batch, Math.min(keys.get(r.batch) ?? Infinity, r.batchAt ?? 0));
+      }
+      for (const [key] of [...keys].sort((a, b) => a[1] - b[1] || (a[0] < b[0] ? -1 : 1))) {
+        const rows = mine(app).filter((r) => r.batch === key);
+        if (rows.some((r) => !due(r))) continue;
+        return { key, leads: lease(rows.sort(byAge)) };
+      }
+      return null;
+    },
+    async formBatch(app, kind, limit, seal): Promise<Batch | null> {
+      const { from } = KIND[kind];
+      const rows = mine(app).filter((r) => r.batch === null && from.includes(r.status) && due(r)).sort(byAge).slice(0, limit);
+      if (!rows.length) return null;
+      const { key, hash } = seal(rows.map(stored));
+      for (const r of rows) {
+        r.batch = key;
+        r.batchAt = clock();
+        r.batchHash = hash;
+      }
+      return { key, leads: lease(rows) };
+    },
+    async markBatchSent(app, kind, key, submissionIds) {
+      const { from, done } = KIND[kind];
+      const ids = new Set(submissionIds);
+      let n = 0;
+      for (const r of mine(app)) {
+        if (r.batch === key && ids.has(r.record.submission_id) && from.includes(r.status)) {
+          setStatus(r, done);
+          r.nextAt = null;
+          n += 1;
+        }
+      }
+      return n;
+    },
+    async clearBatch(app, kind, key) {
+      const { from } = KIND[kind];
+      for (const r of mine(app)) {
+        if (r.batch === key && from.includes(r.status)) {
           r.batch = null;
           r.batchAt = null;
-          r.status = "delivery_unknown";
+          r.batchHash = null;
           r.nextAt = null;
+          if (kind === "digest") setStatus(r, "delivery_unknown");
         }
       }
     },

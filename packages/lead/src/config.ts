@@ -293,7 +293,9 @@ export type Limiters = {
   global: RateLimiter;
   /** Per-lead founder emails per hour (LEAD_EMAIL_LIMIT_PER_HOUR, default 20; r2 M5). */
   emailHour: RateLimiter;
-  /** Newly stored leads per day before quarantine (LEAD_QUARANTINE_AFTER_PER_DAY, default 5000). */
+  /** Newly stored leads per source network (IPv4 /24, IPv6 /48) before quarantine (LEAD_QUARANTINE_BLOCK_LIMIT, default 12/600). */
+  quarantineBlock: RateLimiter;
+  /** Newly stored leads per day from networks under their own limit, before quarantine (LEAD_QUARANTINE_AFTER_PER_DAY, default 50,000). */
   quarantine: RateLimiter;
   /** Newly stored leads per day before the storage guard refuses (LEAD_HARD_LIMIT_PER_DAY, default 100000). */
   hard: RateLimiter;
@@ -303,6 +305,7 @@ export type Limiters = {
   netSpec: RateLimitSpec;
   globalSpec: RateLimitSpec;
   emailHourSpec: RateLimitSpec;
+  quarantineBlockSpec: RateLimitSpec;
   quarantineSpec: RateLimitSpec;
   hardSpec: RateLimitSpec;
   problem?: string;
@@ -312,7 +315,10 @@ export type Limiters = {
 export const DEFAULT_NET_RATE_LIMIT: RateLimitSpec = { limit: 24, windowSec: 600 };
 export const DEFAULT_GLOBAL_LIMIT_PER_MINUTE = 20;
 export const DEFAULT_EMAIL_LIMIT_PER_HOUR = 20;
-export const DEFAULT_QUARANTINE_AFTER_PER_DAY = 5_000;
+/** AEGIS r3 M1: about 1,700 leads a day per network at most before quarantine; the per-address limit is 8 per 10 minutes. */
+export const DEFAULT_QUARANTINE_BLOCK_LIMIT: RateLimitSpec = { limit: 12, windowSec: 600 };
+/** AEGIS r3 M1: from networks under their own limit; tripping it takes about 30 networks sending flat out for a day. */
+export const DEFAULT_QUARANTINE_AFTER_PER_DAY = 50_000;
 export const DEFAULT_HARD_LIMIT_PER_DAY = 100_000;
 
 /** A whole number from 1 to `max`, or the default; a malformed value is a problem, never a guess. */
@@ -379,6 +385,11 @@ export function resolveLimiter(env: Env, logger: LeadLogger, namespace = ""): Li
   if (!netParsed) problems.push("LEAD_RATE_LIMIT_NET:expected-count/seconds");
   const netSpec = netParsed ?? DEFAULT_NET_RATE_LIMIT;
 
+  const blockRaw = env.LEAD_QUARANTINE_BLOCK_LIMIT;
+  const blockParsed = blockRaw === undefined || blockRaw.trim() === "" ? DEFAULT_QUARANTINE_BLOCK_LIMIT : parseRateLimit(blockRaw);
+  if (!blockParsed) problems.push("LEAD_QUARANTINE_BLOCK_LIMIT:expected-count/seconds");
+  const quarantineBlockSpec = blockParsed ?? DEFAULT_QUARANTINE_BLOCK_LIMIT;
+
   const caps = resolveCaps(env, problems);
   const globalSpec = { limit: caps.perMinute, windowSec: 60 };
   const emailHourSpec = { limit: caps.perHour, windowSec: 3600 };
@@ -393,6 +404,7 @@ export function resolveLimiter(env: Env, logger: LeadLogger, namespace = ""): Li
     perNet: buildLimiter(netSpec, env, logger, `${namespace}net`),
     global: buildLimiter(globalSpec, env, logger, `${namespace}global`),
     emailHour: buildLimiter(emailHourSpec, env, logger, `${namespace}email-hour`),
+    quarantineBlock: buildLimiter(quarantineBlockSpec, env, logger, `${namespace}quarantine-net`),
     quarantine: buildLimiter(quarantineSpec, env, logger, `${namespace}quarantine`),
     hard: buildLimiter(hardSpec, env, logger, `${namespace}hard`),
     guard,
@@ -400,6 +412,7 @@ export function resolveLimiter(env: Env, logger: LeadLogger, namespace = ""): Li
     netSpec,
     globalSpec,
     emailHourSpec,
+    quarantineBlockSpec,
     quarantineSpec,
     hardSpec,
     problem: problems.length ? problems.join(",") : undefined,

@@ -31,15 +31,15 @@ export type LeadRecord = {
   user_agent: string | null;
 };
 
-/** "deferred" (AEGIS F1): stored past the site-wide email cap; sent in the next digest. */
 /**
  * "deferred" (AEGIS F1): past an email cap or quarantined; sent in a digest.
  * "delivery_unknown" (AEGIS r2 M2): the first attempt's outcome is unknown
  * and Resend's 24 h idempotency window has (nearly) passed, so it goes in the
  * digest, flagged, instead of being re-sent alone. "expired_notify" (r2 M3):
- * too old to retry; counted once in a digest line, then left alone.
+ * too old to retry; counted in a count email, and /api/health stays degraded
+ * until that email is accepted, when it becomes "expired_reported" (r3 M3).
  */
-export type NotifyStatus = "pending" | "sent" | "failed" | "disabled" | "deferred" | "delivery_unknown" | "expired_notify";
+export type NotifyStatus = "pending" | "sent" | "failed" | "disabled" | "deferred" | "delivery_unknown" | "expired_notify" | "expired_reported";
 
 /**
  * `inserted: false` means (app, submission_id) already existed. With the same
@@ -74,6 +74,8 @@ export type StoredLead = LeadRecord & {
   /** The digest batch key this lead was put in, if any, and when. */
   notify_batch: string | null;
   notify_batch_at: Date | null;
+  /** SHA-256 of the batch email body, fixed when the batch was formed (AEGIS r3 H1). */
+  notify_batch_hash: string | null;
   quarantined: boolean;
 };
 /** Kept for readability at call sites: an unsent lead is a stored lead. */
@@ -82,8 +84,9 @@ export type UnsentLead = StoredLead;
 export interface LeadStore {
   /**
    * Upsert on (app, submission_id). `deadline` (epoch ms, AEGIS r2 L3): the
-   * store gives up — and never commits — after it, so a visitor told "nothing
-   * was saved" is never wrong.
+   * store stops waiting after it. A statement already sent may still commit
+   * afterwards (AEGIS r3 L1), so the visitor is told the lead may have
+   * reached us, and the retry cron emails it if it did.
    */
   insert(record: LeadRecord, opts?: { deadline?: number }): Promise<InsertResult>;
   /**
@@ -96,12 +99,17 @@ export interface LeadStore {
    * and body hash if not yet set, and returns what is stored.
    */
   markAttempt(app: LeadApp, submissionId: string, bodyHash: string): Promise<{ firstAttemptAt: Date; bodyHash: string }>;
-  /** AEGIS r2 H1: flags a lead quarantined and replaces its payload with the truncated one. */
-  quarantine(app: LeadApp, submissionId: string, payload: Record<string, unknown>): Promise<void>;
+  /** Flags a lead quarantined. Its stored text is never changed (AEGIS r3 M1). */
+  quarantine(app: LeadApp, submissionId: string): Promise<void>;
 }
 
+/** Which batches: lead digests, or the count email for expired leads (AEGIS r3 M3). */
+export type BatchKind = "digest" | "expired";
+/** A formed batch: its key and every one of its leads. */
+export type Batch = { key: string; leads: StoredLead[] };
+
 /**
- * The durable notification outbox (CH-8, AEGIS F1, r2 M1–M3, L2).
+ * The durable notification outbox (CH-8, AEGIS F1, r2 M1–M3, L2, r3 H1/M3/L3).
  */
 export interface NotifyOutbox {
   /** 'failed' rows and stale 'pending' rows created after `createdAfter`, leased. */
@@ -110,14 +118,35 @@ export interface NotifyOutbox {
   expireOld(app: LeadApp, createdBefore: Date): Promise<number>;
   /** 'pending'/'failed' rows whose first attempt was before `firstAttemptBefore` become 'delivery_unknown'; returns how many. */
   markUnknown(app: LeadApp, firstAttemptBefore: Date): Promise<number>;
-  /** 'deferred' and 'delivery_unknown' rows due for a digest, leased. */
-  claimDigest(app: LeadApp, limit: number): Promise<StoredLead[]>;
-  /** Puts these leads in digest batch `key` (and records the batch's first attempt). */
-  assignBatch(app: LeadApp, submissionIds: string[], key: string): Promise<void>;
-  /** Every lead in batch `key` is sent (one statement). */
-  markBatchSent(app: LeadApp, key: string): Promise<void>;
-  /** Clears the batch of leads whose batch attempt is too old to re-send under its key. */
-  clearBatch(app: LeadApp, key: string): Promise<void>;
+  /**
+   * AEGIS r3 L3: 'pending'/'failed' rows created before `createdBefore` go to
+   * the digest — 'deferred' if never attempted, else 'delivery_unknown'.
+   */
+  moveToDigest(app: LeadApp, createdBefore: Date): Promise<number>;
+  /**
+   * AEGIS r3 H1: claims ONE existing batch of this kind, whole: every row with
+   * its key is locked and leased in one transaction, or none is (another run
+   * holds it). Null when no batch is due.
+   */
+  claimBatch(app: LeadApp, kind: BatchKind): Promise<Batch | null>;
+  /**
+   * Forms a new batch from up to `limit` unbatched rows of this kind, oldest
+   * first, and fixes it in the same transaction: `seal` gives its key and the
+   * hash of its email body, written to every row before any send. Null when
+   * there is nothing to batch.
+   */
+  formBatch(app: LeadApp, kind: BatchKind, limit: number, seal: (leads: StoredLead[]) => { key: string; hash: string }): Promise<Batch | null>;
+  /**
+   * The batch Resend accepted: exactly these leads (and only while they are
+   * still in batch `key`) become 'sent' ('expired_reported' for an expired batch).
+   */
+  markBatchSent(app: LeadApp, kind: BatchKind, key: string, submissionIds: string[]): Promise<number>;
+  /**
+   * Dissolves a batch that can no longer be re-sent under its key (past the
+   * key window, or its rows changed). Digest leads become 'delivery_unknown'
+   * (the old email may have landed) and go in a new batch, flagged.
+   */
+  clearBatch(app: LeadApp, kind: BatchKind, key: string): Promise<void>;
 }
 
 export type LeadEmail = {

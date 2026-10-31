@@ -208,7 +208,7 @@ describe.skipIf(!url)("postgres store (integration)", () => {
     await sql`DELETE FROM leads WHERE app = 'zbc'`;
   });
 
-  it("AEGIS F1/F3/F4: deferred leads are claimable once for a digest and count as backlog; a content duplicate returns the stored copy; the schema check sees every column", async () => {
+  it("AEGIS F1/F3/F4, r3 H1: deferred leads are batched once for a digest and count as backlog; a content duplicate returns the stored copy; the schema check sees every column", async () => {
     const store = postgresStore(opts(url!));
     const purger = postgresPurger(opts(url!));
     await sql`DELETE FROM leads WHERE app = 'zbc'`;
@@ -224,8 +224,11 @@ describe.skipIf(!url)("postgres store (integration)", () => {
     expect((await purger.leadState("zbc", { unsentBefore: new Date(0), retryAfter: new Date(0) })).digestPending).toBe(1);
     // Two claims on SEPARATE connections (distinct options → distinct clients).
     const other = postgresStore({ ...opts(url!), connect_timeout: 41 });
-    const [a, b] = await Promise.all([store.claimDigest("zbc", 10), other.claimDigest("zbc", 10)]);
-    expect([...a, ...b].map((r) => r.submission_id)).toEqual([id]);
+    const seal = () => ({ key: `digest-zbc-${randomUUID()}`, hash: "h" });
+    const [a, b] = await Promise.all([store.formBatch("zbc", "digest", 10, seal), other.formBatch("zbc", "digest", 10, seal)]);
+    expect([...(a?.leads ?? []), ...(b?.leads ?? [])].map((r) => r.submission_id)).toEqual([id]);
+    // The formed batch is leased whole: no other run can claim it now.
+    expect(await other.claimBatch("zbc", "digest")).toBeNull();
     expect(await purger.missingColumns()).toEqual([]);
     await sql`DELETE FROM leads WHERE app = 'zbc'`;
   });
@@ -403,7 +406,7 @@ describe.skipIf(!url)("migrate script (integration)", () => {
     expect(await db`SELECT version FROM schema_migrations ORDER BY version`).toEqual(MIGRATIONS.map((f) => ({ version: f.slice(0, 3) })));
     expect(await db`SELECT count(*)::int AS n FROM leads`).toEqual([{ n: 0 }]);
     await db.end();
-  });
+  }, 60_000);
 
   it("R-M1: a database that already ran the 53-code 004 is fixed by 005, and VI/AS/MP then store", async () => {
     // 001-004 exactly as 004 was first committed (53 codes), recorded as applied.

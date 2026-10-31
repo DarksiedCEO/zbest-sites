@@ -119,7 +119,7 @@ describe.skipIf(!url)("AEGIS r2 — lead caps, outbox and digests (integration)"
     expect(r.deliveries.map((d) => d.key)).toContain(`lead-zbm-${realId}`);
   });
 
-  it("H1: past LEAD_QUARANTINE_AFTER_PER_DAY new leads are stored quarantined (message cut to 2 KB) and health is degraded", async () => {
+  it("H1: past LEAD_QUARANTINE_AFTER_PER_DAY new leads are stored quarantined (full text kept since r3 M1) and health is degraded", async () => {
     const r = fakeResend();
     const store = freshStore();
     const t = transportOf(store, r.notifier);
@@ -128,7 +128,7 @@ describe.skipIf(!url)("AEGIS r2 — lead caps, outbox and digests (integration)"
     for (let i = 0; i < 5; i++) expect((await lead(t, limiters, { problem: `${i} ${"x".repeat(4_900)}` })).status).toBe(200);
     const rows = await sql`SELECT quarantined, octet_length(payload::text) AS bytes FROM leads ORDER BY created_at`;
     expect(rows.map((x) => x.quarantined)).toEqual([false, false, false, true, true]);
-    for (const q of rows.filter((x) => x.quarantined)) expect(q.bytes).toBeLessThanOrEqual(2_300);
+    for (const q of rows.filter((x) => x.quarantined)) expect(q.bytes).toBeGreaterThan(4_900);
     const purger = postgresPurger({ ...base!, connect_timeout: 97 });
     const health = await purgeHealth({ app: "zbm", env: cronEnv(env), logger: () => {}, ledger: { ...purger, lastSuccess: async () => new Date() } });
     expect(health.status).toBe("quarantined");
@@ -228,10 +228,10 @@ describe.skipIf(!url)("AEGIS r2 — lead caps, outbox and digests (integration)"
     const run = (await (await handleNotifyRetry(cronReq(), { app: "zbm", env: cronEnv(), transport: t })).json()) as { expired: number };
     expect(run.expired).toBe(3);
     expect(r.deliveries.filter((d) => d.key.startsWith("lead-"))).toHaveLength(0);
-    const digest = r.deliveries.find((d) => d.key.startsWith("digest-"))!;
+    const digest = r.deliveries.find((d) => d.key.startsWith("expired-"))!;
     expect(digest.text).toContain("3 older leads");
-    expect(await statusCounts()).toEqual({ expired_notify: 3 });
-    // Health does not stay degraded for them.
+    // AEGIS r3 M3: once their count email is accepted they are expired_reported, and health is ok.
+    expect(await statusCounts()).toEqual({ expired_reported: 3 });
     const purger = postgresPurger({ ...base!, connect_timeout: 95 });
     expect((await purgeHealth({ app: "zbm", env: cronEnv(), logger: () => {}, ledger: { ...purger, lastSuccess: async () => new Date() } })).status).toBe("ok");
   });
@@ -251,7 +251,7 @@ describe.skipIf(!url)("AEGIS r2 — lead caps, outbox and digests (integration)"
     expect(await statusCounts()).toEqual({ sent: 36 });
   });
 
-  it("L3 (P4): six requests queued behind a held table lock all answer within ~6 s", async () => {
+  it("L3 (P4): six requests queued behind a held table lock all answer within ~6 s; none is lost", async () => {
     const t = transportOf(freshStore(), fakeResend().notifier);
     const limiters = resolveLimiter({}, captureLogger().logger, "r2-l3");
     const o = base!;
@@ -278,10 +278,11 @@ describe.skipIf(!url)("AEGIS r2 — lead caps, outbox and digests (integration)"
       expect(x.status).toBe(503);
       expect(x.ms).toBeLessThan(7_500);
     }
-    // "Nothing was saved" is true: no queued insert commits after its visitor was told so.
+    // AEGIS r3 L1: a 503 does not prove nothing was stored (the form says it
+    // may have reached us). Whatever did commit is unsent and the cron emails it.
     await sleep(1_000);
-    expect((await sql`SELECT count(*)::int AS c FROM leads`)[0]!.c).toBe(0);
-  });
+    expect((await sql`SELECT count(*)::int AS c FROM leads WHERE notify_status NOT IN ('pending', 'failed')`)[0]!.c).toBe(0);
+  }, 30_000);
 
   it("concurrent cron runs on SEPARATE connections send each deferred lead in exactly one digest", async () => {
     const r = fakeResend();

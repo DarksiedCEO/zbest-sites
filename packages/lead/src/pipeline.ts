@@ -2,7 +2,7 @@ import { resolveLimiter, resolvePolicy, resolveTransport, type Env, type Limiter
 import { NOTIFY_PENDING_GRACE_MS } from "./notify-retry";
 import { FORM_TOKEN_HEADER } from "./form-token";
 import { contentHash, payloadHash } from "./hash";
-import { clientIp } from "./ip";
+import { clientIp, networkBlock } from "./ip";
 import { consoleLogger, type LeadLogger } from "./log";
 import { regionServed, type Region } from "./region";
 import { cleanJson } from "./text";
@@ -96,7 +96,7 @@ export type HandleLeadOptions = {
   /** Test seams; production resolves these from env. */
   transport?: TransportConfig;
   /** Test seam. A limiter left out is not applied (production always resolves every one). */
-  limiters?: Partial<Pick<Limiters, "perNet" | "global" | "emailHour" | "quarantine" | "hard" | "guard">> & { perIp: RateLimiter };
+  limiters?: Partial<Pick<Limiters, "perNet" | "global" | "emailHour" | "quarantineBlock" | "quarantine" | "hard" | "guard">> & { perIp: RateLimiter };
   policy?: RequestPolicy;
   now?: () => Date;
 };
@@ -140,26 +140,6 @@ function withDeadline<T>(promise: Promise<T>, ms: number): Promise<T> {
     timer = setTimeout(() => reject(new DeliveryError("store_failed", "deadline")), ms);
   });
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
-}
-
-/** AEGIS r2 H1: what a quarantined lead keeps — about 2 KB of its text. */
-const QUARANTINE_BYTES = 2_048;
-export function truncatePayload(payload: Record<string, unknown>, budget: number): Record<string, unknown> {
-  const strings: number[] = [];
-  const walk = (v: unknown) => {
-    if (typeof v === "string") strings.push(v.length);
-    else if (Array.isArray(v)) v.forEach(walk);
-    else if (v && typeof v === "object") Object.values(v).forEach(walk);
-  };
-  walk(payload);
-  const per = Math.max(32, Math.floor(budget / Math.max(1, strings.length)) - 8);
-  const cut = (v: unknown): unknown => {
-    if (typeof v === "string") return v.length > per ? `${v.slice(0, per)}…[cut]` : v;
-    if (Array.isArray(v)) return v.map(cut);
-    if (v && typeof v === "object") return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, cut(x)]));
-    return v;
-  };
-  return cut(payload) as Record<string, unknown>;
 }
 
 /** Reads at most `max` bytes; throws TooLarge past it, so a huge body is never buffered (AEGIS L1). */
@@ -235,7 +215,7 @@ async function handle(request: Request, opts: HandleLeadOptions, log: LeadLogger
   // 4. Transport and policy. Missing config fails closed, naming settings
   //    (never values). Off Vercel without LEAD_TRUSTED_PROXY is refused here
   //    (AEGIS r2 N1), so no request ever reaches a shared bucket.
-  const limiters: Partial<Pick<Limiters, "perNet" | "global" | "emailHour" | "quarantine" | "hard" | "guard" | "problem">> & { perIp: RateLimiter } =
+  const limiters: Partial<Pick<Limiters, "perNet" | "global" | "emailHour" | "quarantineBlock" | "quarantine" | "hard" | "guard" | "problem">> & { perIp: RateLimiter } =
     opts.limiters ?? resolveLimiter(env, log);
   const config = opts.transport ?? resolveTransport(env);
   const missing = [
@@ -369,6 +349,11 @@ async function handle(request: Request, opts: HandleLeadOptions, log: LeadLogger
     if (typeof detail === "string" && CHARACTER_SQLSTATES.has(detail)) {
       return fail({ ok: false, error: { code: "validation", fields: { form: UNSTORABLE_TEXT_MESSAGE } } }, 422);
     }
+    // AEGIS r3 L1: this does not prove nothing was stored — a statement
+    // already sent can still commit after the deadline. The form says the
+    // message may have reached us and that sending it again is safe (the same
+    // submission, or the same content within 24 h, is one lead); if it did
+    // commit, the retry cron emails it like any unsent lead.
     return fail({ ok: false, error: { code: "unavailable" } }, 503);
   }
 
@@ -428,6 +413,19 @@ async function handle(request: Request, opts: HandleLeadOptions, log: LeadLogger
       quarantined = true;
     }
   }
+  // AEGIS r3 M1: quarantine per source network first (IPv4 /24, IPv6 /48;
+  // a keyed hash, held for the window like the rate-limit buckets), then a
+  // daily count of leads from networks still under their own limit — so
+  // one allocation's flood never quarantines anyone else's leads, and the
+  // site-wide trip takes many networks. A quarantined lead keeps its FULL
+  // text; it is only flagged, and goes in the digest, marked.
+  if (!quarantined && limiters.quarantineBlock) {
+    const decision = await limiters.quarantineBlock.hit(`${app}:qnet:${transport.hashIp(networkBlock(ip)).slice(0, 32)}`);
+    if (!decision.allowed) {
+      quarantined = true;
+      log("error", "quarantine_tripped", { ...ids, limiter: "network" });
+    }
+  }
   if (!quarantined && limiters.quarantine) {
     const decision = await limiters.quarantine.hit(`${app}:store-quarantine`);
     if (!decision.allowed) {
@@ -437,7 +435,7 @@ async function handle(request: Request, opts: HandleLeadOptions, log: LeadLogger
   }
   if (quarantined) {
     try {
-      await withDeadline(transport.store.quarantine(app, record.submission_id, truncatePayload(record.payload, QUARANTINE_BYTES)), STORE_DEADLINE_MS);
+      await withDeadline(transport.store.quarantine(app, record.submission_id), STORE_DEADLINE_MS);
     } catch {
       log("warn", "quarantine_not_recorded", ids);
     }

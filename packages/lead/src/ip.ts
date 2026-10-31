@@ -41,6 +41,15 @@ export const VERCEL_IP_SOURCE: IpSource = { header: "x-vercel-forwarded-for", ho
 export type ClientAddress = { address: string; key: string; net?: string };
 
 /**
+ * AEGIS r3 M1: the source network a quarantine counter is kept per — the
+ * IPv6 /48 (`net`), or the IPv4 /24. A flood from one allocation trips it
+ * without touching leads from anywhere else.
+ */
+export function networkBlock(ip: ClientAddress): string {
+  return ip.net ?? `v4/24:${ip.address.split(".").slice(0, 3).join(".")}`;
+}
+
+/**
  * AEGIS r4 R2: one client, one key.
  *   - strips a port: `1.2.3.4:5678` and `[2001:db8::1]:443`;
  *   - unwraps IPv4 carried in IPv6 — mapped, translated or compatible, in any
