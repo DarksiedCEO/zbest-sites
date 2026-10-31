@@ -408,7 +408,7 @@ const termsOfService: InEffectLegalDocument = {
           p: "We serve clients only in the United States, including the District of Columbia and all U.S. territories (Puerto Rico, Guam, the U.S. Virgin Islands, American Samoa and the Northern Mariana Islands). We operate only under US law and do not offer our services anywhere else, or to anyone who is named on — or owned or controlled by someone named on — a US sanctions list. Anyone may read the site, but we decline enquiries from outside our service area, and we may ask where you or your business is located before replying.",
         },
         {
-          p: "By submitting a form you confirm that you and the business you represent are located in our service area and are not a sanctioned person as described above.",
+          p: "By submitting a form you confirm that you are 18 or older, that you are submitting on behalf of a business, and that you and that business are located in our service area and are not a sanctioned person as described above.",
         },
       ],
     },

@@ -33,7 +33,7 @@ for (const f of FORMS) {
     await expect(notice).toContainText("We save what you send so a person can reply.");
     // Assent to the Terms and the service-area confirmation (AEGIS M7).
     await expect(notice).toContainText("By sending, you agree to our Terms of Service");
-    await expect(notice).toContainText("confirm your business is in our service area");
+    await expect(notice).toContainText("confirm that you are 18 or older and submitting on behalf of a business in our service area");
 
     const before = await form.evaluate((el) => {
       const n = el.querySelector("[data-collection-notice]");
