@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fakeNotifier, fakeStore } from "./fake";
 import { TRUSTED_PROXY_HEADERS, VERCEL_IP_SOURCE, hmacIp, ipSourceFor, type IpSource } from "./ip";
-import { parsePostgresUrl } from "./pg-url";
+import { isLocalHost, parsePostgresUrl } from "./pg-url";
 import type { LeadLogger } from "./log";
 import { postgresStore } from "./postgres";
 import { memoryLimiter, parseRateLimit, restLimiter, DEFAULT_RATE_LIMIT, type RateLimitSpec } from "./rate-limit";
@@ -162,6 +162,11 @@ function resolveTransportUnsafe(env: Env): TransportConfig {
   const pg = url ? parsePostgresUrl(url) : null;
   if (!pg) missing.push("POSTGRES_URL");
   else if (!pg.ok) missing.push(`POSTGRES_URL:${pg.reason}`);
+  // AEGIS r2 L5: the Privacy Policy says submissions reach the database over
+  // an encrypted connection, so production refuses a remote host with TLS off.
+  else if (pg.options.ssl === false && !isLocalHost(pg.options.host) && env.NODE_ENV === "production") {
+    missing.push("POSTGRES_URL:sslmode-disable-refused-in-production");
+  }
 
   const secret = set(env, "LEAD_IP_HASH_SECRET");
   if (secret.length < 16) missing.push("LEAD_IP_HASH_SECRET:min-16-chars");

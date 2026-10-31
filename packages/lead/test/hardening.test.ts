@@ -147,6 +147,31 @@ describe("N2, N3 — known-harmless vendor params; TLS modes", () => {
   });
 });
 
+describe("AEGIS r2 L5 — production refuses an unencrypted remote database", () => {
+  const base = { LEAD_IP_HASH_SECRET: "s".repeat(32), LEAD_NOTIFY: "disabled" };
+  const remoteOff = "postgres://u:pw@db.example.com/db?sslmode=disable";
+
+  it("refuses sslmode=disable on a remote host when NODE_ENV=production, naming the setting only", () => {
+    const config = resolveTransport({ ...base, NODE_ENV: "production", POSTGRES_URL: remoteOff });
+    expect(config.ok).toBe(false);
+    if (!config.ok) expect(config.missing).toEqual(["POSTGRES_URL:sslmode-disable-refused-in-production"]);
+  });
+
+  it("allows it outside production, and allows a loopback host in production", () => {
+    expect(resolveTransport({ ...base, NODE_ENV: "test", POSTGRES_URL: remoteOff }).ok).toBe(true);
+    expect(
+      resolveTransport({ ...base, NODE_ENV: "production", POSTGRES_URL: "postgres://u:pw@127.0.0.1/db?sslmode=disable" }).ok,
+    ).toBe(true);
+  });
+
+  it("allows TLS modes in production", () => {
+    for (const mode of ["require", "verify-full"]) {
+      const url = `postgres://u:pw@db.example.com/db?sslmode=${mode}`;
+      expect(resolveTransport({ ...base, NODE_ENV: "production", POSTGRES_URL: url }).ok, mode).toBe(true);
+    }
+  });
+});
+
 describe("M1 — a malformed URL never crashes and never logs", () => {
   const SECRET = "SuperSecretPw";
   const malformed = [
