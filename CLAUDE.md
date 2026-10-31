@@ -1,3 +1,6 @@
+Start with docs/HANDOFF-BUILDER.md: current state, open PRs, the next lane, roles,
+and the rules every change follows (never merge, never push to main).
+
 Read docs/ZBM-ZBC-Build-Brief-v2.md before any work. It is the locked handoff.
 Build in the phase order in Section 3 of the brief. Do not start a phase until
 the previous one has Playwright screenshots (desktop 1440 + mobile 390)
