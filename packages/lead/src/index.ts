@@ -31,6 +31,7 @@ export {
   type RetentionPolicy,
 } from "./retention";
 export { resendNotifier } from "./resend";
+export { handleNotifyRetry, notifyBackoffMs, NOTIFY_PENDING_GRACE_MS, NOTIFY_MAX_ATTEMPTS } from "./notify-retry";
 export { fakeStore, fakeNotifier } from "./fake";
 export { clientIp } from "./ip";
 export * from "./types";

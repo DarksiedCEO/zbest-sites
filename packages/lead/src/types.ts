@@ -41,7 +41,11 @@ export type NotifyStatus = "pending" | "sent" | "failed" | "disabled";
  */
 export type InsertResult =
   | { inserted: true }
-  | { inserted: false; samePayload: boolean }
+  /**
+   * notifyStatus / createdAt (CH-8): the stored row's email state, so a
+   * resubmit of a lead whose email never went out can send it.
+   */
+  | { inserted: false; samePayload: boolean; notifyStatus?: NotifyStatus; createdAt?: Date }
   /** The same normalised content from this app within DEDUPE_WINDOW_HOURS: nothing new stored (RTS-3). */
   | { inserted: false; duplicateOf: "content" };
 
@@ -51,7 +55,23 @@ export const DEDUPE_WINDOW_HOURS = 24;
 export interface LeadStore {
   /** Upsert on (app, submission_id). */
   insert(record: LeadRecord): Promise<InsertResult>;
-  setNotifyStatus(app: LeadApp, submissionId: string, status: NotifyStatus): Promise<void>;
+  /**
+   * Records the email outcome. "failed" also counts an attempt; `retryAt`
+   * (set by the retry cron) is when the next retry may happen (CH-8).
+   */
+  setNotifyStatus(app: LeadApp, submissionId: string, status: NotifyStatus, retryAt?: Date): Promise<void>;
+}
+
+/** A stored lead whose founder email has not gone out (CH-8). */
+export type UnsentLead = LeadRecord & { created_at: Date; notify_attempts: number };
+
+/**
+ * The durable notification outbox (CH-8): leads with notify_status
+ * 'pending' or 'failed'. The retry cron claims due rows (a short lease, so a
+ * parallel run skips them), sends, and records the outcome.
+ */
+export interface NotifyOutbox {
+  claimUnsent(app: LeadApp, opts: { pendingBefore: Date; maxAttempts: number; limit: number }): Promise<UnsentLead[]>;
 }
 
 export type LeadEmail = {

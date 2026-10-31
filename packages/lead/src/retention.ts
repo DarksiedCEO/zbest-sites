@@ -68,7 +68,12 @@ export interface LeadPurger {
 /** Reads the last successful purge (sql/003_purge_runs.sql). */
 export interface PurgeLedger {
   lastSuccess(app: LeadApp): Promise<Date | null>;
+  /** Leads created before `before` whose founder email has not gone out (CH-8). */
+  unsentOlderThan?(app: LeadApp, before: Date): Promise<number>;
 }
+
+/** How old an unsent founder email may get before /api/health is degraded (CH-8). */
+export const DEFAULT_NOTIFY_ALERT_MINUTES = 60;
 
 /** A purge older than this is overdue: two missed daily runs. */
 export const PURGE_OVERDUE_HOURS = 48;
@@ -150,7 +155,9 @@ export type PurgeHealth =
   /** Last success older than PURGE_OVERDUE_HOURS. */
   | "overdue"
   /** The ledger could not be read. */
-  | "unknown";
+  | "unknown"
+  /** A lead's founder email has not gone out for longer than LEAD_NOTIFY_ALERT_MINUTES (CH-8). */
+  | "notify_backlog";
 
 export type HealthOptions = {
   app: LeadApp;
@@ -203,8 +210,20 @@ export async function purgeHealth(opts: HealthOptions): Promise<{ status: PurgeH
     return degraded("unknown");
   }
   if (!last) return degraded("never_run");
-  const ageHours = Math.floor(((opts.now ?? (() => new Date()))().getTime() - last.getTime()) / 3_600_000);
+  const nowMs = (opts.now ?? (() => new Date()))().getTime();
+  const ageHours = Math.floor((nowMs - last.getTime()) / 3_600_000);
   if (ageHours > PURGE_OVERDUE_HOURS) return degraded("overdue", undefined, ageHours);
+  if (ledger.unsentOlderThan) {
+    const raw = (env.LEAD_NOTIFY_ALERT_MINUTES ?? "").trim();
+    const minutes = /^\d{1,5}$/.test(raw) && Number(raw) >= 1 ? Number(raw) : DEFAULT_NOTIFY_ALERT_MINUTES;
+    let unsent: number;
+    try {
+      unsent = await ledger.unsentOlderThan(app, new Date(nowMs - minutes * 60_000));
+    } catch {
+      return degraded("unknown");
+    }
+    if (unsent > 0) return degraded("notify_backlog");
+  }
   return { status: "ok", ageHours };
 }
 

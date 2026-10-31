@@ -54,7 +54,7 @@ The live site's older backend is the `zbm-server` service in the Railway project
 - **Pros:**
   - It is exactly Brief §6.2, so it needs no brief amendment.
   - The lead lands in our own database, where the founder owns it.
-  - The DB write is the source of truth. If Resend is down or not yet verified, no lead is lost, because `notify_status = 'failed'` marks rows to chase.
+  - The DB write is the source of truth. If Resend is down or not yet verified, no lead is lost, because `notify_status = 'failed'` marks rows to chase. Since the chaos red team (CH-8, Oct 30 2026) the chasing is code: `/api/cron/retry-notify` re-sends `failed` rows and `pending` rows older than 5 minutes with the same idempotency key and exponential backoff (`sql/007_notify_outbox.sql`), a resubmit of an unsent lead sends it, and `/api/health` reports `notify_backlog` when an unsent lead is older than `LEAD_NOTIFY_ALERT_MINUTES` (default 60). Inserts and status updates run with a 5 s statement and lock timeout (CH-9).
   - It does not depend on the Railway deploy.
 - **Cons:**
   - It needs two vendors configured: a Postgres store and Resend.

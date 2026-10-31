@@ -1,7 +1,7 @@
 import { appendFileSync, mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { storable } from "./text";
-import { DEDUPE_WINDOW_HOURS, DeliveryError, type InsertResult, type LeadApp, type LeadEmail, type LeadNotifier, type LeadRecord, type LeadStore, type NotifyStatus } from "./types";
+import { DEDUPE_WINDOW_HOURS, DeliveryError, type InsertResult, type LeadApp, type LeadEmail, type LeadNotifier, type LeadRecord, type LeadStore, type NotifyOutbox, type NotifyStatus, type UnsentLead } from "./types";
 
 /**
  * TEST-ONLY transport: the store and the notifier append JSON lines to files
@@ -15,7 +15,9 @@ import { DEDUPE_WINDOW_HOURS, DeliveryError, type InsertResult, type LeadApp, ty
  *   <outbox>/notify.jsonl   one line per notify_status update
  */
 
-type Outbox = { dir: string; seen: Map<string, string>; recent: Map<string, number> };
+/** Per stored row: what the notification outbox needs (CH-8), mirroring the leads columns. */
+type RowState = { record: LeadRecord; createdAt: number; status: NotifyStatus; attempts: number; nextAt: number | null };
+type Outbox = { dir: string; seen: Map<string, string>; recent: Map<string, number>; rows: Map<string, RowState> };
 const outboxes = new Map<string, Outbox>();
 
 function outbox(dir: string): Outbox {
@@ -24,18 +26,27 @@ function outbox(dir: string): Outbox {
     mkdirSync(dir, { recursive: true });
     const seen = new Map<string, string>();
     const recent = new Map<string, number>();
+    const rows = new Map<string, RowState>();
     try {
       for (const line of readFileSync(path.join(dir, "rows.jsonl"), "utf8").split("\n")) {
         if (line) {
-          const row = JSON.parse(line) as LeadRecord & { created_at: string };
-          seen.set(`${row.app}:${row.submission_id}`, row.payload_hash);
-          if (row.content_hash) recent.set(`${row.app}:${row.content_hash}`, Date.parse(row.created_at));
+          const { created_at, ...record } = JSON.parse(line) as LeadRecord & { created_at: string };
+          const key = `${record.app}:${record.submission_id}`;
+          seen.set(key, record.payload_hash);
+          if (record.content_hash) recent.set(`${record.app}:${record.content_hash}`, Date.parse(created_at));
+          rows.set(key, { record, createdAt: Date.parse(created_at), status: "pending", attempts: 0, nextAt: null });
         }
+      }
+      for (const line of readFileSync(path.join(dir, "notify.jsonl"), "utf8").split("\n")) {
+        if (!line) continue;
+        const n = JSON.parse(line) as { app: string; submission_id: string; notify_status: NotifyStatus };
+        const row = rows.get(`${n.app}:${n.submission_id}`);
+        if (row) row.status = n.notify_status;
       }
     } catch {
       // No rows yet.
     }
-    box = { dir, seen, recent };
+    box = { dir, seen, recent, rows };
     outboxes.set(dir, box);
   }
   return box;
@@ -67,14 +78,21 @@ function jsonbRefusal(value: unknown): "22P05" | "22P02" | null {
   return null;
 }
 
-export function fakeStore(dir: string): LeadStore {
+export function fakeStore(dir: string): LeadStore & NotifyOutbox {
   const box = outbox(dir);
   return {
     async insert(record: LeadRecord): Promise<InsertResult> {
       const refusal = jsonbRefusal(record.payload);
       if (refusal) throw new DeliveryError("store_failed", refusal);
       const key = `${record.app}:${record.submission_id}`;
-      if (box.seen.has(key)) return { inserted: false, samePayload: box.seen.get(key) === record.payload_hash };
+      if (box.seen.has(key)) {
+        const row = box.rows.get(key);
+        return {
+          inserted: false,
+          samePayload: box.seen.get(key) === record.payload_hash,
+          ...(row ? { notifyStatus: row.status, createdAt: new Date(row.createdAt) } : {}),
+        };
+      }
       // Same normalised content within the window under another id: one lead (RTS-3), as postgres.ts.
       const contentKey = `${record.app}:${record.content_hash}`;
       const at = Date.now();
@@ -82,11 +100,34 @@ export function fakeStore(dir: string): LeadStore {
       if (previous !== undefined && at - previous < DEDUPE_WINDOW_HOURS * 3_600_000) return { inserted: false, duplicateOf: "content" };
       box.seen.set(key, record.payload_hash);
       box.recent.set(contentKey, at);
+      box.rows.set(key, { record, createdAt: at, status: "pending", attempts: 0, nextAt: null });
       append(box, "rows.jsonl", { ...record, created_at: new Date(at).toISOString() });
       return { inserted: true };
     },
-    async setNotifyStatus(app: LeadApp, submissionId: string, status: NotifyStatus) {
+    async setNotifyStatus(app: LeadApp, submissionId: string, status: NotifyStatus, retryAt?: Date) {
+      const row = box.rows.get(`${app}:${submissionId}`);
+      if (row) {
+        row.status = status;
+        if (status === "failed") row.attempts += 1;
+        row.nextAt = retryAt ? retryAt.getTime() : null;
+      }
       append(box, "notify.jsonl", { app, submission_id: submissionId, notify_status: status });
+    },
+    async claimUnsent(app, { pendingBefore, maxAttempts, limit }): Promise<UnsentLead[]> {
+      const now = Date.now();
+      const due = [...box.rows.values()]
+        .filter(
+          (r) =>
+            r.record.app === app &&
+            (r.status === "failed" || (r.status === "pending" && r.createdAt < pendingBefore.getTime())) &&
+            (r.nextAt === null || r.nextAt <= now) &&
+            r.attempts < maxAttempts,
+        )
+        .sort((a, b) => a.createdAt - b.createdAt)
+        .slice(0, limit);
+      // The lease, as postgres.ts: a parallel run skips these for 10 minutes.
+      for (const r of due) r.nextAt = now + 10 * 60_000;
+      return due.map((r) => ({ ...r.record, created_at: new Date(r.createdAt), notify_attempts: r.attempts }));
     },
   };
 }

@@ -1,5 +1,6 @@
 import { resolveLimiter, resolvePolicy, resolveTransport, type Env, type RequestPolicy, type TransportConfig } from "./config";
 import { leadEmail } from "./email";
+import { NOTIFY_PENDING_GRACE_MS } from "./notify-retry";
 import { FORM_TOKEN_HEADER } from "./form-token";
 import { contentHash, payloadHash } from "./hash";
 import { clientIp } from "./ip";
@@ -341,17 +342,24 @@ async function handle(request: Request, opts: HandleLeadOptions, log: LeadLogger
   }
   if (!stored.inserted) {
     if (stored.samePayload) {
-      // Double-click or retry: the same lead, already notified the first time.
-      // A scored form's result is recomputed from identical answers, so it
-      // matches what was stored.
-      log("info", "duplicate", ids);
-      return reply(parsed.body, 200);
+      // Double-click or retry: the same lead. A scored form's result is
+      // recomputed from identical answers, so it matches what was stored.
+      // CH-8: if its email never went out — 'failed', or 'pending' past the
+      // grace period (the first request died after the insert) — this
+      // resubmit sends it now, with the same idempotency key.
+      const age = stored.createdAt ? Date.now() - stored.createdAt.getTime() : 0;
+      const unsent = stored.notifyStatus === "failed" || (stored.notifyStatus === "pending" && age > NOTIFY_PENDING_GRACE_MS);
+      if (!unsent || !transport.notifier) {
+        log("info", "duplicate", ids);
+        return reply(parsed.body, 200);
+      }
+      log("info", "duplicate_unsent", { ...ids, notify: stored.notifyStatus ?? "unknown" });
+    } else {
+      // Same id, different content: refuse rather than drop the edit (AEGIS L2).
+      log("warn", "conflict", ids);
+      return fail({ ok: false, error: { code: "conflict" } }, 409);
     }
-    // Same id, different content: refuse rather than drop the edit (AEGIS L2).
-    log("warn", "conflict", ids);
-    return fail({ ok: false, error: { code: "conflict" } }, 409);
   }
-
   // 8. Notify. Failure is recorded, not shown (Brief §6.2).
   let notify: "sent" | "failed" | "disabled" = "disabled";
   if (transport.notifier) {

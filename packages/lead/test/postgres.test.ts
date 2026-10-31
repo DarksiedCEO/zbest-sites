@@ -89,7 +89,7 @@ describe.skipIf(!url)("postgres store (integration)", () => {
     expect(results.filter((r) => r.inserted)).toHaveLength(1);
     expect(results.filter((r) => !r.inserted && "samePayload" in r && r.samePayload)).toHaveLength(2);
     // Same id, changed content: reported as a conflict, never stored over the first.
-    expect(await store.insert({ ...record, payload: { name: "Edited" }, payload_hash: payloadHash({ name: "Edited" }) })).toEqual({
+    expect(await store.insert({ ...record, payload: { name: "Edited" }, payload_hash: payloadHash({ name: "Edited" }) })).toMatchObject({
       inserted: false,
       samePayload: false,
     });
@@ -137,6 +137,72 @@ describe.skipIf(!url)("postgres store (integration)", () => {
     // Older than the window: no longer a duplicate.
     await sql`UPDATE leads SET created_at = now() - interval '25 hours' WHERE content_hash = ${content}`;
     expect(await store.insert(rec())).toEqual({ inserted: true });
+  });
+
+  it("CH-9: a lock on the leads table fails the insert fast (lock/statement timeout), never hangs", async () => {
+    const store = postgresStore(opts(url!), { statementTimeoutMs: 1_000 });
+    const locker = connect(url!);
+    let release!: () => void;
+    const held = new Promise<void>((r) => (release = r));
+    let locked!: () => void;
+    const isLocked = new Promise<void>((r) => (locked = r));
+    const lock = locker.begin(async (tx) => {
+      await tx`LOCK TABLE leads IN ACCESS EXCLUSIVE MODE`;
+      locked();
+      await held;
+    });
+    await isLocked;
+    const started = Date.now();
+    const error = await store
+      .insert({
+        submission_id: randomUUID(), app: "zbm", form: "x", payload: {}, payload_hash: "h", content_hash: randomUUID(),
+        services: [], source: null, service_area: "US-CA", user_agent: null,
+      })
+      .catch((e: unknown) => e);
+    const took = Date.now() - started;
+    release();
+    await lock;
+    await locker.end();
+    expect(error).toBeInstanceOf(DeliveryError);
+    expect(["55P03", "57014"]).toContain((error as DeliveryError).detail);
+    expect(took).toBeLessThan(4_000);
+  });
+
+  it("CH-8: the outbox — failed and stale pending rows are claimed once (lease), backoff and grace respected; a duplicate reports its email state", async () => {
+    const store = postgresStore(opts(url!));
+    const app = "zbc" as const; // its own app, so other tests' rows do not interfere
+    await sql`DELETE FROM leads WHERE app = 'zbc'`;
+    const row = (id = randomUUID()) => ({
+      submission_id: id, app, form: "start", payload: { n: id }, payload_hash: id, content_hash: id,
+      services: [], source: null, service_area: "US-CA", user_agent: null,
+    });
+    const failed = row();
+    const freshPending = row();
+    const stalePending = row();
+    const backedOff = row();
+    const sent = row();
+    for (const r of [failed, freshPending, stalePending, backedOff, sent]) expect((await store.insert(r)).inserted).toBe(true);
+    await store.setNotifyStatus(app, failed.submission_id, "failed");
+    await store.setNotifyStatus(app, backedOff.submission_id, "failed", new Date(Date.now() + 3_600_000));
+    await store.setNotifyStatus(app, sent.submission_id, "sent");
+    await sql`UPDATE leads SET created_at = now() - interval '10 minutes' WHERE submission_id = ${stalePending.submission_id}::uuid`;
+
+    const dup = await store.insert(failed);
+    expect(dup).toMatchObject({ inserted: false, samePayload: true, notifyStatus: "failed" });
+
+    const claimOpts = { pendingBefore: new Date(Date.now() - 5 * 60_000), maxAttempts: 10, limit: 50 };
+    const [a, b] = await Promise.all([store.claimUnsent(app, claimOpts), store.claimUnsent(app, claimOpts)]);
+    const claimed = [...a, ...b].map((r) => r.submission_id).sort();
+    expect(claimed).toEqual([failed.submission_id, stalePending.submission_id].sort());
+    expect([...a, ...b].find((r) => r.submission_id === failed.submission_id)?.notify_attempts).toBe(1);
+    // Leased: a third run finds nothing.
+    expect(await store.claimUnsent(app, claimOpts)).toEqual([]);
+
+    const purger = postgresPurger(opts(url!));
+    expect(await purger.unsentOlderThan(app, new Date(Date.now() + 60_000))).toBe(4);
+    await store.setNotifyStatus(app, failed.submission_id, "sent");
+    expect(await purger.unsentOlderThan(app, new Date(Date.now() + 60_000))).toBe(3);
+    await sql`DELETE FROM leads WHERE app = 'zbc'`;
   });
 
   it("the table rejects an unknown app, and the error surfaces as a SQLSTATE only", async () => {

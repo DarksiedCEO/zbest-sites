@@ -66,8 +66,8 @@ const BASE = {
   created_at: "timestamp with time zone",
 };
 
-/** After every migration: exactly what the app writes (004 adds the service area, 006 the content hash). */
-const EXPECTED = { ...BASE, service_area: "text", content_hash: "text" };
+/** After every migration: exactly what the app writes (004 service area, 006 content hash, 007 notify outbox). */
+const EXPECTED = { ...BASE, service_area: "text", content_hash: "text", notify_attempts: "integer", notify_next_at: "timestamp with time zone" };
 
 /**
  * Which URL to migrate with (AEGIS r3 F3). A transaction-mode pooler
@@ -156,7 +156,10 @@ try {
     // EXISTS; check it BEFORE applying anything, so the report names the
     // mismatch instead of a later DDL error masking it (AEGIS r2 N5).
     const [existing] = await tx`SELECT to_regclass('leads') IS NOT NULL AS present`;
-    if (!done.has("001") && existing?.present) await checkColumns(tx, BASE);
+    // Also when 001 is recorded (CH-8 review): a later migration's DDL that
+    // names a missing 001 column (007's partial index) must not mask the
+    // report with a bare SQLSTATE.
+    if (existing?.present) await checkColumns(tx, BASE);
     // The file-name regex is what makes the first three characters a version.
     for (const file of readdirSync(dir).filter((f) => /^\d{3}_.+\.sql$/.test(f)).sort()) {
       const version = file.slice(0, 3);

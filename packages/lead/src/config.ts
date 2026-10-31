@@ -9,7 +9,7 @@ import type { LeadLogger } from "./log";
 import { postgresStore } from "./postgres";
 import { memoryLimiter, parseRateLimit, restLimiter, DEFAULT_RATE_LIMIT, type RateLimitSpec } from "./rate-limit";
 import { resendNotifier } from "./resend";
-import type { LeadNotifier, LeadStore, RateLimiter } from "./types";
+import type { LeadNotifier, LeadStore, NotifyOutbox, RateLimiter } from "./types";
 
 /**
  * Which implementation sits behind each port, decided by env and nothing else.
@@ -35,6 +35,8 @@ export type Transport = {
   hashIp: (ip: string) => string;
   /** Issues and checks the form token every POST must carry (RTS-3). */
   formTokens: FormTokens;
+  /** The unsent-email outbox the retry cron reads (CH-8); the same store. */
+  outbox?: NotifyOutbox;
 };
 
 export type TransportConfig = { ok: true; transport: Transport } | { ok: false; missing: string[] };
@@ -149,11 +151,13 @@ function resolveTransportUnsafe(env: Env): TransportConfig {
     const notify = resolveNotifyMode(env, missing);
     if (missing.length) return { ok: false, missing };
     const dir = set(env, "ZBEST_LEAD_FAKE_OUTBOX");
+    const store = fakeStore(dir);
     return {
       ok: true,
       transport: {
         mode: "fake",
-        store: fakeStore(dir),
+        store,
+        outbox: store,
         notifier: notify === "disabled" ? null : fakeNotifier(dir, ["founder@fake.invalid"]),
         hashIp: hmacIp("fake-transport-not-a-secret"),
         // Derived from the gate's per-run nonce, so the gate can mint tokens for its direct posts.
@@ -190,11 +194,13 @@ function resolveTransportUnsafe(env: Env): TransportConfig {
   }
 
   if (missing.length || !pg?.ok) return { ok: false, missing };
+  const store = postgresStore(pg.options);
   return {
     ok: true,
     transport: {
       mode: "live",
-      store: postgresStore(pg.options),
+      store,
+      outbox: store,
       notifier,
       hashIp: hmacIp(secret),
       formTokens: formTokens(formSecret || secret),
