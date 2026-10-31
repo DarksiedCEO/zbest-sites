@@ -85,4 +85,4 @@ At each phase gate, use NVDA with Firefox or Chrome on Windows, VoiceOver with S
 - m10: without JavaScript, the mobile menu and the FAQ answers cannot be reached.
 - Not executed: 200% text-only zoom (1.4.4) and Windows High Contrast / forced-colors.
 - The 1.4.11 border check reads background colours, not background images or gradients. A control placed over an image would need a manual check.
-- The accessibility statement page (`/legal/accessibility`) is on the legal branch, not this one.
+- The public accessibility statement (`/legal/accessibility`, text in `apps/zbm/lib/legal.ts`) mirrors this file: its "Known limitations" are the open items above, and it claims no screen-reader testing. Change both in the same commit.
