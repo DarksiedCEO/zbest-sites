@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { LedgerRule } from "./ledger-rule";
 
 export type ConsentChoice = "accepted-all" | "rejected-non-essential";
@@ -37,15 +37,33 @@ const gpcOn = () => {
  * the visitor chose; wiring it to real tags is the job of whoever adds the first
  * tag, and they must read it before loading anything non-essential.
  *
- * Category descriptions below are PLACEHOLDER text pending attorney review
- * (CLAUDE.md, Brief §5) and are marked as such in the UI.
+ * ZBM's in-effect Cookie Policy (Oct 30 2026) PROMISES two things that tag
+ * must deliver: (1) the policy is updated before the tag goes live, and (2)
+ * every visitor is asked again — a choice made while nothing optional existed
+ * is not consent to the new tool. So the first tag also adds a consent
+ * version to the stored value and re-shows the banner when it does not match.
+ *
+ * Every visible string about what is stored comes from the app (summary,
+ * categories, detailNotice): this shared module carries no site-specific or
+ * status text, so nothing one site says is bundled into the other.
  */
+export type ConsentCategory = { name: string; body: string };
+
 export function CookieConsent({
   policyHref = "/legal/cookie-policy",
   className = "",
+  summary,
+  categories,
+  detailNotice,
 }: {
   policyHref?: string;
   className?: string;
+  /** The banner sentence. Each app supplies text that matches its site. */
+  summary: string;
+  /** The "What we store" rows. Each app supplies its own. */
+  categories: ConsentCategory[];
+  /** Optional app-supplied line shown above the rows in the detail panel. */
+  detailNotice?: ReactNode;
 }) {
   const [visible, setVisible] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
@@ -151,8 +169,7 @@ export function CookieConsent({
               Cookies on this site
             </p>
             <p className="type-small mt-1.5 max-w-prose text-text-secondary">
-              We use strictly necessary cookies to run the site. Analytics and
-              advertising cookies are optional and off unless you accept them.{" "}
+              {summary}{" "}
               <Link href={policyHref} className="underline underline-offset-4">
                 Cookie Policy
               </Link>
@@ -195,24 +212,9 @@ export function CookieConsent({
         </div>
 
         <div id="cookie-consent-detail" hidden={!showDetail} className="mt-5">
-          <p className="type-label mb-3 text-accent">
-            Draft — pending attorney review. Not yet in effect.
-          </p>
+          {detailNotice ? <p className="type-label mb-3 text-accent">{detailNotice}</p> : null}
           <LedgerRule />
-          {[
-            {
-              name: "Strictly necessary",
-              body: "Required for the site to function. Cannot be switched off. Placeholder description.",
-            },
-            {
-              name: "Analytics",
-              body: "Traffic measurement so we can see which pages do their job. Placeholder description.",
-            },
-            {
-              name: "Advertising",
-              body: "Used to measure and retarget advertising campaigns. Placeholder description.",
-            },
-          ].map((row, i, all) => (
+          {categories.map((row, i, all) => (
             <div key={row.name}>
               <div className="flex flex-col gap-1 py-ledger sm:flex-row sm:gap-8">
                 <p className="type-label w-44 shrink-0 text-text-secondary">
