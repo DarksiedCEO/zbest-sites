@@ -90,7 +90,8 @@ function Stage({ hero }: { hero: ReactNode }) {
 
   return (
     <div ref={ref} className="h-full">
-      <div className="lg:motion-safe:sticky lg:motion-safe:top-0 lg:motion-safe:flex lg:motion-safe:h-screen lg:motion-safe:items-center">
+      {/* Top-aligned under the nav, so the whole reel and its legend fit a 900px-tall viewport. */}
+      <div className="lg:motion-safe:sticky lg:motion-safe:top-0 lg:motion-safe:h-screen">
         <div className="mx-auto w-full max-w-[90rem] px-gutter pt-section lg:px-gutter-wide lg:pb-6 lg:pt-20">
           <div className="grid gap-stack lg:grid-cols-12 lg:items-center lg:gap-x-10">
             <div className="lg:col-span-5">{hero}</div>
