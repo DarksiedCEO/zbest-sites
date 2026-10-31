@@ -56,8 +56,10 @@ post. The levers a client controls are reward rate (per 1,000 verified views),
 minimum payout threshold, maximum payout cap, and an optional flat fee bonus.
 
 Clipper payout differs by model — Entertainment pays per 1,000 verified views;
-Brands, having no audience upside for the creator, pays a guaranteed flat fee per
-approved post plus a per-1,000-view performance bonus.
+Brands, having no audience upside for the creator, pays a flat fee per approved
+post plus a per-1,000-view performance bonus. Never "guaranteed" on the site (red
+team RTS-6): rates are set per campaign when campaigns open, and every paid clip
+must carry #ad or the platform's paid-partnership label (FTC, 16 CFR Part 255).
 
 ## Capabilities and Constraints
 
@@ -100,7 +102,7 @@ with a mailto: hello@zbestmedia.com link, and /api/lead answers 410.
 - **"Browse Active Campaigns" has nothing to browse.** Until a real campaign exists
   it opens the clipper waitlist form, labeled "Join the clipper list — we'll notify
   you when the first campaigns open."
-- **Clipper rates are an opening range, explicitly provisional:** $50–100 guaranteed
+- **Clipper rates are an opening range, explicitly provisional:** $50–100
   flat fee per approved post, $3–5 per 1,000 views bonus, subject to adjustment as
   real campaigns establish what is sustainable.
 - **Brand asset download pack does not exist yet.** The Media Kit page reads "Assets

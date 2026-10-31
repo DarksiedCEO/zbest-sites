@@ -322,8 +322,21 @@ test.describe("Become a Clipper (§B4)", () => {
     expect(await cards.nth(0).evaluate((el) => getComputedStyle(el).borderLeftColor)).toBe(ENT);
     expect(await cards.nth(1).evaluate((el) => getComputedStyle(el).borderLeftColor)).toBe(BRAND);
     const rates = page.locator("[data-starting-rates]");
-    await expect(rates).toContainText("$50–100 guaranteed flat fee per approved post");
-    await expect(rates).toContainText("$3–5 per 1,000 views bonus");
+    await expect(rates).toContainText("$50–100 flat fee per approved post");
+    await expect(rates).toContainText("$3–5 per 1,000 verified views bonus");
+    // RTS-6: no guaranteed pay; rates are set per campaign.
+    await expect(rates).toContainText("Rates are set per campaign when campaigns open");
+    expect(await mainText(page)).not.toMatch(/guarantee/i);
+  });
+
+  test("RTS-6: clippers are told every paid clip must be disclosed (#ad / paid partnership, 16 CFR Part 255)", async ({ page }) => {
+    await visit(page, byPath("/become-a-clipper"));
+    const rule = page.locator("#disclosure [data-disclosure-rule]");
+    await expect(rule).toContainText("#ad");
+    await expect(rule).toContainText("paid-partnership label");
+    await expect(rule).toContainText("FTC");
+    await expect(rule).toContainText("16 CFR Part 255");
+    await expect(rule).toContainText("not approved or paid");
   });
 
   test("RTS-1: until ZBC's privacy policy is published, the waitlist is a message and an email link — no form, nothing posted", async ({ page }) => {
@@ -421,7 +434,7 @@ test.describe("Copy revision (ZBC gate CONDITIONAL at c35ee1d — founder ruling
     expect(desc).not.toMatch(/[Hh]undreds of/);
   });
 
-  test("nothing claims creators are paid only on views — Brands carry a guaranteed per-post fee", async ({ page }) => {
+  test("nothing claims creators are paid only on views — Brands carry a per-post fee (never 'guaranteed', RTS-6)", async ({ page }) => {
     for (const path of ["/pricing", "/faq"]) {
       await visit(page, byPath(path));
       const text = await mainText(page);
@@ -485,7 +498,7 @@ test.describe("Copy revision (ZBC gate CONDITIONAL at c35ee1d — founder ruling
 });
 
 test.describe("Media Kit (§B4)", () => {
-  test("facts as ledger rows, assets on request, press address a labeled non-link placeholder", async ({ page }) => {
+  test("facts as ledger rows, assets on request, press contact a real address (RTS-11: no placeholder)", async ({ page }) => {
     await visit(page, byPath("/media-kit"));
     const rows = await page.evaluate(() =>
       [...document.querySelectorAll("#facts dt")].map((dt) => dt.textContent?.trim()),
@@ -493,10 +506,9 @@ test.describe("Media Kit (§B4)", () => {
     expect(rows).toEqual(["Parent", "Launched", "Models", "Platforms", "Payout basis"]);
     await expect(page.locator("#assets")).toContainText("Assets available on request.");
     const press = page.locator("#press");
-    await expect(press).toContainText("press@zbestclips.com");
-    await expect(press.locator("[data-fixture-note]")).toContainText("Placeholder");
-    // The mailbox does not exist, so nothing may offer to send mail to it.
-    expect(await page.locator('a[href^="mailto:"]').count()).toBe(0);
+    await expect(press.getByRole("link", { name: "hello@zbestmedia.com" })).toHaveAttribute("href", "mailto:hello@zbestmedia.com");
+    await expect(press).not.toContainText("press@zbestclips.com");
+    expect(await mainText(page)).not.toMatch(/placeholder|does not exist|guarantee/i);
     // Company voice: no founder name (§B4).
     expect(await mainText(page)).not.toMatch(/Zack/);
   });
@@ -511,7 +523,10 @@ test.describe("FAQ (§B4)", () => {
     await paid.click();
     await expect(paid).toHaveAttribute("aria-expanded", "true");
     const panel = page.locator(`#${await paid.getAttribute("aria-controls")}`);
-    await expect(panel).toHaveText("Entertainment: per 1,000 verified views. Brands: guaranteed flat fee + performance bonus.");
+    await expect(panel).toHaveText(
+      "Entertainment: per 1,000 verified views. Brands: a flat fee per approved post plus a performance bonus. Rates are set per campaign when campaigns open.",
+    );
+    expect(await mainText(page)).not.toMatch(/guarantee/i);
   });
 });
 

@@ -1,5 +1,5 @@
 import { pageMetadata, StatBlock } from "@zbest/ui";
-import { FixtureNote, Lead, PageHeader, PageSection } from "@/components/page";
+import { Lead, PageHeader, PageSection } from "@/components/page";
 import { SITE } from "@/lib/site";
 
 export const metadata = pageMetadata(SITE, {
@@ -15,10 +15,9 @@ export const metadata = pageMetadata(SITE, {
  *
  * Brand assets: the download pack waits for the final wordmark, so the page
  * reads "Assets available on request." exactly as §B4 says.
- * Press contact: press@zbestclips.com does not exist yet (§B4 build note). It
- * is shown as plain text, not a mailto link, and labeled a placeholder
- * (carry-over approved by the founder, Phase 4). Create the alias or replace it
- * before launch.
+ * Press contact: press@zbestclips.com does not exist (§B4 build note), so the
+ * page gives Z Best Media's monitored address instead (red team RTS-11: no
+ * public "placeholder" text). Switch to a ZBC press address once it exists.
  */
 export default function MediaKitPage() {
   return (
@@ -57,7 +56,7 @@ export default function MediaKitPage() {
             { label: "Launched", value: "2026" },
             { label: "Models", value: "Rented distribution (Entertainment) · Owned distribution (Brands)" },
             { label: "Platforms", value: "TikTok · Instagram Reels · YouTube Shorts" },
-            { label: "Payout basis", value: "Per 1,000 verified views; brand campaigns add a guaranteed per-post fee" },
+            { label: "Payout basis", value: "Per 1,000 verified views; brand campaigns add a per-post fee. Rates are set per campaign." },
           ]}
         />
       </PageSection>
@@ -67,10 +66,11 @@ export default function MediaKitPage() {
       </PageSection>
 
       <PageSection id="press" label="Press contact">
-        <p className="type-mono text-text-primary" data-placeholder>
-          press@zbestclips.com
+        <p className="type-mono text-text-primary">
+          <a href="mailto:hello@zbestmedia.com" className="underline underline-offset-4">
+            hello@zbestmedia.com
+          </a>
         </p>
-        <FixtureNote>Placeholder — this mailbox does not exist yet.</FixtureNote>
       </PageSection>
 
       <PageSection id="policy" label="What we can and can’t say">
