@@ -66,8 +66,8 @@ const BASE = {
   created_at: "timestamp with time zone",
 };
 
-/** After every migration: exactly what the app writes (004 adds the service area). */
-const EXPECTED = { ...BASE, service_area: "text" };
+/** After every migration: exactly what the app writes (004 adds the service area, 006 the content hash). */
+const EXPECTED = { ...BASE, service_area: "text", content_hash: "text" };
 
 /**
  * Which URL to migrate with (AEGIS r3 F3). A transaction-mode pooler

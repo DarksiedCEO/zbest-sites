@@ -3,6 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 import path from "node:path";
 import { captureFullPage } from "../capture";
 import { ZBC_BASE_URL } from "../playwright.config";
+import { formTokenHeader } from "../support/form-token";
 
 /**
  * Phase 4 gate — Z Best Clips chunk (Brief §3.4, §B4). Pages in brief order:
@@ -413,7 +414,7 @@ test.describe("Launch a Campaign (§B4)", () => {
 test.describe("Lead route (§6.2, ZBC)", () => {
   const id = "5f0c2b8e-4f7a-4c1e-9d7b-0f5d3a2b1c9e";
   const post = (page: Page, data: unknown) =>
-    page.request.post(`${ZBC_BASE_URL}/api/lead`, { data, failOnStatusCode: false });
+    page.request.post(`${ZBC_BASE_URL}/api/lead`, { headers: formTokenHeader(), data, failOnStatusCode: false });
 
   test("rejects ZBM's form names and unknown focus or platform values", async ({ page }) => {
     expect((await post(page, { form: "contact", submission_id: id, fields: {} })).status()).toBe(400);

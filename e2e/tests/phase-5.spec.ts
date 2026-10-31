@@ -3,6 +3,7 @@ import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { ZBM_BASE_URL } from "../playwright.config";
 import { formReady } from "../support/ready";
+import { formTokenHeader } from "../support/form-token";
 
 /**
  * Phase 5 gate — the free assessment chunk (Brief §6.3; Backend Spec v0.3 §11;
@@ -107,7 +108,7 @@ function request(answers: Answers, overrides: Record<string, unknown> = {}) {
 }
 
 const post = (page: Page, data: unknown) =>
-  page.request.post(`${ZBM_BASE_URL}/api/lead`, { data, failOnStatusCode: false });
+  page.request.post(`${ZBM_BASE_URL}/api/lead`, { headers: formTokenHeader(), data, failOnStatusCode: false });
 
 async function score(page: Page, answers: Answers) {
   const res = await post(page, request(answers));

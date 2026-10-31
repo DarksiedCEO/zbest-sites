@@ -165,3 +165,31 @@ export function parsePostgresUrl(raw: string): PgUrlResult {
     },
   };
 }
+
+/**
+ * Red team RTS-8: in production a connection to a remote database must be
+ * encrypted AND verify the server's certificate (the Privacy Policy says
+ * submissions travel to the database over encrypted connections).
+ *   - `disable` is refused (AEGIS r2 L5);
+ *   - `allow` / `prefer` are refused: they fall back to plaintext;
+ *   - `require` (and no sslmode, which defaults to it) is upgraded to
+ *     `verify-full`: the driver's `require` sets rejectUnauthorized=false,
+ *     i.e. unverified TLS. Neon's certificates chain to public CAs, so its
+ *     default `?sslmode=require` URL verifies without any change;
+ *   - `sslmode=no-verify` and any `rejectUnauthorized` parameter never parse.
+ * A loopback host is exempt (TLS is pointless there), and nothing changes
+ * outside production.
+ */
+export function productionPg(options: PgOptions, production: boolean): PgUrlResult {
+  if (!production || isLocalHost(options.host)) return { ok: true, options };
+  if (options.ssl === false) return { ok: false, reason: "sslmode-disable-refused-in-production" };
+  if (options.ssl === "prefer") return { ok: false, reason: "sslmode-unverified-refused-in-production" };
+  if (options.ssl === "require") return { ok: true, options: { ...options, ssl: "verify-full" } };
+  return { ok: true, options };
+}
+
+/** parsePostgresUrl, then the production TLS rule. What the app, the purge and the health check connect with. */
+export function resolvePg(raw: string, env: Record<string, string | undefined>): PgUrlResult {
+  const parsed = parsePostgresUrl(raw);
+  return parsed.ok ? productionPg(parsed.options, env.NODE_ENV === "production") : parsed;
+}

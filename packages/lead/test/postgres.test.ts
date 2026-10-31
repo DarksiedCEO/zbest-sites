@@ -79,6 +79,7 @@ describe.skipIf(!url)("postgres store (integration)", () => {
       form: "start",
       payload: { name: "Ada", services: ["out-of-home"], nested: { a: 1 } },
       payload_hash: payloadHash({ name: "Ada" }),
+      content_hash: randomUUID(),
       services: ["out-of-home", "tv-streaming"],
       source: "bb-i405",
       service_area: "PR",
@@ -86,7 +87,7 @@ describe.skipIf(!url)("postgres store (integration)", () => {
     };
     const results = await Promise.all([store.insert(record), store.insert(record), store.insert(record)]);
     expect(results.filter((r) => r.inserted)).toHaveLength(1);
-    expect(results.filter((r) => !r.inserted && r.samePayload)).toHaveLength(2);
+    expect(results.filter((r) => !r.inserted && "samePayload" in r && r.samePayload)).toHaveLength(2);
     // Same id, changed content: reported as a conflict, never stored over the first.
     expect(await store.insert({ ...record, payload: { name: "Edited" }, payload_hash: payloadHash({ name: "Edited" }) })).toEqual({
       inserted: false,
@@ -114,10 +115,28 @@ describe.skipIf(!url)("postgres store (integration)", () => {
   it("the same submission_id in the other app is a different lead (key is per app)", async () => {
     const store = postgresStore(opts(url!));
     const id = randomUUID();
-    const base = { submission_id: id, form: "x", payload: {}, payload_hash: "h1", services: [], source: null, service_area: "US-CA", user_agent: null };
+    const base = { submission_id: id, form: "x", payload: {}, payload_hash: "h1", content_hash: randomUUID(), services: [], source: null, service_area: "US-CA", user_agent: null };
     expect((await store.insert({ ...base, app: "zbm" })).inserted).toBe(true);
     expect((await store.insert({ ...base, app: "zbc" })).inserted).toBe(true);
     expect((await store.insert({ ...base, app: "zbc" })).inserted).toBe(false);
+  });
+
+  it("RTS-3: the same content under a new submission_id within 24 h is one row; racing copies too; another app is separate", async () => {
+    const store = postgresStore(opts(url!));
+    const content = randomUUID();
+    const rec = (app: "zbm" | "zbc" = "zbm") => ({
+      submission_id: randomUUID(), app, form: "start", payload: { n: content }, payload_hash: content, content_hash: content,
+      services: [], source: null, service_area: "US-CA", user_agent: null,
+    });
+    const results = await Promise.all([store.insert(rec()), store.insert(rec()), store.insert(rec())]);
+    expect(results.filter((r) => r.inserted)).toHaveLength(1);
+    expect(results.filter((r) => "duplicateOf" in r)).toHaveLength(2);
+    expect(await store.insert(rec("zbc"))).toEqual({ inserted: true });
+    const rows = await sql`SELECT app, content_hash FROM leads WHERE content_hash = ${content} ORDER BY app`;
+    expect(rows.map((r) => r.app)).toEqual(["zbc", "zbm"]);
+    // Older than the window: no longer a duplicate.
+    await sql`UPDATE leads SET created_at = now() - interval '25 hours' WHERE content_hash = ${content}`;
+    expect(await store.insert(rec())).toEqual({ inserted: true });
   });
 
   it("the table rejects an unknown app, and the error surfaces as a SQLSTATE only", async () => {
@@ -129,6 +148,7 @@ describe.skipIf(!url)("postgres store (integration)", () => {
         form: "x",
         payload: { secret: "PII-VALUE" },
         payload_hash: "h",
+        content_hash: randomUUID(),
         services: [],
         source: null,
         service_area: "US-CA",
@@ -149,6 +169,7 @@ describe.skipIf(!url)("postgres store (integration)", () => {
         form: "x",
         payload: {},
         payload_hash: "h",
+        content_hash: randomUUID(),
         services: [],
         source: null,
         service_area: "US-CA",
@@ -230,6 +251,7 @@ describe.skipIf(!neonShaped)("postgres store with a Neon-shaped URL (TLS + SCRAM
       form: "clipper",
       payload: { name: "TLS" },
       payload_hash: "h",
+      content_hash: randomUUID(),
       services: [],
       source: null,
       service_area: "US-CA",
@@ -606,6 +628,7 @@ describe.skipIf(!neonShaped)("TLS modes and startup options (integration)", () =
         form: "tls-check",
         payload: {},
         payload_hash: "h",
+        content_hash: randomUUID(),
         services: [],
         source: null,
         service_area: "US-CA",

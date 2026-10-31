@@ -1,4 +1,4 @@
-import { failureOf, type LeadErrorBody, type LeadFailure } from "@zbest/ui/lead/contract";
+import { failureOf, postLead, type LeadErrorBody, type LeadFailure } from "@zbest/ui/lead/contract";
 import { REGION, REGION_FIELD_NAME } from "@zbest/lead/region";
 import { z } from "zod";
 import { LEAD_FIELDS } from "@/lib/lead";
@@ -106,11 +106,7 @@ export async function submitAssessment(request: z.input<typeof ASSESSMENT_REQUES
 
   let response: Response;
   try {
-    response = await fetch("/api/lead", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(local.data),
-    });
+    response = await postLead(local.data);
   } catch {
     return { status: "failed", reason: "failed" };
   }

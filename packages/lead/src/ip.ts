@@ -33,8 +33,12 @@ export function ipSourceFor(header: (typeof TRUSTED_PROXY_HEADERS)[number], hops
 
 export const VERCEL_IP_SOURCE: IpSource = { header: "x-vercel-forwarded-for", hop: "only" };
 
-/** A normalised client address: `key` (port-free, IPv6 by /64) is what the rate limit HMACs. */
-export type ClientAddress = { address: string; key: string };
+/**
+ * A normalised client address: `key` (port-free, IPv6 by /64) is what the
+ * rate limit HMACs. `net` (IPv6 only) is its /48, a second bucket (red team
+ * RTS-3: one cheap /48 allocation holds 65,536 /64s).
+ */
+export type ClientAddress = { address: string; key: string; net?: string };
 
 /**
  * AEGIS r4 R2: one client, one key.
@@ -74,7 +78,7 @@ export function normalizeIp(raw: string): ClientAddress | null {
     const embedded = embeddedIpv4(groups);
     if (embedded) return { address: embedded, key: `v4:${embedded}` };
     const address = groups.join(":");
-    return { address, key: `v6/64:${groups.slice(0, 4).join(":")}` };
+    return { address, key: `v6/64:${groups.slice(0, 4).join(":")}`, net: `v6/48:${groups.slice(0, 3).join(":")}` };
   }
   return null;
 }

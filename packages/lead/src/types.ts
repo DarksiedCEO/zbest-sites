@@ -16,6 +16,12 @@ export type LeadRecord = {
   payload: Record<string, unknown>;
   /** SHA-256 of the canonical payload: tells a retry from a changed resubmission. */
   payload_hash: string;
+  /**
+   * SHA-256 of the NORMALISED content (form, region, payload; case, spacing
+   * and Unicode form ignored): the same message sent again under a new
+   * submission_id within DEDUPE_WINDOW_HOURS is one lead (RTS-3).
+   */
+  content_hash: string;
   /** FULL-SERVICE-DESIGN §4.1: a column, not only inside the payload. */
   services: string[];
   /** Campaign tag from ?src= / ?utm_campaign=, lowercase, or null. */
@@ -33,7 +39,14 @@ export type NotifyStatus = "pending" | "sent" | "failed" | "disabled";
  * different payload it is a conflicting resubmission, which the pipeline
  * refuses (409) rather than silently dropping the edit (AEGIS L2).
  */
-export type InsertResult = { inserted: true } | { inserted: false; samePayload: boolean };
+export type InsertResult =
+  | { inserted: true }
+  | { inserted: false; samePayload: boolean }
+  /** The same normalised content from this app within DEDUPE_WINDOW_HOURS: nothing new stored (RTS-3). */
+  | { inserted: false; duplicateOf: "content" };
+
+/** How long an identical normalised submission counts as the same lead. */
+export const DEDUPE_WINDOW_HOURS = 24;
 
 export interface LeadStore {
   /** Upsert on (app, submission_id). */

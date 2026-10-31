@@ -1,7 +1,7 @@
 import postgres from "postgres";
 import type { PgOptions } from "./pg-url";
 import type { LeadPurger, PurgeLedger, PurgeResult } from "./retention";
-import { DeliveryError, type InsertResult, type LeadApp, type LeadRecord, type LeadStore, type NotifyStatus } from "./types";
+import { DEDUPE_WINDOW_HOURS, DeliveryError, type InsertResult, type LeadApp, type LeadRecord, type LeadStore, type NotifyStatus } from "./types";
 
 /**
  * Brief §6.2 store: one row per lead in the `leads` table
@@ -69,22 +69,36 @@ export function postgresStore(options: PgOptions): LeadStore {
   return {
     async insert(record: LeadRecord): Promise<InsertResult> {
       try {
-        const rows = await sql`
-          INSERT INTO leads
-            (submission_id, app, form, payload, payload_hash, services, source, service_area, user_agent)
-          VALUES (
-            ${record.submission_id}::uuid, ${record.app}, ${record.form},
-            ${sql.json(record.payload as postgres.JSONValue)}::jsonb, ${record.payload_hash},
-            ARRAY(SELECT jsonb_array_elements_text(${sql.json(record.services)}::jsonb)),
-            ${record.source}, ${record.service_area}, ${record.user_agent}
-          )
-          ON CONFLICT (app, submission_id) DO NOTHING
-          RETURNING id`;
-        if (rows.length === 1) return { inserted: true };
-        const [existing] = await sql`
-          SELECT payload_hash FROM leads
-          WHERE app = ${record.app} AND submission_id = ${record.submission_id}::uuid`;
-        return { inserted: false, samePayload: existing?.payload_hash === record.payload_hash };
+        // One transaction (red team RTS-3): a transaction-scoped advisory lock
+        // on (app, content_hash) serialises identical submissions, so two
+        // copies racing in parallel still make one lead. The lock lives on
+        // the transaction's single backend, so it holds through a pooler.
+        return (await sql.begin(async (tx) => {
+          await tx`SELECT pg_advisory_xact_lock(hashtextextended(${`${record.app}:${record.content_hash}`}::text, 0))`;
+          const [recent] = await tx`
+            SELECT 1 AS hit FROM leads
+            WHERE app = ${record.app} AND content_hash = ${record.content_hash}
+              AND submission_id <> ${record.submission_id}::uuid
+              AND created_at > now() - make_interval(hours => ${DEDUPE_WINDOW_HOURS}::int)
+            LIMIT 1`;
+          if (recent) return { inserted: false, duplicateOf: "content" } as const;
+          const rows = await tx`
+            INSERT INTO leads
+              (submission_id, app, form, payload, payload_hash, content_hash, services, source, service_area, user_agent)
+            VALUES (
+              ${record.submission_id}::uuid, ${record.app}, ${record.form},
+              ${tx.json(record.payload as postgres.JSONValue)}::jsonb, ${record.payload_hash}, ${record.content_hash},
+              ARRAY(SELECT jsonb_array_elements_text(${tx.json(record.services)}::jsonb)),
+              ${record.source}, ${record.service_area}, ${record.user_agent}
+            )
+            ON CONFLICT (app, submission_id) DO NOTHING
+            RETURNING id`;
+          if (rows.length === 1) return { inserted: true } as const;
+          const [existing] = await tx`
+            SELECT payload_hash FROM leads
+            WHERE app = ${record.app} AND submission_id = ${record.submission_id}::uuid`;
+          return { inserted: false, samePayload: existing?.payload_hash === record.payload_hash } as const;
+        })) as InsertResult;
       } catch (error) {
         throw storeError(error);
       }

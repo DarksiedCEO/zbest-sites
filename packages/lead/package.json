@@ -5,7 +5,9 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./region": "./src/region.ts"
+    "./region": "./src/region.ts",
+    "./text": "./src/text.ts",
+    "./form-token-wire": "./src/form-token-wire.ts"
   },
   "scripts": {
     "lint": "eslint .",

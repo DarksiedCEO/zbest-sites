@@ -3,7 +3,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fakeNotifier, fakeStore } from "./fake";
 import { TRUSTED_PROXY_HEADERS, VERCEL_IP_SOURCE, hmacIp, ipSourceFor, type IpSource } from "./ip";
-import { isLocalHost, parsePostgresUrl } from "./pg-url";
+import { resolvePg } from "./pg-url";
+import { fakeFormTokenSecret, formTokens, type FormTokens } from "./form-token";
 import type { LeadLogger } from "./log";
 import { postgresStore } from "./postgres";
 import { memoryLimiter, parseRateLimit, restLimiter, DEFAULT_RATE_LIMIT, type RateLimitSpec } from "./rate-limit";
@@ -32,6 +33,8 @@ export type Transport = {
   notifier: LeadNotifier | null;
   /** Keyed HMAC of a client address (LEAD_IP_HASH_SECRET). Rate-limit keys only. */
   hashIp: (ip: string) => string;
+  /** Issues and checks the form token every POST must carry (RTS-3). */
+  formTokens: FormTokens;
 };
 
 export type TransportConfig = { ok: true; transport: Transport } | { ok: false; missing: string[] };
@@ -153,23 +156,26 @@ function resolveTransportUnsafe(env: Env): TransportConfig {
         store: fakeStore(dir),
         notifier: notify === "disabled" ? null : fakeNotifier(dir, ["founder@fake.invalid"]),
         hashIp: hmacIp("fake-transport-not-a-secret"),
+        // Derived from the gate's per-run nonce, so the gate can mint tokens for its direct posts.
+        formTokens: formTokens(fakeFormTokenSecret(set(env, "ZBEST_GATE_NONCE"))),
       },
     };
   }
   if (transport !== "") return { ok: false, missing: ["ZBEST_LEAD_TRANSPORT:only-fake-recognised"] };
 
   const url = set(env, "POSTGRES_URL");
-  const pg = url ? parsePostgresUrl(url) : null;
+  // AEGIS r2 L5, red team RTS-8: in production a remote database must be
+  // reached over TLS that verifies its certificate (pg-url.ts productionPg).
+  const pg = url ? resolvePg(url, env) : null;
   if (!pg) missing.push("POSTGRES_URL");
   else if (!pg.ok) missing.push(`POSTGRES_URL:${pg.reason}`);
-  // AEGIS r2 L5: the Privacy Policy says submissions reach the database over
-  // an encrypted connection, so production refuses a remote host with TLS off.
-  else if (pg.options.ssl === false && !isLocalHost(pg.options.host) && env.NODE_ENV === "production") {
-    missing.push("POSTGRES_URL:sslmode-disable-refused-in-production");
-  }
 
   const secret = set(env, "LEAD_IP_HASH_SECRET");
   if (secret.length < 16) missing.push("LEAD_IP_HASH_SECRET:min-16-chars");
+  // RTS-3: the form-token key. Its own secret when set; otherwise derived
+  // from the IP-hash secret under a different label (form-token.ts).
+  const formSecret = set(env, "LEAD_FORM_SECRET");
+  if (formSecret && formSecret.length < 16) missing.push("LEAD_FORM_SECRET:min-16-chars");
 
   const notify = resolveNotifyMode(env, missing);
   let notifier: LeadNotifier | null = null;
@@ -186,7 +192,13 @@ function resolveTransportUnsafe(env: Env): TransportConfig {
   if (missing.length || !pg?.ok) return { ok: false, missing };
   return {
     ok: true,
-    transport: { mode: "live", store: postgresStore(pg.options), notifier, hashIp: hmacIp(secret) },
+    transport: {
+      mode: "live",
+      store: postgresStore(pg.options),
+      notifier,
+      hashIp: hmacIp(secret),
+      formTokens: formTokens(formSecret || secret),
+    },
   };
 }
 
@@ -254,11 +266,22 @@ export function resolvePolicy(env: Env): RequestPolicy {
 const limiters = new Map<string, RateLimiter>();
 
 export type Limiters = {
-  /** Per client address, per app. There is no other bucket (AEGIS r3 F2). */
+  /** Per client address, per app (AEGIS r3 F2). */
   perIp: RateLimiter;
+  /** Per IPv6 /48, per app (red team RTS-3). IPv4 clients have no /48 bucket. */
+  perNet: RateLimiter;
+  /** Every lead this app stores, from anyone, per minute (red team RTS-3). */
+  global: RateLimiter;
   spec: RateLimitSpec;
+  netSpec: RateLimitSpec;
+  globalSpec: RateLimitSpec;
   problem?: string;
 };
+
+/** Default /48 bucket: three times the per-address default over the same window. */
+export const DEFAULT_NET_RATE_LIMIT: RateLimitSpec = { limit: 24, windowSec: 600 };
+/** Default global cap: far above any real day (a handful of leads), low enough that a flood cannot fill the inbox. */
+export const DEFAULT_GLOBAL_LIMIT_PER_MINUTE = 20;
 
 function buildLimiter(spec: RateLimitSpec, env: Env, logger: LeadLogger, tag: string): RateLimiter {
   const restUrl = set(env, "KV_REST_API_URL") || set(env, "UPSTASH_REDIS_REST_URL");
@@ -291,12 +314,33 @@ function buildLimiter(spec: RateLimitSpec, env: Env, logger: LeadLogger, tag: st
  * server instance's memory: on Vercel that is per serverless instance, NOT a
  * global cap. A global cap needs KV — a launch decision (design note §5).
  */
-export function resolveLimiter(env: Env, logger: LeadLogger): Limiters {
+export function resolveLimiter(env: Env, logger: LeadLogger, namespace = ""): Limiters {
+  const problems: string[] = [];
   const parsed = parseRateLimit(env.LEAD_RATE_LIMIT);
+  if (!parsed) problems.push("LEAD_RATE_LIMIT:expected-count/seconds");
   const spec = parsed ?? DEFAULT_RATE_LIMIT;
+
+  const netRaw = env.LEAD_RATE_LIMIT_NET;
+  const netParsed = netRaw === undefined || netRaw.trim() === "" ? DEFAULT_NET_RATE_LIMIT : parseRateLimit(netRaw);
+  if (!netParsed) problems.push("LEAD_RATE_LIMIT_NET:expected-count/seconds");
+  const netSpec = netParsed ?? DEFAULT_NET_RATE_LIMIT;
+
+  const globalRaw = set(env, "LEAD_GLOBAL_LIMIT_PER_MINUTE");
+  let perMinute = DEFAULT_GLOBAL_LIMIT_PER_MINUTE;
+  if (globalRaw !== "") {
+    const n = /^\d{1,6}$/.test(globalRaw) ? Number(globalRaw) : NaN;
+    if (n >= 1 && n <= 100_000) perMinute = n;
+    else problems.push("LEAD_GLOBAL_LIMIT_PER_MINUTE:expected-1-to-100000");
+  }
+  const globalSpec = { limit: perMinute, windowSec: 60 };
+
   return {
-    perIp: buildLimiter(spec, env, logger, "ip"),
+    perIp: buildLimiter(spec, env, logger, `${namespace}ip`),
+    perNet: buildLimiter(netSpec, env, logger, `${namespace}net`),
+    global: buildLimiter(globalSpec, env, logger, `${namespace}global`),
     spec,
-    problem: parsed ? undefined : "LEAD_RATE_LIMIT:expected-count/seconds",
+    netSpec,
+    globalSpec,
+    problem: problems.length ? problems.join(",") : undefined,
   };
 }

@@ -1,10 +1,12 @@
-import { resolveLimiter, resolvePolicy, resolveTransport, type Env, type Limiters, type RequestPolicy, type TransportConfig } from "./config";
+import { resolveLimiter, resolvePolicy, resolveTransport, type Env, type RequestPolicy, type TransportConfig } from "./config";
 import { leadEmail } from "./email";
-import { payloadHash } from "./hash";
+import { FORM_TOKEN_HEADER } from "./form-token";
+import { contentHash, payloadHash } from "./hash";
 import { clientIp } from "./ip";
 import { consoleLogger, type LeadLogger } from "./log";
 import { regionServed, type Region } from "./region";
-import { DeliveryError, type LeadApp, type LeadRecord } from "./types";
+import { cleanJson } from "./text";
+import { DeliveryError, type LeadApp, type LeadRecord, type RateLimiter } from "./types";
 
 /**
  * The one §6.2 lead pipeline both apps' route handlers call. Each app keeps
@@ -14,9 +16,13 @@ import { DeliveryError, type LeadApp, type LeadRecord } from "./types";
  * Order (docs/LEAD-ROUTE-DESIGN.md §4):
  *   content type (415) → origin (403) → declared size (413) → config (503)
  *   → client address from the one trusted header (503 if absent)
- *   → body, capped (413) → JSON → honeypot (not charged) → rate limit (429)
- *   → the app's validation (400/422) → store (upsert on app + submission_id; 409 on a changed
- *   resubmission) → notify → respond
+ *   → body, capped (413) → JSON, cleaned (NUL, lone surrogates, NFC: RTS-7)
+ *   → honeypot (not charged) → rate limit per address, then per IPv6 /48 (429)
+ *   → form token (403 form_expired: RTS-3) → the app's validation (400/422)
+ *   → service area (422) → global per-app cap (429 busy: RTS-3)
+ *   → store (upsert on app + submission_id; 409 on a changed resubmission;
+ *     the same normalised content within 24 h is one lead: RTS-3)
+ *   → notify → respond
  *
  * Honesty rules:
  *   - never claim success unless the row was written (or the identical row
@@ -61,7 +67,22 @@ export type LeadErrorBody =
   | { ok: false; error: { code: "not_configured" } }
   | { ok: false; error: { code: "conflict" } }
   | { ok: false; error: { code: "region_unavailable" } }
+  | { ok: false; error: { code: "form_expired" } }
+  | { ok: false; error: { code: "busy"; retry_after_s: number } }
+  | { ok: false; error: { code: "validation"; fields: Record<string, string> } }
   | { ok: false; error: { code: "unavailable" } };
+
+/**
+ * Store refusals caused by the characters in a submission, not by the
+ * database being down: retrying cannot help, so the visitor is told to change
+ * the text (422) instead of "try again" (RTS-7). cleanJson removes what
+ * causes them today; this covers whatever else Postgres may refuse.
+ *   22P05 untranslatable character (NUL in jsonb) · 22P02 invalid text
+ *   representation (a lone surrogate in JSON) · 22021 invalid byte sequence
+ */
+const CHARACTER_SQLSTATES = new Set(["22P05", "22P02", "22021"]);
+export const UNSTORABLE_TEXT_MESSAGE =
+  "Some characters in this message can’t be saved. Remove any unusual symbols and send it again.";
 
 export type HandleLeadOptions = {
   app: LeadApp;
@@ -71,7 +92,8 @@ export type HandleLeadOptions = {
   logger?: LeadLogger;
   /** Test seams; production resolves these from env. */
   transport?: TransportConfig;
-  limiters?: Pick<Limiters, "perIp">;
+  /** Test seam. A limiter left out is not applied (production always resolves all three). */
+  limiters?: { perIp: RateLimiter; perNet?: RateLimiter; global?: RateLimiter };
   policy?: RequestPolicy;
   now?: () => Date;
 };
@@ -180,7 +202,8 @@ async function handle(request: Request, opts: HandleLeadOptions, log: LeadLogger
   // 4. Transport and policy. Missing config fails closed, naming settings
   //    (never values). Off Vercel without LEAD_TRUSTED_PROXY is refused here
   //    (AEGIS r2 N1), so no request ever reaches a shared bucket.
-  const limiters: Pick<Limiters, "perIp" | "problem"> = opts.limiters ?? resolveLimiter(env, log);
+  const limiters: { perIp: RateLimiter; perNet?: RateLimiter; global?: RateLimiter; problem?: string } =
+    opts.limiters ?? resolveLimiter(env, log);
   const config = opts.transport ?? resolveTransport(env);
   const missing = [
     ...(config.ok ? [] : config.missing),
@@ -212,9 +235,18 @@ async function handle(request: Request, opts: HandleLeadOptions, log: LeadLogger
     // with the IP-hash secret (HMAC). A plain SHA-256 of an IPv4 address is
     // reversible by brute force over 2^32, and with KV enabled the key leaves
     // the process (privacy sweep 2026-10-30, F7).
-    const decision = await limiters.perIp.hit(`${app}:${transport.hashIp(ip.key).slice(0, 32)}`);
+    let decision = await limiters.perIp.hit(`${app}:${transport.hashIp(ip.key).slice(0, 32)}`);
+    let limiter = "ip";
+    // RTS-3: an IPv6 client is also charged to its /48, so rotating /64s
+    // inside one allocation does not mint fresh buckets. Charged only when
+    // the address bucket allowed it, so one noisy /64 cannot drain its
+    // neighbours' shared /48 by itself beyond its own limit.
+    if (decision.allowed && ip.net && limiters.perNet) {
+      decision = await limiters.perNet.hit(`${app}:${transport.hashIp(ip.net).slice(0, 32)}`);
+      limiter = "net";
+    }
     if (decision.allowed) return null;
-    log("warn", "rate_limited", { app, limiter: "ip" });
+    log("warn", "rate_limited", { app, limiter });
     return fail(
       { ok: false, error: { code: "rate_limited", retry_after_s: decision.retryAfterSec } },
       429,
@@ -225,7 +257,9 @@ async function handle(request: Request, opts: HandleLeadOptions, log: LeadLogger
   // 6. Body (capped; a 413 is not charged) and the app's own validation.
   let json: unknown;
   try {
-    json = JSON.parse(await readCapped(request, policy.maxBodyBytes));
+    // RTS-7: NUL and unpaired surrogates removed, NFC applied, before the
+    // app validates — so a field left empty by it is a 422 field error.
+    json = cleanJson(JSON.parse(await readCapped(request, policy.maxBodyBytes)));
   } catch (error) {
     if (error instanceof TooLarge) return fail({ ok: false, error: { code: "payload_too_large" } }, 413);
     return (await charge()) ?? fail({ ok: false, error: { code: "bad_request" } }, 400);
@@ -238,6 +272,13 @@ async function handle(request: Request, opts: HandleLeadOptions, log: LeadLogger
   }
   const limited = await charge();
   if (limited) return limited;
+  // RTS-3: the server-issued form token (form-token.ts). Checked after the
+  // charge, so posting without one still spends the sender's bucket.
+  const token = transport.formTokens.verify(request.headers.get(FORM_TOKEN_HEADER), (opts.now ?? (() => new Date()))().getTime());
+  if (!token.ok) {
+    log("warn", "form_token_refused", { app, code: token.problem });
+    return fail({ ok: false, error: { code: "form_expired" } }, 403);
+  }
   if (parsed.kind === "bad_request") return fail({ ok: false, error: { code: "bad_request" } }, 400);
   if (parsed.kind === "reject") return reply(parsed.body, parsed.status);
 
@@ -249,6 +290,19 @@ async function handle(request: Request, opts: HandleLeadOptions, log: LeadLogger
     return fail({ ok: false, error: { code: "region_unavailable" } }, 422);
   }
 
+  // RTS-3: a cap on what this app stores and emails per minute, from every
+  // source together, so no spread of addresses can flood the database and
+  // the founder's inbox. Charged only for a lead about to be stored.
+  if (limiters.global) {
+    const decision = await limiters.global.hit(`${app}:global`);
+    if (!decision.allowed) {
+      log("warn", "rate_limited", { app, limiter: "global" });
+      return fail({ ok: false, error: { code: "busy", retry_after_s: decision.retryAfterSec } }, 429, {
+        "Retry-After": String(decision.retryAfterSec),
+      });
+    }
+  }
+
   // 7. Store. The row is the lead; without it there is no success to claim.
   const record: LeadRecord = {
     submission_id: parsed.submission_id,
@@ -257,6 +311,7 @@ async function handle(request: Request, opts: HandleLeadOptions, log: LeadLogger
     payload: parsed.payload,
     // The region is part of what was submitted: a changed one is a changed lead (409).
     payload_hash: payloadHash({ form: parsed.form, payload: parsed.payload, region: parsed.region }),
+    content_hash: contentHash({ form: parsed.form, payload: parsed.payload, region: parsed.region }),
     services: parsed.services ?? [],
     source: parsed.source || null,
     // regionServed() narrowed it: always one of SERVICE_AREAS here.
@@ -272,7 +327,17 @@ async function handle(request: Request, opts: HandleLeadOptions, log: LeadLogger
   } catch (error) {
     const detail = error instanceof DeliveryError ? error.detail : undefined;
     log("error", "store_failed", { ...ids, sqlstate: detail ?? "unknown" });
+    if (typeof detail === "string" && CHARACTER_SQLSTATES.has(detail)) {
+      return fail({ ok: false, error: { code: "validation", fields: { form: UNSTORABLE_TEXT_MESSAGE } } }, 422);
+    }
     return fail({ ok: false, error: { code: "unavailable" } }, 503);
+  }
+  if (!stored.inserted && "duplicateOf" in stored) {
+    // The same message, already stored and emailed within the window (RTS-3):
+    // the visitor's words did reach us, so they see success; nothing new is
+    // stored and no second email goes out.
+    log("info", "duplicate_content", ids);
+    return reply(parsed.body, 200);
   }
   if (!stored.inserted) {
     if (stored.samePayload) {
@@ -312,4 +377,25 @@ async function handle(request: Request, opts: HandleLeadOptions, log: LeadLogger
 
   log("info", "stored", { ...ids, notify });
   return reply(parsed.body, 200);
+}
+
+/**
+ * GET /api/lead: a fresh form token (RTS-3), fetched by each form when the
+ * page loads. It carries no personal data and nothing is stored. A
+ * misconfigured transport is 503 not_configured, as for a POST.
+ */
+export function handleFormToken(_request: Request, opts: { app: LeadApp; env?: Env; transport?: TransportConfig; now?: () => Date; logger?: LeadLogger }): Response {
+  const headers = { "Cache-Control": "no-store" };
+  try {
+    const config = opts.transport ?? resolveTransport(opts.env ?? process.env);
+    if (!config.ok) {
+      (opts.logger ?? consoleLogger)("error", "not_configured", { app: opts.app, missing: config.missing.join(",") });
+      return Response.json({ ok: false, error: { code: "not_configured" } }, { status: 503, headers });
+    }
+    const token = config.transport.formTokens.issue((opts.now ?? (() => new Date()))().getTime());
+    return Response.json({ ok: true, token }, { status: 200, headers });
+  } catch {
+    (opts.logger ?? consoleLogger)("error", "internal_error", { app: opts.app });
+    return Response.json({ ok: false, error: { code: "unavailable" } }, { status: 503, headers });
+  }
 }

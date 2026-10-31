@@ -3,6 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { ZBM_BASE_URL } from "../playwright.config";
+import { formTokenHeader } from "../support/form-token";
 
 /**
  * Phase 6 gate — full-service catalog (founder direction Oct 4, 2026;
@@ -281,6 +282,7 @@ test.describe("/start — universal intake", () => {
 test.describe("/start — server contract on the lead route", () => {
   const post = (page: Page, fields: Record<string, string>) =>
     page.request.post(`${ZBM_BASE_URL}/api/lead`, {
+      headers: formTokenHeader(),
       data: { form: "start", submission_id: ID, fields },
       failOnStatusCode: false,
     });

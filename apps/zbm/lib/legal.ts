@@ -18,7 +18,11 @@ import { legalDocumentStrings, legalPlaceholders, type ConsentCategory, type InE
  *   - retention:       packages/lead/src/retention.ts + /api/cron/purge-leads
  *                      (730 days rows, 90 days user agent: the env defaults)
  *   - IP handling:     packages/lead/src/ip.ts (no IP or IP hash stored with a
- *                      lead; rate-limit key is the keyed HMAC, ~10-minute life)
+ *                      lead; rate-limit keys are keyed HMACs of the address and,
+ *                      for IPv6, its /48, ~10-minute life, swept on a timer)
+ *   - abuse controls:  form token (src/form-token.ts: no personal data, not
+ *                      stored), content fingerprint (src/hash.ts contentHash,
+ *                      sql/006_content_dedupe.sql), global per-minute cap
  *   - service area:    packages/lead/src/region.ts (one state or territory code)
  *
  * MERGE-ORDER DEPENDENCY: these statements describe the lead pipeline from
@@ -120,9 +124,10 @@ const privacyPolicy: InEffectLegalDocument = {
         { p: "Information collected automatically when you submit a form. With each submission we also record:" },
         {
           list: [
-            "Nothing about your IP address is stored with your submission. To limit how often forms can be sent, a keyed one-way code (an HMAC-SHA-256 hash) made from your IP address is held for about 10 minutes and then discarded.",
+            "Nothing about your IP address is stored with your submission. To limit how often forms can be sent, a keyed one-way code (an HMAC-SHA-256 hash) made from your IP address — and, for an IPv6 address, a second one made from the network block it belongs to — is held for about 10 minutes and then discarded.",
             "Your browser’s user-agent string (it names your browser and operating system), shortened to 500 characters and deleted automatically after 90 days, so we can investigate spam and fix problems that affect particular browsers.",
             "The date and time of the submission, and a random submission ID your browser creates so a double-click doesn’t send the same form twice.",
+            "A one-way fingerprint (a SHA-256 hash) of what you entered, stored with your submission and deleted with it, so the same message sent again within 24 hours reaches us once.",
             "If you reached the intake form from one of our campaign links, the short campaign tag in that link (for example from a billboard or an ad), so we know which campaign brought you. It identifies the campaign, not you.",
           ],
         },
@@ -166,10 +171,10 @@ const privacyPolicy: InEffectLegalDocument = {
             head: ["Provider type", "What they do for us", "What they receive"],
             rows: [
               ["Website hosting (Vercel)", "Serves the site, runs the code that receives form submissions, and keeps short-lived request logs.", "Your requests to the site, including your IP address, browser details and the page addresses you visit, and the content of any form you submit."],
-              ["Database hosting", "Stores form submissions.", "The form contents, the state or territory you chose, user-agent string, campaign tag, submission ID and time listed under “What we collect”. No IP address."],
+              ["Database hosting", "Stores form submissions.", "The form contents, the state or territory you chose, user-agent string, campaign tag, submission ID, time and content fingerprint listed under “What we collect”. No IP address."],
               ["Email delivery (Resend)", "Delivers each new submission to our inbox as an email.", "The content of your submission."],
               ["Business email (our email provider)", "Holds the notification emails and our correspondence with you.", "The content of your submission and any emails you exchange with us."],
-              ["Rate-limit store (if enabled)", "Counts submissions per source to stop floods of spam.", "Only a keyed, one-way hash of your IP address, kept for about 10 minutes to limit abuse."],
+              ["Rate-limit store (if enabled)", "Counts submissions per source to stop floods of spam.", "Only keyed, one-way hashes of your IP address (and, for IPv6, of its network block), kept for about 10 minutes to limit abuse."],
             ],
           },
         },
@@ -206,7 +211,7 @@ const privacyPolicy: InEffectLegalDocument = {
                 "Notification emails about your submission",
                 "We delete them from our inbox by hand on the same 24-month schedule. Our email-delivery provider keeps its own copy under its retention terms.",
               ],
-              ["Rate-limit counters", "A keyed, one-way hash of your IP address, kept for about 10 minutes to limit abuse."],
+              ["Rate-limit counters", "Keyed, one-way hashes of your IP address (and, for IPv6, of its network block), kept for about 10 minutes to limit abuse."],
               ["Request logs at our hosting provider (IP address, browser details, page address)", "Available to us for no more than 30 days, depending on our hosting plan, then deleted from our view. The provider handles its own operational records under its privacy policy."],
               ["Your cookie-banner choice", "Stored only in your own browser until you clear it. We never receive it."],
               ["Records of privacy requests", "24 months, to show we handled them as the law requires."],
@@ -226,7 +231,7 @@ const privacyPolicy: InEffectLegalDocument = {
         { p: "Wherever you live, you can ask us to:" },
         {
           list: [
-            "Tell you what personal information we have about you, where it came from, why we have it and who we’ve disclosed it to, and give you a copy in a portable format.",
+            "Tell you what personal information we have about you, where it came from, why we have it and who we’ve disclosed it to, and give you a copy in a portable format: on request, we prepare it by hand and send it to you by email as a common machine-readable file (such as JSON or CSV).",
             "Correct information that is inaccurate.",
             "Delete your information, subject to the narrow exceptions the law allows (for example, if we need it to complete a transaction you asked for or to comply with a legal obligation).",
             "Stop contacting you.",
@@ -325,8 +330,8 @@ const privacyPolicy: InEffectLegalDocument = {
             "The site is served only over encrypted HTTPS connections, and browsers are told to refuse unencrypted connections to it (HSTS).",
             "A strict content security policy allows the site to load scripts, styles, fonts and images only from our own domain.",
             "Our database stores no IP addresses, and our application logs record event codes and IDs, never form contents, IP addresses or email addresses.",
-            "Form submissions are sent to the database over encrypted connections, and access to them is limited to the people at Z Best Media who need it to respond to you.",
-            "Forms are protected against automated abuse with rate limits and spam traps.",
+            "Form submissions are sent to the database over encrypted connections that verify the database’s identity, and access to them is limited to the people at Z Best Media who need it to respond to you.",
+            "Forms are protected against automated abuse with rate limits, a time-limited form token (it holds no information about you) and spam traps.",
           ],
         },
         {

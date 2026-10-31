@@ -4,7 +4,7 @@ import { resolveTransport, type RequestPolicy, type TransportConfig } from "../s
 import { handleLead } from "../src/pipeline";
 import { memoryLimiter } from "../src/rate-limit";
 import { DeliveryError, type LeadNotifier, type LeadStore, type RateLimiter } from "../src/types";
-import { PII, captureLogger, readJsonl, request, tempOutbox, toyParse } from "./helpers";
+import { PII, captureLogger, readJsonl, request, tempOutbox, testTokens, toyParse } from "./helpers";
 
 const open = () => memoryLimiter({ limit: 1000, windowSec: 60 });
 const both = (l: RateLimiter) => ({ perIp: l });
@@ -18,10 +18,11 @@ const fakeEnv = (dir: string, extra: Record<string, string> = {}) => ({
   LEAD_TRUSTED_PROXY: "x-forwarded-for",
   ...extra,
 });
+// `details` differs per submission: identical content under a new id is one lead since RTS-3.
 const valid = (id = randomUUID(), extra: Record<string, string> = {}) => ({
   form: "start",
   submission_id: id,
-  fields: { name: PII.name, business: PII.business, reach: PII.reach, services: "out-of-home,tv-streaming", source: "bb-i405-oct", ...extra },
+  fields: { name: PII.name, business: PII.business, reach: PII.reach, services: "out-of-home,tv-streaming", source: "bb-i405-oct", details: id, ...extra },
 });
 
 afterEach(() => vi.restoreAllMocks());
@@ -191,7 +192,7 @@ describe("validation and abuse", () => {
 describe("delivery failures (Brief §6.2 failure mode)", () => {
   const transportWith = (store: LeadStore, notifier: LeadNotifier | null): TransportConfig => ({
     ok: true,
-    transport: { mode: "live", store, notifier, hashIp: () => "h" },
+    transport: { mode: "live", store, notifier, hashIp: () => "h", formTokens: testTokens },
   });
 
   it("store failure: 503 unavailable, no email, never a success", async () => {

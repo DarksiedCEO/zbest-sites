@@ -1,7 +1,7 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import type { Env } from "./config";
 import { consoleLogger, type LeadLogger } from "./log";
-import { parsePostgresUrl } from "./pg-url";
+import { resolvePg } from "./pg-url";
 import { postgresPurger } from "./postgres";
 import type { LeadApp } from "./types";
 
@@ -111,7 +111,7 @@ export async function handlePurge(request: Request, opts: HandlePurgeOptions): P
     const missing = retention.ok ? [] : [...retention.problems];
     if (!purger) {
       const url = (env.POSTGRES_URL ?? "").trim();
-      const pg = url ? parsePostgresUrl(url) : null;
+      const pg = url ? resolvePg(url, env) : null;
       if (!pg) missing.push("POSTGRES_URL");
       else if (!pg.ok) missing.push(`POSTGRES_URL:${pg.reason}`);
       else if (!missing.length) purger = postgresPurger(pg.options);
@@ -192,7 +192,7 @@ export async function purgeHealth(opts: HealthOptions): Promise<{ status: PurgeH
   let ledger = opts.ledger;
   if (!ledger) {
     const url = (env.POSTGRES_URL ?? "").trim();
-    const pg = url ? parsePostgresUrl(url) : null;
+    const pg = url ? resolvePg(url, env) : null;
     if (!pg || !pg.ok) return degraded("misconfigured", pg ? `POSTGRES_URL:${pg.reason}` : "POSTGRES_URL");
     ledger = postgresPurger(pg.options);
   }

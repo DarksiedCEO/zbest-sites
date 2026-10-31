@@ -3,6 +3,7 @@ import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { ZBM_BASE_URL } from "../playwright.config";
 import { formReady } from "../support/ready";
+import { formTokenHeader } from "../support/form-token";
 
 /**
  * Phase 5 gate — AI Visibility Readiness Check, build steps 1 and 3 (Backend
@@ -210,7 +211,7 @@ function readinessRequest(answers: ReadinessAnswers, overrides: Record<string, u
 }
 
 const postReadiness = (page: Page, data: unknown) =>
-  page.request.post(`${ZBM_BASE_URL}/api/lead`, { data, failOnStatusCode: false });
+  page.request.post(`${ZBM_BASE_URL}/api/lead`, { headers: formTokenHeader(), data, failOnStatusCode: false });
 
 async function check(page: Page, answers: ReadinessAnswers) {
   const response = await postReadiness(page, readinessRequest(answers));

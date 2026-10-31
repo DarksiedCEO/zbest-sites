@@ -3,6 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 import path from "node:path";
 import { captureFullPage } from "../capture";
 import { ZBM_BASE_URL } from "../playwright.config";
+import { formTokenHeader } from "../support/form-token";
 
 /**
  * Phase 4 gate — Z Best Media chunk (Brief §3.4, §A4). Pages in brief order:
@@ -470,7 +471,7 @@ test.describe("Revenue Recovery (§A4, filtered live carry-over)", () => {
 
 test.describe("Lead route (§6.2)", () => {
   const post = (page: Page, data: unknown) =>
-    page.request.post(`${ZBM_BASE_URL}/api/lead`, { data, failOnStatusCode: false });
+    page.request.post(`${ZBM_BASE_URL}/api/lead`, { headers: formTokenHeader(), data, failOnStatusCode: false });
   const id = "5f0c2b8e-4f7a-4c1e-9d7b-0f5d3a2b1c9e";
 
   test("valid contact submission is acknowledged", async ({ page }) => {
@@ -501,7 +502,7 @@ test.describe("Lead route (§6.2)", () => {
     expect((await post(page, { form: "contact", fields: {} })).status()).toBe(400);
     expect((await post(page, { form: "newsletter", submission_id: id, fields: {} })).status()).toBe(400);
     const raw = await page.request.post(`${ZBM_BASE_URL}/api/lead`, {
-      headers: { "Content-Type": "application/json" },
+      headers: { ...formTokenHeader(), "Content-Type": "application/json" },
       data: "{not json",
       failOnStatusCode: false,
     });
