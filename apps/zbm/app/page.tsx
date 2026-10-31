@@ -77,6 +77,8 @@ export default function HomePage() {
           across" — neither the founding year nor the media buys are
           literally true. Deliberate divergence from §A4:267/270, not drift.
 
+          Founder copy ruling Oct 30, 2026: the "Services | 10" row is removed.
+
           FD-VISUAL-01: the reel took the hero's right column, so the stat
           block now closes the hero beneath it, under the reel's column.
         */}
@@ -84,7 +86,6 @@ export default function HomePage() {
           <StatBlock
             className="lg:col-span-7 lg:col-start-6"
             rows={[
-              { label: "Services", value: String(SERVICES.length) },
               {
                 label: "Platforms we plan across",
                 value: "Google · Meta · TikTok · Lamar · Clear Channel · OUTFRONT",

@@ -222,8 +222,8 @@ test.describe("Home (§A4)", () => {
       ]),
     );
     expect(rows).toEqual([
-      // Amended Oct 4, 2026: the full-service catalog replaces "Disciplines | 4".
-      ["Services", "10"],
+      // Amended Oct 4, 2026: the full-service catalog replaced "Disciplines | 4".
+      // Founder copy ruling Oct 30, 2026: the "Services | 10" row is removed.
       ["Platforms we plan across", "Google · Meta · TikTok · Lamar · Clear Channel · OUTFRONT"],
       ["Standard", "Audit first. Evidence. Then scale."],
     ]);
