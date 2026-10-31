@@ -94,9 +94,11 @@ so a double-click cannot create two leads. If the email send fails the row is st
 written and the user still sees success; if the DB write fails, return an error and
 do not claim success. No CRM at launch. Secrets live only in Vercel env vars.
 
-**Legal:** Terms, Privacy and Cookie Policy for both entities require attorney review
-before publishing. Page shells are built now and every one carries a visible banner:
-*"Draft — pending attorney review. Not yet in effect."*
+**Legal (founder decision, Oct 30 2026):** Z Best Media's Privacy Policy, Terms of
+Service, Cookie Policy, Refund and Cancellation Policy and Accessibility Statement are
+published and in effect. Z Best Clips' legal pages are outlines until it launches, each
+showing: *"Z Best Clips is not yet accepting clients. These terms will be published
+before launch."* Neither site carries attorney-review or draft-status wording.
 
 **Domains (founder decision at Phase 1 close):**
 - Z Best Media production domain is **zbestmedia.com**, canonical host

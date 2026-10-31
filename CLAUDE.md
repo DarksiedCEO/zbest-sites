@@ -17,13 +17,15 @@ be updated in the same commit as each accessibility fix. Service area: the
 United States, including DC and all U.S. territories (PR, GU, VI, AS, MP).
 Text lives in apps/zbm/lib/legal.ts and must match what the code collects,
 stores, sends and sets in the browser: change it in the same commit as any
-such code change. ZBM legal pages show no draft banner. Bracketed
+such code change. ZBM legal pages carry no status notice. Bracketed
 [UPPER CASE] tokens are unfilled facts; any production build fails while any
 remain (exempt: Vercel preview, and the e2e gate via
 ZBEST_ALLOW_LEGAL_PLACEHOLDERS=1).
-Legal pages — Z Best Clips: unchanged. Clearly marked placeholders until
-attorney text is provided; scope is docs/ZBM-ZBC-Legal-Document-Brief.md; every
-ZBC legal page shell shows "Draft — pending attorney review. Not yet in effect."
+Legal pages — Z Best Clips: outlines (topics only) until ZBC publishes its
+terms; each shows "Z Best Clips is not yet accepting clients. These terms will
+be published before launch." Founder decision Oct 30 2026: no attorney-review
+or draft-status wording on either site, in pages, metadata or the cookie
+banner.
 Search Intelligence page (Brief §A4) is built but never linked: absent from
 nav, footer, sitemap.xml, and internal links, with robots noindex.
 Do not touch the existing zbestmedia-ui Vercel project.

@@ -6,7 +6,7 @@ Z Best Media  &  Z Best Clips
 
 *Purpose of this document: This brief identifies the provisions each Terms of Service, Privacy Policy, and Cookie Policy needs to address, based on the founder's own business model and a review of comparable companies' publicly stated terms. It is written to scope attorney review efficiently — it is not drafted or reviewed legal language, and nothing in it should be published or relied upon as-is. An attorney should review, revise, and finalize all language before any of it is used publicly or relied upon contractually.*
 
-**Status (founder decision, Oct 30 2026): Z Best Media.** The founder decided that Z Best Media publishes its own website legal documents now: Privacy Policy, Terms of Service, Cookie Policy, Refund and Cancellation Policy and Accessibility Statement. They are written separately (in `apps/zbm/lib/legal.ts`) and are in effect; nothing from this brief is reproduced in them. The rest of this brief stays as written, and Part Two (Z Best Clips) is unchanged.
+**Status (founder decision, Oct 30 2026).** Z Best Media publishes its own website legal documents now: Privacy Policy, Terms of Service, Cookie Policy, Refund and Cancellation Policy and Accessibility Statement. They are written separately (in `apps/zbm/lib/legal.ts`) and are in effect; nothing from this brief is reproduced in them. Neither website carries attorney-review or draft-status wording. Z Best Clips' legal pages show "Z Best Clips is not yet accepting clients. These terms will be published before launch." until its terms are published. Where this brief says language must wait for review before publication, that applies to this brief's own text, not to the sites.
 
 # Part One — Z Best Media
 
