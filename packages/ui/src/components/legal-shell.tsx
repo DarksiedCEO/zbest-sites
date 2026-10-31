@@ -36,7 +36,7 @@ export function LegalShell({
   notice: string;
   /** Shown under each section heading in place of text. */
   pendingText: string;
-  /** Shown as the issuer while it is not yet confirmed. */
+  /** The issuer line; plain text, never a bracketed token. */
   issuerText: string;
   /** Page-specific controls, e.g. Cookie Settings on the Cookie Policy. */
   children?: ReactNode;
@@ -58,7 +58,7 @@ export function LegalShell({
         <h1 className="type-headline mt-3">{title}</h1>
         <p className="type-small mt-4 text-text-secondary">
           Issued by:{" "}
-          <span data-placeholder className="type-mono text-text-primary">
+          <span data-legal-issuer className="text-text-primary">
             {issuerText}
           </span>
         </p>

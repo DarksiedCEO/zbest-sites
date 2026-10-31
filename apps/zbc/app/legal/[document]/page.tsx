@@ -1,4 +1,4 @@
-import { CookieSettingsButton, LegalShell, pageMetadata } from "@zbest/ui";
+import { CookieSettingsButton, LegalShell, legalPlaceholders, pageMetadata } from "@zbest/ui";
 import type { Metadata } from "next";
 import { LEGAL_DOCUMENTS, ZBC_LEGAL_ISSUER, ZBC_LEGAL_NOTICE, ZBC_LEGAL_PENDING, type LegalDocument } from "@/lib/legal";
 import { SITE } from "@/lib/site";
@@ -7,6 +7,20 @@ import { SITE } from "@/lib/site";
 export const dynamicParams = false;
 
 export function generateStaticParams() {
+  // Same rule as ZBM (AEGIS r2 N5): no production build ships a bracketed
+  // [UPPER CASE] token on a ZBC legal page. Exempt: a Vercel preview and the
+  // e2e gate (ZBEST_ALLOW_LEGAL_PLACEHOLDERS=1).
+  const strings = [
+    ZBC_LEGAL_NOTICE,
+    ZBC_LEGAL_PENDING,
+    ZBC_LEGAL_ISSUER,
+    ...Object.values(LEGAL_DOCUMENTS).flatMap((d) => [d.title, ...d.parts.flatMap((p) => ["heading" in p ? p.heading : "", ...p.sections])]),
+  ];
+  const missing = legalPlaceholders(strings);
+  const exempt = process.env.VERCEL_ENV === "preview" || process.env.ZBEST_ALLOW_LEGAL_PLACEHOLDERS === "1";
+  if (process.env.NODE_ENV === "production" && !exempt && missing.length) {
+    throw new Error(`ZBC legal pages contain placeholders: ${missing.join(", ")}. Fill them in apps/zbc/lib/legal.ts before a production build.`);
+  }
   return Object.keys(LEGAL_DOCUMENTS).map((document) => ({ document }));
 }
 

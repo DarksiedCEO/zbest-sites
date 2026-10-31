@@ -14,7 +14,12 @@ import type { LegalPart } from "@zbest/ui";
 export const ZBC_LEGAL_NOTICE =
   "Z Best Clips is not yet accepting clients. These terms will be published before launch.";
 export const ZBC_LEGAL_PENDING = "Published before Z Best Clips launches.";
-export const ZBC_LEGAL_ISSUER = "[Legal entity — to be confirmed]";
+/**
+ * Neutral until ZBC's contracting entity is confirmed (AEGIS r2 N5): no
+ * bracketed token on a public page. The production guard in
+ * app/legal/[document]/page.tsx refuses any [UPPER CASE] token in these pages.
+ */
+export const ZBC_LEGAL_ISSUER = "Z Best Clips";
 
 export const LEGAL_DOCUMENTS = {
   "privacy-policy": {
