@@ -3,7 +3,7 @@ import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { captureFullPage } from "../capture";
 import { cutWords } from "../crop-check";
-import { ZBM_BASE_URL } from "../playwright.config";
+import { ZBC_BASE_URL, ZBM_BASE_URL } from "../playwright.config";
 
 /**
  * FD-VISUAL-01 §10 rollout, batch by batch (amendment §8.7: batches of three
@@ -31,7 +31,7 @@ const CONSENT_KEY = "zbest-cookie-consent";
  * service lists (Services hub).
  */
 type RolloutPage = { name: string; base: string; path: string } & (
-  | { asset: string; frame: string; previews?: undefined }
+  | { asset: string; frame: string; also?: string[]; previews?: undefined }
   | { previews: number; acts: number; asset?: undefined; frame?: undefined }
 );
 
@@ -47,6 +47,11 @@ const BATCHES: Record<string, RolloutPage[]> = {
     { name: "zbm-influencer-marketing", base: ZBM_BASE_URL, path: "/influencer-marketing", asset: "marenvale-influencer", frame: "phone" },
     { name: "zbm-websites", base: ZBM_BASE_URL, path: "/websites", asset: "marenvale-website", frame: "plate" },
     { name: "zbm-services", base: ZBM_BASE_URL, path: "/services", previews: 3, acts: 3 },
+  ],
+  "batch-3": [
+    { name: "zbc-entertainment", base: ZBC_BASE_URL, path: "/entertainment", asset: "ivosolace-stage", frame: "phone" },
+    { name: "zbc-brands", base: ZBC_BASE_URL, path: "/brands", asset: "quellmont-cover", frame: "phone", also: ["marenvale-room"] },
+    { name: "zbc-become-a-clipper", base: ZBC_BASE_URL, path: "/become-a-clipper", asset: "zbc-clipper-phone", frame: "plate" },
   ],
 };
 
@@ -74,6 +79,16 @@ async function hero(page: Page) {
       transform: getComputedStyle(wrap.firstElementChild!).transform,
     };
   });
+}
+
+/** Every hero image that is loaded and shown, in order. */
+async function heroAssets(page: Page) {
+  return page.evaluate(() =>
+    [...document.querySelectorAll("header [data-hero-media] [data-media-frame]")].flatMap((f) => {
+      const img = f.querySelector("img");
+      return img && img.complete && img.naturalWidth > 0 && f.getBoundingClientRect().width > 0 ? [f.getAttribute("data-asset-id")] : [];
+    }),
+  );
 }
 
 /** Image-previewing lists on the page, and any of their visible frames not showing its image. */
@@ -132,6 +147,7 @@ for (const [batch, pages] of Object.entries(BATCHES)) {
           expect(h!.asset).toBe(p.asset);
           expect(h!.frame).toBe(p.frame);
           expect(h!.shown, "hero image not shown on first paint").toBe(true);
+          if (p.also) expect(await heroAssets(page), "every hero image, shown").toEqual([p.asset, ...p.also]);
 
           await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight / 3));
           await page.waitForTimeout(300);

@@ -359,11 +359,11 @@
       "alt": "Concept: a vertical poster for Ivo Solace’s new single — the artist, seen from behind in silhouette, sings to a crowd under coral stage light, the name in handwritten script.",
       "caption": "Entertainment · vertical clip poster · TikTok, Reels, Shorts",
       "pages": [
-        "zbc:/"
-      ],
-      "plannedPages": [
         "zbc:/",
         "zbc:/entertainment"
+      ],
+      "plannedPages": [
+        "zbc:/"
       ]
     },
     {
@@ -394,10 +394,10 @@
       "trademarkCheck": "pending — brand names provisional until USPTO and California checks pass (amendment §9)",
       "alt": "Concept: a vertical Quellmont Motors cover — a car under a dark satin sheet in a lit showroom, a hand starting to pull it away, headlined “Your car is ready.”",
       "caption": "Brands · vertical clip cover · brand-owned account",
-      "pages": [],
-      "plannedPages": [
+      "pages": [
         "zbc:/brands"
-      ]
+      ],
+      "plannedPages": []
     },
     {
       "id": "marenvale-room",
@@ -427,10 +427,10 @@
       "trademarkCheck": "pending — brand names provisional until USPTO and California checks pass (amendment §9)",
       "alt": "Concept: a vertical Maren Vale Aesthetics cover — a treatment room in late sun with a made treatment bed and a brass floor lamp, headlined “Your hour starts here.”",
       "caption": "Brands · vertical clip cover · brand-owned account",
-      "pages": [],
-      "plannedPages": [
+      "pages": [
         "zbc:/brands"
-      ]
+      ],
+      "plannedPages": []
     },
     {
       "id": "zbc-clipper-phone",
@@ -459,11 +459,10 @@
       "caption": "Become a Clipper · editing timeline · clipper workflow",
       "pages": [
         "zbm:/",
-        "zbm:/services"
-      ],
-      "plannedPages": [
+        "zbm:/services",
         "zbc:/become-a-clipper"
-      ]
+      ],
+      "plannedPages": []
     }
   ]
 }
