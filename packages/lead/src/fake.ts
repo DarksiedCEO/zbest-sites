@@ -41,11 +41,13 @@ type RowState = {
   ackAt: number | null;
   ackBy: string | null;
   lookupFailures: number;
+  recoveries: number;
+  recoveredAt: number | null;
 };
 const newRow = (record: LeadRecord, createdAt: number): RowState => ({
   record, createdAt, status: "pending", attempts: 0, nextAt: null, firstAttemptAt: null, bodyHash: null, batch: null, batchAt: null, batchHash: null, quarantined: false,
   emailId: null, delivery: null, undeliveredAt: null, outcomeUnknown: false, sentAt: null, resends: 0, checkedAt: null,
-  abandonedAt: null, unverifiableAt: null, ackAt: null, ackBy: null, lookupFailures: 0,
+  abandonedAt: null, unverifiableAt: null, ackAt: null, ackBy: null, lookupFailures: 0, recoveries: 0, recoveredAt: null,
 });
 const stored = (r: RowState): StoredLead => ({
   ...r.record,
@@ -66,6 +68,9 @@ const LEASE_MS = 10 * 60_000;
 /** As postgres.ts RESEND_WAIT_HOURS / MAX_RESENDS (AEGIS r6 R6-1(e)). */
 const RESEND_WAIT_HOURS = [1, 6, 24, 72];
 const MAX_RESENDS = RESEND_WAIT_HOURS.length;
+/** As postgres.ts MAX_RECOVERIES / RECOVERY_SPACING_HOURS (AEGIS r7 R7-1). */
+const MAX_RECOVERIES = 5;
+const RECOVERY_SPACING_HOURS = 24;
 /** As postgres.ts BATCH_STATUSES. */
 const KIND: Record<BatchKind, { from: NotifyStatus[]; done: NotifyStatus }> = {
   digest: { from: ["deferred", "delivery_unknown"], done: "sent" },
@@ -323,9 +328,13 @@ export function fakeStore(dir: string, clock: () => number = () => Date.now()): 
       }
       return null;
     },
-    async formBatch(app, kind, limit, seal): Promise<Batch | null> {
+    async formBatch(app, kind, limit, seal, opts = {}): Promise<Batch | null> {
       const { from } = KIND[kind];
-      const rows = mine(app).filter((r) => r.batch === null && from.includes(r.status) && due(r)).sort(byAge).slice(0, limit);
+      const recovered = opts.recovered === true;
+      const rows = mine(app)
+        .filter((r) => r.batch === null && from.includes(r.status) && due(r) && (r.delivery === "abandoned") === recovered)
+        .sort(byAge)
+        .slice(0, limit);
       if (!rows.length) return null;
       const key = `${kind}-${app}-${randomBytes(16).toString("hex")}`;
       for (const r of rows) {
@@ -419,27 +428,42 @@ export function fakeStore(dir: string, clock: () => number = () => Date.now()): 
     async recoverAbandoned(app) {
       let n = 0;
       for (const r of mine(app)) {
-        if (r.status === "sent" && r.delivery === "abandoned") {
+        if (
+          r.status === "sent" &&
+          r.delivery === "abandoned" &&
+          r.recoveries < MAX_RECOVERIES &&
+          (r.recoveredAt === null || r.recoveredAt <= clock() - RECOVERY_SPACING_HOURS * 3_600_000)
+        ) {
           setStatus(r, "deferred");
           r.nextAt = null;
           r.batch = null;
           r.batchAt = null;
           r.batchHash = null;
+          r.recoveries += 1;
+          r.recoveredAt = clock();
           n += 1;
         }
       }
       return n;
     },
-    async acknowledgeUndelivered(app, by) {
-      let n = 0;
+    async acknowledgeUndelivered(app, ack) {
+      const ids = ack.ids ? new Set(ack.ids) : null;
+      const acked: string[] = [];
       for (const r of mine(app)) {
-        if (r.ackAt === null && (r.abandonedAt !== null || r.unverifiableAt !== null)) {
+        const latest = Math.max(r.abandonedAt ?? -Infinity, r.unverifiableAt ?? -Infinity);
+        if (
+          r.ackAt === null &&
+          (r.abandonedAt !== null || r.unverifiableAt !== null) &&
+          (!ack.through || latest <= ack.through.getTime()) &&
+          (!ids || ids.has(r.record.submission_id))
+        ) {
           r.ackAt = clock();
-          r.ackBy = by;
-          n += 1;
+          r.ackBy = ack.actor;
+          acked.push(r.record.submission_id);
         }
       }
-      return n;
+      append(box, "acks.jsonl", { app, actor: ack.actor, ip_hash: ack.ipHash, through: ack.through?.toISOString() ?? null, submission_ids: acked });
+      return acked.length;
     },
     async expireDeliveryChecks(app, before) {
       return requeue(

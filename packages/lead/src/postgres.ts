@@ -2,7 +2,7 @@ import postgres from "postgres";
 import type { PgOptions } from "./pg-url";
 import type { LeadPurger, PurgeLedger, PurgeResult } from "./retention";
 import { randomBytes } from "node:crypto";
-import { DEDUPE_WINDOW_HOURS, DeliveryError, type Batch, type BatchKind, type BatchSummary, type DeliveryOutcome, type InsertResult, type NotifyExtra, type LeadApp, type LeadRecord, type LeadStore, type NotifyOutbox, type NotifyStatus, type StoredLead } from "./types";
+import { DEDUPE_WINDOW_HOURS, DeliveryError, type AckRequest, type Batch, type BatchKind, type BatchSummary, type DeliveryOutcome, type InsertResult, type NotifyExtra, type LeadApp, type LeadRecord, type LeadStore, type NotifyOutbox, type NotifyStatus, type StoredLead } from "./types";
 
 /**
  * Brief §6.2 store: one row per lead in the `leads` table
@@ -124,6 +124,9 @@ const MAX_PAGES = 100;
  */
 export const RESEND_WAIT_HOURS = [1, 6, 24, 72] as const;
 export const MAX_RESENDS = RESEND_WAIT_HOURS.length;
+/** AEGIS r7 R7-1: automatic recoveries of one abandoned lead: at most this many, at least this far apart. */
+export const MAX_RECOVERIES = 5;
+export const RECOVERY_SPACING_HOURS = 24;
 
 /**
  * AEGIS r5 N2, r6 R6-1/R6-7: the leads whose ids `rows` yields (a locking,
@@ -424,8 +427,17 @@ export function postgresStore(
         return null;
       });
     },
-    async formBatch(app: LeadApp, kind: BatchKind, limit: number, seal: (batch: { leads: StoredLead[]; summary: BatchSummary }) => string): Promise<Batch | null> {
+    async formBatch(
+      app: LeadApp,
+      kind: BatchKind,
+      limit: number,
+      seal: (batch: { leads: StoredLead[]; summary: BatchSummary }) => string,
+      opts: { recovered?: boolean } = {},
+    ): Promise<Batch | null> {
       const { from } = BATCH_STATUSES[kind];
+      // AEGIS r7 R7-1: recovered (previously abandoned) leads are batched
+      // only with themselves, so one undeliverable lead cannot bounce others.
+      const recovered = opts.recovered === true;
       // A new key every time (AEGIS r3 H1): never reused for other content.
       const key = `${kind}-${app}-${randomBytes(16).toString("hex")}`;
       return run(async (tx) => {
@@ -442,6 +454,7 @@ export function postgresStore(
             WHERE app = ${app}::text AND notify_batch IS NULL
               AND notify_status IN ${tx(from)}
               AND (notify_next_at IS NULL OR notify_next_at <= now())
+              AND (coalesce(notify_delivery, '') = 'abandoned') = ${recovered}::boolean
             ORDER BY created_at, id
             LIMIT ${limit}::int
             FOR UPDATE SKIP LOCKED)
@@ -573,30 +586,52 @@ export function postgresStore(
       );
     },
     async recoverAbandoned(app: LeadApp) {
-      // AEGIS r6 R6-1(b): a later email was confirmed delivered, so the inbox
-      // works: every abandoned lead goes back in the digest, flagged
-      // "previously undeliverable" (its notify_delivery stays 'abandoned'
-      // until the digest is accepted). Called once per run that confirmed a
-      // delivery; a lead that fails again is abandoned again at once.
+      // AEGIS r6 R6-1(b), r7 R7-1: a later email was confirmed delivered, so
+      // the inbox works: abandoned leads go back in the digest, flagged
+      // "previously undeliverable" (notify_delivery stays 'abandoned' until
+      // the email is accepted), each in its own email. Bounded per lead: at
+      // most MAX_RECOVERIES times, at least RECOVERY_SPACING_HOURS apart.
+      // After that it stays abandoned (health 503 until acknowledged or
+      // delivered), with no more automatic sends.
       return paged((tx) => tx`
         WITH picked AS MATERIALIZED (
           SELECT id FROM leads
           WHERE app = ${app}::text AND notify_status = 'sent' AND notify_delivery = 'abandoned'
+            AND notify_recoveries < ${MAX_RECOVERIES}::int
+            AND (notify_recovered_at IS NULL OR notify_recovered_at <= now() - make_interval(hours => ${RECOVERY_SPACING_HOURS}::int))
           ORDER BY id LIMIT ${PAGE}::int FOR UPDATE)
         UPDATE leads
         SET notify_status = 'deferred', notify_next_at = NULL,
-            notify_batch = NULL, notify_batch_at = NULL, notify_batch_hash = NULL
+            notify_batch = NULL, notify_batch_at = NULL, notify_batch_hash = NULL,
+            notify_recoveries = notify_recoveries + 1, notify_recovered_at = now()
         WHERE id = ANY(ARRAY(SELECT id FROM picked))`);
     },
-    async acknowledgeUndelivered(app: LeadApp, by: string) {
-      return paged((tx) => tx`
-        WITH picked AS MATERIALIZED (
-          SELECT id FROM leads
-          WHERE app = ${app}::text AND notify_ack_at IS NULL
-            AND (notify_abandoned_at IS NOT NULL OR notify_unverifiable_at IS NOT NULL)
-          ORDER BY id LIMIT ${PAGE}::int FOR UPDATE)
-        UPDATE leads SET notify_ack_at = now(), notify_ack_by = ${by}::text
-        WHERE id = ANY(ARRAY(SELECT id FROM picked))`);
+    async acknowledgeUndelivered(app: LeadApp, ack: AckRequest) {
+      // AEGIS r7 R7-2: only what the founder saw — leads abandoned or found
+      // unverifiable at or before `through` (the cutoff the report printed),
+      // and/or the listed ids — in one transaction with its history row.
+      return run(async (tx) => {
+        const through = ack.through ? ack.through.toISOString() : null;
+        const ids = ack.ids ?? null;
+        const acked = await tx`
+          WITH picked AS MATERIALIZED (
+            SELECT id FROM leads
+            WHERE app = ${app}::text AND notify_ack_at IS NULL
+              AND (notify_abandoned_at IS NOT NULL OR notify_unverifiable_at IS NOT NULL)
+              -- The latest event must be one the founder could have seen.
+              AND (${through}::timestamptz IS NULL
+                   OR greatest(notify_abandoned_at, notify_unverifiable_at) <= ${through}::timestamptz)
+              AND (${ids === null}::boolean OR submission_id = ANY(${ids ?? []}::uuid[]))
+            ORDER BY id FOR UPDATE)
+          UPDATE leads SET notify_ack_at = now(), notify_ack_by = ${ack.actor}::text
+          WHERE id = ANY(ARRAY(SELECT id FROM picked))
+          RETURNING submission_id::text AS sid`;
+        await tx`
+          INSERT INTO lead_acks (app, actor, ip_hash, through, submission_ids, acknowledged)
+          VALUES (${app}::text, ${ack.actor}::text, ${ack.ipHash}::text, ${through}::timestamptz,
+                  ${acked.map((r) => String(r.sid))}::uuid[], ${acked.length}::int)`;
+        return acked.length;
+      });
     },
     async expireDeliveryChecks(app: LeadApp, before: Date) {
       return run(async (tx) =>
@@ -670,7 +705,7 @@ export async function purgeWith(
   return { deleted: deleted.count, uaCleared: cleared.count, ipHashCleared: ipCleared.count };
 }
 
-/** Columns migrations 004 and 006–011 add, which this code writes (AEGIS F4). */
+/** Columns migrations 004 and 006–012 add, which this code writes (AEGIS F4). */
 export const REQUIRED_LEAD_COLUMNS = [
   "service_area",
   "content_hash",
@@ -693,6 +728,8 @@ export const REQUIRED_LEAD_COLUMNS = [
   "notify_ack_at",
   "notify_ack_by",
   "notify_lookup_failures",
+  "notify_recoveries",
+  "notify_recovered_at",
 ] as const;
 
 export function postgresPurger(options: PgOptions): LeadPurger & PurgeLedger & Required<Pick<PurgeLedger, "leadState" | "missingColumns" | "dbBytes" | "deliveryCheckState">> {
@@ -729,7 +766,9 @@ export function postgresPurger(options: PgOptions): LeadPurger & PurgeLedger & R
             count(*) FILTER (WHERE notify_status = 'expired_notify')::int AS expired_unreported,
             count(*) FILTER (WHERE notify_undelivered_at > now() - interval '24 hours')::int AS undelivered_24h,
             -- AEGIS r6 R6-1/R6-7: until acknowledged, however old.
-            count(*) FILTER (WHERE notify_abandoned_at IS NOT NULL AND notify_ack_at IS NULL)::int AS abandoned_unacked,
+            -- AEGIS r7 R7-7: a lead later confirmed delivered needs no acknowledgement.
+            count(*) FILTER (WHERE notify_abandoned_at IS NOT NULL AND notify_ack_at IS NULL
+                             AND notify_delivery IS DISTINCT FROM 'delivered')::int AS abandoned_unacked,
             count(*) FILTER (WHERE notify_unverifiable_at IS NOT NULL AND notify_ack_at IS NULL)::int AS unverifiable_unacked,
             -- AEGIS r6 R6-2: sent, delivery not confirmed, past the alert age.
             count(*) FILTER (WHERE notify_status = 'sent' AND notify_delivery IS NULL

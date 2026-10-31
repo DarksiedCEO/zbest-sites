@@ -44,6 +44,9 @@ const whole = (name, fallback, min, max) => {
   return /^\d{1,3}$/.test(raw) && Number(raw) >= min && Number(raw) <= max ? Number(raw) : fallback;
 };
 // The same bounds as src/notify-retry.ts and src/retention.ts.
+const pageArg = process.argv.find((a) => /^--page=\d{1,6}$/.test(a));
+const page = pageArg ? Math.max(1, Number(pageArg.slice(7))) : 1;
+const PAGE_SIZE = 200;
 const hours = whole("LEAD_NOTIFY_INDIVIDUAL_HOURS", 1, 1, 22);
 const days = whole("LEAD_NOTIFY_RETRY_DAYS", 3, 1, 30);
 try {
@@ -68,17 +71,26 @@ try {
         FROM leads WHERE notify_status IN ('pending', 'failed') GROUP BY 1 ORDER BY 1`,
       // AEGIS r6 R6-1(c): every lead whose email could not be delivered after
       // every re-send, or could not be verified — ids and dates only.
+      // AEGIS r7 R7-2: exact counts (count(*), never a page), the cutoff to
+      // acknowledge through (the database's own clock, read in this same
+      // snapshot), and the list one page at a time.
       delivery
-        ? await tx`
-            SELECT app, submission_id::text AS id, notify_status, coalesce(notify_delivery, '-') AS delivery,
-                   to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI') AS created,
-                   to_char(coalesce(notify_abandoned_at, notify_unverifiable_at) AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI') AS since,
-                   CASE WHEN notify_abandoned_at IS NOT NULL THEN 'abandoned' ELSE 'unverifiable' END AS kind,
-                   notify_ack_at IS NOT NULL AS acked
-            FROM leads
-            WHERE notify_abandoned_at IS NOT NULL OR notify_unverifiable_at IS NOT NULL
-            ORDER BY notify_ack_at IS NOT NULL, app, created_at
-            LIMIT 500`
+        ? {
+            counts: (await tx`
+              SELECT count(*)::int AS total, count(*) FILTER (WHERE notify_ack_at IS NULL)::int AS open,
+                     to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS through
+              FROM leads WHERE notify_abandoned_at IS NOT NULL OR notify_unverifiable_at IS NOT NULL`)[0],
+            rows: await tx`
+              SELECT app, submission_id::text AS id, notify_status, coalesce(notify_delivery, '-') AS delivery,
+                     to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI') AS created,
+                     to_char(greatest(notify_abandoned_at, notify_unverifiable_at) AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI') AS since,
+                     CASE WHEN notify_abandoned_at IS NOT NULL THEN 'abandoned' ELSE 'unverifiable' END AS kind,
+                     notify_ack_at IS NOT NULL AS acked
+              FROM leads
+              WHERE notify_abandoned_at IS NOT NULL OR notify_unverifiable_at IS NOT NULL
+              ORDER BY notify_ack_at IS NOT NULL, app, created_at, submission_id
+              LIMIT ${PAGE_SIZE}::int OFFSET ${(page - 1) * PAGE_SIZE}::int`,
+          }
         : null,
     ];
   });
@@ -91,13 +103,16 @@ try {
   console.log(`app  retried individually (< ${hours} h)  sent in digests (< ${days} d)  reported as a count (older)`);
   for (const r of split) console.log(`${r.app.padEnd(4)} ${String(r.individual).padStart(28)}  ${String(r.digest).padStart(24)}  ${String(r.expired).padStart(27)}`);
   if (undelivered === null) {
-    console.log("\nundelivered leads: run migrations 009–011 first (columns missing).");
+    console.log("\nundelivered leads: run migrations 009–012 first (columns missing).");
   } else {
-    const open = undelivered.filter((r) => !r.acked).length;
-    console.log(`\nleads whose email was not delivered or could not be verified: ${undelivered.length} (${open} not acknowledged).`);
-    console.log("Read each in the database (by submission id), then acknowledge: POST /api/cron/ack-undelivered (docs/LEAD-ROUTE-DESIGN.md §8).");
+    const { total, open, through } = undelivered.counts;
+    const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    console.log(`\nleads whose email was not delivered or could not be verified: ${total} (${open} not acknowledged).`);
+    console.log(`acknowledge through: ${through}`);
+    console.log("Read each in the database (by submission id), then acknowledge exactly these: POST /api/cron/ack-undelivered with {\"through\":\"<the time above>\"} or {\"ids\":[…]} (docs/LEAD-ROUTE-DESIGN.md §8). A lead abandoned later is not covered.");
+    console.log(`page ${page} of ${pages} (${PAGE_SIZE} per page; --page=N for another)`);
     console.log("app  submission_id                         kind          since             submitted         status/delivery          acknowledged");
-    for (const r of undelivered) {
+    for (const r of undelivered.rows) {
       console.log(`${r.app.padEnd(4)} ${r.id}  ${r.kind.padEnd(12)}  ${String(r.since).padEnd(16)}  ${String(r.created).padEnd(16)}  ${`${r.notify_status}/${r.delivery}`.padEnd(23)}  ${r.acked ? "yes" : "not acknowledged"}`);
     }
   }

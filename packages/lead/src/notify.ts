@@ -142,7 +142,7 @@ export function digestEmail(app: LeadApp, leads: StoredLead[]): LeadEmail {
         ? "An earlier email with this lead was accepted, but its delivery could not be verified. It is sent again here, marked as a possible duplicate."
         : "",
       l.notify_delivery === "abandoned"
-        ? "PREVIOUSLY UNDELIVERABLE: earlier emails with this lead were not delivered after every re-send. It is sent again now that emails are being delivered."
+        ? "PREVIOUSLY UNDELIVERABLE: earlier emails with this lead were not delivered after every re-send. It is sent again, apart from new leads, now that emails are being delivered (at most 5 times, a day apart)."
         : "",
       l.notify_status === "delivery_unknown" ? "This lead may already have been emailed: an earlier email's outcome is unknown." : "",
       l.quarantined
@@ -200,9 +200,13 @@ export async function sendBatches(
   for (let steps = 0; emails < DIGEST_MAX_EMAILS_PER_RUN && steps < DIGEST_MAX_EMAILS_PER_RUN * 3; steps++) {
     // AEGIS r6 R6-4: no new send past the run's send deadline; the rest waits for the next run.
     if (opts.until !== undefined && Date.now() >= opts.until) return { sent, failedEmails, outOfTime: true };
+    const seal = (b: { leads: StoredLead[]; summary: BatchSummary }) => emailHash(build(b));
+    // AEGIS r7 R7-1: recovered (previously abandoned) leads go in digests of
+    // their own, so new leads are never held back by one whose content keeps bouncing.
     const batch =
       (await outbox.claimBatch(app, kind)) ??
-      (await outbox.formBatch(app, kind, kind === "digest" ? DIGEST_CHUNK : EXPIRED_CHUNK, (b) => emailHash(build(b))));
+      (kind === "digest" ? await outbox.formBatch(app, kind, DIGEST_CHUNK, seal, { recovered: true }) : null) ??
+      (await outbox.formBatch(app, kind, kind === "digest" ? DIGEST_CHUNK : EXPIRED_CHUNK, seal));
     if (!batch) break;
     const { key, leads, summary } = batch;
     const formedAt = summary.formedAt?.getTime() ?? 0;
@@ -266,8 +270,9 @@ export const MAX_LOOKUP_FAILURES = 5;
  * the run's own deadline (`until`), for at most DELIVERY_CHECKS_PER_RUN
  * emails whose delivery is not final, oldest first. Resend's last_event:
  *   - delivered / opened / clicked: final. Such a confirmation means the inbox
- *     works, so every abandoned lead is re-queued, once per run that confirms
- *     a delivery, flagged "previously undeliverable" (recoverAbandoned);
+ *     works, so abandoned leads are re-queued, flagged "previously
+ *     undeliverable", in digests apart from new leads — at most 5 times per
+ *     lead, at least a day apart (recoverAbandoned, AEGIS r7 R7-1);
  *   - bounced / complained / suppressed / failed / canceled: not delivered —
  *     re-sent in a digest after 1 h, 6 h, 24 h, 72 h, then 'abandoned':
  *     /api/health leads_undelivered (503) until acknowledged;
@@ -368,7 +373,7 @@ export async function checkDeliveries(
   if (answered && stopped !== "unauthorized") {
     count(await outbox.expireDeliveryChecks(app, new Date((ctx.now ?? Date.now)() - DELIVERY_CHECK_WINDOW_MS)), "unconfirmed");
   }
-  // R6-1(b): a confirmed delivery means the inbox works: abandoned leads go back, once.
+  // R6-1(b), R7-1: a confirmed delivery means the inbox works: abandoned leads go back (bounded per lead).
   if (delivered > 0) {
     out.recovered = await outbox.recoverAbandoned(app);
     if (out.recovered) log("warn", "notify_abandoned_recovered", { app, deleted: out.recovered });

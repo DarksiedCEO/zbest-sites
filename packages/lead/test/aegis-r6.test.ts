@@ -281,7 +281,7 @@ describe("R6-4 — a run ends within its budget", () => {
 describe("R6-1(d) — acknowledging requires CRON_SECRET and deletes nothing", () => {
   const ack = (init: RequestInit = {}, env: Env = cronEnv()) =>
     handleAckUndelivered(new Request("https://x.test/api/cron/ack-undelivered", init), { app: "zbm", env, logger: () => {}, transport: transportOf(fakeDriver().store, null) });
-  it("GET is 405; no or wrong secret is 401; a missing or odd 'by' is 400", async () => {
+  it("GET is 405; no or wrong secret is 401; a body without a cutoff or ids is 400 (AEGIS r7 R7-2)", async () => {
     expect((await ack()).status).toBe(405);
     expect((await ack({ method: "POST", body: JSON.stringify({ by: "Andre" }), headers: { "content-type": "application/json" } })).status).toBe(401);
     expect((await ack({ method: "POST", body: JSON.stringify({ by: "Andre" }), headers: { "content-type": "application/json", authorization: "Bearer wrong" } })).status).toBe(401);
@@ -352,7 +352,7 @@ describe.skipIf(!url)("AEGIS r6 — undelivered leads, health codes, strict migr
   }
   const cron = (r: Model) => handleNotifyRetry(cronReq(), { app: "zbm", env: cronEnv(), transport: transportOf(freshStore(), r.notifier), logger: () => {} });
 
-  it("R6-1: suppressed for 2 days then fixed: health degraded throughout until acknowledged; 0 leads lost; ack records who and when, deletes nothing", async () => {
+  it("R6-1: suppressed for 2 days then fixed: health degraded until the abandoned leads are delivered (r7 R7-7); 0 leads lost; ack records who and when, deletes nothing", async () => {
     const r = modelResend();
     let suppressed = true;
     r.fate = () => (suppressed ? "suppressed" : "delivered");
@@ -381,7 +381,11 @@ describe.skipIf(!url)("AEGIS r6 — undelivered leads, health codes, strict migr
     // Ten days later, still degraded: no time-based clearing.
     await advance(10 * 24 * H);
     hs.push(await healthHttp());
-    for (const h of hs) expect(h).toBe("503:leads_undelivered");
+    // Degraded while any abandoned lead is undelivered; since AEGIS r7 R7-7 it
+    // clears by itself once every one of them is confirmed delivered.
+    expect(hs[0]).toBe("503:leads_undelivered");
+    expect(hs.slice(1).every((h) => h === "503:leads_undelivered" || h === "200:ok" || h === "503:delivery_failed")).toBe(true);
+    expect(hs[hs.length - 1]).toBe("200:ok");
     const ok = deliveredLeads(r);
     expect([...Array(n).keys()].map((i) => i + 1).filter((k) => !ok.has(k))).toEqual([]);
 
@@ -393,13 +397,14 @@ describe.skipIf(!url)("AEGIS r6 — undelivered leads, health codes, strict migr
 
     const rows = (await sql`SELECT count(*)::int AS c FROM leads`)[0]!.c;
     const res = await handleAckUndelivered(
-      new Request("https://x.test/api/cron/ack-undelivered", { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${CRON}` }, body: JSON.stringify({ by: "Andre Love" }) }),
+      new Request("https://x.test/api/cron/ack-undelivered", { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${CRON}` }, body: JSON.stringify({ through: new Date().toISOString() }) }),
       { app: "zbm", env: cronEnv(), logger: () => {}, transport: transportOf(freshStore(), null) },
     );
     expect(res.status).toBe(200);
     expect(((await res.json()) as { acknowledged: number }).acknowledged).toBeGreaterThan(0);
     expect((await sql`SELECT count(*)::int AS c FROM leads`)[0]!.c).toBe(rows);
-    expect((await sql`SELECT DISTINCT notify_ack_by FROM leads WHERE notify_abandoned_at IS NOT NULL`).map((x) => x.notify_ack_by)).toEqual(["Andre Love"]);
+    // AEGIS r7 R7-2: the actor is the secret's holder, not free text.
+    expect((await sql`SELECT DISTINCT notify_ack_by FROM leads WHERE notify_abandoned_at IS NOT NULL`).map((x) => x.notify_ack_by)).toEqual(["cron-secret holder"]);
     expect(await healthHttp()).toBe("200:ok");
   }, 600_000);
 

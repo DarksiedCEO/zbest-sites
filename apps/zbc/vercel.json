@@ -2,6 +2,6 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "crons": [
     { "path": "/api/cron/purge-leads", "schedule": "17 9 * * *" },
-    { "path": "/api/cron/retry-notify", "schedule": "41 15 * * *" }
+    { "path": "/api/cron/retry-notify", "schedule": "11 16 * * *" }
   ]
 }

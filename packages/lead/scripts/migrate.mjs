@@ -20,6 +20,9 @@
  *      r6 R6-6); no other CHECK on leads mentions a notify_ column; every
  *      delivery value is accepted by a rolled-back insert and near-misses are
  *      refused; lead_delivery_checks has exactly the app's columns and types;
+ *   7. the notify columns' nullability and defaults, lead_delivery_checks and
+ *      lead_acks column by column (no extra columns), no triggers on the lead
+ *      tables, and the acknowledgement index (AEGIS r7 R7-4);
  * All of it runs in ONE transaction under a transaction-scoped advisory lock,
  * so concurrent runs serialise and a failed run changes nothing.
  *
@@ -80,7 +83,7 @@ const BASE = {
   created_at: "timestamp with time zone",
 };
 
-/** After every migration: exactly what the app writes (004 service area, 006 content hash, 007 notify outbox, 008 batch hash, 009 delivery check, 010 re-send cap, 011 acknowledgement). */
+/** After every migration: exactly what the app writes (004 service area, 006 content hash, 007 notify outbox, 008 batch hash, 009 delivery check, 010 re-send cap, 011 acknowledgement, 012 history and recovery cap). */
 const EXPECTED = {
   ...BASE,
   service_area: "text",
@@ -104,6 +107,8 @@ const EXPECTED = {
   notify_ack_at: "timestamp with time zone",
   notify_ack_by: "text",
   notify_lookup_failures: "integer",
+  notify_recoveries: "integer",
+  notify_recovered_at: "timestamp with time zone",
 };
 
 /**
@@ -387,18 +392,72 @@ try {
           ". Fix the constraint before launch.",
       );
     }
-    // The delivery check's state table, column by column (R6-6).
-    const CHECKS_TABLE = { app: "text", last_success_at: "timestamp with time zone", failing_since: "timestamp with time zone", last_error: "text", updated_at: "timestamp with time zone" };
-    const checkCols = Object.fromEntries(
+    // AEGIS r7 R7-4: the notify columns' nullability and defaults (a
+    // nullable counter without a default would turn NULL + 1 into NULL and
+    // silently undo the caps), the side tables column by column with no
+    // extra columns, no triggers anywhere, and the acknowledgement index.
+    const MUST_DEFAULT = ["notify_attempts", "notify_outcome_unknown", "notify_resends", "notify_lookup_failures", "notify_recoveries", "quarantined"];
+    const leadsMeta = Object.fromEntries(
       (
         await tx`
-          SELECT column_name, data_type FROM information_schema.columns
-          WHERE table_schema = current_schema() AND table_name = 'lead_delivery_checks'`
-      ).map((c) => [c.column_name, c.data_type]),
+          SELECT column_name, is_nullable, column_default FROM information_schema.columns
+          WHERE table_schema = current_schema() AND table_name = 'leads'`
+      ).map((c) => [c.column_name, c]),
     );
-    const wrongCols = Object.entries(CHECKS_TABLE).filter(([n, t]) => checkCols[n] !== t).map(([n]) => n);
-    if (!Object.keys(checkCols).length) throw new CheckFailed("lead_delivery_checks table is missing. Fix the schema before launch.");
-    if (wrongCols.length) throw new CheckFailed(`lead_delivery_checks does not match the app: ${wrongCols.join(", ")}. Fix the schema before launch.`);
+    const badMeta = [];
+    for (const name of Object.keys(EXPECTED).filter((n) => n.startsWith("notify_") || n === "quarantined")) {
+      const c = leadsMeta[name];
+      if (!c) continue; // reported by the column check
+      if (MUST_DEFAULT.includes(name)) {
+        if (c.is_nullable !== "NO" || c.column_default === null) badMeta.push(`${name} (must be NOT NULL with a default)`);
+      } else if (name !== "notify_status" && c.is_nullable !== "YES") badMeta.push(`${name} (must allow NULL)`);
+    }
+    if (badMeta.length) throw new CheckFailed(`leads columns differ from what the app expects: ${badMeta.join(", ")}. Fix the schema before launch.`);
+    const SIDE_TABLES = {
+      lead_delivery_checks: {
+        app: ["text", "NO"],
+        last_success_at: ["timestamp with time zone", "YES"],
+        failing_since: ["timestamp with time zone", "YES"],
+        last_error: ["text", "YES"],
+        updated_at: ["timestamp with time zone", "NO"],
+      },
+      lead_acks: {
+        id: ["bigint", "NO"],
+        app: ["text", "NO"],
+        acked_at: ["timestamp with time zone", "NO"],
+        actor: ["text", "NO"],
+        ip_hash: ["text", "YES"],
+        through: ["timestamp with time zone", "YES"],
+        submission_ids: ["ARRAY", "NO"],
+        acknowledged: ["integer", "NO"],
+      },
+    };
+    for (const [table, expected] of Object.entries(SIDE_TABLES)) {
+      const actual = Object.fromEntries(
+        (
+          await tx`
+            SELECT column_name, data_type, is_nullable FROM information_schema.columns
+            WHERE table_schema = current_schema() AND table_name = ${table}`
+        ).map((c) => [c.column_name, [c.data_type, c.is_nullable]]),
+      );
+      if (!Object.keys(actual).length) throw new CheckFailed(`${table} table is missing. Fix the schema before launch.`);
+      const wrong = Object.entries(expected).filter(([n, [t, nul]]) => actual[n]?.[0] !== t || actual[n]?.[1] !== nul).map(([n]) => n);
+      const extra = Object.keys(actual).filter((n) => !(n in expected));
+      if (wrong.length || extra.length) {
+        throw new CheckFailed(
+          `${table} does not match the app` + (wrong.length ? `: ${wrong.join(", ")}` : "") + (extra.length ? `; extra columns: ${extra.join(", ")}` : "") + ". Fix the schema before launch.",
+        );
+      }
+    }
+    const triggers = (
+      await tx`
+        SELECT c.relname || '.' || t.tgname AS name FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE NOT t.tgisinternal AND n.nspname = current_schema() AND c.relname IN ('leads', 'lead_delivery_checks', 'lead_acks')`
+    ).map((r) => r.name);
+    if (triggers.length) throw new CheckFailed(`triggers on the lead tables could block what the app writes: ${triggers.join(", ")}. Remove them before launch.`);
+    const [unackedIdx] = await tx`SELECT to_regclass('leads_app_unacked_idx') IS NOT NULL AS present`;
+    if (!unackedIdx?.present) throw new CheckFailed("index leads_app_unacked_idx is missing (sql/011). Fix the schema before launch.");
     lines.push(`notify constraints exact (${NOTIFY_STATUSES.length} statuses, ${NOTIFY_DELIVERY_VALUES.length} delivery values; rolled back); delivery check table ok`);
     return lines;
   });

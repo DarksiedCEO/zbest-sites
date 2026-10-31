@@ -126,6 +126,9 @@ export interface LeadStore {
  */
 export type NotifyExtra = { emailId?: string; outcomeUnknown?: boolean; /** Accepted without a usable email id (AEGIS r5 N4). */ unverifiable?: boolean };
 
+/** An acknowledgement (AEGIS r7 R7-2): who (the secret's holder), from where (a keyed hash), and what. */
+export type AckRequest = { actor: string; ipHash: string | null; through?: Date; ids?: string[] };
+
 /** What a delivery lookup found (AEGIS r4 M2, r5 N2/N3). */
 export type LookupResult =
   | { event: string }
@@ -177,7 +180,14 @@ export interface NotifyOutbox {
    * gives the hash of its email body, written to every row before any send.
    * Null when there is nothing to batch.
    */
-  formBatch(app: LeadApp, kind: BatchKind, limit: number, seal: (batch: { leads: StoredLead[]; summary: BatchSummary }) => string): Promise<Batch | null>;
+  formBatch(
+    app: LeadApp,
+    kind: BatchKind,
+    limit: number,
+    seal: (batch: { leads: StoredLead[]; summary: BatchSummary }) => string,
+    /** recovered: only previously abandoned leads, which are batched apart (AEGIS r7 R7-1). */
+    opts?: { recovered?: boolean },
+  ): Promise<Batch | null>;
   /**
    * The batch Resend accepted: exactly these leads (and only while they are
    * still in batch `key`) become 'sent' ('expired_reported' for an expired batch).
@@ -210,8 +220,13 @@ export interface NotifyOutbox {
   requeueUnverifiable(app: LeadApp): Promise<DeliveryOutcome>;
   /** AEGIS r6 R6-1: a later email was confirmed delivered: every abandoned lead goes back in the digest, flagged. */
   recoverAbandoned(app: LeadApp): Promise<number>;
-  /** AEGIS r6 R6-1(d): the founder acknowledges every abandoned or unverifiable lead not yet acknowledged; nothing is deleted. */
-  acknowledgeUndelivered(app: LeadApp, by: string): Promise<number>;
+  /**
+   * AEGIS r6 R6-1(d), r7 R7-2: the founder acknowledges abandoned or
+   * unverifiable leads — only those dated at or before `through` and/or
+   * listed in `ids` — and an append-only history row records it. Nothing is
+   * deleted. Returns how many were acknowledged.
+   */
+  acknowledgeUndelivered(app: LeadApp, ack: AckRequest): Promise<number>;
   /** The delivery check's own state for health (AEGIS r5 N2/N3). */
   recordCheckState(app: LeadApp, state: "ok" | "unauthorized" | "failing", code?: string): Promise<void>;
   /**

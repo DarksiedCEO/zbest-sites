@@ -36,8 +36,9 @@ import { DeliveryError, type LeadApp } from "./types";
  *      'abandoned' (health leads_undelivered until acknowledged) and re-queued
  *      whenever a later email is confirmed delivered.
  *
- * The whole run stays within RUN_BUDGET_MS (50 s; maxDuration is 60 s):
- * work not started in time waits for the next run (AEGIS r6 R6-4).
+ * The whole run stays within RUN_BUDGET_MS (50 s; maxDuration is 60 s), and
+ * keeps at least CHECK_RESERVE_MS (8 s) for delivery lookups: sends stop at
+ * 34 s; work not started in time waits for the next run (AEGIS r6 R6-4, r7 R7-5).
  *
  * Schedule (vercel.json): daily, because Vercel Hobby runs a cron job at
  * most once a day and rejects a deployment with a more frequent schedule. The
@@ -60,6 +61,8 @@ const BATCH = 50;
 const MAX_INDIVIDUAL_PER_RUN = 50;
 /** AEGIS r6 R6-4: a run's time budget, inside the cron routes' maxDuration (60 s). */
 export const RUN_BUDGET_MS = 50_000;
+/** AEGIS r7 R7-5: time each run keeps for delivery lookups, even under a send backlog. */
+export const CHECK_RESERVE_MS = 8_000;
 /** Leads older than this are not retried one by one: they go in the digest (r3 L3). */
 export const DEFAULT_NOTIFY_INDIVIDUAL_HOURS = 1;
 export function notifyIndividualHours(env: Env): number {
@@ -112,13 +115,14 @@ export async function handleNotifyRetry(request: Request, opts: NotifyRetryOptio
       return json({ ok: false, error: { code: "not_configured" } }, 503);
     }
     const nowMs = (opts.now ?? (() => new Date()))().getTime();
-    // AEGIS r6 R6-4: the whole run fits inside maxDuration (60 s). No send
-    // starts after 70% of the budget (a send can take its 8 s timeout), and
-    // the delivery check stops by 84%, so the run ends by about the budget.
+    // AEGIS r6 R6-4, r7 R7-5: the whole run fits inside maxDuration (60 s),
+    // and every run keeps time for delivery lookups. No send starts after
+    // budget − reserve − one send's timeout (34 s of 50 s), so even a send
+    // backlog leaves the check its reserve (8 s, or 16% of a smaller budget).
     const runStart = Date.now();
     const budget = opts.runBudgetMs ?? RUN_BUDGET_MS;
-    const sendUntil = runStart + budget * 0.7;
-    const checkUntil = runStart + budget * 0.84;
+    const slice = Math.min(CHECK_RESERVE_MS, budget * 0.16);
+    const sendUntil = runStart + budget - 2 * slice;
     let outOfTime = false;
     const days = notifyRetryDays(env);
     const ctx = { app, store, notifier, log, now: () => nowMs };
@@ -172,6 +176,9 @@ export async function handleNotifyRetry(request: Request, opts: NotifyRetryOptio
     // 6. Last, time-boxed (r5 N6): delivery of sent emails (r4 M2, r5 N2–N4).
     // A lead whose email was not delivered is re-sent in a later digest,
     // after 1 h, 6 h, 24 h, 72 h; then abandoned and re-queued on a confirmed delivery.
+    // The check runs at least `slice` (its reserve), however late the sends
+    // ended, and never past the budget.
+    const checkUntil = Math.min(runStart + budget, Math.max(runStart + budget * 0.84, Date.now() + slice));
     const checks = await checkDeliveries({ ...ctx, outbox }, opts.deliveryBudgetMs, checkUntil);
     if (outOfTime || checks.outOfTime) log("warn", "notify_run_budget_reached", { app });
 
