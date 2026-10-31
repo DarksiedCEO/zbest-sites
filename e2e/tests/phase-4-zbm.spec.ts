@@ -306,22 +306,29 @@ test.describe("Home (§A4)", () => {
     expect(await section.innerText()).not.toMatch(/case stud|representative|%/i);
   });
 
-  test("the scroll-scrubbed hero moves with scroll, and not at all with reduced motion", async ({ page }) => {
+  // Superseded by FD-VISUAL-01 §5 (docs/DESIGN-visual-amendment-v1.md): the
+  // §A4 scroll-scrubbed headline became "The reel" — the headline now HOLDS
+  // while the reel beside it is driven by scroll. The full showpiece contract
+  // is in fd-visual-01-pilot.spec.ts; this keeps the hero's half of it here.
+  test("the scroll-driven hero: the reel moves with scroll, the headline holds, and nothing moves with reduced motion", async ({ page }) => {
     await presetConsent(page);
     await page.emulateMedia({ reducedMotion: "no-preference" });
     await page.goto(`${ZBM_BASE_URL}/`, { waitUntil: "domcontentloaded" });
-    const scrubbed = page.locator("main header h1").locator("..");
-    await expect.poll(() => scrubbed.evaluate((el) => getComputedStyle(el).opacity)).toBe("1");
-    await page.evaluate(() => window.scrollTo(0, 500));
-    await expect
-      .poll(() => scrubbed.evaluate((el) => getComputedStyle(el).transform))
-      .not.toBe("none");
+    const reel = page.locator('[data-showpiece="zbm-home-reel"]');
+    await expect(reel).toHaveAttribute("data-showpiece-state", "live");
+    const cover = reel.locator("[data-unmask]").last();
+    const before = await cover.evaluate((el) => getComputedStyle(el).transform);
+    await page.evaluate(() => window.scrollTo(0, window.innerHeight));
+    await expect.poll(() => cover.evaluate((el) => getComputedStyle(el).transform)).not.toBe(before);
+    expect(await page.locator("main header h1").evaluate((el) => getComputedStyle(el).transform)).toBe("none");
 
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto(`${ZBM_BASE_URL}/`, { waitUntil: "domcontentloaded" });
-    await page.evaluate(() => window.scrollTo(0, 500));
+    await expect(reel).toHaveAttribute("data-showpiece-state", "static");
+    const still = await cover.evaluate((el) => getComputedStyle(el).transform);
+    await page.evaluate(() => window.scrollTo(0, window.innerHeight));
     await page.waitForTimeout(200);
-    expect(await page.locator("main header h1").locator("..").evaluate((el) => getComputedStyle(el).transform)).toBe("none");
+    expect(await cover.evaluate((el) => getComputedStyle(el).transform)).toBe(still);
   });
 });
 
