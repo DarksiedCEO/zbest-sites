@@ -1,4 +1,4 @@
-import { ButtonLink, pageMetadata } from "@zbest/ui";
+import { ButtonLink, HeroMedia, pageMetadata } from "@zbest/ui";
 import { CtaRow, FaqList, LedgerList, Lead, PageHeader, PageSection, RuledList } from "@/components/page";
 import { DIGITAL_ADVERTISING_FAQ } from "@/content/faq";
 import { startHref } from "@/content/services";
@@ -12,13 +12,28 @@ export const metadata = pageMetadata(SITE, {
   ogImage: "/digital-advertising/opengraph-image",
 });
 
-/** Digital Advertising (Brief §A4). Copy verbatim. */
+/**
+ * Digital Advertising (Brief §A4). Copy verbatim.
+ *
+ * FD-VISUAL-01 §10: the hero carries the service's lead image — the Quellmont
+ * Motors square ad, inside a native feed frame, where paid social runs (§3.3).
+ */
 export default function DigitalAdvertisingPage() {
   return (
     <main>
       <PageHeader
         label="Digital Advertising"
         title="The traffic engine, built to feed a funnel that actually converts."
+        aside={
+          <HeroMedia
+            asset="quellmont-feed-sticker"
+            frame="phone"
+            chrome="feed"
+            handle="quellmontmotors"
+            className="mx-auto w-full max-w-[20rem]"
+            sizes="320px"
+          />
+        }
       >
         <Lead>
           Digital Advertising is where the media runs — paid social, search, and

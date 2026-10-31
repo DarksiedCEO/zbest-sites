@@ -30,8 +30,8 @@ import { useRef, type ReactNode } from "react";
  * no pin. The live first frame matches it exactly, so hydration changes nothing.
  *
  * Mobile: tiles in a row share one aspect — 16:9 for TV and site, square for
- * digital and social — cropped on manifest focal points chosen so each piece's
- * headline stays whole (founder pilot review).
+ * digital and social — cropped so each block of type is whole or out
+ * (packages/ui/src/media/crop.ts).
  * Built from stills; the audit-page tile §5 names waits for the Revenue
  * Recovery process visual (post-launch, §10).
  */
@@ -41,8 +41,8 @@ type Tile = {
   channel: string;
   brand: string;
   aspect?: string;
-  /** Mobile window aspect override (tiles in one mobile row share an aspect). */
-  mobileSquare?: boolean;
+  /** Window aspect below 1024px (tiles in one mobile row share an aspect). */
+  mobileAspect?: string;
   /** Desktop width in the bottom row, as a share of the reel. */
   lg?: string;
   /** Small channel marker drawn in a corner of the image that carries no type. */
@@ -63,7 +63,7 @@ const ROW: Tile[] = [
   { asset: "quellmont-tv-keys", frame: "plate", channel: "TV & Streaming", brand: "Quellmont Motors", lg: "lg:w-[31.6%]", marker: "▶ TV · 00:14", at: [0.08, 0.3] },
   { asset: "marenvale-website", frame: "plate", channel: "Websites", brand: "Maren Vale Aesthetics", lg: "lg:w-[31.6%]", at: [0.22, 0.44] },
   { asset: "quellmont-feed-sticker", frame: "plate", channel: "Digital", brand: "Quellmont Motors", aspect: "1 / 1", lg: "lg:w-[17.8%]", at: [0.36, 0.58] },
-  { asset: "marenvale-social", frame: "plate", channel: "Social", brand: "Maren Vale Aesthetics", aspect: "4 / 5", mobileSquare: true, lg: "lg:w-[14.2%]", at: [0.5, 0.72] },
+  { asset: "marenvale-social", frame: "plate", channel: "Social", brand: "Maren Vale Aesthetics", aspect: "4 / 5", mobileAspect: "1 / 1", lg: "lg:w-[14.2%]", at: [0.5, 0.72] },
 ];
 
 export function HomeReel({ hero }: { hero: ReactNode }) {
@@ -164,7 +164,9 @@ function ReelTile({
         asset={tile.asset}
         frame={tile.frame}
         aspect={tile.aspect ?? "16 / 9"}
-        className={tile.mobileSquare ? "max-lg:[&_[data-frame-window]]:aspect-square!" : undefined}
+        mobileAspect={tile.mobileAspect}
+        // The push-in below (1.04 about the centre); crops allow for it.
+        zoom={1.04}
         loading="eager"
         sizes="(min-width: 1024px) 240px, 45vw"
         caption={false}
