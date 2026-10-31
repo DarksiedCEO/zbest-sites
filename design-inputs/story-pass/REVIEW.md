@@ -11,3 +11,4 @@ Remaining: 35 files, status RENDER_REQUIRED (see manifest-from-chatgpt.json). Le
 | rr-leak-report.png | 1672×941 | APPROVED | Six items exact and in site order; no percentages or metrics (item numbers 1–6 only); no faces/logos. |
 | rr-broken-form.png | 1672×941 (16:9; list said 4:5) | APPROVED | Error copy exact; Submit button cut off by the screen edge = the story; plausible hands; no faces/logos. Slot uses 16:9.
 | rr-no-follow-up.png | 1672×941 (16:9) | APPROVED | Exact copy ("Following up on your quote", "No reply — 9 days"); stained cold mug + Follow up/Call/Confirm/Close note sell the story; no faces, no visible logos; blurred rows read as placeholders. |
+| rr-wrong-page.png | 1671×941 (16:9) | APPROVED | Ad copy exact ("Free brake inspection"); landing page shows no brake mention anywhere = the story; arrow + red X read instantly; generic phones, no logos, no faces. |
