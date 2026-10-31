@@ -1,0 +1,708 @@
+{
+  "project": "Z Best Media & Z Best Clips",
+  "version": "launch-pass-v1",
+  "status": "PARTIAL",
+  "source": "user-approved 36-image shot list",
+  "image_count_required": 36,
+  "production_ready_count": 0,
+  "standalone_render_count": 1,
+  "rules": [
+    "No contact-sheet crops or upscaled thumbnails may be promoted as final",
+    "No faces or unauthorized real logos",
+    "Exact text must be independently verified",
+    "Explicit aspect ratio and intrinsic dimensions",
+    "No unsupported results claims",
+    "Do not commit to production without visual QA and review"
+  ],
+  "assets": [
+    {
+      "id": 1,
+      "filename": "rr-missed-call.png",
+      "site": "ZBM",
+      "section": "Revenue Recovery",
+      "ratio": "16:9",
+      "priority": "star",
+      "prompt": "An empty small-business front desk after closing time, lights low, a desk phone whose screen glows \"3 missed calls\", a \"Closed\" sign on the glass door behind it, street lights outside. Warm amber and deep shadow. Photorealistic. No faces (hands, backs and silhouettes only). No logos, no real brand products, no real company names. All text spelled exactly as written. Cinematic light.",
+      "status": "RENDERED_QA_PENDING",
+      "path": "assets/story/rr-missed-call.png",
+      "review": {
+        "no_faces": null,
+        "no_real_logos": null,
+        "text_exact": null,
+        "story_fit": null,
+        "visual_quality": null,
+        "aspect_ratio": null
+      },
+      "dimensions": {
+        "width": 1664,
+        "height": 936
+      },
+      "sha256": "3d8f7bdaf5993290657d16cbe534e60987b74e6dde35c394536834ce632e1547"
+    },
+    {
+      "id": 2,
+      "filename": "rr-broken-form.png",
+      "site": "ZBM",
+      "section": "Revenue Recovery",
+      "ratio": "4:5",
+      "priority": "star",
+      "prompt": "Close-up of a hand holding a plain generic smartphone showing a contact form whose \"Submit\" button is cut off the bottom of the screen, with a red line \"Please fix the errors above\". The thumb hovers, frustrated. Dark background, warm side light. Photorealistic. No faces (hands, backs and silhouettes only). No logos, no real brand products, no real company names. All text spelled exactly as written. Cinematic light.",
+      "status": "RENDER_REQUIRED",
+      "path": "assets/story/rr-broken-form.png",
+      "review": {
+        "no_faces": null,
+        "no_real_logos": null,
+        "text_exact": null,
+        "story_fit": null,
+        "visual_quality": null,
+        "aspect_ratio": null
+      }
+    },
+    {
+      "id": 3,
+      "filename": "rr-no-follow-up.png",
+      "site": "ZBM",
+      "section": "Revenue Recovery",
+      "ratio": "16:9",
+      "priority": "star",
+      "prompt": "A laptop on a cluttered desk showing an email inbox with one sent message \"Following up on your quote\" marked \"No reply \u2014 9 days\". A cold coffee cup and sticky notes beside it. Muted late-afternoon light. Photorealistic. No faces (hands, backs and silhouettes only). No logos, no real brand products, no real company names. All text spelled exactly as written. Cinematic light.",
+      "status": "RENDER_REQUIRED",
+      "path": "assets/story/rr-no-follow-up.png",
+      "review": {
+        "no_faces": null,
+        "no_real_logos": null,
+        "text_exact": null,
+        "story_fit": null,
+        "visual_quality": null,
+        "aspect_ratio": null
+      }
+    },
+    {
+      "id": 4,
+      "filename": "rr-slow-page.png",
+      "site": "ZBM",
+      "section": "Revenue Recovery",
+      "ratio": "4:5",
+      "priority": "standard",
+      "prompt": "A hand holding a generic smartphone showing a web page still loading: a grey placeholder and a spinning loader, the thumb moving toward the back gesture. Blurred city night behind. Photorealistic. No faces (hands, backs and silhouettes only). No logos, no real brand products, no real company names. All text spelled exactly as written. Cinematic light.",
+      "status": "RENDER_REQUIRED",
+      "path": "assets/story/rr-slow-page.png",
+      "review": {
+        "no_faces": null,
+        "no_real_logos": null,
+        "text_exact": null,
+        "story_fit": null,
+        "visual_quality": null,
+        "aspect_ratio": null
+      }
+    },
+    {
+      "id": 5,
+      "filename": "rr-wrong-page.png",
+      "site": "ZBM",
+      "section": "Revenue Recovery",
+      "ratio": "16:9",
+      "priority": "standard",
+      "prompt": "Split image: on the left, a phone showing a bright ad \"Free brake inspection\"; on the right, the same phone after tapping, showing a generic homepage with no mention of brakes. A small red X between them. Dark background. Photorealistic. No faces (hands, backs and silhouettes only). No logos, no real brand products, no real company names. All text spelled exactly as written. Cinematic light.",
+      "status": "RENDER_REQUIRED",
+      "path": "assets/story/rr-wrong-page.png",
+      "review": {
+        "no_faces": null,
+        "no_real_logos": null,
+        "text_exact": null,
+        "story_fit": null,
+        "visual_quality": null,
+        "aspect_ratio": null
+      }
+    },
+    {
+      "id": 6,
+      "filename": "rr-leak-report.png",
+      "site": "ZBM",
+      "section": "Revenue Recovery",
+      "ratio": "16:9",
+      "priority": "star",
+      "prompt": "Overhead view of a printed report on a dark walnut desk titled \"Revenue Leak Report\", six numbered findings each highlighted in amber with a handwritten check mark, a pen and reading glasses on the page. Warm, confident, premium. Photorealistic. No faces (hands, backs and silhouettes only). No logos, no real brand products, no real company names. All text spelled exactly as written. Cinematic light.",
+      "status": "RENDER_REQUIRED",
+      "path": "assets/story/rr-leak-report.png",
+      "review": {
+        "no_faces": null,
+        "no_real_logos": null,
+        "text_exact": null,
+        "story_fit": null,
+        "visual_quality": null,
+        "aspect_ratio": null
+      }
+    },
+    {
+      "id": 7,
+      "filename": "da-problem-wasted-spend.png",
+      "site": "ZBM",
+      "section": "Digital Advertising",
+      "ratio": "16:9",
+      "priority": "standard",
+      "prompt": "A laptop at night showing a generic ad dashboard with a large red number \"Spend: $4,820\" and a small grey \"Leads: 3\". A worried hand rests on the desk beside it. Photorealistic. No faces (hands, backs and silhouettes only). No logos, no real brand products, no real company names. All text spelled exactly as written. Cinematic light.",
+      "status": "RENDER_REQUIRED",
+      "path": "assets/story/da-problem-wasted-spend.png",
+      "review": {
+        "no_faces": null,
+        "no_real_logos": null,
+        "text_exact": null,
+        "story_fit": null,
+        "visual_quality": null,
+        "aspect_ratio": null
+      }
+    },
+    {
+      "id": 8,
+      "filename": "da-work-campaign.png",
+      "site": "ZBM",
+      "section": "Digital Advertising",
+      "ratio": "16:9",
+      "priority": "star",
+      "prompt": "Hands at a keyboard building an ad campaign on a large monitor: audience boxes, budget sliders and three ad previews in a row. Dark studio, amber desk lamp. Photorealistic. No faces (hands, backs and silhouettes only). No logos, no real brand products, no real company names. All text spelled exactly as written. Cinematic light.",
+      "status": "RENDER_REQUIRED",
+      "path": "assets/story/da-work-campaign.png",
+      "review": {
+        "no_faces": null,
+        "no_real_logos": null,
+        "text_exact": null,
+        "story_fit": null,
+        "visual_quality": null,
+        "aspect_ratio": null
+      }
+    },
+    {
+      "id": 9,
+      "filename": "da-result-lead.png",
+      "site": "ZBM",
+      "section": "Digital Advertising",
+      "ratio": "4:5",
+      "priority": "standard",
+      "prompt": "A hand holding a generic smartphone showing a notification \"New lead: Request a quote\", with a second one stacked below. Soft warm light, blurred office behind. Photorealistic. No faces (hands, backs and silhouettes only). No logos, no real brand products, no real company names. All text spelled exactly as written. Cinematic light.",
+      "status": "RENDER_REQUIRED",
+      "path": "assets/story/da-result-lead.png",
+      "review": {
+        "no_faces": null,
+        "no_real_logos": null,
+        "text_exact": null,
+        "story_fit": null,
+        "visual_quality": null,
+        "aspect_ratio": null
+      }
+    },
+    {
+      "id": 10,
+      "filename": "tv-problem-wrong-room.png",
+      "site": "ZBM",
+      "section": "TV & Streaming",
+      "ratio": "16:9",
+      "priority": "standard",
+      "prompt": "An empty living room at night with a TV playing a generic ad to an empty couch, a remote left on the cushion. Blue TV glow. Photorealistic. No faces (hands, backs and silhouettes only). No logos, no real brand products, no real company names. All text spelled exactly as written. Cinematic light.",
+      "status": "RENDER_REQUIRED",
+      "path": "assets/story/tv-problem-wrong-room.png",
+      "review": {
+        "no_faces": null,
+        "no_real_logos": null,
+        "text_exact": null,
+        "story_fit": null,
+        "visual_quality": null,
+        "aspect_ratio": null
+      }
+    },
+    {
+      "id": 11,
+      "filename": "tv-work-set.png",
+      "site": "ZBM",
+      "section": "TV & Streaming",
+      "ratio": "16:9",
+      "priority": "star",
+      "prompt": "Behind the scenes on a commercial set: a cinema camera on a dolly, lights, crew seen only from behind, a monitor showing the frame of a modern showroom. Photorealistic. No faces (hands, backs and silhouettes only). No logos, no real brand products, no real company names. All text spelled exactly as written. Cinematic light.",
+      "status": "RENDER_REQUIRED",
+      "path": "assets/story/tv-work-set.png",
+      "review": {
+        "no_faces": null,
+        "no_real_logos": null,
+        "text_exact": null,
+        "story_fit": null,
+        "visual_quality": null,
+        "aspect_ratio": null
+      }
+    },
+    {
+      "id": 12,
+      "filename": "tv-result-watching.png",
+      "site": "ZBM",
+      "section": "TV & Streaming",
+      "ratio": "16:9",
+      "priority": "standard",
+      "prompt": "A living room at night seen from behind the couch: two people\u2019s silhouettes watching a TV that shows a calm, premium car-dealership ad with the line \"The price on the window is the price.\" Photorealistic. No faces (hands, backs and silhouettes only). No logos, no real brand products, no real company names. All text spelled exactly as written. Cinematic light.",
+      "status": "RENDER_REQUIRED",
+      "path": "assets/story/tv-result-watching.png",
+      "review": {
+        "no_faces": null,
+        "no_real_logos": null,
+        "text_exact": null,
+        "story_fit": null,
+        "visual_quality": null,
+        "aspect_ratio": null
+      }
+    },
+    {
+      "id": 13,
+      "filename": "radio-problem-commute.png",
+      "site": "ZBM",
+      "section": "Radio & Audio",
+      "ratio": "16:9",
+      "priority": "standard",
+      "prompt": "Freeway traffic at dusk from inside a car, red taillights ahead, the driver\u2019s hands on the wheel, the dashboard radio glowing. Photorealistic. No faces (hands, backs and silhouettes only). No logos, no real brand products, no real company names. All text spelled exactly as written. Cinematic light.",
+      "status": "RENDER_REQUIRED",
+      "path": "assets/story/radio-problem-commute.png",
+      "review": {
+        "no_faces": null,
+        "no_real_logos": null,
+        "text_exact": null,
+        "story_fit": null,
+        "visual_quality": null,
+        "aspect_ratio": null
+      }
+    },
+    {
+      "id": 14,
+      "filename": "radio-work-studio.png",
+      "site": "ZBM",
+      "section": "Radio & Audio",
+      "ratio": "16:9",
+      "priority": "star",
+      "prompt": "A recording studio: a broadcast microphone with pop filter, a printed script on a stand reading \"SALTGROVE \u2014 30 sec\", hands adjusting a mixing board. Warm amber light. Photorealistic. No faces (hands, backs and silhouettes only). No logos, no real brand products, no real company names. All text spelled exactly as written. Cinematic light.",
+      "status": "RENDER_REQUIRED",
+      "path": "assets/story/radio-work-studio.png",
+      "review": {
+        "no_faces": null,
+        "no_real_logos": null,
+        "text_exact": null,
+        "story_fit": null,
+        "visual_quality": null,
+        "aspect_ratio": null
+      }
+    },
+    {
+      "id": 15,
+      "filename": "radio-result-car.png",
+      "site": "ZBM",
+      "section": "Radio & Audio",
+      "ratio": "4:5",
+      "priority": "standard",
+      "prompt": "Close-up of a car dashboard at night, the radio display reading \"Now playing: Saltgrove Hospitality\", the ocean and pier lights blurred through the windshield. Photorealistic. No faces (hands, backs and silhouettes only). No logos, no real brand products, no real company names. All text spelled exactly as written. Cinematic light.",
+      "status": "RENDER_REQUIRED",
+      "path": "assets/story/radio-result-car.png",
+      "review": {
+        "no_faces": null,
+        "no_real_logos": null,
+        "text_exact": null,
+        "story_fit": null,
+        "visual_quality": null,
+        "aspect_ratio": null
+      }
+    },
+    {
+      "id": 16,
+      "filename": "ooh-work-planning.png",
+      "site": "ZBM",
+      "section": "Out-of-Home",
+      "ratio": "16:9",
+      "priority": "star",
+      "prompt": "Hands placing amber pins on a large printed map of Los Angeles freeways spread across a table, with a ruler, a highlighter and a printed list \"Placement plan\". Overhead, warm light. Photorealistic. No faces (hands, backs and silhouettes only). No logos, no real brand products, no real company names. All text spelled exactly as written. Cinematic light.",
+      "status": "RENDER_REQUIRED",
+      "path": "assets/story/ooh-work-planning.png",
+      "review": {
+        "no_faces": null,
+        "no_real_logos": null,
+        "text_exact": null,
+        "story_fit": null,
+        "visual_quality": null,
+        "aspect_ratio": null
+      }
+    },
+    {
+      "id": 17,
+      "filename": "ooh-result-street.png",
+      "site": "ZBM",
+      "section": "Out-of-Home",
+      "ratio": "4:5",
+      "priority": "standard",
+      "prompt": "A digital billboard on a busy LA corner at night showing a minimal black ad with orange accent line, cars streaming past, people only as blurred silhouettes. Photorealistic. No faces (hands, backs and silhouettes only). No logos, no real brand products, no real company names. All text spelled exactly as written. Cinematic light.",
+      "status": "RENDER_REQUIRED",
+      "path": "assets/story/ooh-result-street.png",
+      "review": {
+        "no_faces": null,
+        "no_real_logos": null,
+        "text_exact": null,
+        "story_fit": null,
+        "visual_quality": null,
+        "aspect_ratio": null
+      }
+    },
+    {
+      "id": 18,
+      "filename": "social-problem-dead-page.png",
+      "site": "ZBM",
+      "section": "Social Media",
+      "ratio": "4:5",
+      "priority": "standard",
+      "prompt": "A hand holding a generic smartphone showing a business social profile whose last post says \"Posted 8 months ago\", with a few faded grey tiles. Dim, neglected feeling. Photorealistic. No faces (hands, backs and silhouettes only). No logos, no real brand products, no real company names. All text spelled exactly as written. Cinematic light.",
+      "status": "RENDER_REQUIRED",
+      "path": "assets/story/social-problem-dead-page.png",
+      "review": {
+        "no_faces": null,
+        "no_real_logos": null,
+        "text_exact": null,
+        "story_fit": null,
+        "visual_quality": null,
+        "aspect_ratio": null
+      }
+    },
+    {
+      "id": 19,
+      "filename": "social-work-calendar.png",
+      "site": "ZBM",
+      "section": "Social Media",
+      "ratio": "16:9",
+      "priority": "star",
+      "prompt": "A wall-mounted content calendar for one month, every day filled with colored cards labeled \"Reel\", \"Post\", \"Story\", hands pinning a new card. Bright, organized studio. Photorealistic. No faces (hands, backs and silhouettes only). No logos, no real brand products, no real company names. All text spelled exactly as written. Cinematic light.",
+      "status": "RENDER_REQUIRED",
+      "path": "assets/story/social-work-calendar.png",
+      "review": {
+        "no_faces": null,
+        "no_real_logos": null,
+        "text_exact": null,
+        "story_fit": null,
+        "visual_quality": null,
+        "aspect_ratio": null
+      }
+    },
+    {
+      "id": 20,
+      "filename": "social-result-engaged.png",
+      "site": "ZBM",
+      "section": "Social Media",
+      "ratio": "4:5",
+      "priority": "standard",
+      "prompt": "A hand holding a generic smartphone showing a post with a stack of notifications: \"48 comments\", \"212 likes\", \"3 new messages\". Warm morning light. Photorealistic. No faces (hands, backs and silhouettes only). No logos, no real brand products, no real company names. All text spelled exactly as written. Cinematic light.",
+      "status": "RENDER_REQUIRED",
+      "path": "assets/story/social-result-engaged.png",
+      "review": {
+        "no_faces": null,
+        "no_real_logos": null,
+        "text_exact": null,
+        "story_fit": null,
+        "visual_quality": null,
+        "aspect_ratio": null
+      }
+    },
+    {
+      "id": 21,
+      "filename": "creative-work-storyboard.png",
+      "site": "ZBM",
+      "section": "Creative & Production",
+      "ratio": "16:9",
+      "priority": "star",
+      "prompt": "Hand-drawn storyboard panels pinned across a wall, a hand sketching the next frame with a marker, a coffee and a camera on the table below. Photorealistic. No faces (hands, backs and silhouettes only). No logos, no real brand products, no real company names. All text spelled exactly as written. Cinematic light.",
+      "status": "RENDER_REQUIRED",
+      "path": "assets/story/creative-work-storyboard.png",
+      "review": {
+        "no_faces": null,
+        "no_real_logos": null,
+        "text_exact": null,
+        "story_fit": null,
+        "visual_quality": null,
+        "aspect_ratio": null
+      }
+    },
+    {
+      "id": 22,
+      "filename": "creative-work-shoot.png",
+      "site": "ZBM",
+      "section": "Creative & Production",
+      "ratio": "16:9",
+      "priority": "standard",
+      "prompt": "A product photo shoot in progress: a frosted serum bottle on stone under softbox lights, a camera on a tripod, a photographer seen only from behind. Photorealistic. No faces (hands, backs and silhouettes only). No logos, no real brand products, no real company names. All text spelled exactly as written. Cinematic light.",
+      "status": "RENDER_REQUIRED",
+      "path": "assets/story/creative-work-shoot.png",
+      "review": {
+        "no_faces": null,
+        "no_real_logos": null,
+        "text_exact": null,
+        "story_fit": null,
+        "visual_quality": null,
+        "aspect_ratio": null
+      }
+    },
+    {
+      "id": 23,
+      "filename": "influencer-work-filming.png",
+      "site": "ZBM",
+      "section": "Influencer & Creator",
+      "ratio": "4:5",
+      "priority": "star",
+      "prompt": "A creator\u2019s hands holding a generic phone on a small tripod, filming a frosted serum bottle under a ring light on a bathroom counter. No face, no mirror reflection. Photorealistic. No faces (hands, backs and silhouettes only). No logos, no real brand products, no real company names. All text spelled exactly as written. Cinematic light.",
+      "status": "RENDER_REQUIRED",
+      "path": "assets/story/influencer-work-filming.png",
+      "review": {
+        "no_faces": null,
+        "no_real_logos": null,
+        "text_exact": null,
+        "story_fit": null,
+        "visual_quality": null,
+        "aspect_ratio": null
+      }
+    },
+    {
+      "id": 24,
+      "filename": "influencer-work-brief.png",
+      "site": "ZBM",
+      "section": "Influencer & Creator",
+      "ratio": "16:9",
+      "priority": "standard",
+      "prompt": "A printed creator brief on a desk titled \"Creator Brief: Maren Vale Aesthetics\" with sections \"Message\", \"Must say\", \"Disclosure: #ad\", a pen and a phone beside it. Photorealistic. No faces (hands, backs and silhouettes only). No logos, no real brand products, no real company names. All text spelled exactly as written. Cinematic light.",
+      "status": "RENDER_REQUIRED",
+      "path": "assets/story/influencer-work-brief.png",
+      "review": {
+        "no_faces": null,
+        "no_real_logos": null,
+        "text_exact": null,
+        "story_fit": null,
+        "visual_quality": null,
+        "aspect_ratio": null
+      }
+    },
+    {
+      "id": 25,
+      "filename": "web-problem-old-site.png",
+      "site": "ZBM",
+      "section": "Websites",
+      "ratio": "16:9",
+      "priority": "standard",
+      "prompt": "A laptop showing an outdated, cluttered small-business website with tiny text, a broken image icon and a pop-up covering the page. Harsh fluorescent light. Photorealistic. No faces (hands, backs and silhouettes only). No logos, no real brand products, no real company names. All text spelled exactly as written. Cinematic light.",
+      "status": "RENDER_REQUIRED",
+      "path": "assets/story/web-problem-old-site.png",
+      "review": {
+        "no_faces": null,
+        "no_real_logos": null,
+        "text_exact": null,
+        "story_fit": null,
+        "visual_quality": null,
+        "aspect_ratio": null
+      }
+    },
+    {
+      "id": 26,
+      "filename": "web-work-wireframes.png",
+      "site": "ZBM",
+      "section": "Websites",
+      "ratio": "16:9",
+      "priority": "star",
+      "prompt": "Hand-drawn website wireframes on paper spread on a desk, beside a laptop showing the same layout as a clean finished design. Hands holding a pencil. Photorealistic. No faces (hands, backs and silhouettes only). No logos, no real brand products, no real company names. All text spelled exactly as written. Cinematic light.",
+      "status": "RENDER_REQUIRED",
+      "path": "assets/story/web-work-wireframes.png",
+      "review": {
+        "no_faces": null,
+        "no_real_logos": null,
+        "text_exact": null,
+        "story_fit": null,
+        "visual_quality": null,
+        "aspect_ratio": null
+      }
+    },
+    {
+      "id": 27,
+      "filename": "home-how-we-work.png",
+      "site": "ZBM",
+      "section": "Home & About",
+      "ratio": "16:9",
+      "priority": "star",
+      "prompt": "Overhead view of a planning table: a printed media plan, an audit report with amber highlights, a laptop with a results chart going up, and hands pointing at the chart. Photorealistic. No faces (hands, backs and silhouettes only). No logos, no real brand products, no real company names. All text spelled exactly as written. Cinematic light.",
+      "status": "RENDER_REQUIRED",
+      "path": "assets/story/home-how-we-work.png",
+      "review": {
+        "no_faces": null,
+        "no_real_logos": null,
+        "text_exact": null,
+        "story_fit": null,
+        "visual_quality": null,
+        "aspect_ratio": null
+      }
+    },
+    {
+      "id": 28,
+      "filename": "about-workspace.png",
+      "site": "ZBM",
+      "section": "Home & About",
+      "ratio": "16:9",
+      "priority": "standard",
+      "prompt": "A quiet agency workspace at early morning: dark desk, laptop, notebook titled \"Audit first. Evidence. Then scale.\", city skyline through the window. No people. Photorealistic. No faces (hands, backs and silhouettes only). No logos, no real brand products, no real company names. All text spelled exactly as written. Cinematic light.",
+      "status": "RENDER_REQUIRED",
+      "path": "assets/story/about-workspace.png",
+      "review": {
+        "no_faces": null,
+        "no_real_logos": null,
+        "text_exact": null,
+        "story_fit": null,
+        "visual_quality": null,
+        "aspect_ratio": null
+      }
+    },
+    {
+      "id": 29,
+      "filename": "zbc-step1-brief.png",
+      "site": "ZBC",
+      "section": "How It Works",
+      "ratio": "16:9",
+      "priority": "star",
+      "prompt": "A laptop showing a campaign brief screen with a long-form video thumbnail labeled \"Source\", platform checkboxes \"TikTok, Reels, Shorts\", and a \"Lock campaign\" button. Coral accent light. Photorealistic. No faces (hands, backs and silhouettes only). No logos, no real brand products, no real company names. All text spelled exactly as written. Cinematic light.",
+      "status": "RENDER_REQUIRED",
+      "path": "assets/story/zbc-step1-brief.png",
+      "review": {
+        "no_faces": null,
+        "no_real_logos": null,
+        "text_exact": null,
+        "story_fit": null,
+        "visual_quality": null,
+        "aspect_ratio": null
+      }
+    },
+    {
+      "id": 30,
+      "filename": "zbc-step2-clippers.png",
+      "site": "ZBC",
+      "section": "How It Works",
+      "ratio": "16:9",
+      "priority": "star",
+      "prompt": "Three pairs of hands at three different desks, each editing a vertical video on a phone or laptop, the same concert footage cropped differently on each screen. Coral glow. Photorealistic. No faces (hands, backs and silhouettes only). No logos, no real brand products, no real company names. All text spelled exactly as written. Cinematic light.",
+      "status": "RENDER_REQUIRED",
+      "path": "assets/story/zbc-step2-clippers.png",
+      "review": {
+        "no_faces": null,
+        "no_real_logos": null,
+        "text_exact": null,
+        "story_fit": null,
+        "visual_quality": null,
+        "aspect_ratio": null
+      }
+    },
+    {
+      "id": 31,
+      "filename": "zbc-step3-review.png",
+      "site": "ZBC",
+      "section": "How It Works",
+      "ratio": "4:5",
+      "priority": "star",
+      "prompt": "A generic tablet showing a review queue: vertical clips with green \"Approved\" and red \"Rejected\" tags, a hand tapping \"Approve\". Dark desk, coral light. Photorealistic. No faces (hands, backs and silhouettes only). No logos, no real brand products, no real company names. All text spelled exactly as written. Cinematic light.",
+      "status": "RENDER_REQUIRED",
+      "path": "assets/story/zbc-step3-review.png",
+      "review": {
+        "no_faces": null,
+        "no_real_logos": null,
+        "text_exact": null,
+        "story_fit": null,
+        "visual_quality": null,
+        "aspect_ratio": null
+      }
+    },
+    {
+      "id": 32,
+      "filename": "zbc-step4-results.png",
+      "site": "ZBC",
+      "section": "How It Works",
+      "ratio": "4:5",
+      "priority": "star",
+      "prompt": "A hand holding a generic phone showing a campaign results screen with a large view counter and a bar chart by platform, labeled \"Illustrative\". Coral and near-black. Photorealistic. No faces (hands, backs and silhouettes only). No logos, no real brand products, no real company names. All text spelled exactly as written. Cinematic light.",
+      "status": "RENDER_REQUIRED",
+      "path": "assets/story/zbc-step4-results.png",
+      "review": {
+        "no_faces": null,
+        "no_real_logos": null,
+        "text_exact": null,
+        "story_fit": null,
+        "visual_quality": null,
+        "aspect_ratio": null
+      }
+    },
+    {
+      "id": 33,
+      "filename": "zbc-ent-studio.png",
+      "site": "ZBC",
+      "section": "Entertainment, Brands, Clippers",
+      "ratio": "16:9",
+      "priority": "standard",
+      "prompt": "A music studio at night: hands on a mixing board, a microphone in a booth behind glass, coral and red light, no faces. Photorealistic. No faces (hands, backs and silhouettes only). No logos, no real brand products, no real company names. All text spelled exactly as written. Cinematic light.",
+      "status": "RENDER_REQUIRED",
+      "path": "assets/story/zbc-ent-studio.png",
+      "review": {
+        "no_faces": null,
+        "no_real_logos": null,
+        "text_exact": null,
+        "story_fit": null,
+        "visual_quality": null,
+        "aspect_ratio": null
+      }
+    },
+    {
+      "id": 34,
+      "filename": "zbc-ent-fans.png",
+      "site": "ZBC",
+      "section": "Entertainment, Brands, Clippers",
+      "ratio": "4:5",
+      "priority": "standard",
+      "prompt": "A concert crowd seen from behind, many hands holding up generic phones filming the stage in coral-red light. No faces visible. Photorealistic. No faces (hands, backs and silhouettes only). No logos, no real brand products, no real company names. All text spelled exactly as written. Cinematic light.",
+      "status": "RENDER_REQUIRED",
+      "path": "assets/story/zbc-ent-fans.png",
+      "review": {
+        "no_faces": null,
+        "no_real_logos": null,
+        "text_exact": null,
+        "story_fit": null,
+        "visual_quality": null,
+        "aspect_ratio": null
+      }
+    },
+    {
+      "id": 35,
+      "filename": "zbc-brands-filming.png",
+      "site": "ZBC",
+      "section": "Entertainment, Brands, Clippers",
+      "ratio": "4:5",
+      "priority": "standard",
+      "prompt": "Hands holding a generic phone vertically, filming a walkaround of a modern showroom with a car under a graphite cover, amber light. No badges, no logos. Photorealistic. No faces (hands, backs and silhouettes only). No logos, no real brand products, no real company names. All text spelled exactly as written. Cinematic light.",
+      "status": "RENDER_REQUIRED",
+      "path": "assets/story/zbc-brands-filming.png",
+      "review": {
+        "no_faces": null,
+        "no_real_logos": null,
+        "text_exact": null,
+        "story_fit": null,
+        "visual_quality": null,
+        "aspect_ratio": null
+      }
+    },
+    {
+      "id": 36,
+      "filename": "zbc-clipper-paid.png",
+      "site": "ZBC",
+      "section": "Entertainment, Brands, Clippers",
+      "ratio": "4:5",
+      "priority": "standard",
+      "prompt": "A hand holding a generic phone showing a notification \"Clip approved \u2014 payout sent\" with the label \"Illustrative\" beneath, on a dark desk with coral desk-lamp light. Photorealistic. No faces (hands, backs and silhouettes only). No logos, no real brand products, no real company names. All text spelled exactly as written. Cinematic light.",
+      "status": "RENDER_REQUIRED",
+      "path": "assets/story/zbc-clipper-paid.png",
+      "review": {
+        "no_faces": null,
+        "no_real_logos": null,
+        "text_exact": null,
+        "story_fit": null,
+        "visual_quality": null,
+        "aspect_ratio": null
+      }
+    }
+  ]
+}
