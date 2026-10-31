@@ -13,6 +13,9 @@ import { ZBC_BASE_URL, ZBM_BASE_URL } from "../playwright.config";
  *     the image is loaded and fully visible on first paint (no empty frames);
  *     the Services hub instead carries one tile per act in its hero and one
  *     image-previewing list per act, each showing an image at both viewports;
+ *     Revenue Recovery carries the six leaks as a code-drawn ledger with no
+ *     numbers in it; About carries no image frame at all until the founder
+ *     portrait arrives (no empty frame);
  *   - reduced motion: the frame is still — scrolling moves nothing — and the
  *     full page is captured;
  *   - motion on: the first frame (viewport, before any scroll) is captured,
@@ -26,32 +29,40 @@ import { ZBC_BASE_URL, ZBM_BASE_URL } from "../playwright.config";
 const CONSENT_KEY = "zbest-cookie-consent";
 
 /**
- * What the page must carry: a hero image (`asset` in a `frame`), or — for a
- * page whose launch visual is not a hero image — `previews` image-previewing
- * service lists (Services hub).
+ * What the page must carry:
+ *   hero    — a hero image (`asset` in a `frame`, plus any `also` beside it);
+ *   hub     — `acts` hero tiles and `previews` image-previewing service lists;
+ *   ledger  — a code-drawn leak ledger of `rows` leaks, no numbers;
+ *   noFrame — no image frame anywhere (About, until the founder portrait).
  */
 type RolloutPage = { name: string; base: string; path: string } & (
-  | { asset: string; frame: string; also?: string[]; previews?: undefined }
-  | { previews: number; acts: number; asset?: undefined; frame?: undefined }
+  | { kind: "hero"; asset: string; frame: string; also?: string[] }
+  | { kind: "hub"; previews: number; acts: number }
+  | { kind: "ledger"; rows: number }
+  | { kind: "noFrame" }
 );
 
 const BATCHES: Record<string, RolloutPage[]> = {
   "batch-1": [
-    { name: "zbm-digital-advertising", base: ZBM_BASE_URL, path: "/digital-advertising", asset: "quellmont-feed-sticker", frame: "phone" },
-    { name: "zbm-tv-streaming", base: ZBM_BASE_URL, path: "/tv-streaming", asset: "quellmont-tv-keys", frame: "player" },
-    { name: "zbm-radio-audio", base: ZBM_BASE_URL, path: "/radio-audio", asset: "saltgrove-radio", frame: "plate" },
-    { name: "zbm-social-media", base: ZBM_BASE_URL, path: "/social-media", asset: "marenvale-social", frame: "phone" },
+    { name: "zbm-digital-advertising", base: ZBM_BASE_URL, path: "/digital-advertising", kind: "hero", asset: "quellmont-feed-sticker", frame: "phone" },
+    { name: "zbm-tv-streaming", base: ZBM_BASE_URL, path: "/tv-streaming", kind: "hero", asset: "quellmont-tv-keys", frame: "player" },
+    { name: "zbm-radio-audio", base: ZBM_BASE_URL, path: "/radio-audio", kind: "hero", asset: "saltgrove-radio", frame: "plate" },
+    { name: "zbm-social-media", base: ZBM_BASE_URL, path: "/social-media", kind: "hero", asset: "marenvale-social", frame: "phone" },
   ],
   "batch-2": [
-    { name: "zbm-creative-production", base: ZBM_BASE_URL, path: "/creative-production", asset: "saltgrove-brand-system", frame: "plate" },
-    { name: "zbm-influencer-marketing", base: ZBM_BASE_URL, path: "/influencer-marketing", asset: "marenvale-influencer", frame: "phone" },
-    { name: "zbm-websites", base: ZBM_BASE_URL, path: "/websites", asset: "marenvale-website", frame: "plate" },
-    { name: "zbm-services", base: ZBM_BASE_URL, path: "/services", previews: 3, acts: 3 },
+    { name: "zbm-creative-production", base: ZBM_BASE_URL, path: "/creative-production", kind: "hero", asset: "saltgrove-brand-system", frame: "plate" },
+    { name: "zbm-influencer-marketing", base: ZBM_BASE_URL, path: "/influencer-marketing", kind: "hero", asset: "marenvale-influencer", frame: "phone" },
+    { name: "zbm-websites", base: ZBM_BASE_URL, path: "/websites", kind: "hero", asset: "marenvale-website", frame: "plate" },
+    { name: "zbm-services", base: ZBM_BASE_URL, path: "/services", kind: "hub", previews: 3, acts: 3 },
   ],
   "batch-3": [
-    { name: "zbc-entertainment", base: ZBC_BASE_URL, path: "/entertainment", asset: "ivosolace-stage", frame: "phone" },
-    { name: "zbc-brands", base: ZBC_BASE_URL, path: "/brands", asset: "quellmont-cover", frame: "phone", also: ["marenvale-room"] },
-    { name: "zbc-become-a-clipper", base: ZBC_BASE_URL, path: "/become-a-clipper", asset: "zbc-clipper-phone", frame: "plate" },
+    { name: "zbc-entertainment", base: ZBC_BASE_URL, path: "/entertainment", kind: "hero", asset: "ivosolace-stage", frame: "phone" },
+    { name: "zbc-brands", base: ZBC_BASE_URL, path: "/brands", kind: "hero", asset: "quellmont-cover", frame: "phone", also: ["marenvale-room"] },
+    { name: "zbc-become-a-clipper", base: ZBC_BASE_URL, path: "/become-a-clipper", kind: "hero", asset: "zbc-clipper-phone", frame: "plate" },
+  ],
+  "batch-4": [
+    { name: "zbm-revenue-recovery", base: ZBM_BASE_URL, path: "/revenue-recovery", kind: "ledger", rows: 6 },
+    { name: "zbm-about", base: ZBM_BASE_URL, path: "/about", kind: "noFrame" },
   ],
 };
 
@@ -112,6 +123,34 @@ async function previews(page: Page) {
   });
 }
 
+/** The hero leak ledger: its rows, any digit in it, its badge, and its drift transform. */
+async function ledger(page: Page) {
+  return page.evaluate(() => {
+    const drift = document.querySelector("header [data-scroll-drift]");
+    const el = drift?.querySelector("[data-leak-ledger]");
+    if (!drift || !el) return null;
+    const badge = el.querySelector("figcaption span");
+    const r = el.getBoundingClientRect();
+    return {
+      rows: el.querySelectorAll("ol > li").length,
+      digits: (el.textContent ?? "").match(/\d/g)?.join("") ?? "",
+      badge: badge?.textContent?.trim() ?? "",
+      shown: r.width > 0 && r.height > 0,
+      top: r.top + window.scrollY,
+      transform: getComputedStyle(drift.firstElementChild!).transform,
+    };
+  });
+}
+
+/** Every image frame on the page, and every frame window (empty or not). */
+async function frames(page: Page) {
+  return page.evaluate(() => ({
+    frames: document.querySelectorAll("[data-media-frame]").length,
+    windows: document.querySelectorAll("[data-frame-window]").length,
+    imgs: document.querySelectorAll("main img, main video").length,
+  }));
+}
+
 /** Scroll the whole page in steps, running the crop check at each one. */
 async function cutsThroughScroll(page: Page, where: string) {
   const height = await page.evaluate(() => document.documentElement.scrollHeight);
@@ -135,12 +174,24 @@ for (const [batch, pages] of Object.entries(BATCHES)) {
         await page.emulateMedia({ reducedMotion: "reduce" });
         await page.goto(p.base + p.path, { waitUntil: "networkidle" });
 
-        if (p.previews !== undefined) {
+        if (p.kind === "hub") {
           const v = await previews(page);
           expect(v.lists, "image-previewing lists").toBe(p.previews);
           expect(v.framed, "lists showing an image at this viewport").toBe(p.previews);
           expect(v.missing, "preview frames without their image, before any scroll").toEqual([]);
           expect(v.acts, "hero act tiles showing their image").toBe(p.acts);
+        } else if (p.kind === "ledger") {
+          const l = await ledger(page);
+          expect(l, "no leak ledger in the hero").not.toBeNull();
+          expect(l!.rows).toBe(p.rows);
+          expect(l!.digits, "the ledger shows numbers").toBe("");
+          expect(l!.badge).toMatch(/^Illustrative/);
+          expect(l!.shown).toBe(true);
+          await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight / 3));
+          await page.waitForTimeout(300);
+          expect((await ledger(page))!.transform, "the ledger moved with scroll under reduced motion").toBe("none");
+        } else if (p.kind === "noFrame") {
+          expect(await frames(page), "an image frame on a page that must have none").toEqual({ frames: 0, windows: 0, imgs: 0 });
         } else {
           const h = await hero(page);
           expect(h, "no hero image").not.toBeNull();
@@ -167,18 +218,20 @@ for (const [batch, pages] of Object.entries(BATCHES)) {
         await page.goto(p.base + p.path, { waitUntil: "networkidle" });
         expect(await page.evaluate(() => window.scrollY)).toBe(0);
 
-        const first = p.previews === undefined ? await hero(page) : null;
-        if (first) expect(first.shown, "hero image not shown on first paint").toBe(true);
-        else expect((await previews(page)).missing, "preview frames without their image on first paint").toEqual([]);
+        const first = p.kind === "hero" ? await hero(page) : p.kind === "ledger" ? await ledger(page) : null;
+        if (first) expect(first.shown, "hero visual not shown on first paint").toBe(true);
+        if (p.kind === "hub") expect((await previews(page)).missing, "preview frames without their image on first paint").toEqual([]);
+        if (p.kind === "noFrame") expect((await frames(page)).frames, "an image frame on a page that must have none").toBe(0);
         await page.evaluate(() => document.fonts.ready);
         await mkdir(dir, { recursive: true });
         await page.screenshot({ path: path.join(dir, `${p.name}-${testInfo.project.name}-first-frame.png`) });
 
         if (first) {
-          // Once the hero image starts to leave the viewport, it drifts.
+          // Once the hero visual starts to leave the viewport, it drifts.
           await page.evaluate((top) => window.scrollTo(0, top + 200), first.top);
           await page.waitForTimeout(400);
-          expect((await hero(page))!.transform, "the hero did not move with scroll").not.toBe("none");
+          const now = p.kind === "ledger" ? await ledger(page) : await hero(page);
+          expect(now!.transform, "the hero did not move with scroll").not.toBe("none");
         }
 
         expect(await cutsThroughScroll(page, p.name), "a frame cuts a word").toEqual([]);

@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, useScroll, useTransform } from "motion/react";
-import { useRef } from "react";
+import { useRef, type ReactNode } from "react";
 import { MediaFrame, type MediaFrameProps } from "./media-frame";
 import { useMotionAllowed } from "./showpiece";
 
@@ -19,18 +19,32 @@ import { useMotionAllowed } from "./showpiece";
 const DRIFT_PX = 56;
 
 export function HeroMedia({ className = "", ...frame }: MediaFrameProps) {
+  return (
+    <ScrollDrift className={className} data-hero-media>
+      <MediaFrame priority {...frame} />
+    </ScrollDrift>
+  );
+}
+
+/**
+ * The drift itself, for any hero visual — an image (HeroMedia) or a drawing
+ * built in code (the Revenue Recovery leak ledger).
+ */
+export function ScrollDrift({
+  className = "",
+  children,
+  ...rest
+}: { className?: string; children: ReactNode } & Record<`data-${string}`, unknown>) {
   const ref = useRef<HTMLDivElement>(null);
   const live = useMotionAllowed();
-  // 0 until the frame's top reaches the top of the viewport, so the first
+  // 0 until the element's top reaches the top of the viewport, so the first
   // paint matches the static frame exactly; then it drifts as it leaves.
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end start"] });
   const y = useTransform(scrollYProgress, (v) => -DRIFT_PX * v);
 
   return (
-    <div ref={ref} className={className} data-hero-media>
-      <motion.div style={live ? { y } : undefined}>
-        <MediaFrame priority {...frame} />
-      </motion.div>
+    <div ref={ref} className={className} data-scroll-drift {...rest}>
+      <motion.div style={live ? { y } : undefined}>{children}</motion.div>
     </div>
   );
 }

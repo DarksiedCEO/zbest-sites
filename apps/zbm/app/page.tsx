@@ -2,6 +2,7 @@ import { ButtonLink, LedgerRule, pageMetadata, ServicePreview, StatBlock } from 
 import Link from "next/link";
 import { HomeReel } from "@/components/home-reel";
 import { CtaRow, LedgerList, Lead, Note, PageSection } from "@/components/page";
+import { WHERE_REVENUE_LEAKS } from "@/content/revenue-recovery";
 import { SERVICE_IMAGE } from "@/content/service-media";
 import { SERVICES } from "@/content/services";
 import { ASSESSMENT_HREF, SITE } from "@/lib/site";
@@ -129,14 +130,7 @@ export default function HomePage() {
       >
         <LedgerList
           numbered
-          items={[
-            { title: "Missed and unreturned calls" },
-            { title: "Forms that break on mobile" },
-            { title: "Follow-up that dies after one touch" },
-            { title: "Pages that load too slowly to convert" },
-            { title: "Ad traffic landing on the wrong page" },
-            { title: "No retargeting on the people who almost bought" },
-          ]}
+          items={WHERE_REVENUE_LEAKS.map((title) => ({ title }))}
         />
         <div className="flex flex-col gap-4">
           {/*

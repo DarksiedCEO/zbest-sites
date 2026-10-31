@@ -30,7 +30,7 @@ export { ConceptBadge, CONCEPT_LABEL } from "./media/concept-badge";
 export { ConceptGroup } from "./media/concept-group";
 export { cropFits, cropPosition, parseAspect } from "./media/crop";
 export type { TextBlock } from "./media/crop";
-export { HeroMedia } from "./media/hero-media";
+export { HeroMedia, ScrollDrift } from "./media/hero-media";
 export { MediaFrame } from "./media/media-frame";
 export { ServicePreview } from "./media/service-preview";
 export type { PreviewItem } from "./media/service-preview";
