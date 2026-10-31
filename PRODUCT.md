@@ -174,7 +174,7 @@ Deliberately thin, and future work **must not fabricate past it**:
 - **Lighthouse ≥ 90 on Performance, Accessibility and SEO, at both viewports**, is a
   launch gate (§3.6).
 - **`prefers-reduced-motion` disables every counter tick and the scroll-scrubbed
-  hero.** Content must be fully readable with motion off — this is a correctness
+  hero, and renders every showpiece as a composed static frame** [FD-VISUAL-01 §4.5]. Content must be fully readable with motion off — this is a correctness
   requirement, not a progressive enhancement.
 - The FAQ accordion must be a genuinely accessible accordion (keyboard operable,
   correct roles and state).

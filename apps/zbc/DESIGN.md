@@ -56,8 +56,9 @@ view-count tickers:
   At 390 the scrubber becomes a **vertical timeline.**
 - **Layout is more asymmetric and dynamic than ZBM's**, while keeping the shared
   ledger rule and the shared numeric face.
-- **The signature motion** is an animated view-counter ticking up once per campaign
-  example, restrained to one moment per section.
+- **The showpiece** [FD-VISUAL-01 §5] on How It Works is "One source, dozens of
+  clips": a source frame splits into vertical clips, and the step timeline is driven
+  by a scroll scrubber. The view-counters still tick up once per campaign example.
 
 ## Layout
 

@@ -31,11 +31,14 @@ furniture is financial-audit furniture, used literally rather than as a metaphor
   appears; the alignment is the point.
 - **The hero is asymmetric** — claim left, stat block right — and stacks
   claim-then-stats at 390.
-- **Editorial typography with real scale contrast** carries the page. There is no
-  photography at launch and none is required.
+- **Editorial typography with real scale contrast** carries the type. Imagery is
+  required on every major page [FD-VISUAL-01 §3]: concept work for the sample
+  brands, badged, in real-world frames.
 
 The two lead techniques are a scroll-scrubbed hero and monumental editorial
-typography. The single signature motion moment is the counter ticking up once on
+typography. [FD-VISUAL-01 §4–§5] Each page has one showpiece (Home: the reel;
+Out-of-Home: the billboard that scales toward the viewer) plus the root motion
+vocabulary. The counter still ticks up once on
 viewport entry — and until a verified recovered-revenue figure exists, that counter
 is built but **not wired to a claim.**
 
