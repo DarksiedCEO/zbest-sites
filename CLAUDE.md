@@ -1,4 +1,6 @@
 Read docs/ZBM-ZBC-Build-Brief-v2.md before any work. It is the locked handoff.
+Its legal-banner lines (§5 line 166, line 156, line 716) are superseded by
+docs/BRIEF-AMENDMENT-2026-10-30-legal-banner.md.
 Build in the phase order in Section 3 of the brief. Do not start a phase until
 the previous one has Playwright screenshots (desktop 1440 + mobile 390)
 committed under e2e/snapshots/<phase>/ and an AEGIS audit against the brief.
