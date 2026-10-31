@@ -196,8 +196,7 @@ const FORMS = [
   [ZBM_BASE_URL, "/start"],
   [ZBM_BASE_URL, "/revenue-recovery"],
   [ZBM_BASE_URL, "/search-intelligence"],
-  [ZBC_BASE_URL, "/launch-a-campaign"],
-  [ZBC_BASE_URL, "/become-a-clipper"],
+  // Z Best Clips has no forms until its privacy policy is published (red team RTS-1).
 ] as const;
 
 for (const [base, p] of FORMS) {

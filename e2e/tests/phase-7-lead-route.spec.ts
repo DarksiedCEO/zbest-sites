@@ -278,7 +278,8 @@ test.describe("Success through the fake transport (§6.2)", () => {
       data: {
         form: "start",
         submission_id: id,
-        fields: { services: "radio-audio", name: "A", business: "B", reach: "C", website: "", budget: "", timing: "", details: "", source: "<script>x</script>", state: "US-CA" },
+        // details carries the id: identical content under a new id is one lead since RTS-3.
+        fields: { services: "radio-audio", name: "A", business: "B", reach: "C", website: "", budget: "", timing: "", details: id, source: "<script>x</script>", state: "US-CA" },
       },
     });
     expect(res.status()).toBe(200);
@@ -335,7 +336,8 @@ test.describe("Validation and abuse (§6.2)", () => {
       ids.push(id);
       const ok = await page.request.post(`${ZBM_LIMITED_URL}/api/lead`, {
         headers: { ...formTokenHeader(), ...headers },
-        data: { form: "contact", submission_id: id, fields: { name: "A", business: "B", problem: "C", reach: "D", state: "US-CA" } },
+        // Distinct content per request: identical content under a new id is one lead since RTS-3.
+        data: { form: "contact", submission_id: id, fields: { name: "A", business: "B", problem: `C ${id}`, reach: "D", state: "US-CA" } },
       });
       expect(ok.status(), `request ${i + 1} of ${LIMITED_RATE.limit}`).toBe(200);
     }

@@ -671,7 +671,8 @@ test.describe("Copy revision (founder rulings, Sep 17 — audit at 1fc360f)", ()
   test("RTS-5: Search Intelligence tiers are marked planned", async ({ page }) => {
     await visit(page, byPath("/search-intelligence"));
     const pricing = page.locator("#pricing");
-    const statuses = await pricing.locator("[data-tier-status]:visible").allInnerTexts();
+    // textContent: the label is upper-cased by CSS only.
+    const statuses = await pricing.locator("[data-tier-status]:visible").allTextContents();
     expect(statuses.length).toBe(3);
     for (const s of statuses) expect(s.trim()).toBe("Planned");
     await expect(pricing).toContainText("planned");
