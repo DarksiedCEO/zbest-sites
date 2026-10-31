@@ -26,7 +26,7 @@ const CONSENT_KEY = "zbest-cookie-consent";
  * Founder decision, Oct 30 2026: neither site may carry review-status or draft
  * wording about its legal documents. ZBC shows this notice until launch.
  */
-const STATUS_WORDING = /pending attorney|attorney review|not yet in effect|\bdraft\b/i;
+const STATUS_WORDING = /pending attorney|attorney review|not yet in effect|not legal advice|\bdraft\b/i;
 const ZBC_LEGAL_NOTICE = "Z Best Clips is not yet accepting clients. These terms will be published before launch.";
 
 const LEGAL = [
@@ -322,6 +322,26 @@ for (const app of APPS) {
       });
     }
 
+    // ZBM-only in-effect pages beyond the three every site has (AEGIS r2 L10).
+    for (const doc of app.slug === "zbm"
+      ? [
+          { path: "/legal/refunds", title: "Refund and Cancellation Policy" },
+          { path: "/legal/accessibility", title: "Accessibility Statement" },
+        ]
+      : []) {
+      test(`${doc.path} — in effect, no status wording`, async ({ page }) => {
+        await presetConsent(page);
+        const response = await page.goto(`${app.baseUrl}${doc.path}`, { waitUntil: "domcontentloaded" });
+        expect(response?.status()).toBe(200);
+        await expect(page.locator("[data-legal-document]")).toBeVisible();
+        await expect(page.getByRole("heading", { level: 1 })).toHaveText(doc.title);
+        expect(await page.locator("[data-legal-notice]").count()).toBe(0);
+        expect(await page.locator("main").innerText()).not.toMatch(STATUS_WORDING);
+        expect(await head(page, 'meta[name="description"]')).not.toMatch(STATUS_WORDING);
+        expect(await head(page, 'meta[name="robots"]')).toMatch(/noindex/);
+      });
+    }
+
     for (const doc of app.slug === "zbm" ? [] : LEGAL) {
       test(`${doc.path} — outline carries the not-yet-accepting-clients notice and no status wording`, async ({ page }) => {
         await presetConsent(page);
@@ -353,7 +373,9 @@ for (const app of APPS) {
         }));
         expect(counts.sections).toBeGreaterThanOrEqual(3);
         expect(counts.placeholders).toBe(counts.sections);
-        await expect(page.getByText("[Legal entity — to be confirmed]")).toBeVisible();
+        // Neutral issuer, never a bracketed token on a public page (AEGIS r2 N5).
+        await expect(page.locator("[data-legal-issuer]")).toHaveText("Z Best Clips");
+        expect(await page.locator("main").innerText()).not.toMatch(/\[[A-Z]/);
 
         // The contracting entity is unconfirmed; no candidate name appears.
         const text = await page.locator("main").innerText();
