@@ -141,7 +141,7 @@ export default function SearchIntelligencePage() {
         </CtaRow>
       </PageHeader>
 
-      <PageSection label="What’s included">
+      <PageSection label="What the planned tiers include">
         <RuledList
           items={[
             "Continuous backlink crawl with authority and toxicity scored together — one ledger with a keep/watch/disavow flag",
@@ -173,7 +173,9 @@ export default function SearchIntelligencePage() {
             Full-service AEO/GEO work, not a self-serve monitoring tool. Below $2,000/month
             in this category is almost always rebranded SEO. These tiers are planned: the
             engine coverage each one lists is still being built, and what is live is
-            confirmed in writing before any engagement.
+            confirmed in writing before any engagement. The audit checks that run today use
+            fixed, written rules, not an AI model, and a person reviews every report before
+            you see it.
           </p>
         }
       >

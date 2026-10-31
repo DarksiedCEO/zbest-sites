@@ -25,7 +25,7 @@ import { SITE } from "@/lib/site";
 export const metadata = pageMetadata(SITE, {
   title: "Revenue Recovery",
   description:
-    "An audit-first approach that finds where your existing traffic and campaigns are losing conversions, fixes those leaks, then scales what’s proven to work.",
+    "Find where revenue is being lost. Start with a free, rule-based self-assessment; the paid analysis reads your Shopify orders for stacked discount codes and labels every figure with how it was measured.",
   path: "/revenue-recovery",
   ogImage: "/revenue-recovery/opengraph-image",
 });
@@ -52,8 +52,9 @@ export default function RevenueRecoveryPage() {
       <PageHeader label="Revenue Recovery" title="Find out where your revenue is going.">
         <Lead>
           Most businesses aren&rsquo;t short on traffic. They&rsquo;re losing the traffic
-          they already paid for — at the phone, the form, the follow-up. We audit first,
-          show you the leak with real numbers, fix it, then scale what&rsquo;s proven.
+          they already paid for — at the phone, the follow-up, the checkout. We measure first,
+          show you each figure with how it was obtained, fix what&rsquo;s leaking, then scale
+          what&rsquo;s proven.
         </Lead>
         <Body>{DEFINITION}</Body>
         <div className="flex flex-col gap-4">
@@ -71,9 +72,8 @@ export default function RevenueRecoveryPage() {
           numbered
           items={[
             { title: "Missed and unreturned calls" },
-            { title: "Forms that break on mobile" },
             { title: "Follow-up that dies after one touch" },
-            { title: "Pages that load too slowly to convert" },
+            { title: "Discount codes stacking past what you intended" },
             { title: "Ad traffic landing on the wrong page" },
             { title: "No retargeting on the people who almost bought" },
           ]}
@@ -113,7 +113,7 @@ export default function RevenueRecoveryPage() {
           {AUTOMATED_CHECKS.coming.map((title) => (
             <li key={title} data-check-status="coming" className="grid gap-2 border-b border-text-secondary/20 py-ledger sm:grid-cols-[minmax(0,17rem)_1fr]">
               <h3 className="type-title text-text-secondary">{title}</h3>
-              <p className="type-label text-text-secondary">Coming — not yet part of an Audit</p>
+              <p className="type-label text-text-secondary">Coming — reported as NOT COVERED until it runs</p>
             </li>
           ))}
         </ul>

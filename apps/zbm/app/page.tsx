@@ -93,9 +93,9 @@ export default function HomePage() {
         intro={
           <Lead>
             Most businesses aren&rsquo;t short on traffic. They&rsquo;re losing the
-            traffic they already paid for — at the phone, the form, the follow-up. We
-            audit first, show you the leak with real numbers, fix it, then scale
-            what&rsquo;s proven.
+            traffic they already paid for — at the phone, the follow-up, the checkout. We
+            measure first, show you each figure with how it was obtained, fix what&rsquo;s
+            leaking, then scale what&rsquo;s proven.
           </Lead>
         }
       >
@@ -103,9 +103,8 @@ export default function HomePage() {
           numbered
           items={[
             { title: "Missed and unreturned calls" },
-            { title: "Forms that break on mobile" },
             { title: "Follow-up that dies after one touch" },
-            { title: "Pages that load too slowly to convert" },
+            { title: "Discount codes stacking past what you intended" },
             { title: "Ad traffic landing on the wrong page" },
             { title: "No retargeting on the people who almost bought" },
           ]}
@@ -139,7 +138,7 @@ export default function HomePage() {
         <ol className="grid gap-x-8 sm:grid-cols-2 lg:grid-cols-4">
           {[
             ["Assess", "A free look at where you’re likely losing revenue."],
-            ["Audit", "A paid, full diagnostic. Every finding comes with a priority and a confidence label."],
+            ["Audit", "A paid analysis of your Shopify orders. Every figure is labelled with how it was measured."],
             ["Fix", "Conversion repaired before a dollar more goes into spend."],
             ["Scale", "Once it’s proven, we run the media: digital, TV, radio, out-of-home, social, clips."],
           ].map(([step, body], i) => (

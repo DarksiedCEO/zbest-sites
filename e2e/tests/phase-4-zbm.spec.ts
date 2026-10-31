@@ -235,14 +235,15 @@ test.describe("Home (§A4)", () => {
     expect(await page.locator("main [data-counter]").count()).toBe(0);
   });
 
-  test("How we work carries one process, capitalized, promising only priority and confidence", async ({ page }) => {
+  test("How we work carries one process, capitalized, promising only what the SOW delivers", async ({ page }) => {
     await visit(page, byPath("/"));
     const bodies = await page
       .locator("#how-we-work li p.type-body")
       .evaluateAll((els) => els.map((el) => el.textContent?.trim() ?? ""));
     expect(bodies).toEqual([
       "A free look at where you’re likely losing revenue.",
-      "A paid, full diagnostic. Every finding comes with a priority and a confidence label.",
+      // SOW (Revenue Recovery Analysis) §1.2, §3.2: one measured check, every figure labelled.
+      "A paid analysis of your Shopify orders. Every figure is labelled with how it was measured.",
       "Conversion repaired before a dollar more goes into spend.",
       "Once it’s proven, we run the media: digital, TV, radio, out-of-home, social, clips.",
     ]);
@@ -281,11 +282,11 @@ test.describe("Home (§A4)", () => {
   test("featured Revenue Recovery carries the six leaks, the decision-10 assessment CTA and its fixture label", async ({ page }) => {
     await visit(page, byPath("/"));
     const section = page.locator("#revenue-recovery");
+    // No page-speed or mobile-form leak (no such check exists; SOW §1.5–§1.6).
     for (const leak of [
       "Missed and unreturned calls",
-      "Forms that break on mobile",
       "Follow-up that dies after one touch",
-      "Pages that load too slowly to convert",
+      "Discount codes stacking past what you intended",
       "Ad traffic landing on the wrong page",
       "No retargeting on the people who almost bought",
     ]) {
@@ -352,10 +353,10 @@ test.describe("Revenue Recovery (§A4, filtered live carry-over)", () => {
     const text = await mainText(page);
     for (const phrase of [
       "Revenue Recovery is the process of identifying and fixing",
-      "Eight ways revenue leaks, and what fixing each one looks like.",
+      "Eight common ways revenue leaks — a general guide, not a list of what the paid analysis checks.",
       "Traffic Leak", "Conversion Leak", "Trust Leak", "Offer Leak",
       "Follow-Up Leak", "Tracking Leak", "Creative Leak", "Visibility Leak",
-      "Typical leak patterns we often find during diagnostic reviews.",
+      "Leak patterns common in each industry — general guidance, not findings from our analysis.",
       "See what you receive before you ever submit.",
       "One path. Start free, pay only for the deep dive.",
       "every fix tied to the leak it closes",
@@ -379,6 +380,13 @@ test.describe("Revenue Recovery (§A4, filtered live carry-over)", () => {
       "Priced against recovered revenue",
       "dollars it recovers",
       "tied to recovered revenue",
+      // SOW §3.2 is the deliverable: none of these is in it.
+      "Leak Severity Matrix",
+      "Executive Summary",
+      "Priority Roadmap",
+      "strategy session",
+      "full diagnostic",
+      "diagnostic reviews",
     ]) {
       expect(text, gone).not.toContain(gone);
     }
@@ -660,12 +668,27 @@ test.describe("Copy revision (founder rulings, Sep 17 — audit at 1fc360f)", ()
       "Platform integration gaps",
       "Contract pricing drift",
     ]);
-    await expect(checks.locator('[data-check-status="coming"]').first()).toContainText("Coming");
-    await expect(checks).toContainText("reviewed by a person");
+    await expect(checks.locator('[data-check-status="coming"]').first()).toContainText("NOT COVERED");
+    // SOW §1.7: rule-based, not an AI model; no manual store review beyond the order data.
+    await expect(checks).toContainText("fixed, written rules");
+    await expect(checks).toContainText("We don’t review your store manually beyond the order data.");
+    const report = page.locator("#audit");
+    await expect(report).toContainText("not an AI model");
+    await expect(report).toContainText("A person at Z Best Media writes the explanations and recommendations");
+    await expect(report.locator("h3")).toHaveText([
+      "What was read",
+      "Checks run and not covered",
+      "Findings, each with its evidence class",
+      "Assumptions, stated",
+      "Yearly projection, labelled as an estimate",
+      "Recommendations, written by a person",
+      "Walkthrough call",
+    ]);
     const text = await mainText(page);
-    expect(text).not.toMatch(/slow load|load fast|page speed|core web vitals|mobile form/i);
+    expect(text).not.toMatch(/slow|load fast|page speed|core web vitals|mobile form|break on mobile|AI agents?|8 leak|eight leak types/i);
     await page.goto(`${ZBM_BASE_URL}/websites`, { waitUntil: "domcontentloaded" });
-    expect(await mainText(page)).not.toMatch(/slow load|broken mobile form/i);
+    expect(await mainText(page)).not.toMatch(/slow load|broken mobile form|load fast|fast on (a phone|mobile)/i);
+    expect(await head(page, 'meta[name="description"]')).not.toMatch(/fast on mobile/i);
   });
 
   test("RTS-5: Search Intelligence tiers are marked planned", async ({ page }) => {
@@ -676,6 +699,10 @@ test.describe("Copy revision (founder rulings, Sep 17 — audit at 1fc360f)", ()
     expect(statuses.length).toBe(3);
     for (const s of statuses) expect(s.trim()).toBe("Planned");
     await expect(pricing).toContainText("planned");
+    // SEO SOW §2.6, §8.2: rule-based checks, a person reviews every report, no page-speed metrics.
+    await expect(pricing).toContainText("fixed, written rules, not an AI model");
+    await expect(pricing).toContainText("a person reviews every report");
+    expect(await mainText(page)).not.toMatch(/page speed|load time|core web vitals/i);
     expect(await mainText(page)).not.toContain("Three published tiers");
   });
 
