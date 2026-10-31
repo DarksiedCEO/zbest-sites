@@ -107,8 +107,11 @@ export async function deliverLead(
     return "failed";
   }
   const emailId = idOf(result);
-  if (!emailId) log("error", "notify_sent_without_id", ids); // AEGIS r5 N4: accepted, but its delivery cannot be checked
-  await store.setNotifyStatus(app, record.submission_id, "sent", undefined, emailId ? { emailId } : { unverifiable: true });
+  // AEGIS r5 N4, r6 R6-7: accepted, but its delivery cannot be checked (only
+  // meaningful for a notifier that can check delivery at all).
+  const unverifiable = !emailId && !!notifier.lastEvent;
+  if (unverifiable) log("error", "notify_sent_without_id", ids);
+  await store.setNotifyStatus(app, record.submission_id, "sent", undefined, emailId ? { emailId } : unverifiable ? { unverifiable: true } : {});
   return "sent";
 }
 
@@ -124,7 +127,7 @@ const byAge = (leads: StoredLead[]) =>
 export function digestEmail(app: LeadApp, leads: StoredLead[]): LeadEmail {
   const sorted = byAge(leads);
   const unknown = sorted.filter((l) => l.notify_status === "delivery_unknown").length;
-  const undelivered = sorted.filter((l) => l.notify_delivery === "undelivered" || l.notify_delivery === "unconfirmed").length;
+  const undelivered = sorted.filter((l) => l.notify_delivery !== null && l.notify_delivery !== "delivered").length;
   const quarantined = sorted.filter((l) => l.quarantined).length;
   const parts = sorted.map((l) => {
     const { created_at: createdAt, ...rest } = l;
@@ -134,6 +137,12 @@ export function digestEmail(app: LeadApp, leads: StoredLead[]): LeadEmail {
         : "",
       l.notify_delivery === "unconfirmed"
         ? "An earlier email with this lead was accepted but its delivery was never confirmed. It is sent again here, marked as a possible duplicate."
+        : "",
+      l.notify_delivery === "unverifiable"
+        ? "An earlier email with this lead was accepted, but its delivery could not be verified. It is sent again here, marked as a possible duplicate."
+        : "",
+      l.notify_delivery === "abandoned"
+        ? "PREVIOUSLY UNDELIVERABLE: earlier emails with this lead were not delivered after every re-send. It is sent again now that emails are being delivered."
         : "",
       l.notify_status === "delivery_unknown" ? "This lead may already have been emailed: an earlier email's outcome is unknown." : "",
       l.quarantined
@@ -179,8 +188,8 @@ export const EXPIRED_CHUNK = 1_000;
 export async function sendBatches(
   ctx: Ctx & { outbox: NotifyOutbox },
   kind: BatchKind,
-  opts: { alertAt?: number; days?: number } = {},
-): Promise<{ sent: number; failedEmails: number }> {
+  opts: { alertAt?: number; days?: number; until?: number } = {},
+): Promise<{ sent: number; failedEmails: number; outOfTime?: boolean }> {
   const { app, outbox, notifier, log } = ctx;
   const now = () => (ctx.now ?? Date.now)();
   const days = opts.days ?? 3;
@@ -189,6 +198,8 @@ export async function sendBatches(
   let failedEmails = 0;
   let emails = 0;
   for (let steps = 0; emails < DIGEST_MAX_EMAILS_PER_RUN && steps < DIGEST_MAX_EMAILS_PER_RUN * 3; steps++) {
+    // AEGIS r6 R6-4: no new send past the run's send deadline; the rest waits for the next run.
+    if (opts.until !== undefined && Date.now() >= opts.until) return { sent, failedEmails, outOfTime: true };
     const batch =
       (await outbox.claimBatch(app, kind)) ??
       (await outbox.formBatch(app, kind, kind === "digest" ? DIGEST_CHUNK : EXPIRED_CHUNK, (b) => emailHash(build(b))));
@@ -225,8 +236,9 @@ export async function sendBatches(
       break; // provider trouble: stop; the lease spaces the retries
     }
     const emailId = idOf(result);
-    if (!emailId) log("error", "notify_sent_without_id", { app, notify: kind }); // AEGIS r5 N4
-    const marked = await outbox.markBatchSent(app, kind, key, leads.map((l) => l.submission_id), emailId);
+    const verifiable = !!notifier.lastEvent;
+    if (!emailId && verifiable) log("error", "notify_sent_without_id", { app, notify: kind }); // AEGIS r5 N4, r6 R6-7
+    const marked = await outbox.markBatchSent(app, kind, key, leads.map((l) => l.submission_id), emailId, verifiable);
     sent += marked;
     log("info", "notify_digest_sent", { app, notify: kind === "digest" ? "sent" : "expired_reported", deleted: marked });
   }
@@ -245,48 +257,62 @@ export const DELIVERY_CHECK_WINDOW_MS = 48 * 3_600_000;
 /** The delivery check stops after this much time in a run (AEGIS r5 N6). */
 export const DELIVERY_CHECK_BUDGET_MS = 20_000;
 
+/** Lookups that fail with a server error for one email, while others answer, before it is given up (AEGIS r6 R6-5). */
+export const MAX_LOOKUP_FAILURES = 5;
+
 /**
- * AEGIS r4 M2, r5 N2–N4/N6: the delivery signal, without a public webhook.
- * Runs LAST in the cron, within DELIVERY_CHECK_BUDGET_MS, for at most
- * DELIVERY_CHECKS_PER_RUN emails whose delivery is not final, oldest first.
- * Resend's last_event:
- *   - delivered / opened / clicked: final, never checked again;
+ * AEGIS r4 M2, r5 N2–N6, r6 R6-1/R6-4/R6-5/R6-7: the delivery signal, without
+ * a public webhook. Runs LAST in the cron, within DELIVERY_CHECK_BUDGET_MS and
+ * the run's own deadline (`until`), for at most DELIVERY_CHECKS_PER_RUN
+ * emails whose delivery is not final, oldest first. Resend's last_event:
+ *   - delivered / opened / clicked: final. Such a confirmation means the inbox
+ *     works, so every abandoned lead is re-queued, once per run that confirms
+ *     a delivery, flagged "previously undeliverable" (recoverAbandoned);
  *   - bounced / complained / suppressed / failed / canceled: not delivered —
- *     its leads are re-sent in a digest, flagged, after 1 h, 4 h, 16 h, at
- *     most MAX_RESENDS times, then 'abandoned' (an error alert; /api/health
- *     degraded for 7 days). Health reports delivery_failed for 24 h after each;
+ *     re-sent in a digest after 1 h, 6 h, 24 h, 72 h, then 'abandoned':
+ *     /api/health leads_undelivered (503) until acknowledged;
  *   - sent / queued / scheduled / delivery_delayed, or a value not in Resend's
- *     documented list (logged): checked again next run, never taken as
- *     delivered. If still not final 48 h after sending it is 'unconfirmed' and
- *     re-sent (within the same cap) — only if a lookup actually answered for it;
- *   - 401/403: the API key may not read emails (a sending-only key). The
- *     check stops, nothing is re-sent for lack of a confirmation, and
- *     /api/health reports the warning delivery_unverifiable;
- *   - 404: Resend does not know the id: 'unconfirmed' for that email; the
- *     check goes on with the others;
- *   - anything else (429, 5xx, timeout): logged with its status; the check
- *     stops for this run; failing for over 6 h degrades health
- *     (delivery_check_failing).
+ *     list (logged): checked again next run; still not final 48 h after
+ *     sending (and a lookup answered for it): 'unconfirmed', re-sent the same way;
+ *   - 401/403: the API key may not read emails (a sending-only key). The check
+ *     stops; nothing is re-sent for lack of a confirmation; health
+ *     delivery_unverifiable (a 503 once anything waits past the alert age);
+ *   - 404: Resend does not know the id: 'unconfirmed' for that email;
+ *   - 5xx for one email while others answer: it goes to the back of the
+ *     queue; after MAX_LOOKUP_FAILURES it is re-sent, flagged unverifiable;
+ *   - 429, a timeout, or every lookup failing: logged with its status, the
+ *     check stops for this run; failing for over 6 h: delivery_check_failing.
+ * First, leads accepted without a usable id are re-queued, flagged (R6-7).
  */
 export async function checkDeliveries(
   ctx: Ctx & { outbox: NotifyOutbox },
   budgetMs = DELIVERY_CHECK_BUDGET_MS,
-): Promise<{ checked: number; resent: number; abandoned: number }> {
+  until = Number.POSITIVE_INFINITY,
+): Promise<{ checked: number; resent: number; abandoned: number; recovered: number; outOfTime: boolean }> {
   const { app, outbox, notifier, log } = ctx;
-  const out = { checked: 0, resent: 0, abandoned: 0 };
-  if (!notifier.lastEvent) return out;
-  const deadline = Date.now() + budgetMs;
+  const out = { checked: 0, resent: 0, abandoned: 0, recovered: 0, outOfTime: false };
   const count = (r: DeliveryOutcome, code: string) => {
     out.resent += r.resent;
     out.abandoned += r.abandoned;
     if (r.resent) log("error", "notify_not_delivered", { app, code, deleted: r.resent });
     if (r.abandoned) log("error", "notify_delivery_abandoned", { app, code, deleted: r.abandoned });
   };
+  // R6-7: accepted without a usable id (whatever the notifier): next digest, flagged.
+  const unverifiable = await outbox.requeueUnverifiable(app);
+  if (unverifiable.resent || unverifiable.abandoned) count(unverifiable, "unverifiable");
+  if (!notifier.lastEvent) return out;
+  const deadline = Math.min(Date.now() + budgetMs, until);
   let answered = false;
+  let delivered = 0;
   let stopped: "unauthorized" | "failing" | null = null;
+  const serverErrors: string[] = [];
+  let lastStatus = 0;
   const ids = await outbox.deliveriesToCheck(app, DELIVERY_CHECKS_PER_RUN);
   for (const id of ids) {
-    if (Date.now() >= deadline) break;
+    if (Date.now() >= deadline) {
+      out.outOfTime = true;
+      break;
+    }
     const result = await notifier.lastEvent(id);
     if ("error" in result) {
       if (result.error === "unauthorized") {
@@ -301,25 +327,51 @@ export async function checkDeliveries(
         count(await outbox.recordDelivery(app, id, "unconfirmed"), "not_found");
         continue;
       }
+      lastStatus = result.status;
+      // A server error for this one email: try the next (R6-5). Rate limits and
+      // timeouts stop the run (the provider, not the email).
+      if (result.status >= 500) {
+        serverErrors.push(id);
+        if (serverErrors.length >= 3 && !answered) {
+          stopped = "failing";
+          break;
+        }
+        continue;
+      }
       stopped = "failing";
       break;
     }
     answered = true;
     out.checked += 1;
     const event = result.event;
-    if (DELIVERED_EVENTS.has(event)) await outbox.recordDelivery(app, id, "delivered");
+    if (DELIVERED_EVENTS.has(event)) delivered += (await outbox.recordDelivery(app, id, "delivered")).delivered ?? 0;
     else if (UNDELIVERED_EVENTS.has(event)) count(await outbox.recordDelivery(app, id, "undelivered"), event);
     else {
       if (!PENDING_EVENTS.has(event)) log("warn", "notify_delivery_event_unknown", { app, code: event.slice(0, 40) });
       await outbox.recordDelivery(app, id, "pending");
     }
   }
+  // R6-5: each server error counts against that email; it goes to the back of
+  // the queue, and after MAX_LOOKUP_FAILURES it is re-sent, flagged.
+  for (const id of serverErrors) {
+    const given = await outbox.recordLookupFailure(app, id, MAX_LOOKUP_FAILURES);
+    if (given) {
+      log("warn", "notify_delivery_lookup_given_up", { app, status: lastStatus });
+      count(given, "lookup_given_up");
+    }
+  }
+  if (serverErrors.length && !answered && !stopped) stopped = "failing";
   if (stopped === "unauthorized") await outbox.recordCheckState(app, "unauthorized");
   else if (stopped === "failing") await outbox.recordCheckState(app, "failing");
   else if (answered) await outbox.recordCheckState(app, "ok");
   // Re-send for lack of a confirmation only while lookups are answering (N2).
   if (answered && stopped !== "unauthorized") {
     count(await outbox.expireDeliveryChecks(app, new Date((ctx.now ?? Date.now)() - DELIVERY_CHECK_WINDOW_MS)), "unconfirmed");
+  }
+  // R6-1(b): a confirmed delivery means the inbox works: abandoned leads go back, once.
+  if (delivered > 0) {
+    out.recovered = await outbox.recoverAbandoned(app);
+    if (out.recovered) log("warn", "notify_abandoned_recovered", { app, deleted: out.recovered });
   }
   return out;
 }

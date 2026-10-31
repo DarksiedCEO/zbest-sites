@@ -4,9 +4,10 @@
 -- these (/api/health reports schema_outdated until then).
 --
 -- notify_resends     how many times the lead was re-sent because Resend said
---                    its email was not delivered (or never confirmed it). At
---                    most 3, with growing waits (1 h, 4 h, 16 h); after that
---                    it is 'abandoned': not re-sent, /api/health degraded.
+--                    its email was not delivered (or never confirmed it).
+--                    The cap and waits live in src/postgres.ts (since AEGIS
+--                    r6: 4 re-sends, after 1 h, 6 h, 24 h, 72 h); then it is
+--                    'abandoned' (see 011).
 -- notify_checked_at  when a lookup last answered for the lead's email with a
 --                    non-final event (sent, queued, delivery_delayed …). Only
 --                    such an email can become 'unconfirmed' after 48 h, so an

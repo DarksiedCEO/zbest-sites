@@ -36,10 +36,16 @@ type RowState = {
   sentAt: number | null;
   resends: number;
   checkedAt: number | null;
+  abandonedAt: number | null;
+  unverifiableAt: number | null;
+  ackAt: number | null;
+  ackBy: string | null;
+  lookupFailures: number;
 };
 const newRow = (record: LeadRecord, createdAt: number): RowState => ({
   record, createdAt, status: "pending", attempts: 0, nextAt: null, firstAttemptAt: null, bodyHash: null, batch: null, batchAt: null, batchHash: null, quarantined: false,
   emailId: null, delivery: null, undeliveredAt: null, outcomeUnknown: false, sentAt: null, resends: 0, checkedAt: null,
+  abandonedAt: null, unverifiableAt: null, ackAt: null, ackBy: null, lookupFailures: 0,
 });
 const stored = (r: RowState): StoredLead => ({
   ...r.record,
@@ -57,8 +63,9 @@ const stored = (r: RowState): StoredLead => ({
   notify_outcome_unknown: r.outcomeUnknown,
 });
 const LEASE_MS = 10 * 60_000;
-/** As postgres.ts MAX_RESENDS. */
-const MAX_RESENDS = 3;
+/** As postgres.ts RESEND_WAIT_HOURS / MAX_RESENDS (AEGIS r6 R6-1(e)). */
+const RESEND_WAIT_HOURS = [1, 6, 24, 72];
+const MAX_RESENDS = RESEND_WAIT_HOURS.length;
 /** As postgres.ts BATCH_STATUSES. */
 const KIND: Record<BatchKind, { from: NotifyStatus[]; done: NotifyStatus }> = {
   digest: { from: ["deferred", "delivery_unknown"], done: "sent" },
@@ -140,23 +147,32 @@ export function fakeStore(dir: string, clock: () => number = () => Date.now()): 
   };
   const due = (r: RowState) => r.nextAt === null || r.nextAt <= clock();
   const byAge = (a: RowState, b: RowState) => a.createdAt - b.createdAt || (a.record.submission_id < b.record.submission_id ? -1 : 1);
-  /** As postgres.ts notDelivered (AEGIS r5 N2): re-send after 1 h, 4 h, 16 h; then 'abandoned'. */
-  const notDelivered = (rows: RowState[], outcome: "undelivered" | "unconfirmed"): DeliveryOutcome => {
+  /** As postgres.ts requeue (AEGIS r5 N2, r6 R6-1/R6-7). */
+  const requeue = (rows: RowState[], outcome: "undelivered" | "unconfirmed" | "unverifiable"): DeliveryOutcome => {
     const out = { resent: 0, abandoned: 0 };
     for (const r of rows) {
-      r.undeliveredAt = clock();
+      if (outcome === "unverifiable") r.unverifiableAt = clock();
+      else r.undeliveredAt = clock();
       r.checkedAt = null;
+      r.lookupFailures = 0;
       if (r.resends < MAX_RESENDS) {
         setStatus(r, "deferred");
         r.delivery = outcome;
         r.batch = null;
         r.batchAt = null;
         r.batchHash = null;
-        r.nextAt = clock() + 4 ** r.resends * 3_600_000;
+        r.nextAt = clock() + RESEND_WAIT_HOURS[r.resends]! * 3_600_000;
         r.resends += 1;
+        if (outcome === "unverifiable") {
+          r.ackAt = null;
+          r.ackBy = null;
+        }
         out.resent += 1;
       } else {
         r.delivery = "abandoned";
+        r.abandonedAt = clock();
+        r.ackAt = null;
+        r.ackBy = null;
         out.abandoned += 1;
       }
     }
@@ -216,7 +232,13 @@ export function fakeStore(dir: string, clock: () => number = () => Date.now()): 
           r.delivery = null;
           r.checkedAt = null;
         } else if (extra.emailId) r.emailId = extra.emailId;
-        if (extra.unverifiable) r.delivery = "unverifiable";
+        if (extra.unverifiable) {
+          r.delivery = "unverifiable";
+          r.unverifiableAt = clock();
+          r.ackAt = null;
+          r.ackBy = null;
+        }
+        if (status === "sent") r.lookupFailures = 0;
         if (extra.outcomeUnknown || extra.unverifiable) r.outcomeUnknown = true;
       }
       log(app, submissionId, status);
@@ -315,7 +337,7 @@ export function fakeStore(dir: string, clock: () => number = () => Date.now()): 
       for (const r of rows) r.batchHash = hash;
       return batchOf(kind, key, rows);
     },
-    async markBatchSent(app, kind, key, submissionIds, emailId) {
+    async markBatchSent(app, kind, key, submissionIds, emailId, verifiable = true) {
       const { from, done } = KIND[kind];
       const ids = new Set(submissionIds);
       let n = 0;
@@ -325,8 +347,15 @@ export function fakeStore(dir: string, clock: () => number = () => Date.now()): 
           r.nextAt = null;
           if (done === "sent") r.sentAt = clock();
           r.emailId = emailId ?? null;
-          r.delivery = !emailId && done === "sent" ? "unverifiable" : null;
-          if (!emailId && done === "sent") r.outcomeUnknown = true;
+          const noId = !emailId && verifiable && done === "sent";
+          r.delivery = noId ? "unverifiable" : null;
+          if (noId) {
+            r.unverifiableAt = clock();
+            r.ackAt = null;
+            r.ackBy = null;
+          }
+          r.lookupFailures = 0;
+          if (noId) r.outcomeUnknown = true;
           r.checkedAt = null;
           n += 1;
         }
@@ -349,15 +378,21 @@ export function fakeStore(dir: string, clock: () => number = () => Date.now()): 
       }
     },
     async deliveriesToCheck(app, limit) {
-      const order = new Map<string, [number, number]>();
+      const order = new Map<string, [number, number, number]>();
       for (const r of mine(app)) {
         if (r.status === "sent" && r.emailId && r.delivery === null) {
           const prev = order.get(r.emailId);
           const checked = r.checkedAt ?? -Infinity;
-          order.set(r.emailId, prev ? [Math.min(prev[0], checked), Math.min(prev[1], r.sentAt ?? 0)] : [checked, r.sentAt ?? 0]);
+          order.set(
+            r.emailId,
+            prev ? [Math.max(prev[0], r.lookupFailures), Math.min(prev[1], checked), Math.min(prev[2], r.sentAt ?? 0)] : [r.lookupFailures, checked, r.sentAt ?? 0],
+          );
         }
       }
-      return [...order].sort((a, b) => a[1][0] - b[1][0] || a[1][1] - b[1][1] || (a[0] < b[0] ? -1 : 1)).slice(0, limit).map(([id]) => id);
+      return [...order]
+        .sort((a, b) => a[1][0] - b[1][0] || a[1][1] - b[1][1] || a[1][2] - b[1][2] || (a[0] < b[0] ? -1 : 1))
+        .slice(0, limit)
+        .map(([id]) => id);
     },
     async recordDelivery(app, emailId, outcome): Promise<DeliveryOutcome> {
       const rows = mine(app).filter((r) => r.status === "sent" && r.emailId === emailId && r.delivery === null);
@@ -365,13 +400,49 @@ export function fakeStore(dir: string, clock: () => number = () => Date.now()): 
         for (const r of rows) {
           r.delivery = outcome === "delivered" ? "delivered" : null;
           r.checkedAt = clock();
+          r.lookupFailures = 0;
         }
-        return { resent: 0, abandoned: 0 };
+        return { resent: 0, abandoned: 0, delivered: outcome === "delivered" ? rows.length : 0 };
       }
-      return notDelivered(rows, outcome);
+      return requeue(rows, outcome);
+    },
+    async recordLookupFailure(app, emailId, maxFailures) {
+      const rows = mine(app).filter((r) => r.status === "sent" && r.emailId === emailId && r.delivery === null);
+      let worst = 0;
+      for (const r of rows) worst = Math.max(worst, (r.lookupFailures += 1));
+      if (!rows.length || worst < maxFailures) return null;
+      return requeue(rows, "unverifiable");
+    },
+    async requeueUnverifiable(app) {
+      return requeue(mine(app).filter((r) => r.status === "sent" && r.delivery === "unverifiable"), "unverifiable");
+    },
+    async recoverAbandoned(app) {
+      let n = 0;
+      for (const r of mine(app)) {
+        if (r.status === "sent" && r.delivery === "abandoned") {
+          setStatus(r, "deferred");
+          r.nextAt = null;
+          r.batch = null;
+          r.batchAt = null;
+          r.batchHash = null;
+          n += 1;
+        }
+      }
+      return n;
+    },
+    async acknowledgeUndelivered(app, by) {
+      let n = 0;
+      for (const r of mine(app)) {
+        if (r.ackAt === null && (r.abandonedAt !== null || r.unverifiableAt !== null)) {
+          r.ackAt = clock();
+          r.ackBy = by;
+          n += 1;
+        }
+      }
+      return n;
     },
     async expireDeliveryChecks(app, before) {
-      return notDelivered(
+      return requeue(
         mine(app).filter((r) => r.status === "sent" && r.emailId && r.delivery === null && r.checkedAt !== null && (r.sentAt ?? 0) <= before.getTime()),
         "unconfirmed",
       );

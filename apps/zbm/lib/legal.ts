@@ -41,7 +41,8 @@ import { legalDocumentStrings, legalPlaceholders, type ConsentCategory, type InE
  *                      (individual or summary emails; body hashes stored with
  *                      the row: sql/007_notify_outbox.sql to 010_delivery_check_state.sql;
  *                      provider email id and delivery checks: src/notify.ts
- *                      checkDeliveries, at most 3 re-sends)
+ *                      checkDeliveries: 4 re-sends, then again once emails
+ *                      are delivered; sql/011 acknowledgement)
  *   - browser storage: packages/ui/src/components/cookie-consent.tsx
  *   - no analytics, no ad pixels, self-hosted fonts, CSP 'self':
  *                      packages/ui/src/security-headers.ts, src/fonts/*
@@ -135,7 +136,7 @@ const privacyPolicy: InEffectLegalDocument = {
             "Your browser’s user-agent string (it names your browser and operating system), shortened to 500 characters and deleted automatically after 90 days, so we can investigate spam and fix problems that affect particular browsers.",
             "The date and time of the submission, and a random submission ID your browser creates so a double-click doesn’t send the same form twice.",
             "A one-way fingerprint (a SHA-256 hash) of what you entered, stored with your submission and deleted with it, so the same message sent again within 24 hours reaches us once.",
-            "For each notification email about your submission that we send to ourselves: a one-way fingerprint (a SHA-256 hash) of the email, when it was sent, our email-delivery provider’s ID for it, what the provider reported about its delivery and how many times it was re-sent, stored with your submission and deleted with it. We use them to avoid sending ourselves the same email twice and to check that it arrived. If the provider reports that an email was not delivered, or still reports it as not yet delivered two days after it was sent, we send it again later, up to three times; if we can’t tell whether an earlier email arrived, the new one is marked as a possible duplicate.",
+            "For each notification email about your submission that we send to ourselves: a one-way fingerprint (a SHA-256 hash) of the email, when it was sent, our email-delivery provider’s ID for it, what the provider reported about its delivery, how many times it was re-sent and, if it could not be delivered, when we reviewed that, stored with your submission and deleted with it. We use them to avoid sending ourselves the same email twice and to check that it arrived. If the provider reports that an email was not delivered, or still reports it as not yet delivered two days after it was sent, we send it again later, up to four times over about four days, and once more whenever our emails are being delivered again; if we can’t tell whether an earlier email arrived, the new one is marked as a possible duplicate.",
             "Whether your submission arrived while an unusually large number of submissions were coming from the same network or from everywhere at once. Such a submission is kept in full and reaches us in a summary email, marked so we check it before replying.",
             "If you reached the intake form from one of our campaign links, the short campaign tag in that link (for example from a billboard or an ad), so we know which campaign brought you. It identifies the campaign, not you.",
           ],

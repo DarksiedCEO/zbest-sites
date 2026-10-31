@@ -15,8 +15,11 @@
  *   5. the notify-status CHECK accepts every status in src/notify-status.ts
  *      and refuses near-misses (AEGIS r4 L4: e.g. 007 re-run by hand after
  *      008 would drop 'expired_reported', and the app would then fail 23514);
- *   6. the notify-status and notify-delivery CHECKs allow EXACTLY the app's
- *      values, no extras (AEGIS r5 N7), and lead_delivery_checks exists;
+ *   6. the notify-status and notify-delivery CHECKs are exactly the plain
+ *      value lists the migrations write, with the app's values (AEGIS r5 N7,
+ *      r6 R6-6); no other CHECK on leads mentions a notify_ column; every
+ *      delivery value is accepted by a rolled-back insert and near-misses are
+ *      refused; lead_delivery_checks has exactly the app's columns and types;
  * All of it runs in ONE transaction under a transaction-scoped advisory lock,
  * so concurrent runs serialise and a failed run changes nothing.
  *
@@ -77,7 +80,7 @@ const BASE = {
   created_at: "timestamp with time zone",
 };
 
-/** After every migration: exactly what the app writes (004 service area, 006 content hash, 007 notify outbox, 008 batch hash, 009 delivery check, 010 re-send cap). */
+/** After every migration: exactly what the app writes (004 service area, 006 content hash, 007 notify outbox, 008 batch hash, 009 delivery check, 010 re-send cap, 011 acknowledgement). */
 const EXPECTED = {
   ...BASE,
   service_area: "text",
@@ -96,6 +99,11 @@ const EXPECTED = {
   notify_outcome_unknown: "boolean",
   notify_resends: "integer",
   notify_checked_at: "timestamp with time zone",
+  notify_abandoned_at: "timestamp with time zone",
+  notify_unverifiable_at: "timestamp with time zone",
+  notify_ack_at: "timestamp with time zone",
+  notify_ack_by: "text",
+  notify_lookup_failures: "integer",
 };
 
 /**
@@ -314,38 +322,84 @@ try {
     }
     lines.push(`notify status check ok (${NOTIFY_STATUSES.length} statuses accepted, ${REFUSED_STATUSES.length} near-misses refused; rolled back)`);
 
-    // 6. AEGIS r5 N7: both CHECKs allow EXACTLY the app's values — no extras,
-    //    none missing — read from the constraint definitions themselves.
-    const defs = Object.fromEntries(
-      (
-        await tx`
-          SELECT conname, pg_get_constraintdef(oid) AS def FROM pg_constraint
-          WHERE conrelid = 'leads'::regclass AND contype = 'c'
-            AND conname IN ('leads_notify_status_check', 'leads_notify_delivery_check')`
-      ).map((r) => [r.conname, String(r.def)]),
-    );
-    const exact = (name, expected, nullable) => {
+    // 6. AEGIS r5 N7, r6 R6-6: both CHECKs allow EXACTLY the app's values,
+    //    in exactly the shape the migrations write (a strict match, so an
+    //    added OR, a function call or any other term fails), no other CHECK
+    //    on leads mentions a notify_ column, and every delivery value is
+    //    accepted by a real (rolled-back) insert while near-misses are refused.
+    const checksOnLeads = (
+      await tx`
+        SELECT conname, pg_get_constraintdef(oid) AS def FROM pg_constraint
+        WHERE conrelid = 'leads'::regclass AND contype = 'c'`
+    ).map((r) => ({ name: String(r.conname), def: String(r.def) }));
+    const defs = Object.fromEntries(checksOnLeads.map((c) => [c.name, c.def]));
+    const LIST = "((?:'[a-z_]+'::text)(?:, '[a-z_]+'::text)*)";
+    const SHAPES = {
+      leads_notify_status_check: new RegExp(`^CHECK \\(\\(notify_status = ANY \\(ARRAY\\[${LIST}\\]\\)\\)\\)$`),
+      leads_notify_delivery_check: new RegExp(`^CHECK \\(\\(\\(notify_delivery IS NULL\\) OR \\(notify_delivery = ANY \\(ARRAY\\[${LIST}\\]\\)\\)\\)\\)$`),
+    };
+    const exact = (name, expected) => {
       const def = defs[name];
       if (!def) throw new CheckFailed(`${name} is missing. Run the migrations (or fix the constraint) before launch.`);
-      const allowed = new Set([...def.matchAll(/'([^']*)'::text/g)].map((m) => m[1]));
+      const m = SHAPES[name].exec(def);
+      if (!m) throw new CheckFailed(`${name} is not the plain value list the migrations write (found: ${def.slice(0, 300)}). Fix the constraint before launch.`);
+      const allowed = new Set([...m[1].matchAll(/'([a-z_]+)'::text/g)].map((x) => x[1]));
       const missing = expected.filter((v) => !allowed.has(v));
       const extra = [...allowed].filter((v) => !expected.includes(v));
-      const nullOk = /IS NULL/.test(def);
-      if (missing.length || extra.length || nullOk !== nullable) {
+      if (missing.length || extra.length) {
         throw new CheckFailed(
           `${name} does not allow exactly the app's values` +
             (missing.length ? `; missing: ${missing.join(", ")}` : "") +
             (extra.length ? `; extra: ${extra.map((v) => JSON.stringify(v)).join(", ")}` : "") +
-            (nullOk !== nullable ? `; NULL ${nullable ? "must" : "must not"} be allowed` : "") +
             ". Fix the constraint before launch.",
         );
       }
     };
-    exact("leads_notify_status_check", NOTIFY_STATUSES, false);
-    exact("leads_notify_delivery_check", NOTIFY_DELIVERY_VALUES, true);
-    const [checks] = await tx`SELECT to_regclass('lead_delivery_checks') IS NOT NULL AS present`;
-    if (!checks?.present) throw new CheckFailed("lead_delivery_checks table is missing. Fix the schema before launch.");
-    lines.push(`notify constraints exact (${NOTIFY_STATUSES.length} statuses, ${NOTIFY_DELIVERY_VALUES.length} delivery values); delivery check table ok`);
+    exact("leads_notify_status_check", NOTIFY_STATUSES);
+    exact("leads_notify_delivery_check", NOTIFY_DELIVERY_VALUES);
+    const strays = checksOnLeads.filter((c) => !(c.name in SHAPES) && /\bnotify_/.test(c.def)).map((c) => c.name);
+    if (strays.length) throw new CheckFailed(`other CHECK constraints on the notify columns would refuse what the app writes: ${strays.join(", ")}. Remove them before launch.`);
+    const tryDelivery = (value) =>
+      tx
+        .savepoint(async (sp) => {
+          await sp`
+            INSERT INTO leads (submission_id, app, form, payload, payload_hash, notify_status, notify_delivery)
+            VALUES (${crypto.randomUUID()}::uuid, 'zbm', 'migrate-check', '{}'::jsonb, 'migrate-hash', 'sent', ${value})`;
+          throw Object.assign(new Error("rollback"), { code: ROLLBACK_OK });
+        })
+        .then(
+          () => "stored",
+          (error) => {
+            if (error?.code === ROLLBACK_OK) return "accepted";
+            if (error?.code === "23514") return "refused";
+            throw error;
+          },
+        );
+    const deliveryMissing = [];
+    for (const v of [...NOTIFY_DELIVERY_VALUES, null]) if ((await tryDelivery(v)) !== "accepted") deliveryMissing.push(String(v));
+    const deliveryLeaked = [];
+    for (const v of ["", "Delivered", "bogus", " delivered"]) if ((await tryDelivery(v)) !== "refused") deliveryLeaked.push(JSON.stringify(v));
+    if (deliveryMissing.length || deliveryLeaked.length) {
+      throw new CheckFailed(
+        "leads_notify_delivery_check does not behave as the app needs" +
+          (deliveryMissing.length ? `; refuses: ${deliveryMissing.join(", ")}` : "") +
+          (deliveryLeaked.length ? `; accepts: ${deliveryLeaked.join(", ")}` : "") +
+          ". Fix the constraint before launch.",
+      );
+    }
+    // The delivery check's state table, column by column (R6-6).
+    const CHECKS_TABLE = { app: "text", last_success_at: "timestamp with time zone", failing_since: "timestamp with time zone", last_error: "text", updated_at: "timestamp with time zone" };
+    const checkCols = Object.fromEntries(
+      (
+        await tx`
+          SELECT column_name, data_type FROM information_schema.columns
+          WHERE table_schema = current_schema() AND table_name = 'lead_delivery_checks'`
+      ).map((c) => [c.column_name, c.data_type]),
+    );
+    const wrongCols = Object.entries(CHECKS_TABLE).filter(([n, t]) => checkCols[n] !== t).map(([n]) => n);
+    if (!Object.keys(checkCols).length) throw new CheckFailed("lead_delivery_checks table is missing. Fix the schema before launch.");
+    if (wrongCols.length) throw new CheckFailed(`lead_delivery_checks does not match the app: ${wrongCols.join(", ")}. Fix the schema before launch.`);
+    lines.push(`notify constraints exact (${NOTIFY_STATUSES.length} statuses, ${NOTIFY_DELIVERY_VALUES.length} delivery values; rolled back); delivery check table ok`);
     return lines;
   });
   for (const line of report) console.log(line);

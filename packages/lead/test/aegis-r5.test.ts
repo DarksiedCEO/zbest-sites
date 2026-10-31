@@ -107,7 +107,7 @@ describe("N2 — a sending-only key stops re-sends; re-sends of undelivered lead
     expect(log.lines.some((l) => l.event === "notify_delivery_unverifiable")).toBe(true);
   }, 60_000);
 
-  it("a suppressed inbox: each lead is re-sent at most 3 times with backoff, then abandoned with an error alert", async () => {
+  it("a suppressed inbox: each lead is re-sent at most 4 times with backoff (AEGIS r6: 1 h, 6 h, 24 h, 72 h), then abandoned with an error alert", async () => {
     const d = fakeDriver();
     const resend = modelResend({ lookup: () => ({ event: "suppressed" }) });
     const rec = record(7);
@@ -118,7 +118,7 @@ describe("N2 — a sending-only key stops re-sends; re-sends of undelivered lead
       await run(d, resend.notifier, log);
       d.advance(3_600_000);
     }
-    expect(leadEmails(resend.accepted, 7)).toBe(4);
+    expect(leadEmails(resend.accepted, 7)).toBe(5);
     expect(log.lines.some((l) => l.level === "error" && l.event === "notify_delivery_abandoned")).toBe(true);
   }, 60_000);
 
@@ -150,7 +150,7 @@ describe("N2 — a sending-only key stops re-sends; re-sends of undelivered lead
       await run(d, resend.notifier);
       d.advance(3_600_000);
     }
-    expect(leadEmails(resend.accepted, 9)).toBe(4);
+    expect(leadEmails(resend.accepted, 9)).toBe(5);
   }, 120_000);
 });
 
@@ -257,7 +257,8 @@ describe("N5 — the privacy policy matches the code", () => {
     expect(text).not.toMatch(/whether each email was delivered/);
     expect(text).toMatch(/whether our emails were delivered/);
     expect(text).toMatch(/first gets to it more than 3 days/);
-    expect(text).toMatch(/up to three times/);
+    // AEGIS r6 R6-1(e): four re-sends, then again once emails are delivered.
+    expect(text).toMatch(/up to four times/);
     expect(text).not.toMatch(/\bdraft\b|attorney review|pending legal review/i);
   });
 });
@@ -356,13 +357,18 @@ describe.skipIf(!url)("AEGIS r5 — batch limit under any plan, delivery-check h
     await seed(1, "deferred");
     const resend = modelResend({ noId: true });
     await handleNotifyRetry(cronReq(), { app: "zbm", env: cronEnv(), transport: transportOf(freshStore(), resend.notifier) });
+    // AEGIS r6 R6-7: the lead is re-queued for the next digest, so it is waiting (a backlog) …
+    expect((await health()).status).toBe("notify_backlog");
+    await sql`UPDATE leads SET notify_next_at = NULL`;
+    await handleNotifyRetry(cronReq(), { app: "zbm", env: cronEnv(), transport: transportOf(freshStore(), modelResend().notifier) });
+    // … and once re-sent (and delivered) the warning stays until acknowledged.
     expect((await health()).status).toBe("delivery_unverifiable");
   }, 60_000);
 
-  it("N2: a lead abandoned after 3 re-sends degrades health (delivery_failed) even after 24 h", async () => {
+  it("N2 (AEGIS r6 R6-1): an abandoned lead degrades health (leads_undelivered) however long ago, until acknowledged", async () => {
     await seed(1, "sent");
-    await sql`UPDATE leads SET notify_delivery = 'abandoned', notify_undelivered_at = now() - interval '3 days', notified_at = now() - interval '3 days'`;
-    expect((await health()).status).toBe("delivery_failed");
+    await sql`UPDATE leads SET notify_delivery = 'abandoned', notify_abandoned_at = now() - interval '30 days', notify_undelivered_at = now() - interval '30 days', notified_at = now() - interval '30 days'`;
+    expect((await health()).status).toBe("leads_undelivered");
   });
 
   it("N7: migrate requires the exact allowed set for both CHECKs (an extra value or a missing delivery CHECK fails)", async () => {

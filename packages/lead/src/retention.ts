@@ -75,7 +75,7 @@ export interface PurgeLedger {
   leadState?(
     app: LeadApp,
     window: { unsentBefore: Date; retryAfter: Date },
-  ): Promise<{ unsent: number; digestPending: number; quarantined24h: number; stored24h: number; expiredUnreported?: number; undelivered24h?: number; abandoned7d?: number; unverifiable24h?: number }>;
+  ): Promise<{ unsent: number; digestPending: number; quarantined24h: number; stored24h: number; expiredUnreported?: number; undelivered24h?: number; abandonedUnacked?: number; unverifiableUnacked?: number; unconfirmedOld?: number }>;
   /** The delivery check's own state (AEGIS r5 N2/N3). */
   deliveryCheckState?(app: LeadApp): Promise<{ unauthorized: boolean; failingSince: Date | null }>;
   /** Bytes the lead tables occupy (pg_total_relation_size; AEGIS r3 M4). */
@@ -206,15 +206,21 @@ export type PurgeHealth =
   /** Delivery lookups have been failing (not 401/403) for over DELIVERY_CHECK_FAILING_HOURS (AEGIS r5 N3). */
   | "delivery_check_failing"
   /**
-   * WARNING, not degraded (/api/health answers 200 with this status): the
-   * delivery check cannot run — Resend refused the lookup as unauthorized
-   * (a sending-only API key; delivery checks need a Full access key), or an
-   * accepted email came back without a usable id in the last 24 h (AEGIS r5 N2/N4).
+   * The delivery check cannot run — Resend refused the lookup as
+   * unauthorized (a sending-only API key; delivery checks need a Full access
+   * key) — or an accepted email came back without a usable id and is not yet
+   * acknowledged (AEGIS r5 N2/N4, r6 R6-7). A WARNING (200) while nothing is
+   * waiting; a 503 when leads are unsent or emails unconfirmed past
+   * LEAD_NOTIFY_ALERT_MINUTES (AEGIS r6 R6-2).
    */
-  | "delivery_unverifiable";
+  | "delivery_unverifiable"
+  /**
+   * A lead's email could not be delivered after every re-send (AEGIS r6
+   * R6-1). Degraded until acknowledged (POST /api/cron/ack-undelivered);
+   * never cleared by time.
+   */
+  | "leads_undelivered";
 
-/** Statuses that are warnings: reported, logged at warn, but /api/health still answers 200. */
-export const HEALTH_WARNINGS: ReadonlySet<PurgeHealth> = new Set<PurgeHealth>(["delivery_unverifiable"]);
 /** Lookups failing for longer than this degrade health (AEGIS r5 N3). */
 export const DELIVERY_CHECK_FAILING_HOURS = 6;
 
@@ -231,7 +237,8 @@ export type HealthOptions = {
 
 /** One computed status per app per instance, reused for HEALTH_CACHE_MS. */
 export const HEALTH_CACHE_MS = 60_000;
-type HealthResult = { status: PurgeHealth; ageHours?: number };
+/** `warning`: reported and logged at warn, but /api/health still answers 200 (AEGIS r5 N2, r6 R6-2). */
+type HealthResult = { status: PurgeHealth; ageHours?: number; warning?: boolean };
 const healthCache = new Map<LeadApp, { at: number; result: Promise<HealthResult> }>();
 
 /** Test seam: forget cached statuses. */
@@ -241,11 +248,11 @@ export function resetHealthCache() {
 
 /**
  * Whether the retention promise is actually being kept for this app. Every
- * status but "ok" and the HEALTH_WARNINGS is DEGRADED and is logged at error
+ * status but "ok" and a result marked `warning` is DEGRADED and is logged at error
  * level, so a log alert or an uptime check on /api/health catches a purge
  * that stopped. A warning is logged at warn level and answered 200.
  */
-export async function purgeHealth(opts: HealthOptions): Promise<{ status: PurgeHealth; ageHours?: number }> {
+export async function purgeHealth(opts: HealthOptions): Promise<HealthResult> {
   const log = opts.logger ?? consoleLogger;
   const env = opts.env ?? process.env;
   const app = opts.app;
@@ -313,7 +320,10 @@ export async function purgeHealth(opts: HealthOptions): Promise<{ status: PurgeH
     }
     // Every cap or guard trip degrades health (AEGIS r2 H1(c)).
     if (state.stored24h >= resolveCaps(env).hardLimit) return degraded("storage_guard");
-    if ((state.undelivered24h ?? 0) > 0 || (state.abandoned7d ?? 0) > 0) return degraded("delivery_failed");
+    // AEGIS r6 R6-1: a lead whose email could not be delivered after every
+    // re-send keeps health degraded until the founder acknowledges it.
+    if ((state.abandonedUnacked ?? 0) > 0) return degraded("leads_undelivered");
+    if ((state.undelivered24h ?? 0) > 0) return degraded("delivery_failed");
     if (state.quarantined24h > 0) return degraded("quarantined");
     if ((state.expiredUnreported ?? 0) > 0) return degraded("notify_expired");
     if (state.digestPending > 0 || state.unsent > 0) return degraded("notify_backlog");
@@ -326,9 +336,13 @@ export async function purgeHealth(opts: HealthOptions): Promise<{ status: PurgeH
       }
     }
     if (check.failingSince && nowMs - check.failingSince.getTime() > DELIVERY_CHECK_FAILING_HOURS * 3_600_000) return degraded("delivery_check_failing");
-    if (check.unauthorized || (state.unverifiable24h ?? 0) > 0) {
+    if (check.unauthorized || (state.unverifiableUnacked ?? 0) > 0) {
+      // AEGIS r6 R6-2: a warning only while nothing is waiting; with leads
+      // unsent or emails unconfirmed past the alert age it is a 503, so a
+      // monitor that checks only the status code still alerts.
+      if (state.unsent > 0 || (state.unconfirmedOld ?? 0) > 0) return degraded("delivery_unverifiable");
       log("warn", "purge_degraded", { app, status: "delivery_unverifiable" });
-      return { status: "delivery_unverifiable", ageHours };
+      return { status: "delivery_unverifiable", ageHours, warning: true };
     }
   } else if (ledger.unsentOlderThan) {
     let unsent: number;
@@ -364,7 +378,7 @@ export async function handleHealth(_request: Request, opts: HealthOptions): Prom
     if (ttl > 0) healthCache.set(opts.app, entry);
   }
   const purge = await entry.result;
-  const ok = purge.status === "ok" || HEALTH_WARNINGS.has(purge.status);
+  const ok = purge.status === "ok" || purge.warning === true;
   return Response.json(
     { ok, status: purge.status },
     { status: ok ? 200 : 503, headers: { "Cache-Control": `public, max-age=0, s-maxage=${Math.round(HEALTH_CACHE_MS / 1000)}` } },

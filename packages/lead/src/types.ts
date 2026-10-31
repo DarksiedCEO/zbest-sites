@@ -137,7 +137,7 @@ export type LookupResult =
   | { error: "unavailable"; status: number };
 
 /** What a delivery result did to a lead (AEGIS r5 N2). */
-export type DeliveryOutcome = { resent: number; abandoned: number };
+export type DeliveryOutcome = { resent: number; abandoned: number; /** Leads whose email was confirmed delivered. */ delivered?: number };
 
 /** Which batches: lead digests, or the count email for expired leads (AEGIS r3 M3). */
 export type BatchKind = "digest" | "expired";
@@ -182,7 +182,8 @@ export interface NotifyOutbox {
    * The batch Resend accepted: exactly these leads (and only while they are
    * still in batch `key`) become 'sent' ('expired_reported' for an expired batch).
    */
-  markBatchSent(app: LeadApp, kind: BatchKind, key: string, submissionIds: string[], emailId?: string): Promise<number>;
+  /** `verifiable` (default true): a send without an email id is recorded 'unverifiable' and re-sent, flagged (AEGIS r6 R6-7). */
+  markBatchSent(app: LeadApp, kind: BatchKind, key: string, submissionIds: string[], emailId?: string, verifiable?: boolean): Promise<number>;
   /** A send of batch `key` ended without a known outcome (timeout, network, 409): its leads are flagged if it is ever dissolved (AEGIS r4 L6). */
   markBatchUnknown(app: LeadApp, key: string): Promise<void>;
   /** AEGIS r4 M2: up to `limit` Resend email ids of sent leads whose delivery is not final yet, oldest first. */
@@ -191,7 +192,7 @@ export interface NotifyOutbox {
    * What a lookup found for an email. 'delivered' is final. 'pending' (a
    * non-final event) records when it was checked. 'undelivered' and
    * 'unconfirmed' re-send its leads in a digest, flagged, after a growing
-   * wait — at most MAX_RESENDS times; after that they are 'abandoned' (AEGIS r5 N2).
+   * wait — at most MAX_RESENDS times; after that they are 'abandoned' (AEGIS r5 N2, r6 R6-1).
    */
   recordDelivery(app: LeadApp, emailId: string, outcome: "delivered" | "pending" | "undelivered" | "unconfirmed"): Promise<DeliveryOutcome>;
   /**
@@ -199,6 +200,18 @@ export interface NotifyOutbox {
    * that were sent before `before`: treated as 'unconfirmed' (AEGIS r5 N2).
    */
   expireDeliveryChecks(app: LeadApp, before: Date): Promise<DeliveryOutcome>;
+  /**
+   * AEGIS r6 R6-5: a lookup for this email failed with a server error while
+   * others answered. Its leads go to the back of the queue; at `maxFailures`
+   * they are re-sent in a digest, flagged unverifiable (returned), else null.
+   */
+  recordLookupFailure(app: LeadApp, emailId: string, maxFailures: number): Promise<DeliveryOutcome | null>;
+  /** AEGIS r6 R6-7: leads accepted without a usable id go back in the next digest, flagged. */
+  requeueUnverifiable(app: LeadApp): Promise<DeliveryOutcome>;
+  /** AEGIS r6 R6-1: a later email was confirmed delivered: every abandoned lead goes back in the digest, flagged. */
+  recoverAbandoned(app: LeadApp): Promise<number>;
+  /** AEGIS r6 R6-1(d): the founder acknowledges every abandoned or unverifiable lead not yet acknowledged; nothing is deleted. */
+  acknowledgeUndelivered(app: LeadApp, by: string): Promise<number>;
   /** The delivery check's own state for health (AEGIS r5 N2/N3). */
   recordCheckState(app: LeadApp, state: "ok" | "unauthorized" | "failing", code?: string): Promise<void>;
   /**

@@ -31,10 +31,13 @@ import { DeliveryError, type LeadApp } from "./types";
  *      whole by one run, re-sent unchanged after a failure, and only its own
  *      leads are marked sent when Resend accepts it (r3 H1);
  *   6. last, within 20 s: delivery of recently sent emails is checked with
- *      Resend (r4 M2, r5 N2–N6, notify.ts checkDeliveries). Not delivered →
- *      re-sent in a later digest, flagged, with growing waits, at most 3
- *      times; a sending-only API key makes the check a health warning
- *      (delivery_unverifiable) and re-sends nothing.
+ *      Resend (r4 M2, r5 N2–N6, r6, notify.ts checkDeliveries). Not delivered
+ *      → re-sent in a later digest, flagged, after 1 h, 6 h, 24 h, 72 h; then
+ *      'abandoned' (health leads_undelivered until acknowledged) and re-queued
+ *      whenever a later email is confirmed delivered.
+ *
+ * The whole run stays within RUN_BUDGET_MS (50 s; maxDuration is 60 s):
+ * work not started in time waits for the next run (AEGIS r6 R6-4).
  *
  * Schedule (vercel.json): daily, because Vercel Hobby runs a cron job at
  * most once a day and rejects a deployment with a more frequent schedule. The
@@ -55,6 +58,8 @@ export const NOTIFY_MAX_ATTEMPTS = 10;
 const BATCH = 50;
 /** Bounds the one-by-one retries in a run (r3 L3); the hourly email cap keeps the real number far lower. */
 const MAX_INDIVIDUAL_PER_RUN = 50;
+/** AEGIS r6 R6-4: a run's time budget, inside the cron routes' maxDuration (60 s). */
+export const RUN_BUDGET_MS = 50_000;
 /** Leads older than this are not retried one by one: they go in the digest (r3 L3). */
 export const DEFAULT_NOTIFY_INDIVIDUAL_HOURS = 1;
 export function notifyIndividualHours(env: Env): number {
@@ -75,6 +80,8 @@ export type NotifyRetryOptions = {
   transport?: TransportConfig;
   /** Test seam: the delivery check's time budget (default DELIVERY_CHECK_BUDGET_MS, 20 s). */
   deliveryBudgetMs?: number;
+  /** Test seam: the whole run's time budget (default RUN_BUDGET_MS, 50 s). */
+  runBudgetMs?: number;
 };
 
 const json = (body: unknown, status: number) => Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
@@ -105,13 +112,21 @@ export async function handleNotifyRetry(request: Request, opts: NotifyRetryOptio
       return json({ ok: false, error: { code: "not_configured" } }, 503);
     }
     const nowMs = (opts.now ?? (() => new Date()))().getTime();
+    // AEGIS r6 R6-4: the whole run fits inside maxDuration (60 s). No send
+    // starts after 70% of the budget (a send can take its 8 s timeout), and
+    // the delivery check stops by 84%, so the run ends by about the budget.
+    const runStart = Date.now();
+    const budget = opts.runBudgetMs ?? RUN_BUDGET_MS;
+    const sendUntil = runStart + budget * 0.7;
+    const checkUntil = runStart + budget * 0.84;
+    let outOfTime = false;
     const days = notifyRetryDays(env);
     const ctx = { app, store, notifier, log, now: () => nowMs };
 
     // 1. Too old to retry: counted in a count email, retried until accepted (r2 M3, r3 M3).
     const expired = await outbox.expireOld(app, new Date(nowMs - days * 86_400_000));
     if (expired > 0) log("warn", "notify_expired", { app, deleted: expired });
-    await sendBatches({ ...ctx, outbox }, "expired", { days });
+    outOfTime = (await sendBatches({ ...ctx, outbox }, "expired", { days, until: sendUntil })).outOfTime === true || outOfTime;
 
     // 2. Outcome unknown past Resend's key window: digest, flagged (r2 M2).
     await outbox.markUnknown(app, new Date(nowMs - KEY_WINDOW_MS));
@@ -130,9 +145,17 @@ export async function handleNotifyRetry(request: Request, opts: NotifyRetryOptio
         maxAttempts: NOTIFY_MAX_ATTEMPTS,
         limit: Math.min(BATCH, MAX_INDIVIDUAL_PER_RUN - handled),
       });
-      if (!due.length) break;
+      if (!due.length || Date.now() >= sendUntil) {
+        outOfTime ||= due.length > 0;
+        break;
+      }
       handled += due.length;
       for (const lead of due) {
+        // Out of time: the rest keep their lease and go next run.
+        if (Date.now() >= sendUntil) {
+          outOfTime = true;
+          break;
+        }
         const ids = { app, form: lead.form, submission_id: lead.submission_id };
         const outcome = await deliverLead(ctx, lead, ids, (n) => new Date(nowMs + notifyBackoffMs(n)), lead.notify_attempts);
         if (outcome === "sent") sent += 1;
@@ -143,12 +166,14 @@ export async function handleNotifyRetry(request: Request, opts: NotifyRetryOptio
     // 5. Every held lead, in immutable digests (r2 M1, r3 H1).
     const raw = (env.LEAD_DIGEST_ALERT ?? "").trim();
     const alertAt = /^\d{1,7}$/.test(raw) ? Number(raw) : DIGEST_ALERT_DEFAULT;
-    const digest = await sendBatches({ ...ctx, outbox }, "digest", { alertAt });
+    const digest = await sendBatches({ ...ctx, outbox }, "digest", { alertAt, until: sendUntil });
+    outOfTime ||= digest.outOfTime === true;
 
     // 6. Last, time-boxed (r5 N6): delivery of sent emails (r4 M2, r5 N2–N4).
     // A lead whose email was not delivered is re-sent in a later digest,
-    // after a growing wait, at most 3 times.
-    await checkDeliveries({ ...ctx, outbox }, opts.deliveryBudgetMs);
+    // after 1 h, 6 h, 24 h, 72 h; then abandoned and re-queued on a confirmed delivery.
+    const checks = await checkDeliveries({ ...ctx, outbox }, opts.deliveryBudgetMs, checkUntil);
+    if (outOfTime || checks.outOfTime) log("warn", "notify_run_budget_reached", { app });
 
     return json({ ok: true, sent, failed, digest: digest.sent, expired }, 200);
   } catch (error) {

@@ -117,29 +117,45 @@ const withTimeouts = async (tx: Tx, ms: number) => {
 const PAGE = 500;
 const MAX_PAGES = 100;
 
-/** At most this many re-sends of a lead whose email was not delivered or never confirmed (AEGIS r5 N2). */
-export const MAX_RESENDS = 3;
+/**
+ * AEGIS r6 R6-1(e): waits before each re-send of a lead whose email was not
+ * delivered (or never confirmed, or could not be verified): 1 h, 6 h, 24 h,
+ * 72 h — long enough that a day-long or weekend outage cannot use them all up.
+ */
+export const RESEND_WAIT_HOURS = [1, 6, 24, 72] as const;
+export const MAX_RESENDS = RESEND_WAIT_HOURS.length;
 
 /**
- * AEGIS r5 N2: the leads in `rows` (a locking id-ordered SELECT) were not
- * delivered. Under the cap each goes back in the digest after a growing wait
- * (1 h, 4 h, 16 h); at the cap it is 'abandoned' and stays 'sent' (it is not
- * re-sent again; /api/health is degraded).
+ * AEGIS r5 N2, r6 R6-1/R6-7: the leads whose ids `rows` yields (a locking,
+ * id-ordered SELECT of ids) were not delivered, not confirmed, or not
+ * verifiable. Under the cap each goes back in the digest after the next wait,
+ * flagged with why. At the cap it is 'abandoned': it stays 'sent', is not
+ * re-sent on a timer, keeps /api/health at leads_undelivered (503) until the
+ * founder acknowledges it, and is re-queued whenever a later email is
+ * confirmed delivered (recoverAbandoned). Every new abandonment or
+ * unverifiable send clears an earlier acknowledgement.
  */
-async function notDelivered(tx: Tx, rows: postgres.PendingQuery<postgres.Row[]>, outcome: "undelivered" | "unconfirmed"): Promise<DeliveryOutcome> {
+async function requeue(tx: Tx, rows: postgres.PendingQuery<postgres.Row[]>, outcome: "undelivered" | "unconfirmed" | "unverifiable"): Promise<DeliveryOutcome> {
   const changed = await tx`
+    WITH picked AS MATERIALIZED (${rows})
     UPDATE leads
-    SET notify_undelivered_at = now(),
+    SET notify_undelivered_at = CASE WHEN ${outcome}::text = 'unverifiable' THEN notify_undelivered_at ELSE now() END,
+        notify_unverifiable_at = CASE WHEN ${outcome}::text = 'unverifiable' THEN now() ELSE notify_unverifiable_at END,
         notify_checked_at = NULL,
+        notify_lookup_failures = 0,
         notify_batch = CASE WHEN notify_resends < ${MAX_RESENDS}::int THEN NULL ELSE notify_batch END,
         notify_batch_at = CASE WHEN notify_resends < ${MAX_RESENDS}::int THEN NULL ELSE notify_batch_at END,
         notify_batch_hash = CASE WHEN notify_resends < ${MAX_RESENDS}::int THEN NULL ELSE notify_batch_hash END,
         notify_status = CASE WHEN notify_resends < ${MAX_RESENDS}::int THEN 'deferred' ELSE notify_status END,
         notify_delivery = CASE WHEN notify_resends < ${MAX_RESENDS}::int THEN ${outcome}::text ELSE 'abandoned' END,
+        notify_abandoned_at = CASE WHEN notify_resends < ${MAX_RESENDS}::int THEN notify_abandoned_at ELSE now() END,
+        notify_ack_at = CASE WHEN notify_resends < ${MAX_RESENDS}::int AND ${outcome}::text <> 'unverifiable' THEN notify_ack_at ELSE NULL END,
+        notify_ack_by = CASE WHEN notify_resends < ${MAX_RESENDS}::int AND ${outcome}::text <> 'unverifiable' THEN notify_ack_by ELSE NULL END,
         notify_next_at = CASE WHEN notify_resends < ${MAX_RESENDS}::int
-                              THEN now() + make_interval(hours => (4 ^ notify_resends)::int) ELSE NULL END,
+                              THEN now() + make_interval(hours => (CASE notify_resends WHEN 0 THEN 1 WHEN 1 THEN 6 WHEN 2 THEN 24 ELSE 72 END)::int)
+                              ELSE NULL END,
         notify_resends = least(notify_resends + 1, ${MAX_RESENDS}::int)
-    WHERE id IN (${rows})
+    WHERE id = ANY(ARRAY(SELECT id FROM picked))
     RETURNING notify_delivery`;
   const abandoned = changed.filter((r) => r.notify_delivery === "abandoned").length;
   return { resent: changed.length - abandoned, abandoned };
@@ -286,6 +302,10 @@ export function postgresStore(
               notify_email_id = coalesce(${extra.emailId ?? null}::text, CASE WHEN ${status}::text = 'sent' THEN NULL ELSE notify_email_id END),
               notify_delivery = CASE WHEN ${extra.unverifiable === true}::boolean THEN 'unverifiable'
                                      WHEN ${status}::text = 'sent' THEN NULL ELSE notify_delivery END,
+              notify_unverifiable_at = CASE WHEN ${extra.unverifiable === true}::boolean THEN now() ELSE notify_unverifiable_at END,
+              notify_ack_at = CASE WHEN ${extra.unverifiable === true}::boolean THEN NULL ELSE notify_ack_at END,
+              notify_ack_by = CASE WHEN ${extra.unverifiable === true}::boolean THEN NULL ELSE notify_ack_by END,
+              notify_lookup_failures = CASE WHEN ${status}::text = 'sent' THEN 0 ELSE notify_lookup_failures END,
               notify_checked_at = CASE WHEN ${status}::text = 'sent' THEN NULL ELSE notify_checked_at END,
               notify_outcome_unknown = notify_outcome_unknown OR ${extra.outcomeUnknown === true || extra.unverifiable === true}::boolean
           WHERE app = ${app} AND submission_id = ${submissionId}::uuid`;
@@ -313,17 +333,18 @@ export function postgresStore(
       return run(async (tx) =>
         leased(
           await tx`
-            UPDATE leads SET notify_next_at = now() + interval '10 minutes'
-            WHERE id IN (
+            WITH picked AS MATERIALIZED (
               SELECT id FROM leads
               WHERE app = ${app}::text
                 AND created_at > ${createdAfter.toISOString()}::timestamptz
                 AND (notify_status = 'failed' OR (notify_status = 'pending' AND created_at < ${pendingBefore.toISOString()}::timestamptz))
                 AND (notify_next_at IS NULL OR notify_next_at <= now())
                 AND notify_attempts < ${maxAttempts}::int
-              ORDER BY created_at
+              ORDER BY created_at, id
               LIMIT ${limit}::int
               FOR UPDATE SKIP LOCKED)
+            UPDATE leads SET notify_next_at = now() + interval '10 minutes'
+            WHERE id = ANY(ARRAY(SELECT id FROM picked))
             RETURNING ${cols(tx)}`,
         ),
       );
@@ -336,7 +357,7 @@ export function postgresStore(
             AND created_at <= ${createdBefore.toISOString()}::timestamptz
           ORDER BY id LIMIT ${PAGE}::int FOR UPDATE)
         UPDATE leads SET notify_status = 'expired_notify', notify_next_at = NULL
-        WHERE id IN (SELECT id FROM picked)`);
+        WHERE id = ANY(ARRAY(SELECT id FROM picked))`);
     },
     async markUnknown(app: LeadApp, firstAttemptBefore: Date) {
       // AEGIS r4 L6: only an attempt whose outcome is unknown (a timeout, a
@@ -350,7 +371,7 @@ export function postgresStore(
             AND (notify_outcome_unknown OR notify_status = 'pending')
           ORDER BY id LIMIT ${PAGE}::int FOR UPDATE)
         UPDATE leads SET notify_status = 'delivery_unknown', notify_next_at = NULL
-        WHERE id IN (SELECT id FROM picked)`);
+        WHERE id = ANY(ARRAY(SELECT id FROM picked))`);
     },
     async moveToDigest(app: LeadApp, createdBefore: Date) {
       return paged((tx) => tx`
@@ -364,7 +385,7 @@ export function postgresStore(
               WHEN notify_outcome_unknown OR (notify_status = 'pending' AND notify_first_attempt_at IS NOT NULL) THEN 'delivery_unknown'
               ELSE 'deferred' END,
             notify_next_at = NULL
-        WHERE id IN (SELECT id FROM picked)`);
+        WHERE id = ANY(ARRAY(SELECT id FROM picked))`);
     },
     async claimBatch(app: LeadApp, kind: BatchKind): Promise<Batch | null> {
       const { from } = BATCH_STATUSES[kind];
@@ -426,7 +447,7 @@ export function postgresStore(
             FOR UPDATE SKIP LOCKED)
           UPDATE leads
           SET notify_batch = ${key}::text, notify_batch_at = now(), notify_next_at = now() + interval '10 minutes'
-          WHERE id IN (SELECT id FROM picked)`;
+          WHERE id = ANY(ARRAY(SELECT id FROM picked))`;
         if (r.count === 0) return null;
         // And never trusted: a batch over its limit fails the run loudly (rolled back).
         if (r.count > limit) throw Object.assign(new Error("batch over limit"), { code: "BATCH_OVER_LIMIT" });
@@ -436,35 +457,44 @@ export function postgresStore(
         return { ...batch, leads: batch.leads.map((l) => ({ ...l, notify_batch_hash: hash })), summary: { ...batch.summary, hash } };
       });
     },
-    async markBatchSent(app: LeadApp, kind: BatchKind, key: string, submissionIds: string[], emailId?: string) {
+    async markBatchSent(app: LeadApp, kind: BatchKind, key: string, submissionIds: string[], emailId?: string, verifiable = true) {
       const { from, done } = BATCH_STATUSES[kind];
+      const noId = !emailId && verifiable && done === "sent";
       return run(async (tx) => {
         // A digest: exactly these ids (AEGIS r3 H1). An expired batch: its
         // whole key (its leads are never loaded; the batch is locked whole).
+        // Ids picked once (AEGIS r6 R6-3: no plan can re-run the subquery).
         const r = await tx`
+          WITH picked AS MATERIALIZED (
+            SELECT id FROM leads
+            WHERE app = ${app}::text AND notify_batch = ${key}::text
+              AND (${kind}::text = 'expired' OR submission_id = ANY(${submissionIds}::uuid[]))
+              AND notify_status IN ${tx(from)}
+            ORDER BY id FOR UPDATE)
           UPDATE leads
           SET notify_status = ${done}::text,
               notified_at = CASE WHEN ${done}::text = 'sent' THEN now() ELSE notified_at END,
               notify_next_at = NULL,
               notify_email_id = ${emailId ?? null}::text,
-              -- AEGIS r5 N4: accepted without a usable id cannot be checked.
-              notify_delivery = CASE WHEN ${emailId ?? null}::text IS NULL AND ${done}::text = 'sent' THEN 'unverifiable' ELSE NULL END,
-              notify_outcome_unknown = notify_outcome_unknown OR (${emailId ?? null}::text IS NULL AND ${done}::text = 'sent'),
-              notify_checked_at = NULL
-          WHERE id IN (
-            SELECT id FROM leads
-            WHERE app = ${app}::text AND notify_batch = ${key}::text
-              AND (${kind}::text = 'expired' OR submission_id = ANY(${submissionIds}::uuid[]))
-              AND notify_status IN ${tx(from)}
-            ORDER BY id FOR UPDATE)`;
+              -- AEGIS r5 N4, r6 R6-7: accepted without a usable id cannot be
+              -- checked; the cron re-sends it in the next digest, flagged.
+              notify_delivery = CASE WHEN ${noId}::boolean THEN 'unverifiable' ELSE NULL END,
+              notify_unverifiable_at = CASE WHEN ${noId}::boolean THEN now() ELSE notify_unverifiable_at END,
+              notify_ack_at = CASE WHEN ${noId}::boolean THEN NULL ELSE notify_ack_at END,
+              notify_ack_by = CASE WHEN ${noId}::boolean THEN NULL ELSE notify_ack_by END,
+              notify_outcome_unknown = notify_outcome_unknown OR (${noId}::boolean),
+              notify_checked_at = NULL,
+              notify_lookup_failures = 0
+          WHERE id = ANY(ARRAY(SELECT id FROM picked))`;
         return r.count;
       });
     },
     async markBatchUnknown(app: LeadApp, key: string) {
       await run(async (tx) => {
         await tx`
+          WITH picked AS MATERIALIZED (SELECT id FROM leads WHERE app = ${app}::text AND notify_batch = ${key}::text ORDER BY id FOR UPDATE)
           UPDATE leads SET notify_outcome_unknown = true
-          WHERE id IN (SELECT id FROM leads WHERE app = ${app}::text AND notify_batch = ${key}::text ORDER BY id FOR UPDATE)`;
+          WHERE id = ANY(ARRAY(SELECT id FROM picked))`;
       });
     },
     async clearBatch(app: LeadApp, kind: BatchKind, key: string) {
@@ -473,53 +503,111 @@ export function postgresStore(
         // AEGIS r4 L6: a digest lead becomes 'delivery_unknown' only if a send
         // of it may have been accepted; after definite failures it keeps its status.
         await tx`
+          WITH picked AS MATERIALIZED (
+            SELECT id FROM leads
+            WHERE app = ${app}::text AND notify_batch = ${key}::text AND notify_status IN ${tx(from)}
+            ORDER BY id FOR UPDATE)
           UPDATE leads
           SET notify_batch = NULL, notify_batch_at = NULL, notify_batch_hash = NULL, notify_next_at = NULL,
               notify_status = CASE WHEN ${kind}::text = 'digest' AND notify_outcome_unknown THEN 'delivery_unknown' ELSE notify_status END
-          WHERE id IN (
-            SELECT id FROM leads
-            WHERE app = ${app}::text AND notify_batch = ${key}::text AND notify_status IN ${tx(from)}
-            ORDER BY id FOR UPDATE)`;
+          WHERE id = ANY(ARRAY(SELECT id FROM picked))`;
       });
     },
     async deliveriesToCheck(app: LeadApp, limit: number) {
       return run(async (tx) => {
+        // Ids that failed lookups go to the back (AEGIS r6 R6-5).
         const rows = await tx`
           SELECT notify_email_id AS id FROM leads
           WHERE app = ${app}::text AND notify_status = 'sent' AND notify_email_id IS NOT NULL AND notify_delivery IS NULL
           GROUP BY notify_email_id
-          ORDER BY min(notify_checked_at) NULLS FIRST, min(notified_at), notify_email_id
+          ORDER BY max(notify_lookup_failures), min(notify_checked_at) NULLS FIRST, min(notified_at), notify_email_id
           LIMIT ${limit}::int`;
         return rows.map((r) => String(r.id));
       });
     },
     async recordDelivery(app: LeadApp, emailId: string, outcome: "delivered" | "pending" | "undelivered" | "unconfirmed") {
       return run(async (tx) => {
-        const where = tx`
+        const ids = tx`
           SELECT id FROM leads
           WHERE app = ${app}::text AND notify_status = 'sent' AND notify_email_id = ${emailId}::text AND notify_delivery IS NULL
           ORDER BY id FOR UPDATE`;
         if (outcome === "delivered" || outcome === "pending") {
-          await tx`
+          const r = await tx`
+            WITH picked AS MATERIALIZED (${ids})
             UPDATE leads
             SET notify_delivery = CASE WHEN ${outcome}::text = 'delivered' THEN 'delivered' ELSE NULL END,
-                notify_checked_at = now()
-            WHERE id IN (${where})`;
-          return { resent: 0, abandoned: 0 };
+                notify_checked_at = now(),
+                notify_lookup_failures = 0
+            WHERE id = ANY(ARRAY(SELECT id FROM picked))`;
+          return { resent: 0, abandoned: 0, delivered: outcome === "delivered" ? r.count : 0 };
         }
-        return notDelivered(tx, where, outcome);
+        return requeue(tx, ids, outcome);
       });
+    },
+    async recordLookupFailure(app: LeadApp, emailId: string, maxFailures: number) {
+      return run(async (tx) => {
+        const ids = tx`
+          SELECT id FROM leads
+          WHERE app = ${app}::text AND notify_status = 'sent' AND notify_email_id = ${emailId}::text AND notify_delivery IS NULL
+          ORDER BY id FOR UPDATE`;
+        const [row] = await tx`
+          WITH picked AS MATERIALIZED (${ids})
+          UPDATE leads SET notify_lookup_failures = notify_lookup_failures + 1
+          WHERE id = ANY(ARRAY(SELECT id FROM picked))
+          RETURNING notify_lookup_failures`;
+        if (!row || Number(row.notify_lookup_failures) < maxFailures) return null;
+        // AEGIS r6 R6-5: given up — re-sent in a digest, flagged unverifiable.
+        return requeue(tx, ids, "unverifiable");
+      });
+    },
+    async requeueUnverifiable(app: LeadApp) {
+      return run(async (tx) =>
+        requeue(
+          tx,
+          tx`
+            SELECT id FROM leads
+            WHERE app = ${app}::text AND notify_status = 'sent' AND notify_delivery = 'unverifiable'
+            ORDER BY id LIMIT ${PAGE}::int FOR UPDATE`,
+          "unverifiable",
+        ),
+      );
+    },
+    async recoverAbandoned(app: LeadApp) {
+      // AEGIS r6 R6-1(b): a later email was confirmed delivered, so the inbox
+      // works: every abandoned lead goes back in the digest, flagged
+      // "previously undeliverable" (its notify_delivery stays 'abandoned'
+      // until the digest is accepted). Called once per run that confirmed a
+      // delivery; a lead that fails again is abandoned again at once.
+      return paged((tx) => tx`
+        WITH picked AS MATERIALIZED (
+          SELECT id FROM leads
+          WHERE app = ${app}::text AND notify_status = 'sent' AND notify_delivery = 'abandoned'
+          ORDER BY id LIMIT ${PAGE}::int FOR UPDATE)
+        UPDATE leads
+        SET notify_status = 'deferred', notify_next_at = NULL,
+            notify_batch = NULL, notify_batch_at = NULL, notify_batch_hash = NULL
+        WHERE id = ANY(ARRAY(SELECT id FROM picked))`);
+    },
+    async acknowledgeUndelivered(app: LeadApp, by: string) {
+      return paged((tx) => tx`
+        WITH picked AS MATERIALIZED (
+          SELECT id FROM leads
+          WHERE app = ${app}::text AND notify_ack_at IS NULL
+            AND (notify_abandoned_at IS NOT NULL OR notify_unverifiable_at IS NOT NULL)
+          ORDER BY id LIMIT ${PAGE}::int FOR UPDATE)
+        UPDATE leads SET notify_ack_at = now(), notify_ack_by = ${by}::text
+        WHERE id = ANY(ARRAY(SELECT id FROM picked))`);
     },
     async expireDeliveryChecks(app: LeadApp, before: Date) {
       return run(async (tx) =>
-        notDelivered(
+        requeue(
           tx,
           tx`
             SELECT id FROM leads
             WHERE app = ${app}::text AND notify_status = 'sent' AND notify_email_id IS NOT NULL
               AND notify_delivery IS NULL AND notify_checked_at IS NOT NULL
               AND notified_at <= ${before.toISOString()}::timestamptz
-            ORDER BY id FOR UPDATE`,
+            ORDER BY id LIMIT ${PAGE}::int FOR UPDATE`,
           "unconfirmed",
         ),
       );
@@ -582,7 +670,7 @@ export async function purgeWith(
   return { deleted: deleted.count, uaCleared: cleared.count, ipHashCleared: ipCleared.count };
 }
 
-/** Columns migrations 004 and 006–010 add, which this code writes (AEGIS F4). */
+/** Columns migrations 004 and 006–011 add, which this code writes (AEGIS F4). */
 export const REQUIRED_LEAD_COLUMNS = [
   "service_area",
   "content_hash",
@@ -600,6 +688,11 @@ export const REQUIRED_LEAD_COLUMNS = [
   "notify_outcome_unknown",
   "notify_resends",
   "notify_checked_at",
+  "notify_abandoned_at",
+  "notify_unverifiable_at",
+  "notify_ack_at",
+  "notify_ack_by",
+  "notify_lookup_failures",
 ] as const;
 
 export function postgresPurger(options: PgOptions): LeadPurger & PurgeLedger & Required<Pick<PurgeLedger, "leadState" | "missingColumns" | "dbBytes" | "deliveryCheckState">> {
@@ -635,8 +728,12 @@ export function postgresPurger(options: PgOptions): LeadPurger & PurgeLedger & R
             count(*) FILTER (WHERE created_at > now() - interval '24 hours')::int AS stored_24h,
             count(*) FILTER (WHERE notify_status = 'expired_notify')::int AS expired_unreported,
             count(*) FILTER (WHERE notify_undelivered_at > now() - interval '24 hours')::int AS undelivered_24h,
-            count(*) FILTER (WHERE notify_delivery = 'abandoned' AND notify_undelivered_at > now() - interval '7 days')::int AS abandoned_7d,
-            count(*) FILTER (WHERE notify_delivery = 'unverifiable' AND notified_at > now() - interval '24 hours')::int AS unverifiable_24h
+            -- AEGIS r6 R6-1/R6-7: until acknowledged, however old.
+            count(*) FILTER (WHERE notify_abandoned_at IS NOT NULL AND notify_ack_at IS NULL)::int AS abandoned_unacked,
+            count(*) FILTER (WHERE notify_unverifiable_at IS NOT NULL AND notify_ack_at IS NULL)::int AS unverifiable_unacked,
+            -- AEGIS r6 R6-2: sent, delivery not confirmed, past the alert age.
+            count(*) FILTER (WHERE notify_status = 'sent' AND notify_delivery IS NULL
+                             AND notified_at < ${unsentBefore.toISOString()}::timestamptz)::int AS unconfirmed_old
           FROM leads WHERE app = ${app}::text`;
         return {
           unsent: Number(row?.unsent ?? 0),
@@ -645,8 +742,9 @@ export function postgresPurger(options: PgOptions): LeadPurger & PurgeLedger & R
           stored24h: Number(row?.stored_24h ?? 0),
           expiredUnreported: Number(row?.expired_unreported ?? 0),
           undelivered24h: Number(row?.undelivered_24h ?? 0),
-          abandoned7d: Number(row?.abandoned_7d ?? 0),
-          unverifiable24h: Number(row?.unverifiable_24h ?? 0),
+          abandonedUnacked: Number(row?.abandoned_unacked ?? 0),
+          unverifiableUnacked: Number(row?.unverifiable_unacked ?? 0),
+          unconfirmedOld: Number(row?.unconfirmed_old ?? 0),
         };
       } catch (error) {
         throw storeError(error);
