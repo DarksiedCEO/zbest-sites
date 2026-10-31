@@ -500,6 +500,17 @@ test.describe("Copy revision (ZBC gate CONDITIONAL at c35ee1d — founder ruling
   });
 });
 
+test.describe("AEGIS r2 M4 — clip review is described as the backend does it", () => {
+  test("no page says a person reviews every submission; review is against written rules, borderline to a person", async ({ page }) => {
+    for (const p of ["/", "/media-kit"]) {
+      await visit(page, byPath(p));
+      const text = await mainText(page);
+      expect(text, p).not.toMatch(/reviewed by a person before it counts|until a human reviews it/i);
+      expect(text, p).toContain("anything borderline goes to a person");
+    }
+  });
+});
+
 test.describe("Media Kit (§B4)", () => {
   test("facts as ledger rows, assets on request, press contact a real address (RTS-11: no placeholder)", async ({ page }) => {
     await visit(page, byPath("/media-kit"));
@@ -523,6 +534,8 @@ test.describe("FAQ (§B4)", () => {
     const buttons = page.locator("#faq button[aria-expanded]");
     await expect(buttons).toHaveCount(10);
     const paid = page.locator("#faq button", { hasText: "How do clippers get paid?" });
+    // A click before hydration does nothing (the same race as AEGIS r2 L4): wait for the FAQ's ready marker.
+    await expect(page.locator("#faq [data-faq-ready]")).toHaveAttribute("data-faq-ready", "true");
     await paid.click();
     await expect(paid).toHaveAttribute("aria-expanded", "true");
     const panel = page.locator(`#${await paid.getAttribute("aria-controls")}`);

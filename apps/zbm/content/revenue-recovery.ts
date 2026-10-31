@@ -135,7 +135,7 @@ export const AUDIT_DELIVERABLE = {
   parts: [
     { title: "What was read", body: "The period measured, how many orders were read and analysed, and every reason an order was left out, with counts." },
     { title: "Checks run and not covered", body: "Which checks ran, and which are NOT COVERED and why — a check that did not run is never shown as a clean result." },
-    { title: "Findings, each with its evidence class", body: "Every figure is labelled OBSERVED (exact arithmetic on your recorded orders) or ESTIMATED (true only if a stated assumption holds), with its cause and method. No overall score and no grand total." },
+    { title: "Findings, each with its evidence class", body: "Every figure is labelled with its evidence class — OBSERVED (exact arithmetic on your recorded orders) or ESTIMATED (true only if a stated assumption holds) — with its cause and method. Today’s stacked-discount figures are ESTIMATED. No overall score and no grand total." },
     { title: "Assumptions, stated", body: "For stacked discounts: the excess counts as lost revenue only if you intend at most one discount code per order. Your store’s own settings allowed each stacked order." },
     { title: "Yearly projection, labelled as an estimate", body: "Where at least 14 days were measured: the period’s figure extended to a year, labelled ESTIMATED with low confidence, with its basis written out." },
     { title: "Recommendations, written by a person", body: "What you might change, written by a person at Z Best Media from the findings. What to change in your store is your decision." },

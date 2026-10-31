@@ -43,7 +43,8 @@ export default function MediaKitPage() {
             the creator network&rsquo;s own accounts to reach new audiences; and owned
             distribution for brands — auto dealerships, med spas, local businesses — where clips
             post to the client&rsquo;s own accounts to build a compounding local following.
-            Every submission is reviewed by a person before it counts, and clients pay only for
+            Every submission is checked against the campaign&rsquo;s written rules before it counts,
+            anything borderline goes to a person, and clients pay only for
             approved posts.
           </Lead>
         </div>

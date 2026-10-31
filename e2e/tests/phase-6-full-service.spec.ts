@@ -354,6 +354,9 @@ test("the Services menu reaches every service at this viewport", async ({ page }
   await presetConsent(page);
   await page.goto(`${ZBM_BASE_URL}/`, { waitUntil: "domcontentloaded" });
   const header = page.getByRole("banner");
+  // AEGIS r2 L4: the flake was a click before hydration (no handler yet, so
+  // the menu never opened). Wait for the nav's own ready marker first.
+  await expect(header).toHaveAttribute("data-nav-ready", "true");
   // Scoped to the Services list itself, so a top-level link with the same
   // href (Revenue Recovery, Z Best Clips) cannot satisfy the check.
   let menu;

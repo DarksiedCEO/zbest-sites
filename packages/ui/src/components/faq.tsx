@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import type { ReactNode } from "react";
 import { LedgerRule } from "./ledger-rule";
 
@@ -27,9 +27,12 @@ export function FAQ({
 }) {
   const baseId = useId();
   const [open, setOpen] = useState<number | null>(null);
+  // Hydration marker (AEGIS r2 L4): the toggles work only after it.
+  const [ready, setReady] = useState(false);
+  useEffect(() => setReady(true), []);
 
   return (
-    <div className={className}>
+    <div className={className} data-faq-ready={ready ? "true" : undefined}>
       <LedgerRule />
       {items.map((item, i) => {
         const isOpen = open === i;
