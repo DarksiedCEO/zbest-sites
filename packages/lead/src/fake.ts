@@ -17,7 +17,7 @@ import { DEDUPE_WINDOW_HOURS, DeliveryError, type InsertResult, type LeadApp, ty
 
 /** Per stored row: what the notification outbox needs (CH-8), mirroring the leads columns. */
 type RowState = { record: LeadRecord; createdAt: number; status: NotifyStatus; attempts: number; nextAt: number | null };
-type Outbox = { dir: string; seen: Map<string, string>; recent: Map<string, number>; rows: Map<string, RowState> };
+type Outbox = { dir: string; seen: Map<string, string>; recent: Map<string, number>; rows: Map<string, RowState>; byContent: Map<string, string> };
 const outboxes = new Map<string, Outbox>();
 
 function outbox(dir: string): Outbox {
@@ -27,13 +27,17 @@ function outbox(dir: string): Outbox {
     const seen = new Map<string, string>();
     const recent = new Map<string, number>();
     const rows = new Map<string, RowState>();
+    const byContent = new Map<string, string>();
     try {
       for (const line of readFileSync(path.join(dir, "rows.jsonl"), "utf8").split("\n")) {
         if (line) {
           const { created_at, ...record } = JSON.parse(line) as LeadRecord & { created_at: string };
           const key = `${record.app}:${record.submission_id}`;
           seen.set(key, record.payload_hash);
-          if (record.content_hash) recent.set(`${record.app}:${record.content_hash}`, Date.parse(created_at));
+          if (record.content_hash) {
+            recent.set(`${record.app}:${record.content_hash}`, Date.parse(created_at));
+            byContent.set(`${record.app}:${record.content_hash}`, key);
+          }
           rows.set(key, { record, createdAt: Date.parse(created_at), status: "pending", attempts: 0, nextAt: null });
         }
       }
@@ -46,7 +50,7 @@ function outbox(dir: string): Outbox {
     } catch {
       // No rows yet.
     }
-    box = { dir, seen, recent, rows };
+    box = { dir, seen, recent, rows, byContent };
     outboxes.set(dir, box);
   }
   return box;
@@ -97,9 +101,19 @@ export function fakeStore(dir: string): LeadStore & NotifyOutbox {
       const contentKey = `${record.app}:${record.content_hash}`;
       const at = Date.now();
       const previous = box.recent.get(contentKey);
-      if (previous !== undefined && at - previous < DEDUPE_WINDOW_HOURS * 3_600_000) return { inserted: false, duplicateOf: "content" };
+      if (previous !== undefined && at - previous < DEDUPE_WINDOW_HOURS * 3_600_000) {
+        const row = box.rows.get(box.byContent.get(contentKey) ?? "");
+        return {
+          inserted: false,
+          duplicateOf: "content",
+          ...(row
+            ? { original: { ...row.record, created_at: new Date(row.createdAt), notify_attempts: row.attempts, notify_status: row.status } }
+            : {}),
+        };
+      }
       box.seen.set(key, record.payload_hash);
       box.recent.set(contentKey, at);
+      box.byContent.set(contentKey, key);
       box.rows.set(key, { record, createdAt: at, status: "pending", attempts: 0, nextAt: null });
       append(box, "rows.jsonl", { ...record, created_at: new Date(at).toISOString() });
       return { inserted: true };
@@ -126,6 +140,15 @@ export function fakeStore(dir: string): LeadStore & NotifyOutbox {
         .sort((a, b) => a.createdAt - b.createdAt)
         .slice(0, limit);
       // The lease, as postgres.ts: a parallel run skips these for 10 minutes.
+      for (const r of due) r.nextAt = now + 10 * 60_000;
+      return due.map((r) => ({ ...r.record, created_at: new Date(r.createdAt), notify_attempts: r.attempts }));
+    },
+    async claimDeferred(app, limit): Promise<UnsentLead[]> {
+      const now = Date.now();
+      const due = [...box.rows.values()]
+        .filter((r) => r.record.app === app && r.status === "deferred" && (r.nextAt === null || r.nextAt <= now))
+        .sort((a, b) => a.createdAt - b.createdAt)
+        .slice(0, limit);
       for (const r of due) r.nextAt = now + 10 * 60_000;
       return due.map((r) => ({ ...r.record, created_at: new Date(r.createdAt), notify_attempts: r.attempts }));
     },

@@ -10,7 +10,7 @@ import { GATE_NONCE } from "../playwright.config";
  */
 const tokens = formTokens(fakeFormTokenSecret(GATE_NONCE!));
 
-export const formTokenHeader = (ageMs = 10_000): Record<string, string> => ({
-  [FORM_TOKEN_HEADER]: tokens.issue(Date.now() - ageMs),
+export const formTokenHeader = (ageMs = 10_000, app: "zbm" | "zbc" = "zbm"): Record<string, string> => ({
+  [FORM_TOKEN_HEADER]: tokens.issue(app, Date.now() - ageMs),
 });
 export { FORM_TOKEN_HEADER };

@@ -276,11 +276,18 @@ export type Limiters = {
   perIp: RateLimiter;
   /** Per IPv6 /48, per app (red team RTS-3). IPv4 clients have no /48 bucket. */
   perNet: RateLimiter;
-  /** Every lead this app stores, from anyone, per minute (red team RTS-3). */
+  /**
+   * Per-lead founder EMAILS this app sends per minute, from everyone
+   * (RTS-3, reworked by AEGIS F1): past it a lead is stored and deferred to
+   * one digest, never refused. Charged only for newly stored leads.
+   */
   global: RateLimiter;
+  /** Hard storage ceiling per hour (AEGIS F1): past it the route answers 503 and stores nothing. */
+  ceiling: RateLimiter;
   spec: RateLimitSpec;
   netSpec: RateLimitSpec;
   globalSpec: RateLimitSpec;
+  ceilingSpec: RateLimitSpec;
   problem?: string;
 };
 
@@ -288,6 +295,8 @@ export type Limiters = {
 export const DEFAULT_NET_RATE_LIMIT: RateLimitSpec = { limit: 24, windowSec: 600 };
 /** Default global cap: far above any real day (a handful of leads), low enough that a flood cannot fill the inbox. */
 export const DEFAULT_GLOBAL_LIMIT_PER_MINUTE = 20;
+/** Default storage ceiling: 500 leads an hour per app, far above any real day, small enough that a flood cannot fill the database. */
+export const DEFAULT_STORE_CEILING_PER_HOUR = 500;
 
 function buildLimiter(spec: RateLimitSpec, env: Env, logger: LeadLogger, tag: string): RateLimiter {
   const restUrl = set(env, "KV_REST_API_URL") || set(env, "UPSTASH_REDIS_REST_URL");
@@ -340,13 +349,24 @@ export function resolveLimiter(env: Env, logger: LeadLogger, namespace = ""): Li
   }
   const globalSpec = { limit: perMinute, windowSec: 60 };
 
+  const ceilingRaw = set(env, "LEAD_STORE_CEILING_PER_HOUR");
+  let perHour = DEFAULT_STORE_CEILING_PER_HOUR;
+  if (ceilingRaw !== "") {
+    const n = /^\d{1,7}$/.test(ceilingRaw) ? Number(ceilingRaw) : NaN;
+    if (n >= 1 && n <= 1_000_000) perHour = n;
+    else problems.push("LEAD_STORE_CEILING_PER_HOUR:expected-1-to-1000000");
+  }
+  const ceilingSpec = { limit: perHour, windowSec: 3600 };
+
   return {
     perIp: buildLimiter(spec, env, logger, `${namespace}ip`),
     perNet: buildLimiter(netSpec, env, logger, `${namespace}net`),
     global: buildLimiter(globalSpec, env, logger, `${namespace}global`),
+    ceiling: buildLimiter(ceilingSpec, env, logger, `${namespace}ceiling`),
     spec,
     netSpec,
     globalSpec,
+    ceilingSpec,
     problem: problems.length ? problems.join(",") : undefined,
   };
 }

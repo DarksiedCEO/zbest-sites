@@ -31,7 +31,8 @@ export type LeadRecord = {
   user_agent: string | null;
 };
 
-export type NotifyStatus = "pending" | "sent" | "failed" | "disabled";
+/** "deferred" (AEGIS F1): stored past the site-wide email cap; sent in the next digest. */
+export type NotifyStatus = "pending" | "sent" | "failed" | "disabled" | "deferred";
 
 /**
  * `inserted: false` means (app, submission_id) already existed. With the same
@@ -47,7 +48,8 @@ export type InsertResult =
    */
   | { inserted: false; samePayload: boolean; notifyStatus?: NotifyStatus; createdAt?: Date }
   /** The same normalised content from this app within DEDUPE_WINDOW_HOURS: nothing new stored (RTS-3). */
-  | { inserted: false; duplicateOf: "content" };
+  /** `original` (AEGIS F3): the stored copy, so an unsent email can still go out. */
+  | { inserted: false; duplicateOf: "content"; original?: UnsentLead & { notify_status: NotifyStatus } };
 
 /** How long an identical normalised submission counts as the same lead. */
 export const DEDUPE_WINDOW_HOURS = 24;
@@ -72,6 +74,8 @@ export type UnsentLead = LeadRecord & { created_at: Date; notify_attempts: numbe
  */
 export interface NotifyOutbox {
   claimUnsent(app: LeadApp, opts: { pendingBefore: Date; maxAttempts: number; limit: number }): Promise<UnsentLead[]>;
+  /** Leads deferred past the site-wide email cap (AEGIS F1), leased like claimUnsent, for one digest. */
+  claimDeferred(app: LeadApp, limit: number): Promise<UnsentLead[]>;
 }
 
 export type LeadEmail = {

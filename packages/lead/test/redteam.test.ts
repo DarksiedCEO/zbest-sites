@@ -29,7 +29,7 @@ const fakeEnv = (dir: string, extra: Record<string, string> = {}) => ({
 });
 const open = () => memoryLimiter({ limit: 100_000, windowSec: 60 });
 const tokens = formTokens(fakeFormTokenSecret(NONCE));
-const aged = (ms = 10_000) => tokens.issue(Date.now() - ms);
+const aged = (ms = 10_000) => tokens.issue("zbm", Date.now() - ms);
 
 const post = (body: unknown, headers: Record<string, string> = {}, token: string | null = aged()) =>
   new Request("http://localhost/api/lead", {
@@ -57,17 +57,19 @@ afterEach(() => {
 describe("RTS-3 — server-issued form token", () => {
   it("a token is valid between 3 s and 2 h after issue, and only with its signature", () => {
     const t0 = 1_800_000_000_000;
-    const token = tokens.issue(t0);
-    expect(tokens.verify(token, t0 + 2_999)).toEqual({ ok: false, problem: "too_new" });
-    expect(tokens.verify(token, t0 + 3_000)).toEqual({ ok: true });
-    expect(tokens.verify(token, t0 + FORM_TOKEN_MAX_AGE_MS)).toEqual({ ok: true });
-    expect(tokens.verify(token, t0 + FORM_TOKEN_MAX_AGE_MS + 1)).toEqual({ ok: false, problem: "expired" });
-    expect(tokens.verify(token, t0 - 60_000)).toEqual({ ok: false, problem: "too_new" });
-    expect(formTokens("a".repeat(32)).verify(token, t0 + 5_000)).toEqual({ ok: false, problem: "bad_signature" });
+    const token = tokens.issue("zbm", t0);
+    expect(tokens.verify("zbm", token, t0 + 2_999)).toEqual({ ok: false, problem: "too_new", retryAfterMs: 1 });
+    expect(tokens.verify("zbm", token, t0 + 3_000)).toEqual({ ok: true });
+    expect(tokens.verify("zbm", token, t0 + FORM_TOKEN_MAX_AGE_MS)).toEqual({ ok: true });
+    // AEGIS F2: up to FORM_TOKEN_SKEW_MS past the maximum is clock skew, not expiry.
+    expect(tokens.verify("zbm", token, t0 + FORM_TOKEN_MAX_AGE_MS + 5_000)).toEqual({ ok: true });
+    expect(tokens.verify("zbm", token, t0 + FORM_TOKEN_MAX_AGE_MS + 5_001)).toEqual({ ok: false, problem: "expired" });
+    expect(tokens.verify("zbm", token, t0 - 60_000)).toEqual({ ok: false, problem: "future" });
+    expect(formTokens("a".repeat(32)).verify("zbm", token, t0 + 5_000)).toEqual({ ok: false, problem: "bad_signature" });
     const forgedTime = token.replace(String(t0), String(t0 - 10_000));
-    expect(tokens.verify(forgedTime, t0 + 5_000)).toEqual({ ok: false, problem: "bad_signature" });
-    expect(tokens.verify(null, t0)).toEqual({ ok: false, problem: "missing" });
-    expect(tokens.verify("v1.x", t0)).toEqual({ ok: false, problem: "malformed" });
+    expect(tokens.verify("zbm", forgedTime, t0 + 5_000)).toEqual({ ok: false, problem: "bad_signature" });
+    expect(tokens.verify("zbm", null, t0)).toEqual({ ok: false, problem: "missing" });
+    expect(tokens.verify("zbm", "v1.x", t0)).toEqual({ ok: false, problem: "malformed" });
   });
 
   it("GET issues a token (no-store); it holds no client data", async () => {
@@ -98,17 +100,16 @@ describe("RTS-3 — server-issued form token", () => {
     const b = resolveTransport({ ...live, LEAD_FORM_SECRET: "f".repeat(32) });
     expect(a.ok && b.ok).toBe(true);
     if (!a.ok || !b.ok) return;
-    const token = a.transport.formTokens.issue(Date.now() - 10_000);
-    expect(a.transport.formTokens.verify(token, Date.now()).ok).toBe(true);
-    expect(b.transport.formTokens.verify(token, Date.now()).ok).toBe(false);
+    const token = a.transport.formTokens.issue("zbm", Date.now() - 10_000);
+    expect(a.transport.formTokens.verify("zbm", token, Date.now()).ok).toBe(true);
+    expect(b.transport.formTokens.verify("zbm", token, Date.now()).ok).toBe(false);
     expect(resolveTransport({ ...live, LEAD_FORM_SECRET: "short" })).toEqual({ ok: false, missing: ["LEAD_FORM_SECRET:min-16-chars"] });
   });
 
   for (const [label, token] of [
     ["no token", null],
-    ["a token issued 1 s ago", tokens.issue(Date.now() - 1_000)],
-    ["a token older than 2 h", tokens.issue(Date.now() - FORM_TOKEN_MAX_AGE_MS - 60_000)],
-    ["a token from another secret", formTokens("a".repeat(32)).issue(Date.now() - 10_000)],
+    ["a token older than 2 h", tokens.issue("zbm", Date.now() - FORM_TOKEN_MAX_AGE_MS - 60_000)],
+    ["a token from another secret", formTokens("a".repeat(32)).issue("zbm", Date.now() - 10_000)],
   ] as const) {
     it(`POST with ${label}: 403 form_expired, nothing stored or sent`, async () => {
       const dir = tempOutbox();
@@ -147,7 +148,7 @@ describe("RTS-3 — IPv6 /48 bucket and a global per-app cap", () => {
     expect(statuses.slice(24).every((s) => s === 429)).toBe(true);
   });
 
-  it("the global cap: past LEAD_GLOBAL_LIMIT_PER_MINUTE leads a minute, every source gets 429 busy, nothing stored", async () => {
+  it("the global cap (reworked by AEGIS F1): past LEAD_GLOBAL_LIMIT_PER_MINUTE a minute leads are still stored, their email deferred", async () => {
     const dir = tempOutbox();
     const env = fakeEnv(dir, { LEAD_GLOBAL_LIMIT_PER_MINUTE: "3" });
     const limiters = resolveLimiter(env, captureLogger().logger, "test-global");
@@ -158,9 +159,10 @@ describe("RTS-3 — IPv6 /48 bucket and a global per-app cap", () => {
       statuses.push(res.status);
       last = await res.json();
     }
-    expect(statuses).toEqual([200, 200, 200, 429, 429]);
-    expect(last).toMatchObject({ ok: false, error: { code: "busy" } });
-    expect(readJsonl(dir, "rows.jsonl")).toHaveLength(3);
+    expect(statuses).toEqual([200, 200, 200, 200, 200]);
+    expect(last).toMatchObject({ ok: true });
+    expect(readJsonl(dir, "rows.jsonl")).toHaveLength(5);
+    expect(readJsonl(dir, "emails.jsonl")).toHaveLength(3);
   });
 
   it("default global cap is 20 a minute; a malformed setting is a misconfiguration", () => {
@@ -204,7 +206,7 @@ describe("RTS-3 — identical submissions within 24 h are one lead, one email", 
     vi.setSystemTime(new Date("2026-10-30T00:00:00Z"));
     expect(await store.insert(base)).toEqual({ inserted: true });
     vi.setSystemTime(new Date("2026-10-30T23:59:00Z"));
-    expect(await store.insert({ ...base, submission_id: randomUUID() })).toEqual({ inserted: false, duplicateOf: "content" });
+    expect(await store.insert({ ...base, submission_id: randomUUID() })).toMatchObject({ inserted: false, duplicateOf: "content" });
     vi.setSystemTime(new Date("2026-10-31T00:01:00Z"));
     expect(await store.insert({ ...base, submission_id: randomUUID() })).toEqual({ inserted: true });
   });

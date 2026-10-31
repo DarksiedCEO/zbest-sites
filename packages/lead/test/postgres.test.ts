@@ -205,6 +205,26 @@ describe.skipIf(!url)("postgres store (integration)", () => {
     await sql`DELETE FROM leads WHERE app = 'zbc'`;
   });
 
+  it("AEGIS F1/F3/F4: deferred leads are claimable once for a digest and count as backlog; a content duplicate returns the stored copy; the schema check sees every column", async () => {
+    const store = postgresStore(opts(url!));
+    const purger = postgresPurger(opts(url!));
+    await sql`DELETE FROM leads WHERE app = 'zbc'`;
+    const id = randomUUID();
+    const content = randomUUID();
+    const rec = { submission_id: id, app: "zbc" as const, form: "start", payload: { n: 1 }, payload_hash: "p", content_hash: content, services: [], source: null, service_area: "US-CA", user_agent: null };
+    expect(await store.insert(rec)).toEqual({ inserted: true });
+    await store.setNotifyStatus("zbc", id, "failed");
+    const dup = await store.insert({ ...rec, submission_id: randomUUID() });
+    expect(dup).toMatchObject({ inserted: false, duplicateOf: "content", original: { submission_id: id, notify_status: "failed", payload: { n: 1 } } });
+
+    await store.setNotifyStatus("zbc", id, "deferred");
+    expect(await purger.unsentOlderThan("zbc", new Date(0))).toBe(1);
+    const [a, b] = await Promise.all([store.claimDeferred("zbc", 10), store.claimDeferred("zbc", 10)]);
+    expect([...a, ...b].map((r) => r.submission_id)).toEqual([id]);
+    expect(await purger.missingColumns()).toEqual([]);
+    await sql`DELETE FROM leads WHERE app = 'zbc'`;
+  });
+
   it("the table rejects an unknown app, and the error surfaces as a SQLSTATE only", async () => {
     const store = postgresStore(opts(url!));
     const error = await store

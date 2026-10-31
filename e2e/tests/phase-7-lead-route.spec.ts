@@ -486,18 +486,29 @@ test.describe("Hardening (AEGIS review of 55d3437)", () => {
     expect(underCsp).toBe("blocked");
   });
 
-  test("RTS-3: GET issues a form token; a POST without one, or with one under 3 s old, is 403 and stores nothing", async ({ page }) => {
+  test("RTS-3: GET issues a form token; without a valid one a POST is 403, under 3 s old it is 425 — nothing stored either way", async ({ page }) => {
     const issued = await page.request.get(`${ZBM_BASE_URL}/api/lead`);
     expect(issued.status()).toBe(200);
     expect(issued.headers()["cache-control"]).toBe("no-store");
     const { token } = (await issued.json()) as { token: string };
     expect(token).toMatch(/^v1\.\d{13}\./);
 
-    for (const headers of [{}, { [FORM_TOKEN_HEADER]: token }, formTokenHeader(1_000), { [FORM_TOKEN_HEADER]: "v1.forged" }]) {
+    // Missing, forged, or bound to the other site (AEGIS F2): refused.
+    for (const headers of [{}, { [FORM_TOKEN_HEADER]: "v1.forged" }, formTokenHeader(10_000, "zbc")]) {
       const id = randomUUID();
       const res = await page.request.post(`${ZBM_BASE_URL}/api/lead`, { headers, data: contact(id), failOnStatusCode: false });
       expect(res.status()).toBe(403);
       expect(await res.json()).toEqual({ ok: false, error: { code: "form_expired" } });
+      expect(await rowsFor("zbm", id)).toEqual([]);
+    }
+    // Too new (the fresh server token, or one a second old): 425 with a retry time (AEGIS F2).
+    for (const headers of [{ [FORM_TOKEN_HEADER]: token }, formTokenHeader(1_000)]) {
+      const id = randomUUID();
+      const res = await page.request.post(`${ZBM_BASE_URL}/api/lead`, { headers, data: contact(id), failOnStatusCode: false });
+      expect(res.status()).toBe(425);
+      const body = (await res.json()) as { error: { code: string; retry_after_s: number } };
+      expect(body.error.code).toBe("form_too_fast");
+      expect(Number(res.headers()["retry-after"])).toBe(body.error.retry_after_s);
       expect(await rowsFor("zbm", id)).toEqual([]);
     }
     // The same server-issued token, once it is 3 s old, is accepted.

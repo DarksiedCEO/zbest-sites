@@ -4,7 +4,7 @@ import { resolveTransport, type RequestPolicy, type TransportConfig } from "../s
 import { handleLead } from "../src/pipeline";
 import { memoryLimiter } from "../src/rate-limit";
 import { DeliveryError, type LeadNotifier, type LeadStore, type RateLimiter } from "../src/types";
-import { PII, captureLogger, readJsonl, request, tempOutbox, testTokens, toyParse } from "./helpers";
+import { PII, captureLogger, readJsonl, request, tempOutbox, testTokens, tokenHeader, toyParse } from "./helpers";
 
 const open = () => memoryLimiter({ limit: 1000, windowSec: 60 });
 const both = (l: RateLimiter) => ({ perIp: l });
@@ -78,7 +78,7 @@ describe("success through the fake transport", () => {
   it("LEAD_NOTIFY=disabled stores the row and records 'disabled', sends nothing", async () => {
     const dir = tempOutbox();
     const id = randomUUID();
-    const res = await handleLead(request(valid(id)), {
+    const res = await handleLead(request(valid(id), tokenHeader("zbc")), {
       app: "zbc",
       parse: toyParse,
       env: fakeEnv(dir, { LEAD_NOTIFY: "disabled" }),
@@ -184,7 +184,7 @@ describe("validation and abuse", () => {
     const limiter = memoryLimiter({ limit: 1, windowSec: 600 });
     const base = { parse: toyParse, env: fakeEnv(tempOutbox()), logger: captureLogger().logger, limiters: both(limiter) };
     expect((await handleLead(request(valid()), { ...base, app: "zbm" })).status).toBe(200);
-    expect((await handleLead(request(valid()), { ...base, app: "zbc" })).status).toBe(200);
+    expect((await handleLead(request(valid(), tokenHeader("zbc")), { ...base, app: "zbc" })).status).toBe(200);
     expect((await handleLead(request(valid()), { ...base, app: "zbm" })).status).toBe(429);
   });
 });

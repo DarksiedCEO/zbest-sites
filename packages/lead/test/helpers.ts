@@ -12,7 +12,9 @@ import { REGION } from "../src/region";
  */
 export const TEST_NONCE = "gate-nonce-0123456789abcdef";
 export const testTokens = formTokens(fakeFormTokenSecret(TEST_NONCE));
-export const tokenHeader = (): Record<string, string> => ({ [FORM_TOKEN_HEADER]: testTokens.issue(Date.now() - 10_000) });
+export const tokenHeader = (app: "zbm" | "zbc" = "zbm"): Record<string, string> => ({
+  [FORM_TOKEN_HEADER]: testTokens.issue(app, Date.now() - 10_000),
+});
 
 export const tempOutbox = () => mkdtempSync(path.join(tmpdir(), "lead-outbox-"));
 

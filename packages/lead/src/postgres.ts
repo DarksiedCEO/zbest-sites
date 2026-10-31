@@ -69,6 +69,27 @@ function storeError(error: unknown): DeliveryError {
 export const DEFAULT_STATEMENT_TIMEOUT_MS = 5_000;
 
 type Tx = postgres.TransactionSql;
+
+/** The columns an UnsentLead is read from (CH-8 outbox, AEGIS F1/F3). */
+const UNSENT_COLUMNS_SQL =
+  "submission_id, app, form, payload, payload_hash, content_hash, services, source, service_area, user_agent, created_at, notify_attempts";
+
+function unsentLead(r: Record<string, unknown>): UnsentLead {
+  return {
+    submission_id: String(r.submission_id),
+    app: r.app as LeadApp,
+    form: String(r.form),
+    payload: r.payload as Record<string, unknown>,
+    payload_hash: String(r.payload_hash),
+    content_hash: (r.content_hash as string | null) ?? "",
+    services: (r.services as string[]) ?? [],
+    source: (r.source as string | null) ?? null,
+    service_area: String(r.service_area),
+    user_agent: (r.user_agent as string | null) ?? null,
+    created_at: r.created_at as Date,
+    notify_attempts: Number(r.notify_attempts ?? 0),
+  };
+}
 const withTimeouts = async (tx: Tx, ms: number) => {
   await tx`SELECT set_config('statement_timeout', ${String(ms)}, true), set_config('lock_timeout', ${String(ms)}, true)`;
 };
@@ -95,12 +116,17 @@ export function postgresStore(
           await withTimeouts(tx, statementTimeoutMs);
           await tx`SELECT pg_advisory_xact_lock(hashtextextended(${`${record.app}:${record.content_hash}`}::text, 0))`;
           const [recent] = await tx`
-            SELECT 1 AS hit FROM leads
+            SELECT ${tx.unsafe(UNSENT_COLUMNS_SQL)}, notify_status FROM leads
             WHERE app = ${record.app} AND content_hash = ${record.content_hash}
               AND submission_id <> ${record.submission_id}::uuid
               AND created_at > now() - make_interval(hours => ${DEDUPE_WINDOW_HOURS}::int)
+            ORDER BY created_at DESC
             LIMIT 1`;
-          if (recent) return { inserted: false, duplicateOf: "content" } as const;
+          if (recent) {
+            // AEGIS F3: the stored copy travels back, so an unsent email can still go out.
+            const original = { ...unsentLead(recent as Record<string, unknown>), notify_status: recent.notify_status as NotifyStatus };
+            return { inserted: false, duplicateOf: "content", original } as const;
+          }
           const rows = await tx`
             INSERT INTO leads
               (submission_id, app, form, payload, payload_hash, content_hash, services, source, service_area, user_agent)
@@ -142,6 +168,26 @@ export function postgresStore(
         throw storeError(error);
       }
     },
+    async claimDeferred(app: LeadApp, limit: number): Promise<UnsentLead[]> {
+      try {
+        const rows = await sql.begin(async (tx) => {
+          await withTimeouts(tx, statementTimeoutMs);
+          return tx`
+            UPDATE leads SET notify_next_at = now() + interval '10 minutes'
+            WHERE id IN (
+              SELECT id FROM leads
+              WHERE app = ${app}::text AND notify_status = 'deferred'
+                AND (notify_next_at IS NULL OR notify_next_at <= now())
+              ORDER BY created_at
+              LIMIT ${limit}::int
+              FOR UPDATE SKIP LOCKED)
+            RETURNING ${tx.unsafe(UNSENT_COLUMNS_SQL)}`;
+        });
+        return (rows as unknown as Record<string, unknown>[]).map(unsentLead);
+      } catch (error) {
+        throw storeError(error);
+      }
+    },
     async claimUnsent(app: LeadApp, { pendingBefore, maxAttempts, limit }): Promise<UnsentLead[]> {
       try {
         const rows = await sql.begin(async (tx) => {
@@ -158,23 +204,9 @@ export function postgresStore(
               ORDER BY created_at
               LIMIT ${limit}::int
               FOR UPDATE SKIP LOCKED)
-            RETURNING submission_id, app, form, payload, payload_hash, content_hash, services, source, service_area,
-                      user_agent, created_at, notify_attempts`;
+            RETURNING ${tx.unsafe(UNSENT_COLUMNS_SQL)}`;
         });
-        return (rows as unknown as Record<string, unknown>[]).map((r) => ({
-          submission_id: String(r.submission_id),
-          app: r.app as LeadApp,
-          form: String(r.form),
-          payload: r.payload as Record<string, unknown>,
-          payload_hash: String(r.payload_hash),
-          content_hash: (r.content_hash as string | null) ?? "",
-          services: (r.services as string[]) ?? [],
-          source: (r.source as string | null) ?? null,
-          service_area: String(r.service_area),
-          user_agent: (r.user_agent as string | null) ?? null,
-          created_at: r.created_at as Date,
-          notify_attempts: Number(r.notify_attempts),
-        }));
+        return (rows as unknown as Record<string, unknown>[]).map(unsentLead);
       } catch (error) {
         throw storeError(error);
       }
@@ -220,7 +252,12 @@ export async function purgeWith(
   return { deleted: deleted.count, uaCleared: cleared.count, ipHashCleared: ipCleared.count };
 }
 
-export function postgresPurger(options: PgOptions): LeadPurger & PurgeLedger & { unsentOlderThan(app: LeadApp, before: Date): Promise<number> } {
+/** Columns migrations 004, 006 and 007 add, which this code writes (AEGIS F4). */
+export const REQUIRED_LEAD_COLUMNS = ["service_area", "content_hash", "notify_attempts", "notify_next_at"] as const;
+
+export function postgresPurger(
+  options: PgOptions,
+): LeadPurger & PurgeLedger & { unsentOlderThan(app: LeadApp, before: Date): Promise<number>; missingColumns(): Promise<string[]> } {
   const sql = client(options);
   return {
     async purge(app, cutoffs, ranAt) {
@@ -230,11 +267,25 @@ export function postgresPurger(options: PgOptions): LeadPurger & PurgeLedger & {
         throw storeError(error);
       }
     },
+    async missingColumns() {
+      try {
+        const rows = await sql`
+          SELECT column_name FROM information_schema.columns
+          WHERE table_schema = current_schema() AND table_name = 'leads'`;
+        const have = new Set(rows.map((r) => String(r.column_name)));
+        return REQUIRED_LEAD_COLUMNS.filter((c) => !have.has(c));
+      } catch (error) {
+        throw storeError(error);
+      }
+    },
     async unsentOlderThan(app, before) {
       try {
         const [row] = await sql`
           SELECT count(*)::int AS n FROM leads
-          WHERE app = ${app}::text AND notify_status IN ('pending', 'failed') AND created_at < ${before.toISOString()}::timestamptz`;
+          WHERE app = ${app}::text
+            AND ((notify_status IN ('pending', 'failed') AND created_at < ${before.toISOString()}::timestamptz)
+                 -- AEGIS F1: any deferred lead means the email cap tripped and no digest has gone yet.
+                 OR notify_status = 'deferred')`;
         return Number(row?.n ?? 0);
       } catch (error) {
         throw storeError(error);

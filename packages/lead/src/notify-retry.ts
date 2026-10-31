@@ -1,8 +1,9 @@
+import { createHash } from "node:crypto";
 import { resolveTransport, type Env, type TransportConfig } from "./config";
 import { leadEmail } from "./email";
 import { consoleLogger, type LeadLogger } from "./log";
 import { cronAuthorized } from "./retention";
-import { DeliveryError, type LeadApp } from "./types";
+import { DeliveryError, type LeadApp, type LeadEmail, type UnsentLead } from "./types";
 
 /**
  * Chaos red team 2026-10-30 CH-8: founder emails are retried.
@@ -32,6 +33,34 @@ export const NOTIFY_PENDING_GRACE_MS = 60_000;
 export const CRON_PENDING_GRACE_MS = 5 * 60_000;
 export const NOTIFY_MAX_ATTEMPTS = 10;
 const BATCH = 50;
+/** Deferred leads per digest email (AEGIS F1); more wait for the next run. */
+const DIGEST_MAX = 100;
+
+const BRAND: Record<LeadApp, string> = { zbm: "Z Best Media", zbc: "Z Best Clips" };
+
+/**
+ * AEGIS F1: ONE email for every lead stored past the site-wide email cap.
+ * Each lead appears as its own normal notification body (quoted, neutralised
+ * visitor text: email.ts), separated by a rule. The idempotency key is
+ * derived from the ids, so a retried digest is not delivered twice.
+ */
+export function digestEmail(app: LeadApp, leads: UnsentLead[]): { email: LeadEmail; key: string } {
+  const ids = leads.map((l) => l.submission_id).sort();
+  const key = `digest-${app}-${createHash("sha256").update(ids.join(",")).digest("hex").slice(0, 32)}`;
+  const parts = leads.map(({ created_at: createdAt, notify_attempts: _a, ...lead }) => leadEmail(lead, createdAt).text);
+  return {
+    key,
+    email: {
+      subject: `New leads — ${BRAND[app]} · ${leads.length} leads held by the site-wide email cap`,
+      text: [
+        `${leads.length} leads arrived while the site-wide cap on lead emails (LEAD_GLOBAL_LIMIT_PER_MINUTE) was reached.`,
+        "All of them are stored. Each is below, in the order received. A burst like this can be a flood: check before replying.",
+        "",
+        parts.join("\n\n==========\n\n"),
+      ].join("\n"),
+    },
+  };
+}
 
 /** Wait before the next try after `attempts` failures: 15 min doubling, capped at 24 h. */
 export const notifyBackoffMs = (attempts: number) =>
@@ -68,13 +97,31 @@ export async function handleNotifyRetry(request: Request, opts: NotifyRetryOptio
       return json({ ok: false, error: { code: "not_configured" } }, 503);
     }
     const { notifier, outbox, store } = config.transport;
-    if (!notifier) return json({ ok: true, sent: 0, failed: 0, notify: "disabled" }, 200);
+    if (!notifier) return json({ ok: true, sent: 0, failed: 0, digest: 0, notify: "disabled" }, 200);
     if (!outbox) {
       log("error", "notify_retry_not_configured", { app, missing: "outbox" });
       return json({ ok: false, error: { code: "not_configured" } }, 503);
     }
 
     const now = (opts.now ?? (() => new Date()))();
+
+    // AEGIS F1: deferred leads go out as one digest.
+    let digest = 0;
+    const deferred = await outbox.claimDeferred(app, DIGEST_MAX);
+    if (deferred.length) {
+      const { email, key } = digestEmail(app, deferred);
+      try {
+        await notifier.send(email, key);
+        for (const lead of deferred) await store.setNotifyStatus(app, lead.submission_id, "sent");
+        digest = deferred.length;
+        log("info", "notify_digest_sent", { app, notify: "sent", deleted: deferred.length });
+      } catch (error) {
+        // Stay 'deferred' (the 10-minute lease spaces the retries); health stays degraded.
+        const code = error instanceof DeliveryError ? error.code : "notify_failed";
+        log("error", "notify_digest_failed", { app, code });
+      }
+    }
+
     const due = await outbox.claimUnsent(app, {
       pendingBefore: new Date(now.getTime() - CRON_PENDING_GRACE_MS),
       maxAttempts: NOTIFY_MAX_ATTEMPTS,
@@ -101,7 +148,7 @@ export async function handleNotifyRetry(request: Request, opts: NotifyRetryOptio
         }
       }
     }
-    return json({ ok: true, sent, failed }, 200);
+    return json({ ok: true, sent, failed, digest }, 200);
   } catch {
     log("error", "notify_retry_failed", { app });
     return json({ ok: false, error: { code: "unavailable" } }, 503);

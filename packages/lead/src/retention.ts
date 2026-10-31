@@ -68,8 +68,10 @@ export interface LeadPurger {
 /** Reads the last successful purge (sql/003_purge_runs.sql). */
 export interface PurgeLedger {
   lastSuccess(app: LeadApp): Promise<Date | null>;
-  /** Leads created before `before` whose founder email has not gone out (CH-8). */
+  /** Leads created before `before` whose founder email has not gone out (CH-8), plus any deferred lead (AEGIS F1). */
   unsentOlderThan?(app: LeadApp, before: Date): Promise<number>;
+  /** Columns the app writes that the database lacks (AEGIS F4: migrations 004/006/007 not applied). */
+  missingColumns?(): Promise<string[]>;
 }
 
 /** How old an unsent founder email may get before /api/health is degraded (CH-8). */
@@ -156,8 +158,10 @@ export type PurgeHealth =
   | "overdue"
   /** The ledger could not be read. */
   | "unknown"
-  /** A lead's founder email has not gone out for longer than LEAD_NOTIFY_ALERT_MINUTES (CH-8). */
-  | "notify_backlog";
+  /** A lead's founder email has not gone out for longer than LEAD_NOTIFY_ALERT_MINUTES (CH-8), or the email cap tripped (AEGIS F1). */
+  | "notify_backlog"
+  /** The database lacks columns this code writes: a migration was not run (AEGIS F4). */
+  | "schema_outdated";
 
 export type HealthOptions = {
   app: LeadApp;
@@ -202,6 +206,16 @@ export async function purgeHealth(opts: HealthOptions): Promise<{ status: PurgeH
     const pg = url ? resolvePg(url, env) : null;
     if (!pg || !pg.ok) return degraded("misconfigured", pg ? `POSTGRES_URL:${pg.reason}` : "POSTGRES_URL");
     ledger = postgresPurger(pg.options);
+  }
+  if (ledger.missingColumns) {
+    let missing: string[];
+    try {
+      missing = await ledger.missingColumns();
+    } catch {
+      return degraded("unknown");
+    }
+    // Column names are ours (a fixed list), safe to log.
+    if (missing.length) return degraded("schema_outdated", missing.join(","));
   }
   let last: Date | null;
   try {

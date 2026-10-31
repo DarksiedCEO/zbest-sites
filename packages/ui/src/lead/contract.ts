@@ -23,6 +23,8 @@ export type LeadErrorBody =
   | { ok: false; error: { code: "region_unavailable" } }
   /** The page's form token is missing, too new or too old (RTS-3): nothing stored. */
   | { ok: false; error: { code: "form_expired" } }
+  /** The token is younger than the server's minimum (or that instance's clock is ahead): wait and resend (AEGIS F2). */
+  | { ok: false; error: { code: "form_too_fast"; retry_after_s: number } }
   /** The site-wide cap on submissions per minute was reached (RTS-3): nothing stored. */
   | { ok: false; error: { code: "busy"; retry_after_s: number } }
   | { ok: false; error: { code: "unavailable" } };
@@ -58,7 +60,7 @@ export const FAILURE_COPY: Record<LeadFailure, string> = {
   not_configured: "This form isn’t accepting submissions yet, so nothing was saved or sent.",
   rate_limited: "Too many attempts from your connection. Nothing was saved — please wait a few minutes and try again.",
   region_unavailable: REGION_COPY.refused,
-  form_expired: "This page has been open too long to send from. Nothing was saved — reload the page and send it again.",
+  form_expired: "This form needs refreshing. Nothing was saved — reload the page and send it again.",
   busy: "We’re receiving an unusual number of messages right now. Nothing was saved — please try again in a minute.",
 };
 
@@ -142,14 +144,24 @@ export async function postLead(body: unknown): Promise<Response> {
       headers: { "Content-Type": "application/json", [FORM_TOKEN_HEADER]: await readyToken() },
       body: JSON.stringify(body),
     });
-  const first = await send();
-  if (first.status !== 403) return first;
-  const code = await first
-    .clone()
-    .json()
-    .then((b: { error?: { code?: unknown } }) => b?.error?.code)
-    .catch(() => undefined);
-  if (code !== "form_expired") return first;
+  const errorOf = (r: Response) =>
+    r
+      .clone()
+      .json()
+      .then((b: { error?: { code?: unknown; retry_after_s?: unknown } }) => b?.error ?? {})
+      .catch(() => ({}) as { code?: unknown; retry_after_s?: unknown });
+  let response = await send();
+  // AEGIS F2: "too fast" (often a few seconds of clock difference between
+  // server instances) is waited out and sent again with the same token.
+  if (response.status === 425) {
+    const error = await errorOf(response);
+    if (error.code === "form_too_fast") {
+      const seconds = typeof error.retry_after_s === "number" ? Math.min(Math.max(error.retry_after_s, 1), 10) : 3;
+      await sleep(seconds * 1000 + 250);
+      response = await send();
+    }
+  }
+  if (response.status !== 403 || (await errorOf(response)).code !== "form_expired") return response;
   await primeFormToken(true);
   return send();
 }

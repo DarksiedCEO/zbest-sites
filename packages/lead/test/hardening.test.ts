@@ -695,7 +695,7 @@ describe("L6, L7 — email", () => {
   it("the Resend idempotency key is namespaced by app", async () => {
     const dir = tempOutbox();
     const id = randomUUID();
-    await handleLead(req(body(id)), { app: "zbc", parse: toyParse, env: fakeEnv(dir), logger: captureLogger().logger, limiters: both(open()) });
+    await handleLead(req(body(id), tokenHeader("zbc")), { app: "zbc", parse: toyParse, env: fakeEnv(dir), logger: captureLogger().logger, limiters: both(open()) });
     expect(readJsonl<{ idempotency_key: string }>(dir, "emails.jsonl")[0]!.idempotency_key).toBe(`lead-zbc-${id}`);
   });
 });

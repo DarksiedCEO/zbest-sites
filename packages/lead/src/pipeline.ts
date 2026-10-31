@@ -69,6 +69,7 @@ export type LeadErrorBody =
   | { ok: false; error: { code: "conflict" } }
   | { ok: false; error: { code: "region_unavailable" } }
   | { ok: false; error: { code: "form_expired" } }
+  | { ok: false; error: { code: "form_too_fast"; retry_after_s: number } }
   | { ok: false; error: { code: "busy"; retry_after_s: number } }
   | { ok: false; error: { code: "validation"; fields: Record<string, string> } }
   | { ok: false; error: { code: "unavailable" } };
@@ -93,8 +94,8 @@ export type HandleLeadOptions = {
   logger?: LeadLogger;
   /** Test seams; production resolves these from env. */
   transport?: TransportConfig;
-  /** Test seam. A limiter left out is not applied (production always resolves all three). */
-  limiters?: { perIp: RateLimiter; perNet?: RateLimiter; global?: RateLimiter };
+  /** Test seam. A limiter left out is not applied (production always resolves all four). */
+  limiters?: { perIp: RateLimiter; perNet?: RateLimiter; global?: RateLimiter; ceiling?: RateLimiter };
   policy?: RequestPolicy;
   now?: () => Date;
 };
@@ -203,7 +204,7 @@ async function handle(request: Request, opts: HandleLeadOptions, log: LeadLogger
   // 4. Transport and policy. Missing config fails closed, naming settings
   //    (never values). Off Vercel without LEAD_TRUSTED_PROXY is refused here
   //    (AEGIS r2 N1), so no request ever reaches a shared bucket.
-  const limiters: { perIp: RateLimiter; perNet?: RateLimiter; global?: RateLimiter; problem?: string } =
+  const limiters: { perIp: RateLimiter; perNet?: RateLimiter; global?: RateLimiter; ceiling?: RateLimiter; problem?: string } =
     opts.limiters ?? resolveLimiter(env, log);
   const config = opts.transport ?? resolveTransport(env);
   const missing = [
@@ -275,9 +276,16 @@ async function handle(request: Request, opts: HandleLeadOptions, log: LeadLogger
   if (limited) return limited;
   // RTS-3: the server-issued form token (form-token.ts). Checked after the
   // charge, so posting without one still spends the sender's bucket.
-  const token = transport.formTokens.verify(request.headers.get(FORM_TOKEN_HEADER), (opts.now ?? (() => new Date()))().getTime());
+  // The token is bound to this site (AEGIS F2). One that is too new — or
+  // a few seconds ahead because instances' clocks differ — is a 425 the
+  // browser waits out and retries, not a refusal.
+  const token = transport.formTokens.verify(app, request.headers.get(FORM_TOKEN_HEADER), (opts.now ?? (() => new Date()))().getTime());
   if (!token.ok) {
     log("warn", "form_token_refused", { app, code: token.problem });
+    if (token.problem === "too_new") {
+      const wait = Math.max(1, Math.ceil(token.retryAfterMs / 1000));
+      return fail({ ok: false, error: { code: "form_too_fast", retry_after_s: wait } }, 425, { "Retry-After": String(wait) });
+    }
     return fail({ ok: false, error: { code: "form_expired" } }, 403);
   }
   if (parsed.kind === "bad_request") return fail({ ok: false, error: { code: "bad_request" } }, 400);
@@ -291,14 +299,16 @@ async function handle(request: Request, opts: HandleLeadOptions, log: LeadLogger
     return fail({ ok: false, error: { code: "region_unavailable" } }, 422);
   }
 
-  // RTS-3: a cap on what this app stores and emails per minute, from every
-  // source together, so no spread of addresses can flood the database and
-  // the founder's inbox. Charged only for a lead about to be stored.
-  if (limiters.global) {
-    const decision = await limiters.global.hit(`${app}:global`);
+  // AEGIS F1: a hard ceiling on what this app STORES per hour from every
+  // source together (LEAD_STORE_CEILING_PER_HOUR, default 500), so no spread
+  // of addresses can fill the database. Charged before the insert, so
+  // duplicates count toward it too: it is a flood guard far above real
+  // traffic, not the email cap (that one is charged after dedupe, below).
+  if (limiters.ceiling) {
+    const decision = await limiters.ceiling.hit(`${app}:store`);
     if (!decision.allowed) {
-      log("warn", "rate_limited", { app, limiter: "global" });
-      return fail({ ok: false, error: { code: "busy", retry_after_s: decision.retryAfterSec } }, 429, {
+      log("error", "store_ceiling_reached", { app, limiter: "ceiling" });
+      return fail({ ok: false, error: { code: "busy", retry_after_s: decision.retryAfterSec } }, 503, {
         "Retry-After": String(decision.retryAfterSec),
       });
     }
@@ -333,10 +343,46 @@ async function handle(request: Request, opts: HandleLeadOptions, log: LeadLogger
     }
     return fail({ ok: false, error: { code: "unavailable" } }, 503);
   }
+  /** Email one stored lead and record the outcome; returns what was recorded. */
+  const notifyLead = async (lead: LeadRecord, receivedAt: Date, leadIds: typeof ids): Promise<"sent" | "failed"> => {
+    let outcome: "sent" | "failed";
+    try {
+      await transport.notifier!.send(leadEmail(lead, receivedAt), `lead-${app}-${lead.submission_id}`);
+      outcome = "sent";
+    } catch (error) {
+      outcome = "failed";
+      const code = error instanceof DeliveryError ? error.code : "notify_failed";
+      const status = error instanceof DeliveryError ? error.detail : undefined;
+      log("error", "notify_failed", { ...leadIds, code, status: status ?? "none" });
+    }
+    await recordNotify(lead.submission_id, outcome, leadIds);
+    return outcome;
+  };
+  const recordNotify = async (submissionId: string, status: "sent" | "failed" | "disabled" | "deferred", leadIds: typeof ids) => {
+    try {
+      await transport.store.setNotifyStatus(app, submissionId, status);
+    } catch (error) {
+      const detail = error instanceof DeliveryError ? error.detail : undefined;
+      log("warn", "notify_status_not_recorded", { ...leadIds, notify: status, sqlstate: detail ?? "unknown" });
+    }
+  };
+  /** CH-8 / AEGIS F3: an email that never went out — 'failed', or 'pending' past the grace period. */
+  const unsent = (status: string | undefined, createdAt: Date | undefined) =>
+    status === "failed" || (status === "pending" && !!createdAt && Date.now() - createdAt.getTime() > NOTIFY_PENDING_GRACE_MS);
+
   if (!stored.inserted && "duplicateOf" in stored) {
-    // The same message, already stored and emailed within the window (RTS-3):
-    // the visitor's words did reach us, so they see success; nothing new is
-    // stored and no second email goes out.
+    // The same message, already stored within the window (RTS-3): the
+    // visitor's words did reach us, so they see success and nothing new is
+    // stored. AEGIS F3: if the stored copy's email never went out, send it
+    // now — the stored lead, under its own id and idempotency key.
+    const original = stored.original;
+    if (original && transport.notifier && unsent(original.notify_status, original.created_at)) {
+      const { created_at: createdAt, notify_attempts: _a, notify_status: _s, ...lead } = original;
+      const originalIds = { ...ids, submission_id: lead.submission_id };
+      log("info", "duplicate_content_unsent", originalIds);
+      await notifyLead(lead, createdAt, originalIds);
+      return reply(parsed.body, 200);
+    }
     log("info", "duplicate_content", ids);
     return reply(parsed.body, 200);
   }
@@ -344,43 +390,39 @@ async function handle(request: Request, opts: HandleLeadOptions, log: LeadLogger
     if (stored.samePayload) {
       // Double-click or retry: the same lead. A scored form's result is
       // recomputed from identical answers, so it matches what was stored.
-      // CH-8: if its email never went out — 'failed', or 'pending' past the
-      // grace period (the first request died after the insert) — this
-      // resubmit sends it now, with the same idempotency key.
-      const age = stored.createdAt ? Date.now() - stored.createdAt.getTime() : 0;
-      const unsent = stored.notifyStatus === "failed" || (stored.notifyStatus === "pending" && age > NOTIFY_PENDING_GRACE_MS);
-      if (!unsent || !transport.notifier) {
+      // CH-8: if its email never went out, this resubmit sends it now.
+      if (!transport.notifier || !unsent(stored.notifyStatus, stored.createdAt)) {
         log("info", "duplicate", ids);
         return reply(parsed.body, 200);
       }
       log("info", "duplicate_unsent", { ...ids, notify: stored.notifyStatus ?? "unknown" });
-    } else {
-      // Same id, different content: refuse rather than drop the edit (AEGIS L2).
-      log("warn", "conflict", ids);
-      return fail({ ok: false, error: { code: "conflict" } }, 409);
+      const outcome = await notifyLead(record, stored.createdAt ?? new Date(), ids);
+      log("info", "stored", { ...ids, notify: outcome });
+      return reply(parsed.body, 200);
     }
+    // Same id, different content: refuse rather than drop the edit (AEGIS L2).
+    log("warn", "conflict", ids);
+    return fail({ ok: false, error: { code: "conflict" } }, 409);
   }
+
   // 8. Notify. Failure is recorded, not shown (Brief §6.2).
-  let notify: "sent" | "failed" | "disabled" = "disabled";
+  // AEGIS F1: the site-wide cap is on EMAILS, charged only for a newly
+  // stored lead (so exact duplicates never spend it). Past it the lead is
+  // still stored — never refused — and marked 'deferred'; the retry cron
+  // sends one digest for all deferred leads. The trip is an error-level
+  // alert, and /api/health stays degraded until the digest goes out.
+  let notify: "sent" | "failed" | "disabled" | "deferred" = "disabled";
   if (transport.notifier) {
-    try {
-      await transport.notifier.send(
-        leadEmail(record, (opts.now ?? (() => new Date()))()),
-        `lead-${app}-${record.submission_id}`,
-      );
-      notify = "sent";
-    } catch (error) {
-      notify = "failed";
-      const code = error instanceof DeliveryError ? error.code : "notify_failed";
-      const status = error instanceof DeliveryError ? error.detail : undefined;
-      log("error", "notify_failed", { ...ids, code, status: status ?? "none" });
+    const decision = limiters.global ? await limiters.global.hit(`${app}:global`) : { allowed: true as const };
+    if (!decision.allowed) {
+      notify = "deferred";
+      log("error", "global_cap_tripped", { ...ids, limiter: "global" });
+      await recordNotify(record.submission_id, "deferred", ids);
+    } else {
+      notify = await notifyLead(record, (opts.now ?? (() => new Date()))(), ids);
     }
-  }
-  try {
-    await transport.store.setNotifyStatus(app, record.submission_id, notify);
-  } catch (error) {
-    const detail = error instanceof DeliveryError ? error.detail : undefined;
-    log("warn", "notify_status_not_recorded", { ...ids, notify, sqlstate: detail ?? "unknown" });
+  } else {
+    await recordNotify(record.submission_id, "disabled", ids);
   }
 
   log("info", "stored", { ...ids, notify });
@@ -400,7 +442,7 @@ export function handleFormToken(_request: Request, opts: { app: LeadApp; env?: E
       (opts.logger ?? consoleLogger)("error", "not_configured", { app: opts.app, missing: config.missing.join(",") });
       return Response.json({ ok: false, error: { code: "not_configured" } }, { status: 503, headers });
     }
-    const token = config.transport.formTokens.issue((opts.now ?? (() => new Date()))().getTime());
+    const token = config.transport.formTokens.issue(opts.app, (opts.now ?? (() => new Date()))().getTime());
     return Response.json({ ok: true, token }, { status: 200, headers });
   } catch {
     (opts.logger ?? consoleLogger)("error", "internal_error", { app: opts.app });

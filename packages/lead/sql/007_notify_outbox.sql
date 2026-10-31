@@ -17,3 +17,14 @@ ALTER TABLE leads ADD COLUMN IF NOT EXISTS notify_next_at timestamptz;
 -- 001's leads_unsent_idx is on created_at only; the outbox is read per app.
 CREATE INDEX IF NOT EXISTS leads_app_unsent_idx ON leads (app, created_at)
   WHERE notify_status IN ('pending', 'failed');
+
+-- AEGIS F1 (review of 6c6b720): past the site-wide email cap a lead is
+-- stored with notify_status 'deferred' and sent in one digest by the same
+-- cron. The 001 inline CHECK (auto-named leads_notify_status_check) is
+-- replaced to allow it.
+ALTER TABLE leads DROP CONSTRAINT IF EXISTS leads_notify_status_check;
+ALTER TABLE leads ADD CONSTRAINT leads_notify_status_check
+  CHECK (notify_status IN ('pending', 'sent', 'failed', 'disabled', 'deferred'));
+DROP INDEX IF EXISTS leads_app_unsent_idx;
+CREATE INDEX leads_app_unsent_idx ON leads (app, created_at)
+  WHERE notify_status IN ('pending', 'failed', 'deferred');
