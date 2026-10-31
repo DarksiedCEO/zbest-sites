@@ -24,6 +24,19 @@ const gpcOn = () => {
   }
 };
 
+/** The record GPC makes, and keeps making (red team RTS-4). */
+const gpcRecord = () => JSON.stringify({ choice: "rejected-non-essential", at: new Date().toISOString(), gpc: true });
+
+/** True only for a stored record that already says GPC made it. */
+const recordedByGpc = (stored: string | null) => {
+  try {
+    const value = JSON.parse(stored ?? "null") as { choice?: unknown; gpc?: unknown } | null;
+    return value?.choice === "rejected-non-essential" && value.gpc === true;
+  } catch {
+    return false;
+  }
+};
+
 /**
  * Cookie consent banner (Brief §3.2, §5; Legal Brief Part One §C).
  *
@@ -84,13 +97,11 @@ export function CookieConsent({
     try {
       const stored = window.localStorage.getItem(STORAGE_KEY);
       if (signal) {
-        // GPC wins over any earlier choice, and needs no banner.
-        if (!stored?.includes('"rejected-non-essential"')) {
-          window.localStorage.setItem(
-            STORAGE_KEY,
-            JSON.stringify({ choice: "rejected-non-essential", at: new Date().toISOString(), gpc: true }),
-          );
-        }
+        // GPC wins over any earlier choice, and needs no banner. A stored
+        // record that GPC did not make — an earlier "Accept all", or a manual
+        // reject from before GPC was turned on — is rewritten so it says GPC
+        // made it (RTS-4); one GPC already made is left as it is.
+        if (!recordedByGpc(stored)) window.localStorage.setItem(STORAGE_KEY, gpcRecord());
       } else if (!stored) {
         setVisible(true);
       }
@@ -116,9 +127,12 @@ export function CookieConsent({
 
   const choose = (choice: ConsentChoice) => {
     try {
+      // With GPC on, the record is always "Reject non-essential" made by GPC
+      // (RTS-4), even when the banner was reopened from Cookie Settings
+      // ("Accept all" is not offered then anyway).
       window.localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ choice, at: new Date().toISOString() }),
+        gpcOn() ? gpcRecord() : JSON.stringify({ choice, at: new Date().toISOString() }),
       );
     } catch {
       /* Choice still applies for this page view. */

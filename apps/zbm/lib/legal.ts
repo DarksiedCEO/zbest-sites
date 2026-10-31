@@ -305,7 +305,7 @@ const privacyPolicy: InEffectLegalDocument = {
       heading: "Do Not Track and Global Privacy Control",
       blocks: [
         {
-          p: "Some browsers send a “Do Not Track” (DNT) or Global Privacy Control (GPC) signal. Our site does not track you across other websites over time, does not allow other companies to do so through our site, and does not sell or share personal information, so there is nothing for these signals to switch off today. If your browser sends Global Privacy Control, our cookie banner records “Reject non-essential” for you automatically, doesn’t ask, and doesn’t offer “Accept all”.",
+          p: "Some browsers send a “Do Not Track” (DNT) or Global Privacy Control (GPC) signal. Our site does not track you across other websites over time, does not allow other companies to do so through our site, and does not sell or share personal information, so there is nothing for these signals to switch off today. If your browser sends Global Privacy Control, our cookie banner records “Reject non-essential” for you automatically and doesn’t show itself unless you open Cookie Settings; it never offers “Accept all” to that browser.",
         },
         {
           p: "If we ever add an advertising or analytics tool that would sell or share personal information, we will treat a GPC signal as a valid request to opt out of selling and sharing for that browser, and we will update this policy before the tool goes live.",
@@ -650,7 +650,7 @@ const cookiePolicy: InEffectLegalDocument = {
                 "Local storage (not a cookie)",
                 "Z Best Media (first party)",
                 "Strictly necessary. Remembers your choice on the cookie banner so it isn’t shown on every page.",
-                "Your choice (“accepted-all” or “rejected-non-essential”), the time it was made, and whether your browser’s Global Privacy Control signal made it for you.",
+                "Your choice (“accepted-all” or “rejected-non-essential”), the time it was made, and, when your browser sends Global Privacy Control, a flag saying that signal made it for you — also after you reopen Cookie Settings, and for an earlier choice once the signal is turned on.",
                 "Until you clear your browser’s site data. It is never sent to us.",
               ],
             ],
@@ -690,7 +690,7 @@ const cookiePolicy: InEffectLegalDocument = {
           p: "The cookie banner lets you “Accept all” or “Reject non-essential”, with equal prominence. Because the site has no non-essential cookies today, both choices currently lead to the same experience; we record your choice so it is ready to apply if that ever changes. You can change it at any time with the “Change cookie settings” button on this page, or through “Cookie Settings” in the site footer.",
         },
         {
-          p: "If we ever add an optional analytics or advertising tool, we will update this policy before it goes live, keep it switched off unless you accept it, and ask you again — an earlier “Accept all”, given before the tool existed, won’t count as consent to it. If your browser sends Global Privacy Control, we record “Reject non-essential” for you automatically and don’t show the banner; that will also count as a request to opt out of any selling or sharing of personal information.",
+          p: "If we ever add an optional analytics or advertising tool, we will update this policy before it goes live, keep it switched off unless you accept it, and ask you again — an earlier “Accept all”, given before the tool existed, won’t count as consent to it. If your browser sends Global Privacy Control, we record “Reject non-essential” for you automatically and don’t show the banner unless you open Cookie Settings, where “Accept all” isn’t offered and any choice is recorded as “Reject non-essential” made by Global Privacy Control; that will also count as a request to opt out of any selling or sharing of personal information.",
         },
         {
           p: "You can also use your browser’s settings to block cookies or clear site data. Clearing site data for zbestmedia.com removes your banner choice, and the banner will ask again on your next visit. Blocking storage entirely won’t stop the site from working; the banner may just appear more often.",
