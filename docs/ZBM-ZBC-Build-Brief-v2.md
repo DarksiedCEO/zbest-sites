@@ -140,7 +140,11 @@ pnpm --filter e2e add -D @playwright/test && pnpm --filter e2e exec playwright i
 
 Not this: Inter-on-dark SaaS; purple-to-blue gradients; cards nested in cards; rounded icon tiles above every heading; fade-and-slide-up on every section; hover effects on everything; hero with a floating dashboard mockup; “Trusted by” logo rows (there are none yet); custom cursors; 3D tilt cards.
 
+> **Superseded by FD-VISUAL-01** (docs/DESIGN-visual-amendment-v1.md, founder-approved 2026-10-28): "fade-and-slide-up on every section" is narrowed to no *identical* reveal repeated on every section, and "hover effects on everything" to hover only on elements that do something (§4.3). The other anti-references stand.
+
 Yes this: editorial typography with real scale contrast; ledger rules as structure; tabular numerals; asymmetric grids that resolve on mobile; one signature motion moment per page; restraint everywhere else.
+
+> **Superseded by FD-VISUAL-01** (docs/DESIGN-visual-amendment-v1.md, founder-approved 2026-10-28): "one signature motion moment per page" is replaced by one showpiece per page plus the §4 motion vocabulary.
 
 # 3. Build phase order
 
@@ -203,6 +207,8 @@ Terms of Service, Privacy Policy, and Cookie Policy for both entities are scoped
 - **Logo / favicon:** typographic wordmark set in Fraunces for Z Best Media; Bricolage Grotesque for Z Best Clips, with the endorsement line “by Z Best Media” in IBM Plex Sans. Rendered as SVG in packages/ui/brand/. The legacy flaming-Z masthead and horse mark are retired and must not appear. A drawn mark is a separate design job that does not block this build.
 - **Photography / imagery:** none required at launch. The design system carries the pages. Do not use stock photography. Abstract ledger/instrument SVG illustrations may be generated in code if a section needs weight.
 
+> **Superseded by FD-VISUAL-01** (docs/DESIGN-visual-amendment-v1.md, founder-approved 2026-10-28): imagery is now required — see §3 Imagery System. No stock photography still holds; AI-generated photoreal faces are also banned.
+
 - **OG images:** generated per page with next/og from the page title on the brand base color.
 - **Illustrative numbers:** supplied in §B4 How It Works. Anywhere else a number is needed and no real one exists, it carries the IllustrativeBadge.
 
@@ -226,6 +232,8 @@ Terms of Service, Privacy Policy, and Cookie Policy for both entities are scoped
 **Layout:** left-aligned, grid-driven. Hairline dividers act as literal ledger rules between data rows. Asymmetric hero — claim left, stat block right; stacks claim-then-stats on mobile.
 
 **Signature motion:** one moment only — a counter that ticks up once when scrolled into view. No scattered hover effects, no fade-and-slide-up on every section. Scroll-scrubbed hero and monumental editorial typography are the two lead techniques (decided Aug 26); everything else is still.
+
+> **Superseded by FD-VISUAL-01** (docs/DESIGN-visual-amendment-v1.md, founder-approved 2026-10-28): the counter-only signature motion is replaced by §4 Motion Language and the §5 Showpiece Map (ZBM Home: "The reel").
 
 **Mobile-first.** Build every page at 390 first, then widen.
 
@@ -508,6 +516,8 @@ Color-coding is functional, not decorative — Entertainment and Brands are stru
 **Layout:** more asymmetric and dynamic than Z Best Media. How It Works uses a horizontal timeline/scrubber device as the structural divider — justified because that content is sequential. On mobile the scrubber becomes a vertical timeline.
 
 **Signature motion:** an animated view-counter ticking up once per campaign example, restrained to one moment per section.
+
+> **Superseded by FD-VISUAL-01** (docs/DESIGN-visual-amendment-v1.md, founder-approved 2026-10-28): the counter-only signature motion is replaced by §4 Motion Language and the §5 Showpiece Map (ZBC How It Works: "One source, dozens of clips", with the step timeline driven by a scroll scrubber).
 
 **Vernacular:** video timelines, scrubbers, view-count tickers — literal to what a clipping campaign is.
 

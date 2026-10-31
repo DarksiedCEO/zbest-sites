@@ -222,8 +222,8 @@ test.describe("Home (§A4)", () => {
       ]),
     );
     expect(rows).toEqual([
-      // Amended Oct 4, 2026: the full-service catalog replaces "Disciplines | 4".
-      ["Services", "10"],
+      // Amended Oct 4, 2026: the full-service catalog replaced "Disciplines | 4".
+      // Founder copy ruling Oct 30, 2026: the "Services | 10" row is removed.
       ["Platforms we plan across", "Google · Meta · TikTok · Lamar · Clear Channel · OUTFRONT"],
       ["Standard", "Audit first. Evidence. Then scale."],
     ]);
@@ -306,22 +306,30 @@ test.describe("Home (§A4)", () => {
     expect(await section.innerText()).not.toMatch(/case stud|representative|%/i);
   });
 
-  test("the scroll-scrubbed hero moves with scroll, and not at all with reduced motion", async ({ page }) => {
+  // Superseded by FD-VISUAL-01 §5 (docs/DESIGN-visual-amendment-v1.md): the
+  // §A4 scroll-scrubbed headline became "The reel" — the headline now HOLDS
+  // while the reel beside it is driven by scroll. The full showpiece contract
+  // is in fd-visual-01-pilot.spec.ts; this keeps the hero's half of it here.
+  test("the scroll-driven hero: the reel moves with scroll, the headline holds, and nothing moves with reduced motion", async ({ page }) => {
     await presetConsent(page);
     await page.emulateMedia({ reducedMotion: "no-preference" });
     await page.goto(`${ZBM_BASE_URL}/`, { waitUntil: "domcontentloaded" });
-    const scrubbed = page.locator("main header h1").locator("..");
-    await expect.poll(() => scrubbed.evaluate((el) => getComputedStyle(el).opacity)).toBe("1");
-    await page.evaluate(() => window.scrollTo(0, 500));
-    await expect
-      .poll(() => scrubbed.evaluate((el) => getComputedStyle(el).transform))
-      .not.toBe("none");
+    const reel = page.locator('[data-showpiece="zbm-home-reel"]');
+    await expect(reel).toHaveAttribute("data-showpiece-state", "live");
+    // The last tile's image: it pushes in as its turn in the sequence comes.
+    const tile = reel.locator("[data-frame-window] img").last().locator("..");
+    const before = await tile.evaluate((el) => getComputedStyle(el).transform);
+    await page.evaluate(() => window.scrollTo(0, window.innerHeight * 1.2));
+    await expect.poll(() => tile.evaluate((el) => getComputedStyle(el).transform)).not.toBe(before);
+    expect(await page.locator("main header h1").evaluate((el) => getComputedStyle(el).transform)).toBe("none");
 
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto(`${ZBM_BASE_URL}/`, { waitUntil: "domcontentloaded" });
-    await page.evaluate(() => window.scrollTo(0, 500));
+    await expect(reel).toHaveAttribute("data-showpiece-state", "static");
+    const still = await tile.evaluate((el) => getComputedStyle(el).transform);
+    await page.evaluate(() => window.scrollTo(0, window.innerHeight * 1.2));
     await page.waitForTimeout(200);
-    expect(await page.locator("main header h1").locator("..").evaluate((el) => getComputedStyle(el).transform)).toBe("none");
+    expect(await tile.evaluate((el) => getComputedStyle(el).transform)).toBe(still);
   });
 });
 

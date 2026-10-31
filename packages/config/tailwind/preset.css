@@ -56,11 +56,14 @@
   --spacing-ledger: 1.125rem; /* ledger row padding */
 
   /*
-   * Motion. One signature moment per page and stillness elsewhere (§A1, §B1),
-   * so this is deliberately a short list — there is no hover-transition token
-   * because hover effects on everything are an anti-reference (§2.2).
+   * Motion (FD-VISUAL-01 §4.4). One showpiece per page plus a small supporting
+   * vocabulary; motion runs on transform and opacity only.
    */
-  --ease-ledger: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-ledger: cubic-bezier(0.22, 0.61, 0.36, 1); /* default easing */
+  --ease-cinema: cubic-bezier(0.65, 0, 0.35, 1); /* showpieces, hero sequences */
   --duration-tick: 1100ms; /* counter tick-up */
-  --duration-reveal: 420ms; /* accordion / consent entry */
+  --duration-reveal: 420ms; /* section reveals, accordion, consent entry */
+  --duration-hover: 240ms; /* interactive hover */
+  --duration-unmask: 700ms; /* image unmask along a rule */
+  --stagger-ledger: 60ms; /* per-row stagger in ledger lists, max 8 rows */
 }

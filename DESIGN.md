@@ -34,6 +34,13 @@ typography:
 > and §2.2, which are **locked**. Do not re-ideate them. The single amendment is
 > `zbc-panel`, approved by the founder at Phase 1 close and marked as such below.
 >
+> **FD-VISUAL-01** (founder-approved 2026-10-28; `docs/DESIGN-visual-amendment-v1.md`)
+> supersedes Brief §7 (imagery), the "one signature motion moment" clause of §2.2,
+> and the counter-only signature motion of §A1 and §B1. Its replacement text is
+> folded in below and marked **[FD-VISUAL-01]**. Colors, typefaces, the type scale,
+> spacing, the ledger rule, tabular numerals, the Evidence Rule and every other
+> anti-reference stay locked.
+>
 > The implementation of these tokens is `packages/ui/src/styles/tokens.css`.
 
 ## Overview
@@ -53,17 +60,19 @@ the headline face for something kinetic. Its vernacular is literal to what a cli
 campaign actually is — video timelines, scrubbers, view-count tickers. Its layout is
 more asymmetric and dynamic than ZBM's.
 
-Restraint is the load-bearing decision on both sites. Each page gets exactly **one**
-signature motion moment and is otherwise still. The two lead techniques are a
-scroll-scrubbed hero and monumental editorial typography; everything else holds
-position.
+**Restrained, not empty.** [FD-VISUAL-01] Each page is a composed piece of work: a
+cinematic opening, real visual material, and one showpiece moment that a visitor
+remembers. Restraint governs *how* things move and *how much* is on screen, never
+*whether* there is anything to see. An advertising agency's site is its first piece
+of creative, and every page must look like it was made by people who make
+advertising.
 
 **Key Characteristics:**
 - Editorial typography with real scale contrast — not uniform SaaS sizing
 - Hairline dividers used as literal ledger rules between data rows
 - Tabular numerals everywhere a number appears
 - Asymmetric grids that resolve cleanly on mobile
-- One signature motion moment per page, restraint everywhere else
+- One showpiece per page, a consistent supporting motion vocabulary, and real visual material on every major page [FD-VISUAL-01]
 - Mobile-first: every page is built at 390 and then widened
 
 ## Colors
@@ -196,9 +205,17 @@ namespaces, including `inline-<key>`. A key named `block` therefore emits
 `.inline-block { inline-size: … }`, which silently shadows the display utility — see
 `docs/TOOLING.md` for what that cost.
 
-**Motion tokens:** `--ease-ledger` `cubic-bezier(0.22, 0.61, 0.36, 1)`,
-`--duration-tick` `1100ms`, `--duration-reveal` `420ms`. There is deliberately no
-hover-transition token; hover effects on everything is an anti-reference (§2.2).
+**Motion tokens** [FD-VISUAL-01 §4.4 — replaces the earlier three-token set]:
+
+| Token | Value | Use |
+|---|---|---|
+| `--ease-ledger` | `cubic-bezier(0.22, 0.61, 0.36, 1)` | Unchanged; default easing |
+| `--ease-cinema` | `cubic-bezier(0.65, 0, 0.35, 1)` | Showpieces and hero sequences |
+| `--duration-tick` | `1100ms` | Unchanged |
+| `--duration-reveal` | `420ms` | Unchanged; section reveals |
+| `--duration-hover` | `240ms` | New; interactive hover |
+| `--duration-unmask` | `700ms` | New; image unmask along a rule |
+| `--stagger-ledger` | `60ms` | New; per-row stagger in ledger lists, capped at 8 rows |
 
 ## Elevation & Depth
 
@@ -216,7 +233,12 @@ ruled line in a ledger, not as a decorative separator.
 
 Owned by `packages/ui` (§1.2) and built in Phase 2 (§3.2): `LedgerRule`, `Counter`,
 `StatBlock`, `Nav`, `Footer`, `Card`, `FAQ`, `CookieConsent`, `IllustrativeBadge`.
-All of them render together on the unlinked, noindex `/dev/system` route in both
+[FD-VISUAL-01] adds `ConceptBadge`, `MediaFrame` (billboard / player / phone /
+browser / poster / document frames, plus a neutral `plate` for an asset whose
+real-world frame is already in the picture), `Showpiece` (the reduced-motion-aware
+wrapper), `WorkWall` and `ServicePreview`, plus `ConceptGroup` (founder ruling
+2026-10-30). Every image or video they render is an
+entry in `packages/ui/assets/manifest.json`. All of them render together on the unlinked, noindex `/dev/system` route in both
 apps — the §3.2 gallery option.
 
 Behavior locked by the brief and implemented:
@@ -230,14 +252,140 @@ Behavior locked by the brief and implemented:
 - **IllustrativeBadge** — attached to every unverified number, everywhere it
   appears. This is a stated integrity standard, not a suggestion.
 
-### Signature motion
+- **ConceptBadge** — "Concept — not a client campaign", on every render of a
+  `concept` manifest entry, in the caption strip under the asset's frame — never
+  over the creative's own type, never in a footnote. `MediaFrame` renders it for
+  concept assets by construction.
+- **ConceptGroup** — one shared label, "Concept — N clips cut from one source",
+  for crops of a single badged source; the crops inside carry no badge (founder
+  ruling 2026-10-30).
 
-**Z Best Media:** one moment only — a counter that ticks up once when scrolled into
-view. **Z Best Clips:** an animated view-counter ticking up once per campaign
-example, restrained to one moment per section.
+## Imagery System [FD-VISUAL-01 §3]
 
-`prefers-reduced-motion` disables every counter tick and the scroll-scrubbed hero.
-Content must be fully readable with motion off.
+Transcribed from `docs/DESIGN-visual-amendment-v1.md` §3. Replaces Brief §7's
+"none required at launch".
+
+### The four honest sources (all four in use at launch)
+
+| Source | What it is | Label | Where |
+|---|---|---|---|
+| **Real work** | Creative Z Best Media actually produced and ran, and client work as it arrives | None. Carries the client or brand name only with written consent. | Anywhere. Always preferred over a concept. |
+| **Concept work** | Creative made to show capability for sample brands Z Best Media invented | `ConceptBadge` on every instance | Service pages, home, the work wall |
+| **Process visuals** | What the work looks like inside: a redacted audit report, a media plan, a timeline, a clip-review queue | `ConceptBadge` if the data is illustrative; `IllustrativeBadge` on any number | Revenue Recovery, How We Work, ZBC How It Works |
+| **Founder portrait** | Real photographs of Andre | None | About, Home (one placement) |
+
+When a real asset exists for a slot, it replaces the concept, and the concept is
+retired from the manifest.
+
+### Hard rules
+
+1. No stock photography.
+2. No AI-generated photoreal human faces anywhere (founder may override; any
+   override is recorded).
+3. Concept brands are invented and name-checked; no real brand marks, logos or
+   products in concept work.
+4. Every asset is in `packages/ui/assets/manifest.json` (id, file, source class,
+   creator or tool, date, rights holder, consent reference, alt text, pages). CI
+   fails any image or video served from the app with no manifest entry.
+5. `ConceptBadge` on every render of a `concept` entry, on the asset's frame. CI
+   asserts it on every page the asset appears on. **Amended by founder ruling
+   2026-10-30:** the badge never covers the creative's own text — it sits in the
+   caption strip under the frame. Crops derived from one badged source share one
+   group label, "Concept — N clips cut from one source", and the individual crops
+   carry no badge; standalone images keep their own (`ConceptGroup`).
+6. Alt text is required and descriptive; for concept work it starts with "Concept:".
+
+### Art direction
+
+- **Grade:** deep blacks, warm highlights. ZBM leans brass and amber; ZBC
+  Entertainment coral and warm; ZBC Brands cool blue.
+- **Framing:** assets sit in real-world frames (billboard in a street, spot in a
+  16:9 player with a timecode, post in a native platform frame, site in browser
+  chrome) — *"this is where it runs."* Never full-bleed.
+- **Ledger tie-in:** every major asset carries a mono caption beneath a hairline
+  rule: channel · format · placement · concept/real.
+- **Density:** one dominant image per composition. Collages only for the work wall
+  and the home reel, on a strict grid.
+
+## Motion Language [FD-VISUAL-01 §4 — replaces "Signature motion"]
+
+**Cinematic, not busy.** Motion is used to reveal, to sequence and to direct
+attention, the way an edit does. It never decorates. Every page has exactly one
+**showpiece** plus a small, consistent vocabulary of supporting motion.
+
+### Allowed vocabulary
+
+| Motion | Rule |
+|---|---|
+| **Scroll-driven hero** | Every major page. Tied to native scroll through Motion's `useScroll`. No scroll hijacking, no smooth-scroll libraries, no pinning longer than about 1.5 viewports. |
+| **Showpiece** | One per page. Plays, or is driven, once per visit. Loops only when it is video. |
+| **Section reveals** | Choreographed per section type: ledger rows draw in along their rule, images unmask along a hairline edge, stats tick. Never the same fade-and-slide on every section. Each plays once. |
+| **Image and video hover** | Navigable media only: scale ≤ 1.03, plus a caption or play-state change. 200–300ms. |
+| **Interactive hover** | Links, buttons, service rows and navigating cards: one consistent treatment per element type. Non-interactive elements never react to hover. |
+| **Service-row preview** | Desktop only: hovering a service row reveals that service's lead image beside the list. On mobile the image is inline in the row. |
+| **Video** | Muted, autoplay, inline, looped, with a poster. Pauses off-screen. Sound only on explicit action, with visible controls. |
+| **Counters** | Tick once on viewport entry. Server HTML carries the final value. |
+
+### Still banned
+
+The same identical reveal on every section; hover reactions on non-interactive
+elements; parallax on body text; scroll hijacking and smooth-scroll libraries;
+custom cursors; 3D tilt; particle or "AI orb" backgrounds; looping motion that never
+ends outside video; any motion that blocks reading or delays content past LCP;
+autoplay with sound. React Bits components only if they pass this list.
+
+### Reduced motion and performance (pass/fail)
+
+- Under `prefers-reduced-motion: reduce`, every showpiece renders as a composed
+  static frame that itself passes the Visual Gate. Video shows its poster with a
+  play control. Every scroll effect is off.
+- Motion runs on `transform` and `opacity` only.
+- Showpieces and below-the-fold media load lazily. The hero's LCP element is a
+  static image or text, never a video.
+- CWV: LCP ≤ 2.5s, INP ≤ 200ms, CLS ≤ 0.1 at both viewports. Every image and video
+  has explicit dimensions.
+- Media: images AVIF or WebP through `next/image`; loop video ≤ 2.5 MB, ≤ 12s,
+  ≤ 1080p; first-viewport media ≤ 600 KB.
+
+## Showpiece Map [FD-VISUAL-01 §5]
+
+| Site | Page | Showpiece |
+|---|---|---|
+| ZBM | Home | **The reel** — headline holds while a strict grid of concept work assembles on scroll, resolving into the service list with hover previews |
+| ZBM | Services hub | **Three acts** — each act opens with a channel composition unmasking along a ledger rule |
+| ZBM | Digital Advertising | **The ad set** — concepts cycling in native frames |
+| ZBM | TV & Streaming | **The spot** — 16:9 concept spot in a player, scrubber follows scroll |
+| ZBM | Radio & Audio | **The waveform** — 15s concept spot, plays on click, with captions |
+| ZBM | Out-of-Home | **Can't scroll past** — a concept billboard scales toward the viewer on scroll |
+| ZBM | Social Media | **The calendar** — native-frame phone beside a filling content calendar |
+| ZBM | Creative & Production | **The work wall** — filterable grid of every manifest asset |
+| ZBM | Influencer & Creator | **The brief to the post** — disclosure tag visible |
+| ZBM | Websites & Landing Pages | **Before / after** slider, fixes as ledger notes |
+| ZBM | Revenue Recovery | **The leak report** — six findings mark up in sequence |
+| ZBM | About | **The founder** — real portrait beside the standard set |
+| ZBM | Start / Contact, FAQ, Legal, 404 | None |
+| ZBC | How It Works (home) | **One source, dozens of clips** — source splits into vertical clips; step timeline driven by a scroll scrubber |
+| ZBC | Entertainment | **Rented distribution** — coral carousel of vertical clips |
+| ZBC | Brands | **Owned distribution** — the same device in blue, a follower ledger grows |
+| ZBC | Pricing | **The levers** — five levers set themselves on scroll, `IllustrativeBadge` |
+| ZBC | Become a Clipper | **The review queue** — submitted → reviewed → approved → paid |
+| ZBC | Media Kit | **The reel** |
+| ZBC | Launch a Campaign, About, FAQ, Legal, 404 | None |
+
+Launch scope (Nov 8) ships three showpieces: the ZBM Home reel, the Out-of-Home
+billboard, and the ZBC How It Works clip-split. The rest are post-launch, gated the
+same way (amendment §10).
+
+## The Visual Gate [FD-VISUAL-01 §7]
+
+A page cannot close without all of these, at 1440 and 390, motion on and reduced
+motion: (1) media in every 900px band at 1440 (844px at 390, no more than two
+text-only bands in a row) except Start, Launch a Campaign, FAQ, Legal and 404;
+(2) the showpiece renders and has a reduced-motion static frame, both captured;
+(3) every `concept` entry carries `ConceptBadge`, every unsourced number
+`IllustrativeBadge`; (4) no served media lacks a manifest entry; (5) CWV and media
+budgets pass; (6) axe has zero violations; (7) **founder visual approval of the
+captures — no page ships on automated checks alone.**
 
 ## Do's and Don'ts
 
@@ -246,7 +394,8 @@ Content must be fully readable with motion off.
 - **Do** use ledger rules as structure.
 - **Do** use tabular numerals on every number.
 - **Do** use asymmetric grids that resolve on mobile.
-- **Do** allow one signature motion moment per page — and restraint everywhere else.
+- **Do** give every major page one showpiece, and real or labeled-concept imagery. [FD-VISUAL-01]
+- **Do** label every concept asset with `ConceptBadge`, on the asset itself. [FD-VISUAL-01]
 - **Do** keep Entertainment and Brands visually distinct throughout ZBC.
 - **Do** label illustrative content with `IllustrativeBadge` wherever it appears.
 
@@ -259,8 +408,8 @@ preferences.*
 - **Don't** use purple-to-blue gradients.
 - **Don't** nest cards inside cards.
 - **Don't** put rounded icon tiles above every heading.
-- **Don't** fade-and-slide-up on every section.
-- **Don't** put hover effects on everything.
+- **Don't** repeat the same identical reveal on every section. [narrowed by FD-VISUAL-01 §4.3]
+- **Don't** put hover reactions on elements that don't do anything. [narrowed by FD-VISUAL-01 §4.3]
 - **Don't** build a hero with a floating dashboard mockup.
 - **Don't** add "Trusted by" logo rows — there are none yet.
 - **Don't** use custom cursors.
@@ -268,8 +417,8 @@ preferences.*
 
 Additional prohibitions from §7 and §9:
 
-- **Don't** use stock photography. No imagery is required at launch; the design
-  system carries the pages.
+- **Don't** use stock photography. **Don't** use AI-generated photoreal human faces.
+  **Don't** show real brands in concept work. [FD-VISUAL-01]
 - **Don't** reintroduce the legacy flaming-Z masthead or the horse mark. Both are
   retired.
 - **Don't** name real companies, leagues or studios anywhere on Z Best Clips —

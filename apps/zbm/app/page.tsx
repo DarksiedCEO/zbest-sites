@@ -1,5 +1,6 @@
-import { ButtonLink, LedgerRule, pageMetadata, ScrollScrub, StatBlock } from "@zbest/ui";
+import { ButtonLink, LedgerRule, pageMetadata, ServicePreview, StatBlock, type AssetId } from "@zbest/ui";
 import Link from "next/link";
+import { HomeReel } from "@/components/home-reel";
 import { CtaRow, LedgerList, Lead, Note, PageSection } from "@/components/page";
 import { SERVICES } from "@/content/services";
 import { ASSESSMENT_HREF, SITE } from "@/lib/site";
@@ -18,70 +19,113 @@ export const metadata = pageMetadata(SITE, { path: "/" });
  * stat block, Section 2 (every service, from content/services.ts), the Scale
  * step and the closing CTA now cover the full-service catalog.
  */
+/**
+ * Each service's lead image (FD-VISUAL-01 §3.1 concept work; placements per the
+ * founder's Oct 30 list). Revenue Recovery has none until its process visual
+ * exists; its row leaves the preview as it was.
+ */
+const SERVICE_IMAGE: Record<string, AssetId> = {
+  "digital-advertising": "quellmont-feed-sticker",
+  "tv-streaming": "quellmont-tv-keys",
+  "radio-audio": "saltgrove-radio",
+  "out-of-home": "ironhold-billboard",
+  "social-media": "marenvale-social",
+  "creative-production": "saltgrove-brand-system",
+  "influencer-marketing": "marenvale-influencer",
+  "z-best-clips": "zbc-clipper-phone",
+  websites: "marenvale-website",
+};
+
 export default function HomePage() {
   return (
     <main>
-      {/* Section 1 — Hero: claim left, stat block right; claim-then-stats at 390. */}
-      <header className="mx-auto max-w-[90rem] px-gutter pt-section lg:px-gutter-wide lg:pt-section-lg">
-        <div className="grid gap-stack lg:grid-cols-12 lg:gap-x-10">
-          <ScrollScrub className="lg:col-span-7">
-            <h1 className="type-display max-w-[11ch]">Advertising you can audit.</h1>
-            <p className="type-body-lead mt-stack text-text-secondary">
-              Digital, TV, radio, out-of-home, social, creative, websites, revenue
-              recovery, and creator-powered content — run to one standard: find
-              what&rsquo;s actually working, prove it with real numbers, then scale it.
-            </p>
-            <div className="mt-stack">
-              <CtaRow>
-                <ButtonLink href="/start">Start a Project</ButtonLink>
-                <ButtonLink href="#what-we-do" variant="secondary">
-                  See What We Do
-                </ButtonLink>
-              </CtaRow>
-            </div>
-          </ScrollScrub>
+      {/*
+        Section 1 — Hero, and the page's showpiece (FD-VISUAL-01 §5 "The reel"):
+        the claim holds left while concept work assembles right. Claim first at 390.
+      */}
+      <header>
+        <HomeReel
+          hero={
+            <>
+              <h1 className="type-display max-w-[11ch] lg:text-[clamp(3.5rem,5.6vw,5.5rem)]">
+                Advertising you can audit.
+              </h1>
+              <p className="type-body-lead mt-stack text-text-secondary">
+                Digital, TV, radio, out-of-home, social, creative, websites, revenue
+                recovery, and creator-powered content — run to one standard: find
+                what&rsquo;s actually working, prove it with real numbers, then scale it.
+              </p>
+              <div className="mt-stack">
+                <CtaRow>
+                  <ButtonLink href="/start">Start a Project</ButtonLink>
+                  <ButtonLink href="#what-we-do" variant="secondary">
+                    See What We Do
+                  </ButtonLink>
+                </CtaRow>
+              </div>
+            </>
+          }
+        />
 
-          {/*
-            Non-outcome facts only until a verified recovered-revenue figure
-            exists (§A4, §6.3). When one does, it becomes the top row and the
-            Counter ticks it up once — the Counter is deliberately not used here.
+        {/*
+          Non-outcome facts only until a verified recovered-revenue figure
+          exists (§A4, §6.3). When one does, it becomes the top row and the
+          Counter ticks it up once — the Counter is deliberately not used here.
 
-            Founder ruling Sep 17: §A4's "Est. | 2011 · Los Angeles" row is
-            removed and "Platforms bought across" is now "Platforms we plan
-            across" — neither the founding year nor the media buys are
-            literally true. Deliberate divergence from §A4:267/270, not drift.
-          */}
-          <div className="lg:col-span-5 lg:pt-4">
-            <StatBlock
-              rows={[
-                { label: "Services", value: String(SERVICES.length) },
-                {
-                  label: "Platforms we plan across",
-                  value: "Google · Meta · TikTok · Lamar · Clear Channel · OUTFRONT",
-                },
-                { label: "Standard", value: "Audit first. Evidence. Then scale." },
-              ]}
-            />
-          </div>
+          Founder ruling Sep 17: §A4's "Est. | 2011 · Los Angeles" row is
+          removed and "Platforms bought across" is now "Platforms we plan
+          across" — neither the founding year nor the media buys are
+          literally true. Deliberate divergence from §A4:267/270, not drift.
+
+          Founder copy ruling Oct 30, 2026: the "Services | 10" row is removed.
+
+          FD-VISUAL-01: the reel took the hero's right column, so the stat
+          block now closes the hero beneath it, under the reel's column.
+        */}
+        <div className="mx-auto mt-stack max-w-[90rem] px-gutter lg:grid lg:grid-cols-12 lg:gap-x-10 lg:px-gutter-wide">
+          <StatBlock
+            className="lg:col-span-7 lg:col-start-6"
+            rows={[
+              {
+                label: "Platforms we plan across",
+                value: "Google · Meta · TikTok · Lamar · Clear Channel · OUTFRONT",
+              },
+              { label: "Standard", value: "Audit first. Evidence. Then scale." },
+            ]}
+          />
         </div>
       </header>
 
-      {/* Section 2 — Every service, each linking to its page (amended Oct 4, 2026). */}
-      <PageSection id="what-we-do" label="What we do" title="One team. Every way to be seen.">
-        <LedgerList
-          items={SERVICES.map((s) => ({
-            title: s.name,
-            href: s.href,
-            external: s.external,
-            body: s.summary,
-          }))}
-        />
-        <CtaRow>
-          <ButtonLink href="/services" variant="secondary">
-            All Services
-          </ButtonLink>
-        </CtaRow>
-      </PageSection>
+      {/*
+        Section 2 — Every service, each linking to its page (amended Oct 4, 2026).
+        FD-VISUAL-01 §4.2: each row previews its lead image — beside the list on
+        desktop (hover or focus), inline in the row on mobile.
+      */}
+      <section id="what-we-do" className="mx-auto mt-section max-w-[90rem] scroll-mt-24 px-gutter lg:mt-section-lg lg:px-gutter-wide">
+        <LedgerRule emphasis />
+        <div className="pt-stack">
+          <p className="type-label text-text-secondary">What we do</p>
+          <h2 className="type-headline mt-3">One team. Every way to be seen.</h2>
+        </div>
+        <div className="mt-stack">
+          <ServicePreview
+            items={SERVICES.map((s) => ({
+              title: s.name,
+              href: s.href,
+              external: s.external,
+              body: s.summary,
+              asset: SERVICE_IMAGE[s.slug],
+            }))}
+          />
+        </div>
+        <div className="mt-stack">
+          <CtaRow>
+            <ButtonLink href="/services" variant="secondary">
+              All Services
+            </ButtonLink>
+          </CtaRow>
+        </div>
+      </section>
 
       {/* Section 3 — Revenue Recovery, featured. */}
       <PageSection

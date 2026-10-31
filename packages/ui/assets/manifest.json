@@ -1,0 +1,407 @@
+{
+  "$comment": "FD-VISUAL-01 §3.2.4 asset manifest. Every image or video served by either app must have an entry here; CI fails otherwise (scripts/check-media.mjs, e2e/tests/fd-visual-01-media.spec.ts). 'pages' lists where the asset renders today and is checked against the built sites; 'plannedPages' is the founder-approved placement not yet built. 'focus' is the object-position used when a frame crops the asset.",
+  "version": 1,
+  "assets": [
+    {
+      "id": "ironhold-billboard",
+      "file": "concepts/ironhold-billboard.png",
+      "sha256": "7b103f05c54f87c97aefc1a5870fed58679d042a48da7809578fdb82383c1f7a",
+      "width": 1672,
+      "height": 941,
+      "focus": "35% 35%",
+      "class": "concept",
+      "brand": "Ironhold Injury Law",
+      "creator": "Z Best Media (founder-supplied)",
+      "tool": null,
+      "toolNote": "Generation tool not recorded in the files or in the input commit; founder to confirm.",
+      "date": "2026-10-28",
+      "rightsHolder": "Z Best Media",
+      "consentRef": null,
+      "provenance": {
+        "commit": "a578490",
+        "path": "design-inputs/fd-visual-01/ironhold-billboard.png",
+        "approval": "FD-VISUAL-01, founder-approved 2026-10-28"
+      },
+      "facesCheck": "Ironhold is a back-lit board with the city behind it; no people.",
+      "trademarkCheck": "pending — brand names provisional until USPTO and California checks pass (amendment §9)",
+      "alt": "Concept: a night billboard above a wet Los Angeles street reading “Hurt? Talk to a lawyer before you talk to the insurer.” for Ironhold Injury Law, Los Angeles, CA, with a safety-orange rule under the line.",
+      "caption": "Out-of-Home · bulletin · street-side, Los Angeles",
+      "pages": [
+        "zbm:/",
+        "zbm:/out-of-home"
+      ],
+      "plannedPages": [
+        "zbm:/out-of-home"
+      ]
+    },
+    {
+      "id": "quellmont-tv-keys",
+      "file": "concepts/quellmont-tv-keys.png",
+      "sha256": "a863d678d45fc054b7a95b26c73e64ad1b9cfa9fc9ace2c5d4601fc0638ea8ff",
+      "width": 1672,
+      "height": 941,
+      "focus": "45% 45%",
+      "class": "concept",
+      "brand": "Quellmont Motors",
+      "creator": "Z Best Media (founder-supplied)",
+      "tool": null,
+      "toolNote": "Generation tool not recorded in the files or in the input commit; founder to confirm.",
+      "date": "2026-10-28",
+      "rightsHolder": "Z Best Media",
+      "consentRef": null,
+      "provenance": {
+        "commit": "a578490",
+        "path": "design-inputs/fd-visual-01/quellmont-tv-keys.png",
+        "approval": "FD-VISUAL-01, founder-approved 2026-10-28"
+      },
+      "facesCheck": "Hands only; no face in frame.",
+      "trademarkCheck": "pending — brand names provisional until USPTO and California checks pass (amendment §9)",
+      "alt": "Concept: a TV spot frame for Quellmont Motors — one hand passes a car key to another across a dark showroom desk, captioned “The price on the window is the price.”",
+      "caption": "TV & Streaming · spot key frame · connected TV",
+      "pages": [
+        "zbm:/"
+      ],
+      "plannedPages": [
+        "zbm:/tv-streaming"
+      ]
+    },
+    {
+      "id": "quellmont-feed-sticker",
+      "file": "concepts/quellmont-feed-sticker.png",
+      "sha256": "3039fb7a45fe9aec377fd62290fb79b79f8ec65b48de8bcffa2380df099f5273",
+      "width": 1254,
+      "height": 1254,
+      "focus": "60% 60%",
+      "class": "concept",
+      "brand": "Quellmont Motors",
+      "creator": "Z Best Media (founder-supplied)",
+      "tool": null,
+      "toolNote": "Generation tool not recorded in the files or in the input commit; founder to confirm.",
+      "date": "2026-10-28",
+      "rightsHolder": "Z Best Media",
+      "consentRef": null,
+      "provenance": {
+        "commit": "a578490",
+        "path": "design-inputs/fd-visual-01/quellmont-feed-sticker.png",
+        "approval": "FD-VISUAL-01, founder-approved 2026-10-28"
+      },
+      "facesCheck": "No people.",
+      "trademarkCheck": "pending — brand names provisional until USPTO and California checks pass (amendment §9)",
+      "alt": "Concept: a square feed ad for Quellmont Motors — a rain-beaded window sticker showing a $38,450 total price under “No haggling. No games.”",
+      "caption": "Digital Advertising · square feed ad · paid social",
+      "pages": [
+        "zbm:/"
+      ],
+      "plannedPages": [
+        "zbm:/digital-advertising"
+      ]
+    },
+    {
+      "id": "marenvale-social",
+      "file": "concepts/marenvale-social.png",
+      "sha256": "8d6b6636421d6315bfe39b75fb337f20f72cfd4410d44c9dcd0df14b276ed47b",
+      "width": 1122,
+      "height": 1402,
+      "focus": "50% 45%",
+      "class": "concept",
+      "brand": "Maren Vale Aesthetics",
+      "creator": "Z Best Media (founder-supplied)",
+      "tool": null,
+      "toolNote": "Generation tool not recorded in the files or in the input commit; founder to confirm.",
+      "date": "2026-10-28",
+      "rightsHolder": "Z Best Media",
+      "consentRef": null,
+      "provenance": {
+        "commit": "a578490",
+        "path": "design-inputs/fd-visual-01/marenvale-social.png",
+        "approval": "FD-VISUAL-01, founder-approved 2026-10-28"
+      },
+      "facesCheck": "No people.",
+      "trademarkCheck": "pending — brand names provisional until USPTO and California checks pass (amendment §9)",
+      "alt": "Concept: a Maren Vale Aesthetics social post — a frosted serum bottle with a brass collar on travertine, headlined “Look rested. Not done.”",
+      "caption": "Social Media · 4:5 feed post · organic",
+      "pages": [
+        "zbm:/"
+      ],
+      "plannedPages": [
+        "zbm:/social-media"
+      ]
+    },
+    {
+      "id": "saltgrove-radio",
+      "file": "concepts/saltgrove-radio.png",
+      "sha256": "e07ed2f8aacfe4caeafb98dd907728fb933040238b4e6237842991ad223edb99",
+      "width": 1672,
+      "height": 941,
+      "focus": "68% 45%",
+      "class": "concept",
+      "brand": "Saltgrove Hospitality",
+      "creator": "Z Best Media (founder-supplied)",
+      "tool": null,
+      "toolNote": "Generation tool not recorded in the files or in the input commit; founder to confirm.",
+      "date": "2026-10-28",
+      "rightsHolder": "Z Best Media",
+      "consentRef": null,
+      "provenance": {
+        "commit": "a578490",
+        "path": "design-inputs/fd-visual-01/saltgrove-radio.png",
+        "approval": "FD-VISUAL-01, founder-approved 2026-10-28"
+      },
+      "facesCheck": "No people.",
+      "trademarkCheck": "pending — brand names provisional until USPTO and California checks pass (amendment §9)",
+      "alt": "Concept: key art for a Saltgrove Hospitality radio spot — a vintage microphone on a wet patio table by a lit pier at dusk, headlined “Pull up a chair by the water.”",
+      "caption": "Radio & Audio · spot key art · local radio",
+      "pages": [
+        "zbm:/"
+      ],
+      "plannedPages": [
+        "zbm:/radio-audio"
+      ]
+    },
+    {
+      "id": "saltgrove-brand-system",
+      "file": "concepts/saltgrove-brand-system.png",
+      "sha256": "204fc4789a12d5dd8c28e5b990423c68b513e1151177a9abce61f6a14a3dd40a",
+      "width": 1672,
+      "height": 941,
+      "focus": "20% 45%",
+      "class": "concept",
+      "brand": "Saltgrove Hospitality",
+      "creator": "Z Best Media (founder-supplied)",
+      "tool": null,
+      "toolNote": "Generation tool not recorded in the files or in the input commit; founder to confirm.",
+      "date": "2026-10-28",
+      "rightsHolder": "Z Best Media",
+      "consentRef": null,
+      "provenance": {
+        "commit": "a578490",
+        "path": "design-inputs/fd-visual-01/saltgrove-brand-system.png",
+        "approval": "FD-VISUAL-01, founder-approved 2026-10-28"
+      },
+      "facesCheck": "No people.",
+      "trademarkCheck": "pending — brand names provisional until USPTO and California checks pass (amendment §9)",
+      "alt": "Concept: the Saltgrove brand system laid out on navy linen — a menu, coffee-cup sleeve, takeaway bag, business card, coaster and table card.",
+      "caption": "Creative & Production · brand system · print and packaging",
+      "pages": [
+        "zbm:/"
+      ],
+      "plannedPages": [
+        "zbm:/creative-production"
+      ]
+    },
+    {
+      "id": "marenvale-influencer",
+      "file": "concepts/marenvale-influencer.png",
+      "sha256": "0038a34e1649dbf030c68c3f075900d95c34df138b8d736443b13109061cfd8b",
+      "width": 1122,
+      "height": 1402,
+      "focus": "50% 45%",
+      "class": "concept",
+      "brand": "Maren Vale Aesthetics",
+      "creator": "Z Best Media (founder-supplied)",
+      "tool": null,
+      "toolNote": "Generation tool not recorded in the files or in the input commit; founder to confirm.",
+      "date": "2026-10-28",
+      "rightsHolder": "Z Best Media",
+      "consentRef": null,
+      "provenance": {
+        "commit": "a578490",
+        "path": "design-inputs/fd-visual-01/marenvale-influencer.png",
+        "approval": "FD-VISUAL-01, founder-approved 2026-10-28"
+      },
+      "facesCheck": "A hand only; no face in frame.",
+      "trademarkCheck": "pending — brand names provisional until USPTO and California checks pass (amendment §9)",
+      "alt": "Concept: a creator post for Maren Vale Aesthetics marked #ad — a hand holds a serum bottle in morning light, captioned “3 weeks in. Still just me, but rested.”",
+      "caption": "Influencer & Creator · creator post, disclosed #ad · 4:5 feed",
+      "pages": [
+        "zbm:/"
+      ],
+      "plannedPages": [
+        "zbm:/influencer-marketing"
+      ]
+    },
+    {
+      "id": "marenvale-website",
+      "file": "concepts/marenvale-website.png",
+      "sha256": "ab54fc3995fc997977fcd5701aba89d4dd10b8a712a14cf772483c1c5804d522",
+      "width": 1672,
+      "height": 941,
+      "focus": "25% 55%",
+      "class": "concept",
+      "brand": "Maren Vale Aesthetics",
+      "creator": "Z Best Media (founder-supplied)",
+      "tool": null,
+      "toolNote": "Generation tool not recorded in the files or in the input commit; founder to confirm.",
+      "date": "2026-10-28",
+      "rightsHolder": "Z Best Media",
+      "consentRef": null,
+      "provenance": {
+        "commit": "a578490",
+        "path": "design-inputs/fd-visual-01/marenvale-website.png",
+        "approval": "FD-VISUAL-01, founder-approved 2026-10-28"
+      },
+      "facesCheck": "No people.",
+      "trademarkCheck": "pending — brand names provisional until USPTO and California checks pass (amendment §9)",
+      "alt": "Concept: the Maren Vale homepage in a browser window — “Look rested. Not done.” beside a serum bottle, with a “Book a consultation” button.",
+      "caption": "Websites & Landing Pages · homepage · desktop",
+      "pages": [
+        "zbm:/"
+      ],
+      "plannedPages": [
+        "zbm:/websites"
+      ]
+    },
+    {
+      "id": "saltgrove-transit",
+      "file": "concepts/saltgrove-transit.png",
+      "sha256": "f478390657f800f9ba39b1c6b3f5296025676b0b79fdd4524bafc98b4fc74211",
+      "width": 1086,
+      "height": 1448,
+      "focus": "55% 50%",
+      "class": "concept",
+      "brand": "Saltgrove Hospitality",
+      "creator": "Z Best Media (founder-supplied)",
+      "tool": null,
+      "toolNote": "Generation tool not recorded in the files or in the input commit; founder to confirm.",
+      "date": "2026-10-28",
+      "rightsHolder": "Z Best Media",
+      "consentRef": null,
+      "provenance": {
+        "commit": "a578490",
+        "path": "design-inputs/fd-visual-01/saltgrove-transit.png",
+        "approval": "FD-VISUAL-01, founder-approved 2026-10-28"
+      },
+      "facesCheck": "No people.",
+      "trademarkCheck": "pending — brand names provisional until USPTO and California checks pass (amendment §9)",
+      "alt": "Concept: a lit bus-shelter poster for Saltgrove on a rainy seafront at night — grilled fish on a plate under “Dinner by the water.”",
+      "caption": "Out-of-Home · transit shelter poster · seafront",
+      "pages": [
+        "zbm:/out-of-home"
+      ],
+      "plannedPages": [
+        "zbm:/out-of-home"
+      ]
+    },
+    {
+      "id": "ivosolace-stage",
+      "file": "concepts/ivosolace-stage.png",
+      "sha256": "5a92a8a94c8073ee4fd3a7c6581c99eb1b7d9eb283bbd36a36c86addea4bb456",
+      "width": 940,
+      "height": 1672,
+      "focus": "50% 40%",
+      "class": "concept",
+      "brand": "Ivo Solace",
+      "creator": "Z Best Media (founder-supplied)",
+      "tool": null,
+      "toolNote": "Generation tool not recorded in the files or in the input commit; founder to confirm.",
+      "date": "2026-10-28",
+      "rightsHolder": "Z Best Media",
+      "consentRef": null,
+      "provenance": {
+        "commit": "a578490",
+        "path": "design-inputs/fd-visual-01/ivosolace-stage.png",
+        "approval": "FD-VISUAL-01, founder-approved 2026-10-28"
+      },
+      "facesCheck": "Artist is a back-lit silhouette seen from behind; crowd faces away; no visible face.",
+      "trademarkCheck": "pending — brand names provisional until USPTO and California checks pass (amendment §9)",
+      "alt": "Concept: a vertical poster for Ivo Solace’s new single — the artist, seen from behind in silhouette, sings to a crowd under coral stage light, the name in handwritten script.",
+      "caption": "Entertainment · vertical clip poster · TikTok, Reels, Shorts",
+      "pages": [
+        "zbc:/"
+      ],
+      "plannedPages": [
+        "zbc:/",
+        "zbc:/entertainment"
+      ]
+    },
+    {
+      "id": "quellmont-cover",
+      "file": "concepts/quellmont-cover.png",
+      "sha256": "0685154247e4089e81a19a89cfda7186b8339847c94e9f914017f5d86b7a71f8",
+      "width": 941,
+      "height": 1672,
+      "focus": "50% 50%",
+      "class": "concept",
+      "brand": "Quellmont Motors",
+      "creator": "Z Best Media (founder-supplied)",
+      "tool": null,
+      "toolNote": "Generation tool not recorded in the files or in the input commit; founder to confirm.",
+      "date": "2026-10-28",
+      "rightsHolder": "Z Best Media",
+      "consentRef": null,
+      "provenance": {
+        "commit": "a578490",
+        "path": "design-inputs/fd-visual-01/quellmont-cover.png",
+        "approval": "FD-VISUAL-01, founder-approved 2026-10-28"
+      },
+      "facesCheck": "A hand only; no face in frame.",
+      "trademarkCheck": "pending — brand names provisional until USPTO and California checks pass (amendment §9)",
+      "alt": "Concept: a vertical Quellmont Motors cover — a car under a dark satin sheet in a lit showroom, a hand starting to pull it away, headlined “Your car is ready.”",
+      "caption": "Brands · vertical clip cover · brand-owned account",
+      "pages": [],
+      "plannedPages": [
+        "zbc:/brands"
+      ]
+    },
+    {
+      "id": "marenvale-room",
+      "file": "concepts/marenvale-room.png",
+      "sha256": "3ad55b995099bc7183894ca8083298354cd8750b56aeaf3858f318340c08a7bf",
+      "width": 941,
+      "height": 1672,
+      "focus": "50% 45%",
+      "class": "concept",
+      "brand": "Maren Vale Aesthetics",
+      "creator": "Z Best Media (founder-supplied)",
+      "tool": null,
+      "toolNote": "Generation tool not recorded in the files or in the input commit; founder to confirm.",
+      "date": "2026-10-28",
+      "rightsHolder": "Z Best Media",
+      "consentRef": null,
+      "provenance": {
+        "commit": "a578490",
+        "path": "design-inputs/fd-visual-01/marenvale-room.png",
+        "approval": "FD-VISUAL-01, founder-approved 2026-10-28"
+      },
+      "facesCheck": "No people.",
+      "trademarkCheck": "pending — brand names provisional until USPTO and California checks pass (amendment §9)",
+      "alt": "Concept: a vertical Maren Vale Aesthetics cover — a treatment room in late sun with a made treatment bed and a brass floor lamp, headlined “Your hour starts here.”",
+      "caption": "Brands · vertical clip cover · brand-owned account",
+      "pages": [],
+      "plannedPages": [
+        "zbc:/brands"
+      ]
+    },
+    {
+      "id": "zbc-clipper-phone",
+      "file": "concepts/zbc-clipper-phone.png",
+      "sha256": "da6f49615b77e32edd99cb8b02d12666d88390d6418859eb176f6540481ce355",
+      "width": 1122,
+      "height": 1402,
+      "focus": "50% 55%",
+      "class": "concept",
+      "brand": "Z Best Clips (illustrative)",
+      "creator": "Z Best Media (founder-supplied)",
+      "tool": null,
+      "toolNote": "Generation tool not recorded in the files or in the input commit; founder to confirm.",
+      "date": "2026-10-28",
+      "rightsHolder": "Z Best Media",
+      "consentRef": null,
+      "provenance": {
+        "commit": "a578490",
+        "path": "design-inputs/fd-visual-01/zbc-clipper-phone.png",
+        "approval": "FD-VISUAL-01, founder-approved 2026-10-28"
+      },
+      "facesCheck": "No people.",
+      "trademarkCheck": "pending — brand names provisional until USPTO and California checks pass (amendment §9)",
+      "alt": "Concept: a phone on a dark desk showing a vertical-video editing timeline of a palm-lined skyline at sunset, beside headphones and a coffee cup.",
+      "caption": "Become a Clipper · editing timeline · clipper workflow",
+      "pages": [
+        "zbm:/"
+      ],
+      "plannedPages": [
+        "zbc:/become-a-clipper"
+      ]
+    }
+  ]
+}
