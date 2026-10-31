@@ -15,15 +15,23 @@ import { useRef, type ReactNode } from "react";
  * ZBM Home showpiece — "The reel" (FD-VISUAL-01 §5, §10 launch item 1).
  *
  * The hero headline holds while, on scroll, a strict-grid sequence of concept
- * work across channels assembles beside it: billboard, TV, digital, site,
- * social. Each tile after the first unmasks along a brass hairline. The page
- * then scrolls on into the service list, which previews each service's image.
+ * work across channels plays beside it: billboard, TV, site, digital, social.
+ * Every tile shows its image from the first paint (founder pilot review,
+ * 2026-10-30: no empty frames); the motion is layered on top — a brass
+ * hairline sweeps across each tile in turn as its image pushes in slightly.
+ * The page then scrolls on into the service list, which previews each
+ * service's image.
  *
  * Desktop: the hero is pinned for 1.3 viewports (≤ 1.5, §4.2) and the whole
  * sequence is driven by that scroll. Mobile: nothing is pinned; each tile
  * unmasks as it scrolls into view.
  *
- * Static frame (reduced motion, no JS, server HTML): every tile shown, no pin.
+ * Static frame (reduced motion, no JS, server HTML): the same tiles, no sweep,
+ * no pin. The live first frame matches it exactly, so hydration changes nothing.
+ *
+ * Mobile: tiles in a row share one aspect — 16:9 for TV and site, square for
+ * digital and social — cropped on manifest focal points chosen so each piece's
+ * headline stays whole (founder pilot review).
  * Built from stills; the audit-page tile §5 names waits for the Revenue
  * Recovery process visual (post-launch, §10).
  */
@@ -33,8 +41,12 @@ type Tile = {
   channel: string;
   brand: string;
   aspect?: string;
+  /** Mobile window aspect override (tiles in one mobile row share an aspect). */
+  mobileSquare?: boolean;
   /** Desktop width in the bottom row, as a share of the reel. */
   lg?: string;
+  /** Small channel marker drawn in a corner of the image that carries no type. */
+  marker?: string;
   /** Scroll window (desktop section progress) over which the tile unmasks. */
   at: [number, number];
 };
@@ -48,10 +60,10 @@ const LEAD: Tile = {
 };
 
 const ROW: Tile[] = [
-  { asset: "quellmont-tv-keys", frame: "player", channel: "TV & Streaming", brand: "Quellmont Motors", lg: "lg:w-[31.6%]", at: [0.08, 0.3] },
+  { asset: "quellmont-tv-keys", frame: "plate", channel: "TV & Streaming", brand: "Quellmont Motors", lg: "lg:w-[31.6%]", marker: "▶ TV · 00:14", at: [0.08, 0.3] },
   { asset: "marenvale-website", frame: "plate", channel: "Websites", brand: "Maren Vale Aesthetics", lg: "lg:w-[31.6%]", at: [0.22, 0.44] },
-  { asset: "quellmont-feed-sticker", frame: "plate", channel: "Digital", brand: "Quellmont Motors", lg: "lg:w-[17.8%]", at: [0.36, 0.58] },
-  { asset: "marenvale-social", frame: "plate", channel: "Social", brand: "Maren Vale Aesthetics", aspect: "4 / 5", lg: "lg:w-[14.2%]", at: [0.5, 0.72] },
+  { asset: "quellmont-feed-sticker", frame: "plate", channel: "Digital", brand: "Quellmont Motors", aspect: "1 / 1", lg: "lg:w-[17.8%]", at: [0.36, 0.58] },
+  { asset: "marenvale-social", frame: "plate", channel: "Social", brand: "Maren Vale Aesthetics", aspect: "4 / 5", mobileSquare: true, lg: "lg:w-[14.2%]", at: [0.5, 0.72] },
 ];
 
 export function HomeReel({ hero }: { hero: ReactNode }) {
@@ -79,7 +91,7 @@ function Stage({ hero }: { hero: ReactNode }) {
   return (
     <div ref={ref} className="h-full">
       <div className="lg:motion-safe:sticky lg:motion-safe:top-0 lg:motion-safe:flex lg:motion-safe:h-screen lg:motion-safe:items-center">
-        <div className="mx-auto w-full max-w-[90rem] px-gutter pt-section lg:px-gutter-wide lg:pb-8 lg:pt-24">
+        <div className="mx-auto w-full max-w-[90rem] px-gutter pt-section lg:px-gutter-wide lg:pb-6 lg:pt-20">
           <div className="grid gap-stack lg:grid-cols-12 lg:items-center lg:gap-x-10">
             <div className="lg:col-span-5">{hero}</div>
             <div className="lg:col-span-7" data-reel>
@@ -111,7 +123,6 @@ function Stage({ hero }: { hero: ReactNode }) {
                     <span className="text-accent">{String(i + 1).padStart(2, "0")}</span> {t.channel} · {t.brand}
                   </li>
                 ))}
-                <li>· Concept work for invented sample brands — not client campaigns</li>
               </ol>
             </div>
           </div>
@@ -133,11 +144,18 @@ function ReelTile({
   live: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const { scrollYProgress: own } = useScroll({ target: ref, offset: ["start 0.95", "start 0.55"] });
+  const { scrollYProgress: own } = useScroll({ target: ref, offset: ["start 0.95", "start 0.45"] });
   const [a, b] = tile.at;
-  const fromSection = useTransform(section, (v) => `${101 * Math.min(1, Math.max(0, (v - a) / (b - a)))}%`);
-  const fromOwn = useTransform(own, (v) => `${101 * Math.min(1, Math.max(0, v))}%`);
-  const x = desktop ? fromSection : fromOwn;
+  // 0 → 1 across the tile's scroll window. Function transforms, so Motion
+  // computes them per frame rather than handing them to the browser's scroll
+  // timeline (see apps/zbc/components/clip-split.tsx).
+  const tSection = useTransform(section, (v) => Math.min(1, Math.max(0, (v - a) / (b - a))));
+  const tOwn = useTransform(own, (v) => Math.min(1, Math.max(0, v)));
+  const t = desktop ? tSection : tOwn;
+  // The sweep: a brass hairline crossing the tile, gone at both ends.
+  const sweepX = useTransform(t, (v) => `${v * 100}%`);
+  const sweepOpacity = useTransform(t, (v) => (v > 0 && v < 1 ? 1 : 0));
+  const push = useTransform(t, (v) => 1 + 0.04 * v);
 
   return (
     <div ref={ref} className={tile.lg}>
@@ -145,19 +163,42 @@ function ReelTile({
         asset={tile.asset}
         frame={tile.frame}
         aspect={tile.aspect ?? "16 / 9"}
+        className={tile.mobileSquare ? "max-lg:[&_[data-frame-window]]:aspect-square!" : undefined}
+        loading="eager"
         sizes="(min-width: 1024px) 240px, 45vw"
         caption={false}
         badge="compact"
-        timecode="00:00:14:22"
-        className="[&_[data-concept-badge]]:left-1.5 [&_[data-concept-badge]]:top-1.5"
+        wrapImage={(img) =>
+          live ? (
+            <motion.div className="absolute inset-0" style={{ scale: push }}>
+              {img}
+            </motion.div>
+          ) : (
+            img
+          )
+        }
         overlay={
-          // The cover slides off to the right, its leading edge a brass rule.
-          <motion.div
-            aria-hidden="true"
-            data-unmask
-            className="absolute inset-0 z-20 border-l border-accent bg-panel"
-            style={live ? { x } : undefined}
-          />
+          <>
+            {tile.marker ? (
+              <span
+                aria-hidden="true"
+                className="type-mono absolute right-1.5 top-1.5 z-10 bg-black/70 px-1.5 py-0.5 text-[0.6rem] text-text-primary"
+              >
+                {tile.marker}
+              </span>
+            ) : null}
+            {live ? (
+              // A full-width layer carries the line, so x is a share of the tile.
+              <motion.span
+                aria-hidden="true"
+                data-sweep
+                className="pointer-events-none absolute inset-0 z-10"
+                style={{ x: sweepX, opacity: sweepOpacity }}
+              >
+                <span className="absolute inset-y-0 left-0 w-px bg-accent" />
+              </motion.span>
+            ) : null}
+          </>
         }
       />
     </div>

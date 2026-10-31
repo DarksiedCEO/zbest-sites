@@ -17,8 +17,7 @@
     "./lead/contract": "./src/lead/contract.ts",
     "./lead/use-hydrated": "./src/lead/use-hydrated.ts",
     "./lead/submit-status": "./src/lead/submit-status.tsx",
-    "./styles/lead.css": "./src/styles/lead.css",
-    "./styles/media.css": "./src/styles/media.css"
+    "./styles/lead.css": "./src/styles/lead.css"
   },
   "scripts": {
     "lint": "eslint .",

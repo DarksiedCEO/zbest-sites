@@ -4,9 +4,11 @@ export const CONCEPT_LABEL = "Concept — not a client campaign";
 
 /**
  * Labels work made for an invented sample brand (FD-VISUAL-01 §3.2.5). A
- * sibling of IllustrativeBadge — mono, uppercase, hairline-bordered — but it
- * sits on the asset's frame, never in a footnote, and on a solid base so it
- * stays legible over any image.
+ * sibling of IllustrativeBadge — mono, uppercase, hairline-bordered. It sits
+ * in the caption strip directly under the asset's frame — on the frame, never
+ * in a footnote, and never over the creative's own type.
+ *
+ * `children` replaces the label only for a ConceptGroup's shared label.
  *
  * `compact` is for frames too small for the full line: it shows "Concept" and
  * keeps the full label for assistive tech and hover.
@@ -14,6 +16,7 @@ export const CONCEPT_LABEL = "Concept — not a client campaign";
 export function ConceptBadge({
   compact = false,
   className = "",
+  children,
   ...props
 }: ComponentProps<"span"> & { compact?: boolean }) {
   return (
@@ -30,7 +33,7 @@ export function ConceptBadge({
           <span className="sr-only">{CONCEPT_LABEL}</span>
         </>
       ) : (
-        CONCEPT_LABEL
+        (children ?? CONCEPT_LABEL)
       )}
     </span>
   );

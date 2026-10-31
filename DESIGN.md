@@ -236,7 +236,8 @@ Owned by `packages/ui` (§1.2) and built in Phase 2 (§3.2): `LedgerRule`, `Coun
 [FD-VISUAL-01] adds `ConceptBadge`, `MediaFrame` (billboard / player / phone /
 browser / poster / document frames, plus a neutral `plate` for an asset whose
 real-world frame is already in the picture), `Showpiece` (the reduced-motion-aware
-wrapper), `WorkWall` and `ServicePreview`. Every image or video they render is an
+wrapper), `WorkWall` and `ServicePreview`, plus `ConceptGroup` (founder ruling
+2026-10-30). Every image or video they render is an
 entry in `packages/ui/assets/manifest.json`. All of them render together on the unlinked, noindex `/dev/system` route in both
 apps — the §3.2 gallery option.
 
@@ -252,8 +253,12 @@ Behavior locked by the brief and implemented:
   appears. This is a stated integrity standard, not a suggestion.
 
 - **ConceptBadge** — "Concept — not a client campaign", on every render of a
-  `concept` manifest entry, inside or on the asset's frame, never in a footnote.
-  `MediaFrame` renders it for concept assets by construction.
+  `concept` manifest entry, in the caption strip under the asset's frame — never
+  over the creative's own type, never in a footnote. `MediaFrame` renders it for
+  concept assets by construction.
+- **ConceptGroup** — one shared label, "Concept — N clips cut from one source",
+  for crops of a single badged source; the crops inside carry no badge (founder
+  ruling 2026-10-30).
 
 ## Imagery System [FD-VISUAL-01 §3]
 
@@ -283,7 +288,11 @@ retired from the manifest.
    creator or tool, date, rights holder, consent reference, alt text, pages). CI
    fails any image or video served from the app with no manifest entry.
 5. `ConceptBadge` on every render of a `concept` entry, on the asset's frame. CI
-   asserts it on every page the asset appears on.
+   asserts it on every page the asset appears on. **Amended by founder ruling
+   2026-10-30:** the badge never covers the creative's own text — it sits in the
+   caption strip under the frame. Crops derived from one badged source share one
+   group label, "Concept — N clips cut from one source", and the individual crops
+   carry no badge; standalone images keep their own (`ConceptGroup`).
 6. Alt text is required and descriptive; for concept work it starts with "Concept:".
 
 ### Art direction

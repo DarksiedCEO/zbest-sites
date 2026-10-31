@@ -316,19 +316,20 @@ test.describe("Home (§A4)", () => {
     await page.goto(`${ZBM_BASE_URL}/`, { waitUntil: "domcontentloaded" });
     const reel = page.locator('[data-showpiece="zbm-home-reel"]');
     await expect(reel).toHaveAttribute("data-showpiece-state", "live");
-    const cover = reel.locator("[data-unmask]").last();
-    const before = await cover.evaluate((el) => getComputedStyle(el).transform);
-    await page.evaluate(() => window.scrollTo(0, window.innerHeight));
-    await expect.poll(() => cover.evaluate((el) => getComputedStyle(el).transform)).not.toBe(before);
+    // The last tile's image: it pushes in as its turn in the sequence comes.
+    const tile = reel.locator("[data-frame-window] img").last().locator("..");
+    const before = await tile.evaluate((el) => getComputedStyle(el).transform);
+    await page.evaluate(() => window.scrollTo(0, window.innerHeight * 1.2));
+    await expect.poll(() => tile.evaluate((el) => getComputedStyle(el).transform)).not.toBe(before);
     expect(await page.locator("main header h1").evaluate((el) => getComputedStyle(el).transform)).toBe("none");
 
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto(`${ZBM_BASE_URL}/`, { waitUntil: "domcontentloaded" });
     await expect(reel).toHaveAttribute("data-showpiece-state", "static");
-    const still = await cover.evaluate((el) => getComputedStyle(el).transform);
-    await page.evaluate(() => window.scrollTo(0, window.innerHeight));
+    const still = await tile.evaluate((el) => getComputedStyle(el).transform);
+    await page.evaluate(() => window.scrollTo(0, window.innerHeight * 1.2));
     await page.waitForTimeout(200);
-    expect(await cover.evaluate((el) => getComputedStyle(el).transform)).toBe(still);
+    expect(await tile.evaluate((el) => getComputedStyle(el).transform)).toBe(still);
   });
 });
 

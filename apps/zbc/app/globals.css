@@ -2,7 +2,6 @@
 @import "@zbest/ui/styles/tokens.css";
 @import "@zbest/ui/styles/type.css";
 @import "@zbest/ui/styles/lead.css";
-@import "@zbest/ui/styles/media.css";
 
 @layer base {
   /* Set on the root element too, so there is no light flash before paint. */

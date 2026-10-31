@@ -15,10 +15,10 @@ import { createContext, useContext, useSyncExternalStore, type ReactNode } from 
  * is "reduce", so the server and the first client render agree (no hydration
  * mismatch), and a preference changed mid-visit takes effect at once.
  *
- * Layers whose live starting state differs from the static frame (an unmask
- * cover, for instance) set that starting state in CSS under
- * `prefers-reduced-motion: no-preference` (styles/media.css), so the page does
- * not show the static frame and then jump when it hydrates.
+ * Nothing in a showpiece starts hidden (founder pilot review, 2026-10-30: no
+ * empty frames). The live version's first frame is identical to the static
+ * frame, and motion is layered on top as the visitor scrolls, so hydration
+ * changes nothing on screen.
  */
 const LiveContext = createContext(false);
 

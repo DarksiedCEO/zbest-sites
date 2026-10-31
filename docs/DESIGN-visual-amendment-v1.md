@@ -69,6 +69,13 @@ When a real asset exists for a slot, it replaces the concept, and the concept is
 3. **Concept brands are invented and name-checked.** Every sample brand gets a trademark search before use, so none collides with a real business. No real brand marks, logos or products appear in concept work.
 4. **Every asset is in the manifest** (`packages/ui/assets/manifest.json`) with: id, file, source class (real / concept / process / portrait), creator or tool, date, rights holder, consent reference (real work), alt text, and the pages it appears on. CI fails any image or video served from the app that has no manifest entry.
 5. **`ConceptBadge`** is a new primitive, styled as a sibling of `IllustrativeBadge` (mono, uppercase, hairline-bordered), positioned inside or on the asset's frame, never in a footnote. CI asserts that every manifest entry with class `concept` renders with a badge on every page it appears on.
+
+   > **Amended by founder ruling, 2026-10-30 (pilot review of PR #11):**
+   > - The badge never covers the creative's own text. It sits in the caption strip directly under the frame (or the frame's bottom-left corner).
+   > - Crops derived from one badged source share a single group label, "Concept — N clips cut from one source" (for the ZBC How It Works row: "Concept — 6 clips cut from one source"). The individual crops carry no badge. Standalone images keep their own badge.
+   > - CI asserts both: every concept render has a visible badge on its own frame, or sits in a group whose crops all come from one source and whose group label is visible.
+   >
+   > The original text above is kept as approved on 2026-10-28; `design-inputs/fd-visual-01/` holds the unamended input.
 6. **Alt text is required and descriptive,** and for concept work it starts with "Concept:".
 
 ### 3.3 Art direction (so the imagery belongs to this system)

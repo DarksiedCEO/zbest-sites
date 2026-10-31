@@ -18,8 +18,13 @@ import { ConceptBadge } from "./concept-badge";
  *               in the picture (e.g. a site shot already in browser chrome)
  *
  * Concept assets get their ConceptBadge here, by construction: a page cannot
- * render a concept through MediaFrame without it. CI checks the rendered page
- * as well (e2e/tests/fd-visual-01-media.spec.ts).
+ * render a concept through MediaFrame without it. The badge sits in the
+ * caption strip under the frame, never over the creative, so it can never
+ * cover the creative's own type (founder pilot review, 2026-10-30). The one
+ * exception is `badge="group"`: crops cut from one badged source carry no
+ * badge of their own and must sit inside a ConceptGroup, which shows one
+ * label for all of them (amendment §3.2.5 as amended 2026-10-30). CI checks
+ * the rendered page (e2e/tests/fd-visual-01-media.spec.ts).
  *
  * `wrapImage` lets a showpiece put the picture inside its own motion element;
  * it is only usable from a client component.
@@ -38,7 +43,10 @@ export type MediaFrameProps = {
   objectPosition?: string;
   /** Caption override; `false` hides it (the asset must then be captioned nearby). */
   caption?: ReactNode | false;
-  badge?: "full" | "compact";
+  /** "group": badged by the enclosing ConceptGroup instead (crops of one source). */
+  badge?: "full" | "compact" | "group";
+  /** next/image loading; a showpiece passes "eager" so nothing is empty on first paint. */
+  loading?: "eager" | "lazy";
   /** Phone only. */
   chrome?: "feed" | "clip";
   /** Phone `feed`/`clip` handle; browser address. */
@@ -67,6 +75,7 @@ export function MediaFrame({
   frame,
   sizes,
   priority = false,
+  loading,
   aspect,
   objectPosition,
   caption,
@@ -89,6 +98,7 @@ export function MediaFrame({
       fill
       sizes={sizes}
       priority={priority}
+      loading={priority ? undefined : loading}
       quality={80}
       className="object-cover"
       style={{ objectPosition: objectPosition ?? a.focus }}
@@ -96,15 +106,13 @@ export function MediaFrame({
   );
 
   const windowStyle: CSSProperties = { aspectRatio: aspect ?? `${a.width} / ${a.height}` };
-  const badgeEl = isConcept ? (
-    <ConceptBadge compact={badge === "compact"} className="absolute left-3 top-3 z-10" />
-  ) : null;
+  const badgeEl =
+    isConcept && badge !== "group" ? <ConceptBadge compact={badge === "compact"} className="shrink-0" /> : null;
 
   const window = (extra = "") => (
     <div className={`relative overflow-hidden bg-base ${extra}`} style={windowStyle} data-frame-window>
       {wrapImage ? wrapImage(img) : img}
       {overlay}
-      {badgeEl}
     </div>
   );
 
@@ -219,9 +227,14 @@ export function MediaFrame({
       className={`relative ${className}`}
     >
       {body}
-      {captionText ? (
-        <figcaption className="mt-3 border-t border-text-secondary/30 pt-2">
-          <span className="type-mono block text-[0.7rem] leading-snug text-text-secondary">{captionText}</span>
+      {captionText || badgeEl ? (
+        <figcaption className="mt-2 flex flex-wrap items-start gap-x-3 gap-y-1.5 border-t border-text-secondary/30 pt-2">
+          {badgeEl}
+          {captionText ? (
+            <span className="type-mono block min-w-0 flex-1 basis-48 text-[0.7rem] leading-snug text-text-secondary">
+              {captionText}
+            </span>
+          ) : null}
         </figcaption>
       ) : null}
     </figure>

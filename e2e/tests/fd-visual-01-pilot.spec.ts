@@ -10,6 +10,10 @@ import { ZBC_BASE_URL, ZBM_BASE_URL } from "../playwright.config";
  * For each page, at both viewports:
  *   - reduced motion: the showpiece renders its static frame, nothing on the
  *     page moves with scroll, and nothing is pinned; full-page capture.
+ *   - motion on, first paint (founder pilot review, 2026-10-30: no empty
+ *     frames): before any scroll, every image in the showpiece is loaded and
+ *     fully visible — nothing waits for scroll to appear. Full-page capture of
+ *     that first frame.
  *   - motion on: the showpiece goes live, scroll visibly drives it, and any pin
  *     lasts no more than 1.5 viewports (§4.2); viewport captures at four points
  *     through the showpiece, plus a full-page capture after it has played.
@@ -56,6 +60,29 @@ async function fingerprint(page: Page, name: string) {
   }, name);
 }
 
+/**
+ * Every image in the showpiece that is not shown: not loaded, zero-sized, or
+ * under an ancestor whose opacity is below 1. Empty list = nothing hidden.
+ */
+async function hiddenImages(page: Page, name: string) {
+  return page.evaluate((n) => {
+    const root = document.querySelector(`[data-showpiece="${n}"]`)!;
+    return [...root.querySelectorAll("img")].flatMap((img) => {
+      const r = img.getBoundingClientRect();
+      let opacity = 1;
+      for (let el: Element | null = img; el && el !== root.parentElement; el = el.parentElement) {
+        opacity *= Number(getComputedStyle(el).opacity);
+      }
+      const why = [
+        !img.complete || img.naturalWidth === 0 ? "not loaded" : "",
+        r.width === 0 || r.height === 0 ? "zero size" : "",
+        opacity < 0.99 ? `opacity ${opacity.toFixed(2)}` : "",
+      ].filter(Boolean);
+      return why.length ? [`${img.closest("[data-asset-id]")?.getAttribute("data-asset-id")}: ${why.join(", ")}`] : [];
+    });
+  }, name);
+}
+
 async function scrollToFrame(page: Page, name: string, f: number) {
   const g = await geometry(page, name);
   const travel = Math.max(g.height - g.vh, g.vh * 0.8);
@@ -73,16 +100,8 @@ for (const pilot of PILOTS) {
       await expect(sp).toHaveCount(1);
       await expect(sp).toHaveAttribute("data-showpiece-state", "static");
 
-      // Every image in the static frame is uncovered: no unmask cover sits over it.
-      const covered = await page.evaluate((n) => {
-        const root = document.querySelector(`[data-showpiece="${n}"]`)!;
-        return [...root.querySelectorAll<HTMLElement>("[data-unmask]")].filter((c) => {
-          const cover = c.getBoundingClientRect();
-          const win = c.closest("[data-frame-window]")!.getBoundingClientRect();
-          return cover.left < win.right - 1;
-        }).length;
-      }, pilot.showpiece);
-      expect(covered, "unmask covers left over images in the static frame").toBe(0);
+      // Every image in the static frame is loaded and fully visible.
+      expect(await hiddenImages(page, pilot.showpiece), "images not shown in the static frame").toEqual([]);
 
       // Not pinned: the section is no taller than its content.
       const g = await geometry(page, pilot.showpiece);
@@ -112,6 +131,14 @@ for (const pilot of PILOTS) {
       const sp = page.locator(`[data-showpiece="${pilot.showpiece}"]`);
       await expect(sp).toHaveAttribute("data-showpiece-state", "live");
 
+      // First paint, before any scroll: nothing in the showpiece is empty.
+      expect(await page.evaluate(() => window.scrollY)).toBe(0);
+      expect(await hiddenImages(page, pilot.showpiece), "images not shown on first paint").toEqual([]);
+      await page.evaluate(() => document.fonts.ready);
+      await mkdir(SNAPSHOT_DIR, { recursive: true });
+      await captureFullPage(page, path.join(SNAPSHOT_DIR, `${pilot.name}-${testInfo.project.name}-motion-first-frame.png`), testInfo);
+      expect(await page.evaluate(() => window.scrollY), "the first-frame capture scrolled the page").toBe(0);
+
       const g = await geometry(page, pilot.showpiece);
       const pin = (g.height - g.vh) / g.vh;
       expect(pin, "pinned for more than 1.5 viewports").toBeLessThanOrEqual(1.5);
@@ -127,21 +154,12 @@ for (const pilot of PILOTS) {
       }
       expect(prints[0], "scroll did not drive the showpiece").not.toBe(prints[prints.length - 1]);
 
-      // Played through, the live showpiece resolves to everything the static
-      // frame shows: no cover left over an image, no entering layer still hidden.
-      // (A scroll-timeline mapping once faded every clip back out at the end.)
-      await scrollToFrame(page, pilot.showpiece, 1);
-      const unresolved = await page.evaluate((n) => {
-        const root = document.querySelector(`[data-showpiece="${n}"]`)!;
-        const covers = [...root.querySelectorAll<HTMLElement>("[data-unmask]")].filter(
-          (c) => c.getBoundingClientRect().left < c.closest("[data-frame-window]")!.getBoundingClientRect().right - 1,
-        ).length;
-        const hidden = [...root.querySelectorAll<HTMLElement>("[data-enter]")].filter(
-          (el) => Number(getComputedStyle(el).opacity) < 0.99,
-        ).length;
-        return { covers, hidden };
-      }, pilot.showpiece);
-      expect(unresolved, "showpiece did not resolve at the end of its scroll").toEqual({ covers: 0, hidden: 0 });
+      // Every image stays shown through the whole sequence, end included. (A
+      // scroll-timeline mapping once faded every clip back out at the end.)
+      for (const f of FRAMES) {
+        await scrollToFrame(page, pilot.showpiece, f);
+        expect(await hiddenImages(page, pilot.showpiece), `images not shown at ${f * 100}%`).toEqual([]);
+      }
 
       // After the showpiece has played through, the whole page.
       await page.evaluate(async () => {

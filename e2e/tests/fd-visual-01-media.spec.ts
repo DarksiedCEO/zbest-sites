@@ -11,8 +11,15 @@ import { ZBC_BASE_URL, ZBM_BASE_URL } from "../playwright.config";
  *   1. every image or video the page requests maps to a manifest entry;
  *   2. every <img>/<video> in the DOM maps to a manifest entry, and its page is
  *      one of that entry's listed `pages`;
- *   3. every render of a `concept` entry sits in a MediaFrame that carries a
- *      ConceptBadge, and the badge is visible on the asset's frame;
+ *   3. every render of a `concept` entry is labelled, one of two ways
+ *      (amendment §3.2.5 as amended by founder ruling 2026-10-30):
+ *        - standalone: its own MediaFrame carries a visible ConceptBadge, and
+ *          the badge does not overlap the image (it never covers the
+ *          creative's own type);
+ *        - a crop of one source: it sits in a ConceptGroup for that same
+ *          source, carries no badge of its own, every frame in the group is
+ *          a crop of that source, and the group label is visible and reads
+ *          "Concept — N clips cut from one source" with N = the crops shown;
  *   4. concept alt text starts with "Concept:" and matches the manifest.
  *
  * Runs with the gate's default reduced motion, so every showpiece is in its
@@ -86,29 +93,40 @@ for (const { site, base, extra } of SITES) {
         if (!entryFor(url, base)) problems.push(`${site}${route}: requested ${url} — no manifest entry`);
       }
 
-      const rendered = await page.evaluate(() =>
-        [...document.querySelectorAll("img, video")].map((el) => {
+      const rendered = await page.evaluate(() => {
+        const visible = (el: Element | null | undefined) => {
+          if (!el) return false;
+          const r = el.getBoundingClientRect();
+          const cs = getComputedStyle(el);
+          return r.width > 0 && r.height > 0 && cs.visibility !== "hidden" && Number(cs.opacity) > 0;
+        };
+        const overlaps = (a: DOMRect, b: DOMRect) =>
+          a.left < b.right - 1 && a.right > b.left + 1 && a.top < b.bottom - 1 && a.bottom > b.top + 1;
+        return [...document.querySelectorAll("img, video")].map((el) => {
           const media = el as HTMLImageElement | HTMLVideoElement;
           const r = media.getBoundingClientRect();
           const frame = media.closest("[data-media-frame]");
           const win = media.closest("[data-frame-window]");
           const badge = frame?.querySelector("[data-concept-badge]");
-          const b = badge?.getBoundingClientRect();
-          const w = win?.getBoundingClientRect();
-          const style = badge ? getComputedStyle(badge) : null;
+          const group = media.closest("[data-concept-group]");
+          const groupBadge = group?.querySelector(":scope > * [data-concept-group-badge], :scope > [data-concept-group-badge]");
+          const groupFrames = group ? [...group.querySelectorAll("[data-media-frame]")] : [];
           return {
             src: media.getAttribute("src") ?? (media as HTMLVideoElement).poster ?? "",
             alt: media.getAttribute("alt"),
             shown: r.width > 0 && r.height > 0,
             frameId: frame?.getAttribute("data-asset-id") ?? null,
             badge: Boolean(badge),
-            badgeVisible: Boolean(
-              b && w && style && b.width > 0 && b.height > 0 && style.visibility !== "hidden" && Number(style.opacity) > 0 &&
-                b.left >= w.left - 1 && b.top >= w.top - 1 && b.right <= w.right + 1 && b.bottom <= w.bottom + 1,
-            ),
+            badgeVisible: visible(badge),
+            badgeOverImage: Boolean(badge && win && overlaps(badge.getBoundingClientRect(), win.getBoundingClientRect())),
+            group: group?.getAttribute("data-concept-group") ?? null,
+            groupLabel: groupBadge?.textContent?.trim() ?? null,
+            groupLabelVisible: visible(groupBadge),
+            groupIds: groupFrames.map((f) => f.getAttribute("data-asset-id")),
+            groupShown: groupFrames.filter((f) => visible(f)).length,
           };
-        }),
-      );
+        });
+      });
 
       for (const m of rendered) {
         const entry = entryFor(m.src, base);
@@ -123,8 +141,16 @@ for (const { site, base, extra } of SITES) {
         if (!entry.pages.includes(key)) problems.push(`${key}: renders "${entry.id}", which the manifest does not list on this page`);
         if (m.frameId !== entry.id) problems.push(`${key}: "${entry.id}" renders outside its MediaFrame`);
         if (entry.class === "concept") {
-          if (!m.badge) problems.push(`${key}: concept "${entry.id}" renders without a ConceptBadge`);
-          else if (!m.badgeVisible) problems.push(`${key}: concept "${entry.id}" has a ConceptBadge that is not visible on its frame`);
+          if (m.group) {
+            if (m.group !== entry.id) problems.push(`${key}: "${entry.id}" sits in a ConceptGroup for "${m.group}"`);
+            if (m.badge) problems.push(`${key}: grouped crop of "${entry.id}" carries its own badge (the group label covers it)`);
+            if (m.groupIds.some((id) => id !== m.group)) problems.push(`${key}: ConceptGroup "${m.group}" mixes sources: ${m.groupIds.join(", ")}`);
+            if (!m.groupLabelVisible) problems.push(`${key}: ConceptGroup "${m.group}" label is not visible`);
+            const expected = `Concept — ${m.groupShown} clips cut from one source`;
+            if (m.groupLabel !== expected) problems.push(`${key}: ConceptGroup label reads "${m.groupLabel}", expected "${expected}"`);
+          } else if (!m.badge) problems.push(`${key}: concept "${entry.id}" renders without a ConceptBadge`);
+          else if (!m.badgeVisible) problems.push(`${key}: concept "${entry.id}" has a ConceptBadge that is not visible`);
+          else if (m.badgeOverImage) problems.push(`${key}: concept "${entry.id}" has its ConceptBadge over the image (it must not cover the creative)`);
           if (!m.alt?.startsWith("Concept:")) problems.push(`${key}: concept "${entry.id}" alt does not start with "Concept:"`);
           if (m.alt !== entry.alt) problems.push(`${key}: "${entry.id}" alt differs from the manifest`);
         }
