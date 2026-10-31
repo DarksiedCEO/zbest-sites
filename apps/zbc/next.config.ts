@@ -13,6 +13,8 @@ const nextConfig: NextConfig = {
   // This is also what lets next/font run from inside @zbest/ui. @zbest/lead
   // (the server-only lead pipeline) ships as TypeScript source too.
   transpilePackages: ["@zbest/ui", "@zbest/lead"],
+  // FD-VISUAL-01 §4.5: images AVIF or WebP through next/image (AVIF first).
+  images: { formats: ["image/avif", "image/webp"] },
   // CSP, HSTS and friends (packages/ui/src/security-headers.ts).
   async headers() {
     return securityHeaders();

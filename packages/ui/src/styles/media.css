@@ -1,0 +1,34 @@
+/*
+ * FD-VISUAL-01 showpiece starting states (see media/showpiece.tsx).
+ *
+ * An unmask cover hides its image until the showpiece's scroll reaches it.
+ * The static frame (server HTML, reduced motion, no JS) shows every image, so
+ * the cover's resting place is off to the side. Only where motion is allowed
+ * does it start in place, matching the first live frame, so hydration does
+ * not flash the finished composition first. Once live, Motion's inline
+ * transform takes over. The <noscript> rule in each app layout puts covers
+ * back off to the side when JavaScript never runs.
+ */
+[data-unmask] {
+  transform: translateX(101%);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-unmask] {
+    transform: translateX(0%);
+  }
+}
+
+/*
+ * An entering layer (a clip that drops out of its source, for instance) rests
+ * visible in the static frame and starts hidden only where motion is allowed.
+ */
+[data-enter] {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-enter] {
+    opacity: 0;
+  }
+}

@@ -14,7 +14,8 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "pnpm --filter @zbest/lead test",
-    "e2e": "pnpm --filter e2e test"
+    "e2e": "pnpm --filter e2e test",
+    "check:media": "node scripts/check-media.mjs"
   },
   "devDependencies": {
     "turbo": "2.10.13",

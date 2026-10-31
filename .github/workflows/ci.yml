@@ -56,8 +56,9 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
 
-  # Lead package unit tests (vitest). No database or network: the
-  # integration suite (test:integration) is separate and not run here.
+  # Lead package unit tests (vitest), then the static media-manifest check.
+  # No database or network: the integration suite (test:integration) is
+  # separate and not run here.
   unit:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -70,6 +71,11 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm test
+      # FD-VISUAL-01 §3.2, §7.3–7.4 (static half): every media file has a
+      # manifest entry with matching bytes, size and "Concept:" alt text, and
+      # nothing renders media outside MediaFrame. The rendered half (served
+      # images, badges on every concept render) runs in the e2e gate.
+      - run: pnpm check:media
 
   e2e:
     runs-on: ubuntu-latest
