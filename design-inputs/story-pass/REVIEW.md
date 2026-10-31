@@ -10,3 +10,4 @@ Rules: no faces, no real logos/products, exact text, story fit, real resolution 
 Remaining: 35 files, status RENDER_REQUIRED (see manifest-from-chatgpt.json). Leak-report and planning-map prompts were revised by the reviewer on 2026-10-31 (no numbers; "Los Angeles" spelling).
 | rr-leak-report.png | 1672×941 | APPROVED | Six items exact and in site order; no percentages or metrics (item numbers 1–6 only); no faces/logos. |
 | rr-broken-form.png | 1672×941 (16:9; list said 4:5) | APPROVED | Error copy exact; Submit button cut off by the screen edge = the story; plausible hands; no faces/logos. Slot uses 16:9.
+| rr-no-follow-up.png | 1672×941 (16:9) | APPROVED | Exact copy ("Following up on your quote", "No reply — 9 days"); stained cold mug + Follow up/Call/Confirm/Close note sell the story; no faces, no visible logos; blurred rows read as placeholders. |
