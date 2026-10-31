@@ -20,7 +20,7 @@ export const metadata = pageMetadata(SITE, {
  */
 export default function PricingPage() {
   return (
-    <main>
+    <main id="main">
       <PageHeader label="Pricing" title="How a campaign is priced.">
         <Lead>
           You&rsquo;re not paying for hours or a retainer. You&rsquo;re funding a pool that

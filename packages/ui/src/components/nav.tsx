@@ -107,8 +107,10 @@ export function Nav({
         </Link>
 
         <ul className="hidden items-center gap-7 lg:flex">
-          {items.map((item) => {
-            const menuId = `${baseId}-${item.label}`;
+          {items.map((item, index) => {
+            // Index, not label: a label with a space ("Focus Areas") made two
+            // IDREFs in aria-controls, neither of which resolved (WCAG 4.1.2).
+            const menuId = `${baseId}-menu-${index}`;
             const isOpen = openMenu === item.label;
             return (
               <li key={item.label} className="relative">
@@ -188,10 +190,13 @@ export function Nav({
         </div>
       </nav>
 
+      {/* max-h + overflow (WCAG 1.4.10): the panel lives inside the sticky
+          header, and a sticky box taller than the viewport never scrolls its
+          lower links into view (400% zoom, landscape phones). */}
       <div
         id={`${baseId}-mobile`}
         hidden={!mobileOpen}
-        className="border-t border-text-secondary/20 px-gutter py-4 lg:hidden"
+        className="max-h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain border-t border-text-secondary/20 px-gutter py-4 lg:hidden"
       >
         <ul className="flex flex-col gap-1">
           {items.map((item) => (

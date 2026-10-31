@@ -23,7 +23,7 @@ export const metadata = pageMetadata(SITE, {
  */
 export default function BecomeAClipperPage() {
   return (
-    <main>
+    <main id="main">
       <PageHeader
         label="Become a Clipper"
         title="Turn footage into income. No experience required, no follower minimum."

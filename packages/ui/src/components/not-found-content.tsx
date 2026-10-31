@@ -11,7 +11,7 @@ import { LedgerRule } from "./ledger-rule";
  */
 export function NotFoundContent() {
   return (
-    <main className="mx-auto max-w-[90rem] px-gutter py-section-lg lg:px-gutter-wide">
+    <main id="main" className="mx-auto max-w-[90rem] px-gutter py-section-lg lg:px-gutter-wide">
       <p className="type-label text-accent">404</p>
       <h1 className="type-headline mt-3 max-w-3xl">This page isn&rsquo;t here.</h1>
       <p className="type-body-lead mt-5 text-text-secondary">

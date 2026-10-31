@@ -60,7 +60,13 @@ export function PageSection({
       <LedgerRule emphasis />
       <div className="grid gap-stack pt-stack lg:grid-cols-12 lg:gap-x-10">
         <div className="lg:col-span-4">
-          <p className="type-label text-text-secondary">{label}</p>
+          {/* WCAG 1.3.1: the label is the section's heading unless a title is
+              given, in which case it is an eyebrow above the <h2>. */}
+          {title ? (
+            <p className="type-label text-text-secondary">{label}</p>
+          ) : (
+            <h2 className="type-label text-text-secondary">{label}</h2>
+          )}
           {title ? <h2 className="type-headline mt-3">{title}</h2> : null}
         </div>
         <div className="flex flex-col gap-stack lg:col-span-8">
@@ -101,10 +107,14 @@ export type LedgerItem = {
 export function LedgerList({
   items,
   numbered = false,
+  headingLevel = 3,
 }: {
   items: LedgerItem[];
   numbered?: boolean;
+  /** Row titles are h3 (under a PageSection's h2); pass 2 when used directly under an h1. */
+  headingLevel?: 2 | 3 | 4;
 }) {
+  const RowHeading = `h${headingLevel}` as const;
   return (
     <ol>
       {items.map((item, i) => {
@@ -145,7 +155,7 @@ export function LedgerList({
                   {String(i + 1).padStart(2, "0")}
                 </span>
               ) : null}
-              <h3 className="type-title">{title}</h3>
+              <RowHeading className="type-title">{title}</RowHeading>
               {hasDetail ? (
                 <div className={`flex flex-col gap-3 ${numbered ? "col-start-2 sm:col-start-auto" : ""}`}>
                   {item.body ? <div className="type-body text-text-secondary">{item.body}</div> : null}

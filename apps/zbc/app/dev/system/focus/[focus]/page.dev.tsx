@@ -47,7 +47,7 @@ export default async function FocusSpecimenPage({
   const other = focus === "entertainment" ? "brands" : "entertainment";
 
   return (
-    <main
+    <main id="main"
       data-page-focus={focus}
       className="mx-auto max-w-[90rem] px-gutter py-section lg:px-gutter-wide"
     >

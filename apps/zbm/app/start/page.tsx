@@ -52,7 +52,7 @@ export default async function StartPage({ searchParams }: { searchParams: Search
   const source = sourceTag(params);
 
   return (
-    <main>
+    <main id="main">
       <PageHeader label="Start a Project" title="Tell us what you need. One form reaches every team.">
         <Lead>
           Billboards, TV, radio, social, ads, creative, a website, a revenue leak, or a

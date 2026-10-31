@@ -141,7 +141,7 @@ for (const s of SERVICE_PAGES) {
     await expect(page.locator("main").getByRole("link", { name: "Talk to Us" })).toHaveAttribute("href", "/contact");
 
     // Section order matches the Brief's own service pages.
-    const labels = await page.locator("main section p.type-label").allTextContents();
+    const labels = await page.locator("main section :is(p, h2).type-label").allTextContents();
     expect(labels.map((l) => l.trim())).toEqual([
       "What’s included",
       "How it fits with the rest of what we do",

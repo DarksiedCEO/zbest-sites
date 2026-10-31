@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { LedgerRule } from "./ledger-rule";
 
 export type StatRow = {
   label: ReactNode;
@@ -21,18 +20,21 @@ export function StatBlock({
   rows: StatRow[];
   className?: string;
 }) {
+  // Each <div> directly holds one <dt> and one <dd> (WCAG 1.3.1: a <dl> may
+  // contain only dt/dd groups wrapped in div — no <hr>, no nested wrappers),
+  // so the ledger rules are drawn as borders matching LedgerRule: a /20
+  // hairline above each row and the /45 emphasis rule under the last.
   return (
     <dl className={`w-full ${className}`}>
-      <LedgerRule />
       {rows.map((row, i) => (
-        <div key={i}>
-          <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 py-ledger">
-            <dt className="type-label text-text-secondary">{row.label}</dt>
-            <dd className="type-mono text-right text-text-primary">
-              {row.value}
-            </dd>
-          </div>
-          <LedgerRule emphasis={i === rows.length - 1} />
+        <div
+          key={i}
+          className={`flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 border-t border-text-secondary/20 py-ledger ${
+            i === rows.length - 1 ? "border-b border-b-text-secondary/45" : ""
+          }`}
+        >
+          <dt className="type-label text-text-secondary">{row.label}</dt>
+          <dd className="type-mono text-right text-text-primary">{row.value}</dd>
         </div>
       ))}
     </dl>

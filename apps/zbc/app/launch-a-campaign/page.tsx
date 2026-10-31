@@ -20,7 +20,7 @@ export const metadata = pageMetadata(SITE, {
  */
 export default function LaunchACampaignPage() {
   return (
-    <main>
+    <main id="main">
       <PageHeader label="Launch a Campaign" title="Tell us what you have. We’ll tell you what it can become." />
 
       <PageSection id="what-happens" label="What happens when you reach out">

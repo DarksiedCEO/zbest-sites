@@ -20,7 +20,7 @@ export const metadata = pageMetadata(SITE, { path: "/" });
  */
 export default function HomePage() {
   return (
-    <main>
+    <main id="main">
       {/* Section 1 — Hero: claim left, stat block right; claim-then-stats at 390. */}
       <header className="mx-auto max-w-[90rem] px-gutter pt-section lg:px-gutter-wide lg:pt-section-lg">
         <div className="grid gap-stack lg:grid-cols-12 lg:gap-x-10">

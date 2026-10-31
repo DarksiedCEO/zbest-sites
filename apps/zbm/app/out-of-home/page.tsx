@@ -31,7 +31,7 @@ export const metadata = pageMetadata(SITE, {
  */
 export default function OutOfHomePage() {
   return (
-    <main>
+    <main id="main">
       <PageHeader label="Out-of-Home" title="Presence you can’t scroll past.">
         <Lead>
           Billboards, transit displays, and physical placements that put your brand in
