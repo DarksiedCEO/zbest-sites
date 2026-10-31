@@ -1,7 +1,7 @@
 import postgres from "postgres";
 import type { PgOptions } from "./pg-url";
 import type { LeadPurger, PurgeLedger, PurgeResult } from "./retention";
-import { DEDUPE_WINDOW_HOURS, DeliveryError, type InsertResult, type LeadApp, type LeadRecord, type LeadStore, type NotifyOutbox, type NotifyStatus, type UnsentLead } from "./types";
+import { DEDUPE_WINDOW_HOURS, DeliveryError, type InsertResult, type LeadApp, type LeadRecord, type LeadStore, type NotifyOutbox, type NotifyStatus, type StoredLead } from "./types";
 
 /**
  * Brief §6.2 store: one row per lead in the `leads` table
@@ -70,11 +70,12 @@ export const DEFAULT_STATEMENT_TIMEOUT_MS = 5_000;
 
 type Tx = postgres.TransactionSql;
 
-/** The columns an UnsentLead is read from (CH-8 outbox, AEGIS F1/F3). */
-const UNSENT_COLUMNS_SQL =
-  "submission_id, app, form, payload, payload_hash, content_hash, services, source, service_area, user_agent, created_at, notify_attempts";
+/** The columns a StoredLead is read from (CH-8 outbox, AEGIS F1/F3, r2). */
+const STORED_COLUMNS_SQL =
+  "submission_id, app, form, payload, payload_hash, content_hash, services, source, service_area, user_agent, created_at, " +
+  "notify_status, notify_attempts, notify_first_attempt_at, notify_body_hash, notify_batch, notify_batch_at, quarantined";
 
-function unsentLead(r: Record<string, unknown>): UnsentLead {
+function storedLead(r: Record<string, unknown>): StoredLead {
   return {
     submission_id: String(r.submission_id),
     app: r.app as LeadApp,
@@ -87,7 +88,13 @@ function unsentLead(r: Record<string, unknown>): UnsentLead {
     service_area: String(r.service_area),
     user_agent: (r.user_agent as string | null) ?? null,
     created_at: r.created_at as Date,
+    notify_status: r.notify_status as NotifyStatus,
     notify_attempts: Number(r.notify_attempts ?? 0),
+    notify_first_attempt_at: (r.notify_first_attempt_at as Date | null) ?? null,
+    notify_body_hash: (r.notify_body_hash as string | null) ?? null,
+    notify_batch: (r.notify_batch as string | null) ?? null,
+    notify_batch_at: (r.notify_batch_at as Date | null) ?? null,
+    quarantined: r.quarantined === true,
   };
 }
 const withTimeouts = async (tx: Tx, ms: number) => {
@@ -105,111 +112,167 @@ export function postgresStore(
     // Construction should not throw with discrete options; if it does, it must not leak.
     throw new DeliveryError("store_unconfigurable");
   }
+  /** One short transaction with the CH-9 timeouts; errors become a SQLSTATE-only DeliveryError. */
+  const run = async <T>(fn: (tx: Tx) => Promise<T>, deadline?: number): Promise<T> => {
+    try {
+      return (await sql.begin(async (tx) => {
+        // A request queued behind others on this instance's connection may
+        // start late: it gets only what is left before its deadline, minus a
+        // margin, and starts nothing once that is gone.
+        const left = deadline === undefined ? statementTimeoutMs : Math.min(statementTimeoutMs, deadline - Date.now() - 500);
+        if (left < 50) throw Object.assign(new Error("deadline"), { code: "57014" });
+        await withTimeouts(tx, Math.floor(left));
+        return fn(tx);
+      })) as T;
+    } catch (error) {
+      throw storeError(error);
+    }
+  };
+  const cols = (tx: Tx) => tx.unsafe(STORED_COLUMNS_SQL);
+  const leased = (rows: unknown) => (rows as Record<string, unknown>[]).map(storedLead);
   return {
-    async insert(record: LeadRecord): Promise<InsertResult> {
-      try {
-        // One transaction (red team RTS-3): a transaction-scoped advisory lock
-        // on (app, content_hash) serialises identical submissions, so two
-        // copies racing in parallel still make one lead. The lock lives on
-        // the transaction's single backend, so it holds through a pooler.
-        return (await sql.begin(async (tx) => {
-          await withTimeouts(tx, statementTimeoutMs);
-          await tx`SELECT pg_advisory_xact_lock(hashtextextended(${`${record.app}:${record.content_hash}`}::text, 0))`;
-          const [recent] = await tx`
-            SELECT ${tx.unsafe(UNSENT_COLUMNS_SQL)}, notify_status FROM leads
-            WHERE app = ${record.app} AND content_hash = ${record.content_hash}
-              AND submission_id <> ${record.submission_id}::uuid
-              AND created_at > now() - make_interval(hours => ${DEDUPE_WINDOW_HOURS}::int)
-            ORDER BY created_at DESC
-            LIMIT 1`;
-          if (recent) {
-            // AEGIS F3: the stored copy travels back, so an unsent email can still go out.
-            const original = { ...unsentLead(recent as Record<string, unknown>), notify_status: recent.notify_status as NotifyStatus };
-            return { inserted: false, duplicateOf: "content", original } as const;
-          }
-          const rows = await tx`
-            INSERT INTO leads
-              (submission_id, app, form, payload, payload_hash, content_hash, services, source, service_area, user_agent)
-            VALUES (
-              ${record.submission_id}::uuid, ${record.app}, ${record.form},
-              ${tx.json(record.payload as postgres.JSONValue)}::jsonb, ${record.payload_hash}, ${record.content_hash},
-              ARRAY(SELECT jsonb_array_elements_text(${tx.json(record.services)}::jsonb)),
-              ${record.source}, ${record.service_area}, ${record.user_agent}
-            )
-            ON CONFLICT (app, submission_id) DO NOTHING
-            RETURNING id`;
-          if (rows.length === 1) return { inserted: true } as const;
-          const [existing] = await tx`
-            SELECT payload_hash, notify_status, created_at FROM leads
-            WHERE app = ${record.app} AND submission_id = ${record.submission_id}::uuid`;
-          return {
-            inserted: false,
-            samePayload: existing?.payload_hash === record.payload_hash,
-            ...(existing ? { notifyStatus: existing.notify_status as NotifyStatus, createdAt: existing.created_at as Date } : {}),
-          } as const;
-        })) as InsertResult;
-      } catch (error) {
-        throw storeError(error);
-      }
+    async insert(record: LeadRecord, opts?: { deadline?: number }): Promise<InsertResult> {
+      return run(async (tx) => {
+        // A transaction-scoped advisory lock on (app, content_hash) serialises
+        // identical submissions, so two copies racing in parallel make one
+        // lead (RTS-3). It lives on the transaction's backend, so it holds
+        // through a pooler.
+        await tx`SELECT pg_advisory_xact_lock(hashtextextended(${`${record.app}:${record.content_hash}`}::text, 0))`;
+        const [recent] = await tx`
+          SELECT ${cols(tx)} FROM leads
+          WHERE app = ${record.app} AND content_hash = ${record.content_hash}
+            AND submission_id <> ${record.submission_id}::uuid
+            AND created_at > now() - make_interval(hours => ${DEDUPE_WINDOW_HOURS}::int)
+          ORDER BY created_at DESC
+          LIMIT 1`;
+        // AEGIS F3: the stored copy travels back, so an unsent email can still go out.
+        if (recent) return { inserted: false, duplicateOf: "content", original: storedLead(recent) } as const;
+        const rows = await tx`
+          INSERT INTO leads
+            (submission_id, app, form, payload, payload_hash, content_hash, services, source, service_area, user_agent)
+          VALUES (
+            ${record.submission_id}::uuid, ${record.app}, ${record.form},
+            ${tx.json(record.payload as postgres.JSONValue)}::jsonb, ${record.payload_hash}, ${record.content_hash},
+            ARRAY(SELECT jsonb_array_elements_text(${tx.json(record.services)}::jsonb)),
+            ${record.source}, ${record.service_area}, ${record.user_agent}
+          )
+          ON CONFLICT (app, submission_id) DO NOTHING
+          RETURNING created_at`;
+        // AEGIS r2 M2: the stored time, which every email for this lead is built from.
+        if (rows.length === 1) return { inserted: true, createdAt: rows[0]!.created_at as Date } as const;
+        const [existing] = await tx`
+          SELECT ${cols(tx)} FROM leads
+          WHERE app = ${record.app} AND submission_id = ${record.submission_id}::uuid`;
+        return {
+          inserted: false,
+          samePayload: existing?.payload_hash === record.payload_hash,
+          ...(existing ? { stored: storedLead(existing) } : {}),
+        } as const;
+      }, opts?.deadline);
     },
     async setNotifyStatus(app: LeadApp, submissionId: string, status: NotifyStatus, retryAt?: Date) {
-      try {
-        await sql.begin(async (tx) => {
-          await withTimeouts(tx, statementTimeoutMs);
+      await run(async (tx) => {
+        await tx`
+          UPDATE leads
+          SET notify_status = ${status}::text,
+              notified_at = CASE WHEN ${status}::text = 'sent' THEN now() ELSE notified_at END,
+              notify_attempts = notify_attempts + CASE WHEN ${status}::text = 'failed' THEN 1 ELSE 0 END,
+              notify_next_at = ${retryAt ? retryAt.toISOString() : null}::timestamptz
+          WHERE app = ${app} AND submission_id = ${submissionId}::uuid`;
+      });
+    },
+    async markAttempt(app: LeadApp, submissionId: string, bodyHash: string) {
+      return run(async (tx) => {
+        const [row] = await tx`
+          UPDATE leads
+          SET notify_first_attempt_at = coalesce(notify_first_attempt_at, now()),
+              notify_body_hash = coalesce(notify_body_hash, ${bodyHash}::text)
+          WHERE app = ${app} AND submission_id = ${submissionId}::uuid
+          RETURNING notify_first_attempt_at, notify_body_hash`;
+        return { firstAttemptAt: (row?.notify_first_attempt_at as Date) ?? new Date(), bodyHash: (row?.notify_body_hash as string) ?? bodyHash };
+      });
+    },
+    async quarantine(app: LeadApp, submissionId: string, payload: Record<string, unknown>) {
+      await run(async (tx) => {
+        await tx`
+          UPDATE leads SET quarantined = true, payload = ${tx.json(payload as postgres.JSONValue)}::jsonb
+          WHERE app = ${app} AND submission_id = ${submissionId}::uuid`;
+      });
+    },
+    async claimUnsent(app: LeadApp, { pendingBefore, createdAfter, maxAttempts, limit }) {
+      // The lease (notify_next_at + 10 min) and SKIP LOCKED: two runs at once never send the same row twice.
+      return run(async (tx) =>
+        leased(
           await tx`
-            UPDATE leads
-            SET notify_status = ${status}::text,
-                notified_at = CASE WHEN ${status}::text = 'sent' THEN now() ELSE notified_at END,
-                notify_attempts = notify_attempts + CASE WHEN ${status}::text = 'failed' THEN 1 ELSE 0 END,
-                notify_next_at = ${retryAt ? retryAt.toISOString() : null}::timestamptz
-            WHERE app = ${app} AND submission_id = ${submissionId}::uuid`;
-        });
-      } catch (error) {
-        throw storeError(error);
-      }
-    },
-    async claimDeferred(app: LeadApp, limit: number): Promise<UnsentLead[]> {
-      try {
-        const rows = await sql.begin(async (tx) => {
-          await withTimeouts(tx, statementTimeoutMs);
-          return tx`
-            UPDATE leads SET notify_next_at = now() + interval '10 minutes'
-            WHERE id IN (
-              SELECT id FROM leads
-              WHERE app = ${app}::text AND notify_status = 'deferred'
-                AND (notify_next_at IS NULL OR notify_next_at <= now())
-              ORDER BY created_at
-              LIMIT ${limit}::int
-              FOR UPDATE SKIP LOCKED)
-            RETURNING ${tx.unsafe(UNSENT_COLUMNS_SQL)}`;
-        });
-        return (rows as unknown as Record<string, unknown>[]).map(unsentLead);
-      } catch (error) {
-        throw storeError(error);
-      }
-    },
-    async claimUnsent(app: LeadApp, { pendingBefore, maxAttempts, limit }): Promise<UnsentLead[]> {
-      try {
-        const rows = await sql.begin(async (tx) => {
-          await withTimeouts(tx, statementTimeoutMs);
-          // The lease (notify_next_at + 10 min) and SKIP LOCKED: two runs at once never send the same row twice.
-          return tx`
             UPDATE leads SET notify_next_at = now() + interval '10 minutes'
             WHERE id IN (
               SELECT id FROM leads
               WHERE app = ${app}::text
+                AND created_at > ${createdAfter.toISOString()}::timestamptz
                 AND (notify_status = 'failed' OR (notify_status = 'pending' AND created_at < ${pendingBefore.toISOString()}::timestamptz))
                 AND (notify_next_at IS NULL OR notify_next_at <= now())
                 AND notify_attempts < ${maxAttempts}::int
               ORDER BY created_at
               LIMIT ${limit}::int
               FOR UPDATE SKIP LOCKED)
-            RETURNING ${tx.unsafe(UNSENT_COLUMNS_SQL)}`;
-        });
-        return (rows as unknown as Record<string, unknown>[]).map(unsentLead);
-      } catch (error) {
-        throw storeError(error);
-      }
+            RETURNING ${cols(tx)}`,
+        ),
+      );
+    },
+    async expireOld(app: LeadApp, createdBefore: Date) {
+      return run(async (tx) => {
+        const r = await tx`
+          UPDATE leads SET notify_status = 'expired_notify', notify_next_at = NULL
+          WHERE app = ${app}::text AND notify_status IN ('pending', 'failed')
+            AND created_at <= ${createdBefore.toISOString()}::timestamptz`;
+        return r.count;
+      });
+    },
+    async markUnknown(app: LeadApp, firstAttemptBefore: Date) {
+      return run(async (tx) => {
+        const r = await tx`
+          UPDATE leads SET notify_status = 'delivery_unknown', notify_next_at = NULL
+          WHERE app = ${app}::text AND notify_status IN ('pending', 'failed')
+            AND notify_first_attempt_at < ${firstAttemptBefore.toISOString()}::timestamptz`;
+        return r.count;
+      });
+    },
+    async claimDigest(app: LeadApp, limit: number) {
+      return run(async (tx) =>
+        leased(
+          await tx`
+            UPDATE leads SET notify_next_at = now() + interval '10 minutes'
+            WHERE id IN (
+              SELECT id FROM leads
+              WHERE app = ${app}::text AND notify_status IN ('deferred', 'delivery_unknown')
+                AND (notify_next_at IS NULL OR notify_next_at <= now())
+              ORDER BY created_at
+              LIMIT ${limit}::int
+              FOR UPDATE SKIP LOCKED)
+            RETURNING ${cols(tx)}`,
+        ),
+      );
+    },
+    async assignBatch(app: LeadApp, submissionIds: string[], key: string) {
+      await run(async (tx) => {
+        await tx`
+          UPDATE leads SET notify_batch = ${key}::text, notify_batch_at = now()
+          WHERE app = ${app}::text AND submission_id = ANY(${submissionIds}::uuid[])`;
+      });
+    },
+    async markBatchSent(app: LeadApp, key: string) {
+      await run(async (tx) => {
+        await tx`
+          UPDATE leads SET notify_status = 'sent', notified_at = now(), notify_next_at = NULL
+          WHERE app = ${app}::text AND notify_batch = ${key}::text`;
+      });
+    },
+    async clearBatch(app: LeadApp, key: string) {
+      await run(async (tx) => {
+        await tx`
+          UPDATE leads SET notify_batch = NULL, notify_batch_at = NULL, notify_status = 'delivery_unknown', notify_next_at = NULL
+          WHERE app = ${app}::text AND notify_batch = ${key}::text AND notify_status <> 'sent'`;
+      });
     },
   };
 }
@@ -253,11 +316,19 @@ export async function purgeWith(
 }
 
 /** Columns migrations 004, 006 and 007 add, which this code writes (AEGIS F4). */
-export const REQUIRED_LEAD_COLUMNS = ["service_area", "content_hash", "notify_attempts", "notify_next_at"] as const;
+export const REQUIRED_LEAD_COLUMNS = [
+  "service_area",
+  "content_hash",
+  "notify_attempts",
+  "notify_next_at",
+  "notify_first_attempt_at",
+  "notify_body_hash",
+  "notify_batch",
+  "notify_batch_at",
+  "quarantined",
+] as const;
 
-export function postgresPurger(
-  options: PgOptions,
-): LeadPurger & PurgeLedger & { unsentOlderThan(app: LeadApp, before: Date): Promise<number>; missingColumns(): Promise<string[]> } {
+export function postgresPurger(options: PgOptions): LeadPurger & PurgeLedger & Required<Pick<PurgeLedger, "leadState" | "missingColumns">> {
   const sql = client(options);
   return {
     async purge(app, cutoffs, ranAt) {
@@ -278,15 +349,23 @@ export function postgresPurger(
         throw storeError(error);
       }
     },
-    async unsentOlderThan(app, before) {
+    async leadState(app, { unsentBefore, retryAfter }) {
       try {
         const [row] = await sql`
-          SELECT count(*)::int AS n FROM leads
-          WHERE app = ${app}::text
-            AND ((notify_status IN ('pending', 'failed') AND created_at < ${before.toISOString()}::timestamptz)
-                 -- AEGIS F1: any deferred lead means the email cap tripped and no digest has gone yet.
-                 OR notify_status = 'deferred')`;
-        return Number(row?.n ?? 0);
+          SELECT
+            count(*) FILTER (WHERE notify_status IN ('pending', 'failed')
+                             AND created_at < ${unsentBefore.toISOString()}::timestamptz
+                             AND created_at > ${retryAfter.toISOString()}::timestamptz)::int AS unsent,
+            count(*) FILTER (WHERE notify_status IN ('deferred', 'delivery_unknown'))::int AS digest_pending,
+            count(*) FILTER (WHERE quarantined AND created_at > now() - interval '24 hours')::int AS quarantined_24h,
+            count(*) FILTER (WHERE created_at > now() - interval '24 hours')::int AS stored_24h
+          FROM leads WHERE app = ${app}::text`;
+        return {
+          unsent: Number(row?.unsent ?? 0),
+          digestPending: Number(row?.digest_pending ?? 0),
+          quarantined24h: Number(row?.quarantined_24h ?? 0),
+          stored24h: Number(row?.stored_24h ?? 0),
+        };
       } catch (error) {
         throw storeError(error);
       }

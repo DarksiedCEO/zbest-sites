@@ -83,22 +83,7 @@ describe("F1 — past the global cap a lead is STORED and its email deferred to 
     expect(readJsonl<{ notify_status: string }>(dir, "notify.jsonl").filter((n) => n.notify_status === "deferred")).toHaveLength(0);
   });
 
-  it("a hard storage ceiling (LEAD_STORE_CEILING_PER_HOUR) answers 503 busy and stores nothing past it", async () => {
-    const dir = tempOutbox();
-    const env = fakeEnv(dir, { LEAD_STORE_CEILING_PER_HOUR: "4" });
-    const limiters = resolveLimiter(env, captureLogger().logger, "f1-c");
-    const statuses: number[] = [];
-    let last: unknown;
-    for (let i = 0; i < 5; i++) {
-      const res = await handleLead(post({ problem: `q${i}` }, `198.51.100.${i + 1}`), { app: "zbm", parse: toyParse, env, logger: captureLogger().logger, limiters });
-      statuses.push(res.status);
-      last = await res.json();
-    }
-    expect(statuses).toEqual([200, 200, 200, 200, 503]);
-    expect(last).toMatchObject({ ok: false, error: { code: "busy" } });
-    expect(readJsonl(dir, "rows.jsonl")).toHaveLength(4);
-    expect(resolveLimiter({}, captureLogger().logger, "f1-d").ceilingSpec).toEqual({ limit: 500, windowSec: 3600 });
-  });
+  // The r1 storage ceiling (503 past 500/hour) was removed by AEGIS r2 H1: see aegis-r2.test.ts.
 });
 
 describe("F2 — the token is bound to the site and tolerates small clock skew", () => {

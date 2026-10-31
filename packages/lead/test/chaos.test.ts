@@ -121,11 +121,11 @@ describe("CH-8 — the retry cron", () => {
 
     const res = await handleNotifyRetry(cron(), { app: "zbm", env: fakeEnv(dir), logger: captureLogger().logger });
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true, sent: 2, failed: 0, digest: 0 });
+    expect(await res.json()).toEqual({ ok: true, sent: 2, failed: 0, digest: 0, expired: 0 });
     const emails = readJsonl<{ idempotency_key: string }>(dir, "emails.jsonl");
     expect(emails.map((e) => e.idempotency_key).sort()).toEqual([...ids, sentId].map((i) => `lead-zbm-${i}`).sort());
     // A second run finds nothing to do.
-    expect(await (await handleNotifyRetry(cron(), { app: "zbm", env: fakeEnv(dir), logger: captureLogger().logger })).json()).toEqual({ ok: true, sent: 0, failed: 0, digest: 0 });
+    expect(await (await handleNotifyRetry(cron(), { app: "zbm", env: fakeEnv(dir), logger: captureLogger().logger })).json()).toEqual({ ok: true, sent: 0, failed: 0, digest: 0, expired: 0 });
   });
 
   it("a failure is recorded with backoff: the next run inside the backoff does not retry it", async () => {
@@ -134,9 +134,9 @@ describe("CH-8 — the retry cron", () => {
     await handleLead(request(body(id)), { app: "zbm", parse: toyParse, env: fakeEnv(dir), transport: brokenTransport(dir), logger: captureLogger().logger, limiters: open() });
     const broken = brokenTransport(dir);
     const r1 = await handleNotifyRetry(cron(), { app: "zbm", env: fakeEnv(dir), transport: broken, logger: captureLogger().logger });
-    expect(await r1.json()).toEqual({ ok: true, sent: 0, failed: 1, digest: 0 });
+    expect(await r1.json()).toEqual({ ok: true, sent: 0, failed: 1, digest: 0, expired: 0 });
     const r2 = await handleNotifyRetry(cron(), { app: "zbm", env: fakeEnv(dir), logger: captureLogger().logger });
-    expect(await r2.json()).toEqual({ ok: true, sent: 0, failed: 0, digest: 0 });
+    expect(await r2.json()).toEqual({ ok: true, sent: 0, failed: 0, digest: 0, expired: 0 });
     expect(notifyBackoffMs(1)).toBe(15 * 60_000);
     expect(notifyBackoffMs(3)).toBe(60 * 60_000);
     expect(notifyBackoffMs(20)).toBe(24 * 3_600_000);
@@ -145,7 +145,7 @@ describe("CH-8 — the retry cron", () => {
   it("does nothing when notifications are disabled on purpose", async () => {
     const dir = tempOutbox();
     const res = await handleNotifyRetry(cron(), { app: "zbm", env: fakeEnv(dir, { LEAD_NOTIFY: "disabled" }), logger: captureLogger().logger });
-    expect(await res.json()).toEqual({ ok: true, sent: 0, failed: 0, digest: 0, notify: "disabled" });
+    expect(await res.json()).toEqual({ ok: true, sent: 0, failed: 0, digest: 0, expired: 0, notify: "disabled" });
   });
 });
 

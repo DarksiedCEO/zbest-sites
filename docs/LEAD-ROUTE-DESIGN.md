@@ -54,7 +54,7 @@ The live site's older backend is the `zbm-server` service in the Railway project
 - **Pros:**
   - It is exactly Brief §6.2, so it needs no brief amendment.
   - The lead lands in our own database, where the founder owns it.
-  - The DB write is the source of truth. If Resend is down or not yet verified, no lead is lost, because `notify_status = 'failed'` marks rows to chase. Since the chaos red team (CH-8, Oct 30 2026) the chasing is code: `/api/cron/retry-notify` re-sends `failed` rows and `pending` rows older than 5 minutes with the same idempotency key and exponential backoff (`sql/007_notify_outbox.sql`), a resubmit of an unsent lead sends it, and `/api/health` reports `notify_backlog` when an unsent lead is older than `LEAD_NOTIFY_ALERT_MINUTES` (default 60). Inserts and status updates run with a 5 s statement and lock timeout (CH-9). AEGIS F1 (review of 6c6b720): the site-wide cap `LEAD_GLOBAL_LIMIT_PER_MINUTE` (default 20) limits per-lead EMAILS, charged only for newly stored leads; past it a lead is stored with `notify_status = 'deferred'`, logged at error level (`global_cap_tripped`), `/api/health` reports `notify_backlog`, and the retry cron sends one digest. The hard storage ceiling `LEAD_STORE_CEILING_PER_HOUR` (default 500 per app) answers 503 `busy` and stores nothing past it; it is charged before the insert, so duplicates count toward it. `/api/health` also reports `schema_outdated` when columns from migrations 004/006/007 are missing (F4).
+  - The DB write is the source of truth. If Resend is down or not yet verified, no lead is lost, because `notify_status = 'failed'` marks rows to chase. Since the chaos red team (CH-8, Oct 30 2026) the chasing is code: `/api/cron/retry-notify` re-sends `failed` rows and `pending` rows older than 5 minutes with the same idempotency key and exponential backoff (`sql/007_notify_outbox.sql`), a resubmit of an unsent lead sends it, and `/api/health` reports `notify_backlog` when an unsent lead is older than `LEAD_NOTIFY_ALERT_MINUTES` (default 60). Inserts and status updates run with a 5 s statement and lock timeout (CH-9). The caps were reworked by AEGIS r2 (H1, M1–M5, L1–L3); see §8 "Lead caps and the founder-email outbox".
   - It does not depend on the Railway deploy.
 - **Cons:**
   - It needs two vendors configured: a Postgres store and Resend.
@@ -262,3 +262,30 @@ Two runs, plus the canonical e2e. **Both unit runs are required.**
 
    Without the CA, or without the hosts entry, the run **fails** and names the cause. It never skips quietly. The same applies to plain `vitest` whenever `LEAD_TEST_POSTGRES_NEON_URL` is set; `LEAD_TEST_EXPECT_VERIFY_FULL=0` opts out, for a deliberately CA-less local run only.
 3. **Canonical e2e:** `pnpm e2e` (WebKit for the 390 project).
+
+
+## 8. Lead caps and the founder-email outbox (AEGIS r2, Oct 30 2026)
+
+**Rule:** no site-wide limit refuses a real lead cheaply. Duplicates are removed (24 h content dedupe) BEFORE any site-wide counter is charged, every site-wide counter counts only NEWLY stored leads, and only the storage guard ever refuses. Every trip is logged at error level and makes `/api/health` answer 503.
+
+| Limit (env, default) | Charged for | Past it | Health | Attacker cost to trip (defaults, memory limiter) |
+|---|---|---|---|---|
+| Per address `LEAD_RATE_LIMIT` (8 / 600 s) | every request reaching validation | 429 for that address only | — | n/a (per source): one IPv4 sustains 8 posts / 10 min = 1,152 a day |
+| Per IPv6 /48 `LEAD_RATE_LIMIT_NET` (24 / 600 s) | IPv6 requests past the address bucket | 429 for that /48 only | — | n/a (per source): one /48 sustains 3,456 a day |
+| Email per minute `LEAD_GLOBAL_LIMIT_PER_MINUTE` (20) | each new, non-quarantined lead | lead stored; its email deferred to the digest | `notify_backlog` | 21 new distinct leads in a minute: a burst from 3 addresses, or ~25 IPv4 / ~9 /48s to sustain |
+| Email per hour `LEAD_EMAIL_LIMIT_PER_HOUR` (20) | same | same (bounds the inbox: at most ~480 individual emails a day; the rest arrive as digests) | `notify_backlog` | 21 new leads in an hour: one address in ~25 minutes |
+| Quarantine `LEAD_QUARANTINE_AFTER_PER_DAY` (5,000) | each new lead | lead stored, flagged `quarantined`, text cut to ~2 KB, sent in the digest | `quarantined` | 5,000 new distinct leads a day: ~5 IPv4 addresses or 2 /48s for a day |
+| Storage guard `LEAD_HARD_LIMIT_PER_DAY` (100,000) | each new lead | the lead that trips it is stored (quarantined); then **503 `storage_guard`** until the window ends | `storage_guard` | 100,000 new distinct leads in a day: ~87 IPv4 addresses or ~29 /48s for a full day, each post also needing a fresh form token and a 3 s wait; it leaves ~100k junk rows (~200 MB at 2 KB), which is what the guard protects against |
+
+Notes:
+- Without KV (`KV_REST_API_*`), every counter lives in each serverless instance's memory: a flood must trip each instance separately, and the guard refuses only on instances that saw the flood. With KV the counters are shared fixed windows: the guard can then refuse for up to the rest of the 24 h window. Attach KV before the public cutover (RTX-5).
+- The visitor's copy is truthful in every case: stored leads see "Received" (a person reads every one, possibly from a digest); only the storage guard says nothing was saved.
+
+**Founder-email outbox** (`/api/cron/retry-notify`, `src/notify.ts`, `src/notify-retry.ts`, migration 007):
+- Every email is built only from stored values (stored `created_at`, payload keys sorted), so the first send and every retry under the key `lead-<app>-<id>` carry a byte-identical body. The body hash is stored with the first attempt; a Resend 409 for a matching body means it was already accepted (marked sent).
+- Resend keeps an idempotency key 24 h: an unconfirmed lead whose first attempt is over 23 h old becomes `delivery_unknown` and goes in the digest, flagged "may already have been emailed", never re-sent alone.
+- Failed or stale-pending leads younger than `LEAD_NOTIFY_RETRY_DAYS` (3) are retried one by one, backoff 15 min doubling to 24 h, 10 attempts. Older ones become `expired_notify` and are reported once as a count (`notify-backlog-report` shows them; run it before migrating).
+- Digests: every `deferred` / `delivery_unknown` lead goes out in each run, 100 leads per email, up to 50 emails per run. Each batch's key is written on its rows before the send, so a timed-out digest is re-sent under the same key with the same body, never as a second, overlapping digest. More than `LEAD_DIGEST_ALERT` (500) leads in one run logs an error-level alert.
+- Every store transaction sets statement and lock timeouts of 5 s, capped by a 6 s request deadline: a request queued behind a held lock answers 503 within ~6 s and its insert never commits after that answer.
+
+**Cron schedule — Vercel Pro is required before the public cutover.** `vercel.json` runs the retry cron daily because Vercel Hobby allows a cron job to run at most once a day (and rejects a deployment with a more frequent schedule). On Hobby a deferred lead can wait up to a day. On Pro, change the one line in each app's `vercel.json` to `"schedule": "*/15 * * * *"` (or hourly, `"17 * * * *"`).

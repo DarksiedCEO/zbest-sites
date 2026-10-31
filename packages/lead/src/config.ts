@@ -271,32 +271,71 @@ export function resolvePolicy(env: Env): RequestPolicy {
 
 const limiters = new Map<string, RateLimiter>();
 
+/**
+ * Lead caps (RTS-3; AEGIS F1, r2 H1/M5). The per-address and per-/48
+ * buckets are charged before validation, per source. EVERY site-wide
+ * counter is charged only after the insert, for a NEWLY stored lead, so
+ * duplicates never count, and none of them refuses a lead — except the
+ * storage guard, which exists only to keep the table from being flooded:
+ *   - emailMinute / emailHour: past either, the lead is stored and its
+ *     email deferred to the digest;
+ *   - quarantine: past it (per day), the lead is stored flagged
+ *     `quarantined`, its text cut to 2 KB, and deferred;
+ *   - hard: past it (per day), new submissions are refused with 503
+ *     `storage_guard` until the window ends.
+ * Attacker cost of each is in docs/LEAD-ROUTE-DESIGN.md.
+ */
 export type Limiters = {
-  /** Per client address, per app (AEGIS r3 F2). */
   perIp: RateLimiter;
   /** Per IPv6 /48, per app (red team RTS-3). IPv4 clients have no /48 bucket. */
   perNet: RateLimiter;
-  /**
-   * Per-lead founder EMAILS this app sends per minute, from everyone
-   * (RTS-3, reworked by AEGIS F1): past it a lead is stored and deferred to
-   * one digest, never refused. Charged only for newly stored leads.
-   */
+  /** Per-lead founder emails per minute (LEAD_GLOBAL_LIMIT_PER_MINUTE, default 20). */
   global: RateLimiter;
-  /** Hard storage ceiling per hour (AEGIS F1): past it the route answers 503 and stores nothing. */
-  ceiling: RateLimiter;
+  /** Per-lead founder emails per hour (LEAD_EMAIL_LIMIT_PER_HOUR, default 20; r2 M5). */
+  emailHour: RateLimiter;
+  /** Newly stored leads per day before quarantine (LEAD_QUARANTINE_AFTER_PER_DAY, default 5000). */
+  quarantine: RateLimiter;
+  /** Newly stored leads per day before the storage guard refuses (LEAD_HARD_LIMIT_PER_DAY, default 100000). */
+  hard: RateLimiter;
+  /** The storage guard's state for this app and limiter set: refuse until this time (ms). */
+  guard: { until: number };
   spec: RateLimitSpec;
   netSpec: RateLimitSpec;
   globalSpec: RateLimitSpec;
-  ceilingSpec: RateLimitSpec;
+  emailHourSpec: RateLimitSpec;
+  quarantineSpec: RateLimitSpec;
+  hardSpec: RateLimitSpec;
   problem?: string;
 };
 
 /** Default /48 bucket: three times the per-address default over the same window. */
 export const DEFAULT_NET_RATE_LIMIT: RateLimitSpec = { limit: 24, windowSec: 600 };
-/** Default global cap: far above any real day (a handful of leads), low enough that a flood cannot fill the inbox. */
 export const DEFAULT_GLOBAL_LIMIT_PER_MINUTE = 20;
-/** Default storage ceiling: 500 leads an hour per app, far above any real day, small enough that a flood cannot fill the database. */
-export const DEFAULT_STORE_CEILING_PER_HOUR = 500;
+export const DEFAULT_EMAIL_LIMIT_PER_HOUR = 20;
+export const DEFAULT_QUARANTINE_AFTER_PER_DAY = 5_000;
+export const DEFAULT_HARD_LIMIT_PER_DAY = 100_000;
+
+/** A whole number from 1 to `max`, or the default; a malformed value is a problem, never a guess. */
+function count(env: Env, name: string, fallback: number, max: number, problems: string[]): number {
+  const raw = set(env, name);
+  if (raw === "") return fallback;
+  const n = /^\d{1,7}$/.test(raw) ? Number(raw) : NaN;
+  if (n >= 1 && n <= max) return n;
+  problems.push(`${name}:expected-1-to-${max}`);
+  return fallback;
+}
+
+/** The site-wide caps, also read by /api/health (retention.ts). */
+export function resolveCaps(env: Env, problems: string[] = []) {
+  return {
+    perMinute: count(env, "LEAD_GLOBAL_LIMIT_PER_MINUTE", DEFAULT_GLOBAL_LIMIT_PER_MINUTE, 100_000, problems),
+    perHour: count(env, "LEAD_EMAIL_LIMIT_PER_HOUR", DEFAULT_EMAIL_LIMIT_PER_HOUR, 1_000_000, problems),
+    quarantineAfter: count(env, "LEAD_QUARANTINE_AFTER_PER_DAY", DEFAULT_QUARANTINE_AFTER_PER_DAY, 10_000_000, problems),
+    hardLimit: count(env, "LEAD_HARD_LIMIT_PER_DAY", DEFAULT_HARD_LIMIT_PER_DAY, 10_000_000, problems),
+  };
+}
+
+const guards = new Map<string, { until: number }>();
 
 function buildLimiter(spec: RateLimitSpec, env: Env, logger: LeadLogger, tag: string): RateLimiter {
   const restUrl = set(env, "KV_REST_API_URL") || set(env, "UPSTASH_REDIS_REST_URL");
@@ -340,33 +379,29 @@ export function resolveLimiter(env: Env, logger: LeadLogger, namespace = ""): Li
   if (!netParsed) problems.push("LEAD_RATE_LIMIT_NET:expected-count/seconds");
   const netSpec = netParsed ?? DEFAULT_NET_RATE_LIMIT;
 
-  const globalRaw = set(env, "LEAD_GLOBAL_LIMIT_PER_MINUTE");
-  let perMinute = DEFAULT_GLOBAL_LIMIT_PER_MINUTE;
-  if (globalRaw !== "") {
-    const n = /^\d{1,6}$/.test(globalRaw) ? Number(globalRaw) : NaN;
-    if (n >= 1 && n <= 100_000) perMinute = n;
-    else problems.push("LEAD_GLOBAL_LIMIT_PER_MINUTE:expected-1-to-100000");
-  }
-  const globalSpec = { limit: perMinute, windowSec: 60 };
-
-  const ceilingRaw = set(env, "LEAD_STORE_CEILING_PER_HOUR");
-  let perHour = DEFAULT_STORE_CEILING_PER_HOUR;
-  if (ceilingRaw !== "") {
-    const n = /^\d{1,7}$/.test(ceilingRaw) ? Number(ceilingRaw) : NaN;
-    if (n >= 1 && n <= 1_000_000) perHour = n;
-    else problems.push("LEAD_STORE_CEILING_PER_HOUR:expected-1-to-1000000");
-  }
-  const ceilingSpec = { limit: perHour, windowSec: 3600 };
+  const caps = resolveCaps(env, problems);
+  const globalSpec = { limit: caps.perMinute, windowSec: 60 };
+  const emailHourSpec = { limit: caps.perHour, windowSec: 3600 };
+  const quarantineSpec = { limit: caps.quarantineAfter, windowSec: 86_400 };
+  const hardSpec = { limit: caps.hardLimit, windowSec: 86_400 };
+  const guardKey = `${namespace}|${hardSpec.limit}`;
+  let guard = guards.get(guardKey);
+  if (!guard) guards.set(guardKey, (guard = { until: 0 }));
 
   return {
     perIp: buildLimiter(spec, env, logger, `${namespace}ip`),
     perNet: buildLimiter(netSpec, env, logger, `${namespace}net`),
     global: buildLimiter(globalSpec, env, logger, `${namespace}global`),
-    ceiling: buildLimiter(ceilingSpec, env, logger, `${namespace}ceiling`),
+    emailHour: buildLimiter(emailHourSpec, env, logger, `${namespace}email-hour`),
+    quarantine: buildLimiter(quarantineSpec, env, logger, `${namespace}quarantine`),
+    hard: buildLimiter(hardSpec, env, logger, `${namespace}hard`),
+    guard,
     spec,
     netSpec,
     globalSpec,
-    ceilingSpec,
+    emailHourSpec,
+    quarantineSpec,
+    hardSpec,
     problem: problems.length ? problems.join(",") : undefined,
   };
 }

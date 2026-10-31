@@ -60,7 +60,26 @@ function replyAddress(payload: Record<string, unknown>): string | undefined {
   return undefined;
 }
 
-export function leadEmail(record: LeadRecord, receivedAt: Date): LeadEmail {
+/**
+ * Keys sorted at every depth (AEGIS r2 M2): Postgres jsonb does not keep the
+ * submitted key order, so an email built from the request and one built from
+ * the stored row must not differ by order — retries under one idempotency key
+ * must carry a byte-identical body.
+ */
+function sortDeep(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(sortDeep);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.keys(value as Record<string, unknown>)
+        .sort()
+        .map((k) => [k, sortDeep((value as Record<string, unknown>)[k])]),
+    );
+  }
+  return value;
+}
+
+export function leadEmail(unsorted: LeadRecord, receivedAt: Date): LeadEmail {
+  const record = { ...unsorted, payload: sortDeep(unsorted.payload) as Record<string, unknown> };
   const parts = [`New lead — ${BRAND[record.app]}`, record.form];
   if (record.services.length) parts.push(record.services.join(", "));
   if (record.source) parts.push(`src:${record.source}`);

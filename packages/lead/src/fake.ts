@@ -1,7 +1,7 @@
 import { appendFileSync, mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { storable } from "./text";
-import { DEDUPE_WINDOW_HOURS, DeliveryError, type InsertResult, type LeadApp, type LeadEmail, type LeadNotifier, type LeadRecord, type LeadStore, type NotifyOutbox, type NotifyStatus, type UnsentLead } from "./types";
+import { DEDUPE_WINDOW_HOURS, DeliveryError, type InsertResult, type LeadApp, type LeadEmail, type LeadNotifier, type LeadRecord, type LeadStore, type NotifyOutbox, type NotifyStatus, type StoredLead } from "./types";
 
 /**
  * TEST-ONLY transport: the store and the notifier append JSON lines to files
@@ -16,7 +16,33 @@ import { DEDUPE_WINDOW_HOURS, DeliveryError, type InsertResult, type LeadApp, ty
  */
 
 /** Per stored row: what the notification outbox needs (CH-8), mirroring the leads columns. */
-type RowState = { record: LeadRecord; createdAt: number; status: NotifyStatus; attempts: number; nextAt: number | null };
+type RowState = {
+  record: LeadRecord;
+  createdAt: number;
+  status: NotifyStatus;
+  attempts: number;
+  nextAt: number | null;
+  firstAttemptAt: number | null;
+  bodyHash: string | null;
+  batch: string | null;
+  batchAt: number | null;
+  quarantined: boolean;
+};
+const newRow = (record: LeadRecord, createdAt: number): RowState => ({
+  record, createdAt, status: "pending", attempts: 0, nextAt: null, firstAttemptAt: null, bodyHash: null, batch: null, batchAt: null, quarantined: false,
+});
+const stored = (r: RowState): StoredLead => ({
+  ...r.record,
+  created_at: new Date(r.createdAt),
+  notify_status: r.status,
+  notify_attempts: r.attempts,
+  notify_first_attempt_at: r.firstAttemptAt === null ? null : new Date(r.firstAttemptAt),
+  notify_body_hash: r.bodyHash,
+  notify_batch: r.batch,
+  notify_batch_at: r.batchAt === null ? null : new Date(r.batchAt),
+  quarantined: r.quarantined,
+});
+const LEASE_MS = 10 * 60_000;
 type Outbox = { dir: string; seen: Map<string, string>; recent: Map<string, number>; rows: Map<string, RowState>; byContent: Map<string, string> };
 const outboxes = new Map<string, Outbox>();
 
@@ -38,7 +64,7 @@ function outbox(dir: string): Outbox {
             recent.set(`${record.app}:${record.content_hash}`, Date.parse(created_at));
             byContent.set(`${record.app}:${record.content_hash}`, key);
           }
-          rows.set(key, { record, createdAt: Date.parse(created_at), status: "pending", attempts: 0, nextAt: null });
+          rows.set(key, newRow(record, Date.parse(created_at)));
         }
       }
       for (const line of readFileSync(path.join(dir, "notify.jsonl"), "utf8").split("\n")) {
@@ -84,73 +110,143 @@ function jsonbRefusal(value: unknown): "22P05" | "22P02" | null {
 
 export function fakeStore(dir: string): LeadStore & NotifyOutbox {
   const box = outbox(dir);
+  const row = (app: LeadApp, id: string) => box.rows.get(`${app}:${id}`);
+  const lease = (rows: RowState[]) => {
+    const now = Date.now();
+    for (const r of rows) r.nextAt = now + LEASE_MS;
+    return rows.map(stored);
+  };
+  const due = (r: RowState) => r.nextAt === null || r.nextAt <= Date.now();
+  const byAge = (a: RowState, b: RowState) => a.createdAt - b.createdAt;
+  const log = (app: LeadApp, submissionId: string, status: NotifyStatus) =>
+    append(box, "notify.jsonl", { app, submission_id: submissionId, notify_status: status });
   return {
     async insert(record: LeadRecord): Promise<InsertResult> {
       const refusal = jsonbRefusal(record.payload);
       if (refusal) throw new DeliveryError("store_failed", refusal);
       const key = `${record.app}:${record.submission_id}`;
       if (box.seen.has(key)) {
-        const row = box.rows.get(key);
-        return {
-          inserted: false,
-          samePayload: box.seen.get(key) === record.payload_hash,
-          ...(row ? { notifyStatus: row.status, createdAt: new Date(row.createdAt) } : {}),
-        };
+        const r = box.rows.get(key);
+        return { inserted: false, samePayload: box.seen.get(key) === record.payload_hash, ...(r ? { stored: stored(r) } : {}) };
       }
       // Same normalised content within the window under another id: one lead (RTS-3), as postgres.ts.
       const contentKey = `${record.app}:${record.content_hash}`;
       const at = Date.now();
       const previous = box.recent.get(contentKey);
       if (previous !== undefined && at - previous < DEDUPE_WINDOW_HOURS * 3_600_000) {
-        const row = box.rows.get(box.byContent.get(contentKey) ?? "");
-        return {
-          inserted: false,
-          duplicateOf: "content",
-          ...(row
-            ? { original: { ...row.record, created_at: new Date(row.createdAt), notify_attempts: row.attempts, notify_status: row.status } }
-            : {}),
-        };
+        const r = box.rows.get(box.byContent.get(contentKey) ?? "");
+        return { inserted: false, duplicateOf: "content", ...(r ? { original: stored(r) } : {}) };
       }
       box.seen.set(key, record.payload_hash);
       box.recent.set(contentKey, at);
       box.byContent.set(contentKey, key);
-      box.rows.set(key, { record, createdAt: at, status: "pending", attempts: 0, nextAt: null });
+      box.rows.set(key, newRow(record, at));
       append(box, "rows.jsonl", { ...record, created_at: new Date(at).toISOString() });
-      return { inserted: true };
+      return { inserted: true, createdAt: new Date(at) };
     },
     async setNotifyStatus(app: LeadApp, submissionId: string, status: NotifyStatus, retryAt?: Date) {
-      const row = box.rows.get(`${app}:${submissionId}`);
-      if (row) {
-        row.status = status;
-        if (status === "failed") row.attempts += 1;
-        row.nextAt = retryAt ? retryAt.getTime() : null;
+      const r = row(app, submissionId);
+      if (r) {
+        r.status = status;
+        if (status === "failed") r.attempts += 1;
+        r.nextAt = retryAt ? retryAt.getTime() : null;
       }
-      append(box, "notify.jsonl", { app, submission_id: submissionId, notify_status: status });
+      log(app, submissionId, status);
     },
-    async claimUnsent(app, { pendingBefore, maxAttempts, limit }): Promise<UnsentLead[]> {
-      const now = Date.now();
-      const due = [...box.rows.values()]
-        .filter(
-          (r) =>
-            r.record.app === app &&
-            (r.status === "failed" || (r.status === "pending" && r.createdAt < pendingBefore.getTime())) &&
-            (r.nextAt === null || r.nextAt <= now) &&
-            r.attempts < maxAttempts,
-        )
-        .sort((a, b) => a.createdAt - b.createdAt)
-        .slice(0, limit);
-      // The lease, as postgres.ts: a parallel run skips these for 10 minutes.
-      for (const r of due) r.nextAt = now + 10 * 60_000;
-      return due.map((r) => ({ ...r.record, created_at: new Date(r.createdAt), notify_attempts: r.attempts }));
+    async markAttempt(app: LeadApp, submissionId: string, bodyHash: string) {
+      const r = row(app, submissionId);
+      if (!r) return { firstAttemptAt: new Date(), bodyHash };
+      r.firstAttemptAt ??= Date.now();
+      r.bodyHash ??= bodyHash;
+      return { firstAttemptAt: new Date(r.firstAttemptAt), bodyHash: r.bodyHash };
     },
-    async claimDeferred(app, limit): Promise<UnsentLead[]> {
-      const now = Date.now();
-      const due = [...box.rows.values()]
-        .filter((r) => r.record.app === app && r.status === "deferred" && (r.nextAt === null || r.nextAt <= now))
-        .sort((a, b) => a.createdAt - b.createdAt)
-        .slice(0, limit);
-      for (const r of due) r.nextAt = now + 10 * 60_000;
-      return due.map((r) => ({ ...r.record, created_at: new Date(r.createdAt), notify_attempts: r.attempts }));
+    async quarantine(app: LeadApp, submissionId: string, payload: Record<string, unknown>) {
+      const r = row(app, submissionId);
+      if (r) {
+        r.quarantined = true;
+        r.record = { ...r.record, payload };
+      }
+      append(box, "quarantine.jsonl", { app, submission_id: submissionId });
+    },
+    async claimUnsent(app, { pendingBefore, createdAfter, maxAttempts, limit }): Promise<StoredLead[]> {
+      return lease(
+        [...box.rows.values()]
+          .filter(
+            (r) =>
+              r.record.app === app &&
+              r.createdAt > createdAfter.getTime() &&
+              (r.status === "failed" || (r.status === "pending" && r.createdAt < pendingBefore.getTime())) &&
+              due(r) &&
+              r.attempts < maxAttempts,
+          )
+          .sort(byAge)
+          .slice(0, limit),
+      );
+    },
+    async expireOld(app, createdBefore) {
+      let n = 0;
+      for (const r of box.rows.values()) {
+        if (r.record.app === app && (r.status === "pending" || r.status === "failed") && r.createdAt <= createdBefore.getTime()) {
+          r.status = "expired_notify";
+          r.nextAt = null;
+          log(app, r.record.submission_id, r.status);
+          n += 1;
+        }
+      }
+      return n;
+    },
+    async markUnknown(app, firstAttemptBefore) {
+      let n = 0;
+      for (const r of box.rows.values()) {
+        if (
+          r.record.app === app &&
+          (r.status === "pending" || r.status === "failed") &&
+          r.firstAttemptAt !== null &&
+          r.firstAttemptAt < firstAttemptBefore.getTime()
+        ) {
+          r.status = "delivery_unknown";
+          r.nextAt = null;
+          log(app, r.record.submission_id, r.status);
+          n += 1;
+        }
+      }
+      return n;
+    },
+    async claimDigest(app, limit): Promise<StoredLead[]> {
+      return lease(
+        [...box.rows.values()]
+          .filter((r) => r.record.app === app && (r.status === "deferred" || r.status === "delivery_unknown") && due(r))
+          .sort(byAge)
+          .slice(0, limit),
+      );
+    },
+    async assignBatch(app, submissionIds, key) {
+      for (const id of submissionIds) {
+        const r = row(app, id);
+        if (r) {
+          r.batch = key;
+          r.batchAt = Date.now();
+        }
+      }
+    },
+    async markBatchSent(app, key) {
+      for (const r of box.rows.values()) {
+        if (r.record.app === app && r.batch === key) {
+          r.status = "sent";
+          r.nextAt = null;
+          log(app, r.record.submission_id, "sent");
+        }
+      }
+    },
+    async clearBatch(app, key) {
+      for (const r of box.rows.values()) {
+        if (r.record.app === app && r.batch === key && r.status !== "sent") {
+          r.batch = null;
+          r.batchAt = null;
+          r.status = "delivery_unknown";
+          r.nextAt = null;
+        }
+      }
     },
   };
 }

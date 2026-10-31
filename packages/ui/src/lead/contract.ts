@@ -26,7 +26,8 @@ export type LeadErrorBody =
   /** The token is younger than the server's minimum (or that instance's clock is ahead): wait and resend (AEGIS F2). */
   | { ok: false; error: { code: "form_too_fast"; retry_after_s: number } }
   /** The site-wide cap on submissions per minute was reached (RTS-3): nothing stored. */
-  | { ok: false; error: { code: "busy"; retry_after_s: number } }
+  /** AEGIS r2 H1: only while the storage guard is tripped (far above any real day); nothing stored. */
+  | { ok: false; error: { code: "storage_guard"; retry_after_s: number } }
   | { ok: false; error: { code: "unavailable" } };
 
 export type LeadResponse = { ok: true; submission_id: string } | LeadErrorBody;
@@ -40,7 +41,8 @@ export type LeadFailure =
   | "conflict"
   | "region_unavailable"
   | "form_expired"
-  | "busy";
+  | "form_too_fast"
+  | "storage_guard";
 
 export type LeadResult =
   | { status: "accepted" }
@@ -61,7 +63,11 @@ export const FAILURE_COPY: Record<LeadFailure, string> = {
   rate_limited: "Too many attempts from your connection. Nothing was saved — please wait a few minutes and try again.",
   region_unavailable: REGION_COPY.refused,
   form_expired: "This form needs refreshing. Nothing was saved — reload the page and send it again.",
-  busy: "We’re receiving an unusual number of messages right now. Nothing was saved — please try again in a minute.",
+  // AEGIS r2 L1: after the adapter's one automatic wait-and-resend, a second 425.
+  form_too_fast: "That was sent too quickly after the page loaded, so nothing was saved. Wait a few seconds and send it again.",
+  // AEGIS r2 H1(c): truthful — the site is refusing new messages for a while; the wait can be long.
+  storage_guard:
+    "We can’t accept new messages right now because of unusually heavy traffic. Nothing was saved — please try again later.",
 };
 
 /**
@@ -76,7 +82,8 @@ export function failureOf(body: unknown): LeadFailure {
     code === "conflict" ||
     code === "region_unavailable" ||
     code === "form_expired" ||
-    code === "busy"
+    code === "form_too_fast" ||
+    code === "storage_guard"
     ? code
     : "failed";
 }

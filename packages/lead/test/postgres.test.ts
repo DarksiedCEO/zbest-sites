@@ -131,12 +131,12 @@ describe.skipIf(!url)("postgres store (integration)", () => {
     const results = await Promise.all([store.insert(rec()), store.insert(rec()), store.insert(rec())]);
     expect(results.filter((r) => r.inserted)).toHaveLength(1);
     expect(results.filter((r) => "duplicateOf" in r)).toHaveLength(2);
-    expect(await store.insert(rec("zbc"))).toEqual({ inserted: true });
+    expect(await store.insert(rec("zbc"))).toMatchObject({ inserted: true });
     const rows = await sql`SELECT app, content_hash FROM leads WHERE content_hash = ${content} ORDER BY app`;
     expect(rows.map((r) => r.app)).toEqual(["zbc", "zbm"]);
     // Older than the window: no longer a duplicate.
     await sql`UPDATE leads SET created_at = now() - interval '25 hours' WHERE content_hash = ${content}`;
-    expect(await store.insert(rec())).toEqual({ inserted: true });
+    expect(await store.insert(rec())).toMatchObject({ inserted: true });
   });
 
   it("CH-9: a lock on the leads table fails the insert fast (lock/statement timeout), never hangs", async () => {
@@ -188,10 +188,12 @@ describe.skipIf(!url)("postgres store (integration)", () => {
     await sql`UPDATE leads SET created_at = now() - interval '10 minutes' WHERE submission_id = ${stalePending.submission_id}::uuid`;
 
     const dup = await store.insert(failed);
-    expect(dup).toMatchObject({ inserted: false, samePayload: true, notifyStatus: "failed" });
+    expect(dup).toMatchObject({ inserted: false, samePayload: true, stored: { notify_status: "failed" } });
 
-    const claimOpts = { pendingBefore: new Date(Date.now() - 5 * 60_000), maxAttempts: 10, limit: 50 };
-    const [a, b] = await Promise.all([store.claimUnsent(app, claimOpts), store.claimUnsent(app, claimOpts)]);
+    const claimOpts = { pendingBefore: new Date(Date.now() - 5 * 60_000), createdAfter: new Date(Date.now() - 3 * 86_400_000), maxAttempts: 10, limit: 50 };
+    // Two claims on SEPARATE connections (distinct options → distinct clients), so the lease is really raced.
+    const store2 = postgresStore({ ...opts(url!), connect_timeout: 42 });
+    const [a, b] = await Promise.all([store.claimUnsent(app, claimOpts), store2.claimUnsent(app, claimOpts)]);
     const claimed = [...a, ...b].map((r) => r.submission_id).sort();
     expect(claimed).toEqual([failed.submission_id, stalePending.submission_id].sort());
     expect([...a, ...b].find((r) => r.submission_id === failed.submission_id)?.notify_attempts).toBe(1);
@@ -199,9 +201,10 @@ describe.skipIf(!url)("postgres store (integration)", () => {
     expect(await store.claimUnsent(app, claimOpts)).toEqual([]);
 
     const purger = postgresPurger(opts(url!));
-    expect(await purger.unsentOlderThan(app, new Date(Date.now() + 60_000))).toBe(4);
+    const state = () => purger.leadState(app, { unsentBefore: new Date(Date.now() + 60_000), retryAfter: new Date(Date.now() - 3 * 86_400_000) });
+    expect((await state()).unsent).toBe(4);
     await store.setNotifyStatus(app, failed.submission_id, "sent");
-    expect(await purger.unsentOlderThan(app, new Date(Date.now() + 60_000))).toBe(3);
+    expect((await state()).unsent).toBe(3);
     await sql`DELETE FROM leads WHERE app = 'zbc'`;
   });
 
@@ -212,14 +215,16 @@ describe.skipIf(!url)("postgres store (integration)", () => {
     const id = randomUUID();
     const content = randomUUID();
     const rec = { submission_id: id, app: "zbc" as const, form: "start", payload: { n: 1 }, payload_hash: "p", content_hash: content, services: [], source: null, service_area: "US-CA", user_agent: null };
-    expect(await store.insert(rec)).toEqual({ inserted: true });
+    expect(await store.insert(rec)).toMatchObject({ inserted: true });
     await store.setNotifyStatus("zbc", id, "failed");
     const dup = await store.insert({ ...rec, submission_id: randomUUID() });
     expect(dup).toMatchObject({ inserted: false, duplicateOf: "content", original: { submission_id: id, notify_status: "failed", payload: { n: 1 } } });
 
     await store.setNotifyStatus("zbc", id, "deferred");
-    expect(await purger.unsentOlderThan("zbc", new Date(0))).toBe(1);
-    const [a, b] = await Promise.all([store.claimDeferred("zbc", 10), store.claimDeferred("zbc", 10)]);
+    expect((await purger.leadState("zbc", { unsentBefore: new Date(0), retryAfter: new Date(0) })).digestPending).toBe(1);
+    // Two claims on SEPARATE connections (distinct options → distinct clients).
+    const other = postgresStore({ ...opts(url!), connect_timeout: 41 });
+    const [a, b] = await Promise.all([store.claimDigest("zbc", 10), other.claimDigest("zbc", 10)]);
     expect([...a, ...b].map((r) => r.submission_id)).toEqual([id]);
     expect(await purger.missingColumns()).toEqual([]);
     await sql`DELETE FROM leads WHERE app = 'zbc'`;
@@ -343,7 +348,7 @@ describe.skipIf(!neonShaped)("postgres store with a Neon-shaped URL (TLS + SCRAM
       service_area: "US-CA",
       user_agent: null,
     });
-    expect(result).toEqual({ inserted: true });
+    expect(result).toMatchObject({ inserted: true });
     const sql = connect(url!);
     const [row] = await sql`SELECT form FROM leads WHERE app = 'zbc' AND submission_id = ${id}`;
     await sql.end();

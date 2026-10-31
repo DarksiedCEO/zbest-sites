@@ -67,7 +67,18 @@ const BASE = {
 };
 
 /** After every migration: exactly what the app writes (004 service area, 006 content hash, 007 notify outbox). */
-const EXPECTED = { ...BASE, service_area: "text", content_hash: "text", notify_attempts: "integer", notify_next_at: "timestamp with time zone" };
+const EXPECTED = {
+  ...BASE,
+  service_area: "text",
+  content_hash: "text",
+  notify_attempts: "integer",
+  notify_next_at: "timestamp with time zone",
+  notify_first_attempt_at: "timestamp with time zone",
+  notify_body_hash: "text",
+  notify_batch: "text",
+  notify_batch_at: "timestamp with time zone",
+  quarantined: "boolean",
+};
 
 /**
  * Which URL to migrate with (AEGIS r3 F3). A transaction-mode pooler

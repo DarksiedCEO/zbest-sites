@@ -204,11 +204,11 @@ describe("RTS-3 — identical submissions within 24 h are one lead, one email", 
     };
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-10-30T00:00:00Z"));
-    expect(await store.insert(base)).toEqual({ inserted: true });
+    expect(await store.insert(base)).toMatchObject({ inserted: true });
     vi.setSystemTime(new Date("2026-10-30T23:59:00Z"));
     expect(await store.insert({ ...base, submission_id: randomUUID() })).toMatchObject({ inserted: false, duplicateOf: "content" });
     vi.setSystemTime(new Date("2026-10-31T00:01:00Z"));
-    expect(await store.insert({ ...base, submission_id: randomUUID() })).toEqual({ inserted: true });
+    expect(await store.insert({ ...base, submission_id: randomUUID() })).toMatchObject({ inserted: true });
   });
 });
 
@@ -258,7 +258,7 @@ describe("RTS-7 — NUL and lone surrogates", () => {
           ok: true,
           transport: {
             mode: "live",
-            store: { insert: async () => { throw new DeliveryError("store_failed", code); }, setNotifyStatus: async () => {} },
+            store: { insert: async () => { throw new DeliveryError("store_failed", code); }, setNotifyStatus: async () => {}, markAttempt: async (_a: string, _i: string, h: string) => ({ firstAttemptAt: new Date(), bodyHash: h }), quarantine: async () => {} },
             notifier: null,
             hashIp: () => "h",
             formTokens: tokens,

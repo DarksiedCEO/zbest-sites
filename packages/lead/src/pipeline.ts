@@ -1,5 +1,4 @@
-import { resolveLimiter, resolvePolicy, resolveTransport, type Env, type RequestPolicy, type TransportConfig } from "./config";
-import { leadEmail } from "./email";
+import { resolveLimiter, resolvePolicy, resolveTransport, type Env, type Limiters, type RequestPolicy, type TransportConfig } from "./config";
 import { NOTIFY_PENDING_GRACE_MS } from "./notify-retry";
 import { FORM_TOKEN_HEADER } from "./form-token";
 import { contentHash, payloadHash } from "./hash";
@@ -7,7 +6,8 @@ import { clientIp } from "./ip";
 import { consoleLogger, type LeadLogger } from "./log";
 import { regionServed, type Region } from "./region";
 import { cleanJson } from "./text";
-import { DeliveryError, type LeadApp, type LeadRecord, type RateLimiter } from "./types";
+import { deliverLead } from "./notify";
+import { DeliveryError, type LeadApp, type LeadRecord, type RateLimiter, type StoredLead } from "./types";
 
 /**
  * The one §6.2 lead pipeline both apps' route handlers call. Each app keeps
@@ -70,7 +70,8 @@ export type LeadErrorBody =
   | { ok: false; error: { code: "region_unavailable" } }
   | { ok: false; error: { code: "form_expired" } }
   | { ok: false; error: { code: "form_too_fast"; retry_after_s: number } }
-  | { ok: false; error: { code: "busy"; retry_after_s: number } }
+  /** AEGIS r2 H1: refused only while the storage guard is tripped (LEAD_HARD_LIMIT_PER_DAY). */
+  | { ok: false; error: { code: "storage_guard"; retry_after_s: number } }
   | { ok: false; error: { code: "validation"; fields: Record<string, string> } }
   | { ok: false; error: { code: "unavailable" } };
 
@@ -94,8 +95,8 @@ export type HandleLeadOptions = {
   logger?: LeadLogger;
   /** Test seams; production resolves these from env. */
   transport?: TransportConfig;
-  /** Test seam. A limiter left out is not applied (production always resolves all four). */
-  limiters?: { perIp: RateLimiter; perNet?: RateLimiter; global?: RateLimiter; ceiling?: RateLimiter };
+  /** Test seam. A limiter left out is not applied (production always resolves every one). */
+  limiters?: Partial<Pick<Limiters, "perNet" | "global" | "emailHour" | "quarantine" | "hard" | "guard">> & { perIp: RateLimiter };
   policy?: RequestPolicy;
   now?: () => Date;
 };
@@ -130,6 +131,36 @@ function originAllowed(request: Request, policy: RequestPolicy): boolean {
 }
 
 class TooLarge extends Error {}
+
+/** AEGIS r2 L3: a store call answers within this, whatever the database is doing. */
+const STORE_DEADLINE_MS = 6_000;
+function withDeadline<T>(promise: Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new DeliveryError("store_failed", "deadline")), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+/** AEGIS r2 H1: what a quarantined lead keeps — about 2 KB of its text. */
+const QUARANTINE_BYTES = 2_048;
+export function truncatePayload(payload: Record<string, unknown>, budget: number): Record<string, unknown> {
+  const strings: number[] = [];
+  const walk = (v: unknown) => {
+    if (typeof v === "string") strings.push(v.length);
+    else if (Array.isArray(v)) v.forEach(walk);
+    else if (v && typeof v === "object") Object.values(v).forEach(walk);
+  };
+  walk(payload);
+  const per = Math.max(32, Math.floor(budget / Math.max(1, strings.length)) - 8);
+  const cut = (v: unknown): unknown => {
+    if (typeof v === "string") return v.length > per ? `${v.slice(0, per)}…[cut]` : v;
+    if (Array.isArray(v)) return v.map(cut);
+    if (v && typeof v === "object") return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, cut(x)]));
+    return v;
+  };
+  return cut(payload) as Record<string, unknown>;
+}
 
 /** Reads at most `max` bytes; throws TooLarge past it, so a huge body is never buffered (AEGIS L1). */
 async function readCapped(request: Request, max: number): Promise<string> {
@@ -204,7 +235,7 @@ async function handle(request: Request, opts: HandleLeadOptions, log: LeadLogger
   // 4. Transport and policy. Missing config fails closed, naming settings
   //    (never values). Off Vercel without LEAD_TRUSTED_PROXY is refused here
   //    (AEGIS r2 N1), so no request ever reaches a shared bucket.
-  const limiters: { perIp: RateLimiter; perNet?: RateLimiter; global?: RateLimiter; ceiling?: RateLimiter; problem?: string } =
+  const limiters: Partial<Pick<Limiters, "perNet" | "global" | "emailHour" | "quarantine" | "hard" | "guard" | "problem">> & { perIp: RateLimiter } =
     opts.limiters ?? resolveLimiter(env, log);
   const config = opts.transport ?? resolveTransport(env);
   const missing = [
@@ -299,19 +330,14 @@ async function handle(request: Request, opts: HandleLeadOptions, log: LeadLogger
     return fail({ ok: false, error: { code: "region_unavailable" } }, 422);
   }
 
-  // AEGIS F1: a hard ceiling on what this app STORES per hour from every
-  // source together (LEAD_STORE_CEILING_PER_HOUR, default 500), so no spread
-  // of addresses can fill the database. Charged before the insert, so
-  // duplicates count toward it too: it is a flood guard far above real
-  // traffic, not the email cap (that one is charged after dedupe, below).
-  if (limiters.ceiling) {
-    const decision = await limiters.ceiling.hit(`${app}:store`);
-    if (!decision.allowed) {
-      log("error", "store_ceiling_reached", { app, limiter: "ceiling" });
-      return fail({ ok: false, error: { code: "busy", retry_after_s: decision.retryAfterSec } }, 503, {
-        "Retry-After": String(decision.retryAfterSec),
-      });
-    }
+  // AEGIS r2 H1: the storage guard is the ONLY site-wide limit that refuses
+  // a lead, and only after LEAD_HARD_LIMIT_PER_DAY (default 100,000) NEWLY
+  // stored leads in a day — a threat to the table itself. Duplicates never
+  // count toward it. Health reports it (storage_guard).
+  if (limiters.guard && limiters.guard.until > Date.now()) {
+    const wait = Math.max(1, Math.ceil((limiters.guard.until - Date.now()) / 1000));
+    log("error", "storage_guard_refused", { app, limiter: "hard" });
+    return fail({ ok: false, error: { code: "storage_guard", retry_after_s: wait } }, 503, { "Retry-After": String(wait) });
   }
 
   // 7. Store. The row is the lead; without it there is no success to claim.
@@ -334,7 +360,9 @@ async function handle(request: Request, opts: HandleLeadOptions, log: LeadLogger
   const ids = { app, form: record.form, submission_id: record.submission_id, mode: transport.mode };
   let stored: Awaited<ReturnType<typeof transport.store.insert>>;
   try {
-    stored = await transport.store.insert(record);
+    // AEGIS r2 L3: a request-level deadline, so requests queued behind a held
+    // lock on this instance's one connection also answer within ~6 s.
+    stored = await withDeadline(transport.store.insert(record, { deadline: Date.now() + STORE_DEADLINE_MS }), STORE_DEADLINE_MS);
   } catch (error) {
     const detail = error instanceof DeliveryError ? error.detail : undefined;
     log("error", "store_failed", { ...ids, sqlstate: detail ?? "unknown" });
@@ -343,61 +371,45 @@ async function handle(request: Request, opts: HandleLeadOptions, log: LeadLogger
     }
     return fail({ ok: false, error: { code: "unavailable" } }, 503);
   }
-  /** Email one stored lead and record the outcome; returns what was recorded. */
-  const notifyLead = async (lead: LeadRecord, receivedAt: Date, leadIds: typeof ids): Promise<"sent" | "failed"> => {
-    let outcome: "sent" | "failed";
+
+  const ctx = transport.notifier ? { app, store: transport.store, notifier: transport.notifier, log } : null;
+  /** CH-8 / AEGIS F3: an email that never went out — 'failed', or 'pending' past the grace period. */
+  const unsent = (lead: StoredLead | undefined) =>
+    !!lead &&
+    (lead.notify_status === "failed" || (lead.notify_status === "pending" && Date.now() - lead.created_at.getTime() > NOTIFY_PENDING_GRACE_MS));
+  /** The visitor sees success; the email outcome is only recorded (Brief §6.2). Never throws. */
+  const deliverQuietly = async (lead: StoredLead | (LeadRecord & { created_at: Date }), leadIds: typeof ids) => {
     try {
-      await transport.notifier!.send(leadEmail(lead, receivedAt), `lead-${app}-${lead.submission_id}`);
-      outcome = "sent";
-    } catch (error) {
-      outcome = "failed";
-      const code = error instanceof DeliveryError ? error.code : "notify_failed";
-      const status = error instanceof DeliveryError ? error.detail : undefined;
-      log("error", "notify_failed", { ...leadIds, code, status: status ?? "none" });
-    }
-    await recordNotify(lead.submission_id, outcome, leadIds);
-    return outcome;
-  };
-  const recordNotify = async (submissionId: string, status: "sent" | "failed" | "disabled" | "deferred", leadIds: typeof ids) => {
-    try {
-      await transport.store.setNotifyStatus(app, submissionId, status);
+      return await deliverLead(ctx!, lead, leadIds);
     } catch (error) {
       const detail = error instanceof DeliveryError ? error.detail : undefined;
-      log("warn", "notify_status_not_recorded", { ...leadIds, notify: status, sqlstate: detail ?? "unknown" });
+      log("warn", "notify_status_not_recorded", { ...leadIds, sqlstate: detail ?? "unknown" });
+      return "failed" as const;
     }
   };
-  /** CH-8 / AEGIS F3: an email that never went out — 'failed', or 'pending' past the grace period. */
-  const unsent = (status: string | undefined, createdAt: Date | undefined) =>
-    status === "failed" || (status === "pending" && !!createdAt && Date.now() - createdAt.getTime() > NOTIFY_PENDING_GRACE_MS);
 
   if (!stored.inserted && "duplicateOf" in stored) {
-    // The same message, already stored within the window (RTS-3): the
-    // visitor's words did reach us, so they see success and nothing new is
-    // stored. AEGIS F3: if the stored copy's email never went out, send it
-    // now — the stored lead, under its own id and idempotency key.
+    // The same message, already stored within the window (RTS-3): nothing new
+    // is stored and NO site-wide counter is charged (AEGIS r2 H1(a)). AEGIS
+    // F3: if the stored copy's email never went out, send it now — the stored
+    // lead, under its own id and key, built from its stored values.
     const original = stored.original;
-    if (original && transport.notifier && unsent(original.notify_status, original.created_at)) {
-      const { created_at: createdAt, notify_attempts: _a, notify_status: _s, ...lead } = original;
-      const originalIds = { ...ids, submission_id: lead.submission_id };
+    if (ctx && unsent(original)) {
+      const originalIds = { ...ids, submission_id: original!.submission_id };
       log("info", "duplicate_content_unsent", originalIds);
-      await notifyLead(lead, createdAt, originalIds);
-      return reply(parsed.body, 200);
-    }
-    log("info", "duplicate_content", ids);
+      await deliverQuietly(original!, originalIds);
+    } else log("info", "duplicate_content", ids);
     return reply(parsed.body, 200);
   }
   if (!stored.inserted) {
     if (stored.samePayload) {
-      // Double-click or retry: the same lead. A scored form's result is
-      // recomputed from identical answers, so it matches what was stored.
-      // CH-8: if its email never went out, this resubmit sends it now.
-      if (!transport.notifier || !unsent(stored.notifyStatus, stored.createdAt)) {
-        log("info", "duplicate", ids);
-        return reply(parsed.body, 200);
-      }
-      log("info", "duplicate_unsent", { ...ids, notify: stored.notifyStatus ?? "unknown" });
-      const outcome = await notifyLead(record, stored.createdAt ?? new Date(), ids);
-      log("info", "stored", { ...ids, notify: outcome });
+      // Double-click or retry: the same lead. CH-8: if its email never went
+      // out, this resubmit sends it now (same key, same stored body).
+      if (ctx && unsent(stored.stored)) {
+        log("info", "duplicate_unsent", { ...ids, notify: stored.stored!.notify_status });
+        const outcome = await deliverQuietly(stored.stored!, ids);
+        log("info", "stored", { ...ids, notify: outcome });
+      } else log("info", "duplicate", ids);
       return reply(parsed.body, 200);
     }
     // Same id, different content: refuse rather than drop the edit (AEGIS L2).
@@ -405,24 +417,59 @@ async function handle(request: Request, opts: HandleLeadOptions, log: LeadLogger
     return fail({ ok: false, error: { code: "conflict" } }, 409);
   }
 
-  // 8. Notify. Failure is recorded, not shown (Brief §6.2).
-  // AEGIS F1: the site-wide cap is on EMAILS, charged only for a newly
-  // stored lead (so exact duplicates never spend it). Past it the lead is
-  // still stored — never refused — and marked 'deferred'; the retry cron
-  // sends one digest for all deferred leads. The trip is an error-level
-  // alert, and /api/health stays degraded until the digest goes out.
-  let notify: "sent" | "failed" | "disabled" | "deferred" = "disabled";
-  if (transport.notifier) {
-    const decision = limiters.global ? await limiters.global.hit(`${app}:global`) : { allowed: true as const };
+  // A NEW lead. Only now are the site-wide counters charged (AEGIS r2 H1(a)).
+  const createdAt = stored.createdAt;
+  let quarantined = false;
+  if (limiters.hard) {
+    const decision = await limiters.hard.hit(`${app}:store-hard`);
+    if (!decision.allowed && limiters.guard) {
+      limiters.guard.until = Date.now() + decision.retryAfterSec * 1000;
+      log("error", "storage_guard_tripped", { app, limiter: "hard" });
+      quarantined = true;
+    }
+  }
+  if (!quarantined && limiters.quarantine) {
+    const decision = await limiters.quarantine.hit(`${app}:store-quarantine`);
     if (!decision.allowed) {
+      quarantined = true;
+      log("error", "quarantine_tripped", { ...ids, limiter: "quarantine" });
+    }
+  }
+  if (quarantined) {
+    try {
+      await withDeadline(transport.store.quarantine(app, record.submission_id, truncatePayload(record.payload, QUARANTINE_BYTES)), STORE_DEADLINE_MS);
+    } catch {
+      log("warn", "quarantine_not_recorded", ids);
+    }
+  }
+
+  // 8. Notify. Failure is recorded, not shown (Brief §6.2). The email caps
+  // (per minute and per hour, AEGIS F1 and r2 M5) are charged only for a new,
+  // non-quarantined lead; past either, the lead's email is deferred to the
+  // digest, an error-level alert is logged, and /api/health is degraded until
+  // the digest goes out. Nothing is refused.
+  let notify: "sent" | "failed" | "disabled" | "deferred" | "delivery_unknown" = "disabled";
+  const setStatus = async (status: "deferred" | "disabled") => {
+    try {
+      await withDeadline(transport.store.setNotifyStatus(app, record.submission_id, status), STORE_DEADLINE_MS);
+    } catch (error) {
+      const detail = error instanceof DeliveryError ? error.detail : undefined;
+      log("warn", "notify_status_not_recorded", { ...ids, notify: status, sqlstate: detail ?? "unknown" });
+    }
+  };
+  if (ctx) {
+    let capped = quarantined;
+    if (!capped && limiters.global) capped = !(await limiters.global.hit(`${app}:email-minute`)).allowed;
+    if (!capped && limiters.emailHour) capped = !(await limiters.emailHour.hit(`${app}:email-hour`)).allowed;
+    if (capped) {
       notify = "deferred";
-      log("error", "global_cap_tripped", { ...ids, limiter: "global" });
-      await recordNotify(record.submission_id, "deferred", ids);
+      if (!quarantined) log("error", "global_cap_tripped", { ...ids, limiter: "email" });
+      await setStatus("deferred");
     } else {
-      notify = await notifyLead(record, (opts.now ?? (() => new Date()))(), ids);
+      notify = await deliverQuietly({ ...record, created_at: createdAt }, ids);
     }
   } else {
-    await recordNotify(record.submission_id, "disabled", ids);
+    await setStatus("disabled");
   }
 
   log("info", "stored", { ...ids, notify });

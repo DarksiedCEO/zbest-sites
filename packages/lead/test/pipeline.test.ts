@@ -201,7 +201,7 @@ describe("delivery failures (Brief §6.2 failure mode)", () => {
       insert: async () => {
         throw new DeliveryError("store_failed", "08006");
       },
-      setNotifyStatus: async () => {},
+      setNotifyStatus: async () => {}, markAttempt: async (_a: string, _i: string, h: string) => ({ firstAttemptAt: new Date(), bodyHash: h }), quarantine: async () => {},
     };
     const log = captureLogger();
     const res = await handleLead(request(valid()), {
@@ -220,7 +220,10 @@ describe("delivery failures (Brief §6.2 failure mode)", () => {
 
   it("email failure after the row is written: visitor sees success, row marked failed, failure logged", async () => {
     const statuses: string[] = [];
-    const store: LeadStore = { insert: async () => ({ inserted: true as const }), setNotifyStatus: async (_app, _id, s) => void statuses.push(s) };
+    const store: LeadStore = {
+      insert: async () => ({ inserted: true as const, createdAt: new Date() }),
+      setNotifyStatus: async (_app, _id, s) => void statuses.push(s), markAttempt: async (_a: string, _i: string, h: string) => ({ firstAttemptAt: new Date(), bodyHash: h }), quarantine: async () => {},
+    };
     const notifier: LeadNotifier = {
       send: async () => {
         throw new DeliveryError("notify_rejected", 403);

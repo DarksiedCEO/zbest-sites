@@ -1,6 +1,7 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import type { Env } from "./config";
 import { consoleLogger, type LeadLogger } from "./log";
+import { resolveCaps } from "./config";
 import { resolvePg } from "./pg-url";
 import { postgresPurger } from "./postgres";
 import type { LeadApp } from "./types";
@@ -68,14 +69,25 @@ export interface LeadPurger {
 /** Reads the last successful purge (sql/003_purge_runs.sql). */
 export interface PurgeLedger {
   lastSuccess(app: LeadApp): Promise<Date | null>;
-  /** Leads created before `before` whose founder email has not gone out (CH-8), plus any deferred lead (AEGIS F1). */
+  /** Leads created before `before` whose founder email has not gone out (CH-8), plus any deferred lead (AEGIS F1). Legacy seam. */
   unsentOlderThan?(app: LeadApp, before: Date): Promise<number>;
+  /** Email and cap state for health (AEGIS r2 H1/M1/M3). */
+  leadState?(
+    app: LeadApp,
+    window: { unsentBefore: Date; retryAfter: Date },
+  ): Promise<{ unsent: number; digestPending: number; quarantined24h: number; stored24h: number }>;
   /** Columns the app writes that the database lacks (AEGIS F4: migrations 004/006/007 not applied). */
   missingColumns?(): Promise<string[]>;
 }
 
 /** How old an unsent founder email may get before /api/health is degraded (CH-8). */
 export const DEFAULT_NOTIFY_ALERT_MINUTES = 60;
+/** Leads older than this are not retried one by one (AEGIS r2 M3). */
+export const DEFAULT_NOTIFY_RETRY_DAYS = 3;
+export function notifyRetryDays(env: Env): number {
+  const raw = (env.LEAD_NOTIFY_RETRY_DAYS ?? "").trim();
+  return /^\d{1,3}$/.test(raw) && Number(raw) >= 1 && Number(raw) <= 30 ? Number(raw) : DEFAULT_NOTIFY_RETRY_DAYS;
+}
 
 /** A purge older than this is overdue: two missed daily runs. */
 export const PURGE_OVERDUE_HOURS = 48;
@@ -161,7 +173,11 @@ export type PurgeHealth =
   /** A lead's founder email has not gone out for longer than LEAD_NOTIFY_ALERT_MINUTES (CH-8), or the email cap tripped (AEGIS F1). */
   | "notify_backlog"
   /** The database lacks columns this code writes: a migration was not run (AEGIS F4). */
-  | "schema_outdated";
+  | "schema_outdated"
+  /** A lead was quarantined in the last 24 h: the daily quarantine threshold tripped (AEGIS r2 H1). */
+  | "quarantined"
+  /** The storage guard is refusing new leads: LEAD_HARD_LIMIT_PER_DAY newly stored in 24 h (AEGIS r2 H1). */
+  | "storage_guard";
 
 export type HealthOptions = {
   app: LeadApp;
@@ -227,9 +243,23 @@ export async function purgeHealth(opts: HealthOptions): Promise<{ status: PurgeH
   const nowMs = (opts.now ?? (() => new Date()))().getTime();
   const ageHours = Math.floor((nowMs - last.getTime()) / 3_600_000);
   if (ageHours > PURGE_OVERDUE_HOURS) return degraded("overdue", undefined, ageHours);
-  if (ledger.unsentOlderThan) {
-    const raw = (env.LEAD_NOTIFY_ALERT_MINUTES ?? "").trim();
-    const minutes = /^\d{1,5}$/.test(raw) && Number(raw) >= 1 ? Number(raw) : DEFAULT_NOTIFY_ALERT_MINUTES;
+  const raw = (env.LEAD_NOTIFY_ALERT_MINUTES ?? "").trim();
+  const minutes = /^\d{1,5}$/.test(raw) && Number(raw) >= 1 ? Number(raw) : DEFAULT_NOTIFY_ALERT_MINUTES;
+  if (ledger.leadState) {
+    let state: Awaited<ReturnType<NonNullable<PurgeLedger["leadState"]>>>;
+    try {
+      state = await ledger.leadState(app, {
+        unsentBefore: new Date(nowMs - minutes * 60_000),
+        retryAfter: new Date(nowMs - notifyRetryDays(env) * 86_400_000),
+      });
+    } catch {
+      return degraded("unknown");
+    }
+    // Every cap or guard trip degrades health (AEGIS r2 H1(c)).
+    if (state.stored24h >= resolveCaps(env).hardLimit) return degraded("storage_guard");
+    if (state.quarantined24h > 0) return degraded("quarantined");
+    if (state.digestPending > 0 || state.unsent > 0) return degraded("notify_backlog");
+  } else if (ledger.unsentOlderThan) {
     let unsent: number;
     try {
       unsent = await ledger.unsentOlderThan(app, new Date(nowMs - minutes * 60_000));
