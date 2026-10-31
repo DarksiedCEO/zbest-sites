@@ -186,8 +186,30 @@ export function LegalDocument({
                         </ul>
                       );
                     return (
-                      <div key={j} className="overflow-x-auto">
-                        <table className="type-small w-full min-w-[34rem] border-collapse text-left">
+                      // No sideways scrolling (WCAG 1.4.10, and no unreachable
+                      // scroll box for keyboard users): below the sm breakpoint
+                      // each row is a stacked description list; from sm up it is
+                      // a table whose cells wrap. Only one is displayed, so
+                      // assistive technology meets the content once.
+                      <div key={j}>
+                        <div className="sm:hidden" data-legal-table-stacked>
+                          <p className="type-label mb-2 text-text-secondary">{b.table.caption}</p>
+                          <ul className="space-y-3">
+                            {b.table.rows.map((row) => (
+                              <li key={row[0]} className="border-b border-text-secondary/15 pb-3">
+                                <dl className="type-small space-y-1.5">
+                                  {row.map((cell, k) => (
+                                    <div key={k}>
+                                      <dt className="font-semibold">{b.table.head[k]}</dt>
+                                      <dd>{inline(cell)}</dd>
+                                    </div>
+                                  ))}
+                                </dl>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                        <table className="type-small hidden w-full border-collapse text-left sm:table">
                           <caption className="type-label mb-2 text-left text-text-secondary">
                             {b.table.caption}
                           </caption>
