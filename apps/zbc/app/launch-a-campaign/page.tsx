@@ -1,6 +1,6 @@
 import { ButtonLink, pageMetadata } from "@zbest/ui";
 import { CtaRow, LedgerList, PageHeader, PageSection } from "@/components/page";
-import { LeadForm } from "@/components/lead-form";
+import { NotAccepting } from "@/components/not-accepting";
 import { SITE } from "@/lib/site";
 
 export const metadata = pageMetadata(SITE, {
@@ -16,7 +16,9 @@ export const metadata = pageMetadata(SITE, {
  * here too (§B3).
  *
  * The honesty note must stay on this page (§B4, root PRODUCT.md) — the gate
- * asserts it word for word. The form posts to the §6.2 lead route.
+ * asserts it word for word. Red team RTS-1: while ZBC's Privacy Policy is
+ * unpublished the form is replaced by a not-accepting message and an email
+ * address (components/not-accepting.tsx); nothing is collected here.
  */
 export default function LaunchACampaignPage() {
   return (
@@ -52,7 +54,7 @@ export default function LaunchACampaignPage() {
             <p className="type-title">&ldquo;I have something to promote right now&rdquo;</p>
             <div className="mt-4">
               <CtaRow>
-                <ButtonLink href="#campaign-form">Use the form below</ButtonLink>
+                <ButtonLink href="#campaign-form">Email us</ButtonLink>
               </CtaRow>
             </div>
           </div>
@@ -71,7 +73,7 @@ export default function LaunchACampaignPage() {
 
       <PageSection id="campaign-form" label="Launch a Campaign">
         <div className="max-w-2xl">
-          <LeadForm form="campaign" submitLabel="Launch a Campaign" />
+          <NotAccepting>Tell us what you’re promoting by email and we’ll reply when campaigns open.</NotAccepting>
         </div>
       </PageSection>
     </main>

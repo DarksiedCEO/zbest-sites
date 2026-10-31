@@ -36,7 +36,8 @@ import { FORM_TOKEN_HEADER, formTokenHeader } from "../support/form-token";
  *   - honeypot: looks like success, nothing stored or sent
  *   - misconfiguration: honest failure, never a success
  *   - rate limit: honest failure after the limit
- *   - assessment / readiness / ZBC forms record their leads too
+ *   - assessment / readiness forms record their leads too; ZBC's route is
+ *     closed (410) until ZBC publishes its privacy policy (red team RTS-1)
  *
  * What this cannot assert: real Postgres, real Resend, Vercel's edge headers.
  * Postgres is covered by packages/lead/test/postgres.test.ts against a real
@@ -204,33 +205,21 @@ test.describe("Success through the fake transport (§6.2)", () => {
     expect(await rowsMentioning("zbm", name)).toHaveLength(1);
   });
 
-  test("Z Best Clips: a clipper waitlist lead is stored as app 'zbc', reply-to the clipper", async ({ page }, testInfo) => {
-    await presetConsent(page);
-    await page.goto(`${ZBC_BASE_URL}/become-a-clipper`, { waitUntil: "domcontentloaded" });
-    const form = page.locator('form[data-lead-form="clipper"]');
-    const name = marker("clipper", testInfo.project.name);
-    await form.getByLabel("Name", { exact: true }).fill(name);
-    await form.getByLabel("Email", { exact: true }).fill("clipper-gate@example.com");
-    await form.getByLabel("Primary platform", { exact: true }).selectOption("instagram-reels");
-    await form.getByLabel("State or territory", { exact: true }).selectOption("US-NY");
-    const [response] = await Promise.all([
-      page.waitForResponse((r) => r.url().endsWith("/api/lead")),
-      form.getByRole("button", { name: "Join the clipper list" }).click(),
-    ]);
-    expect(response.status()).toBe(200);
-    const id = response.request().postDataJSON().submission_id as string;
-    await expect(page.locator('[data-lead-result="accepted"]')).toContainText("Received");
-
-    const rows = await rowsFor("zbc", id);
-    expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ app: "zbc", form: "clipper", services: [], source: null });
-    expect(rows[0]!.payload).toMatchObject({ name, email: "clipper-gate@example.com", platform: "instagram-reels" });
-    const emails = await emailsFor("zbc", id);
-    expect(emails).toHaveLength(1);
-    expect(emails[0]!.subject).toBe("New lead — Z Best Clips · clipper");
-    expect(emails[0]!.replyTo).toBe("clipper-gate@example.com");
-    // Never in ZBM's store.
-    expect(await rowsFor("zbm", id)).toHaveLength(0);
+  test("Z Best Clips (RTS-1): no form on either page, and the route refuses with 410 — nothing stored or sent", async ({ page }) => {
+    for (const path of ["/become-a-clipper", "/launch-a-campaign"]) {
+      await page.goto(`${ZBC_BASE_URL}${path}`, { waitUntil: "domcontentloaded" });
+      await expect(page.locator("main form")).toHaveCount(0);
+      await expect(page.locator("[data-not-accepting]")).toContainText("Z Best Clips is not yet accepting clients or clippers.");
+    }
+    const id = randomUUID();
+    const res = await page.request.post(`${ZBC_BASE_URL}/api/lead`, {
+      headers: formTokenHeader(),
+      data: { form: "clipper", submission_id: id, fields: { name: "A", email: "clipper-gate@example.com", platform: "tiktok", state: "US-NY" } },
+      failOnStatusCode: false,
+    });
+    expect(res.status()).toBe(410);
+    expect(await rowsFor("zbc", id)).toEqual([]);
+    expect(await emailsFor("zbc", id)).toEqual([]);
   });
 
   test("assessment and readiness submissions record the lead before returning a result (§11.3, §12.7)", async ({
@@ -417,22 +406,12 @@ test.describe("Misconfiguration fails closed", () => {
       await question.getByRole("radio", { name: "Somewhat true", exact: true }).check();
     }
     const [response] = await Promise.all([
-      page.waitForResponse((r) => r.url().endsWith("/api/lead")),
+      page.waitForResponse((r) => r.url().endsWith("/api/lead") && r.request().method() === "POST"),
       form.getByRole("button", { name: "Get an Assessment" }).click(),
     ]);
     expect(response.status()).toBe(503);
     await expect(form.locator('[data-lead-failure="not_configured"]')).toBeVisible();
     await expect(section.locator('[data-lead-result="accepted"]')).toHaveCount(0);
-  });
-
-  test("Z Best Clips' misconfiguration path is the same pipeline (unit-tested); its live server is configured", async ({ page }) => {
-    // Guard against the gate itself silently running ZBC unconfigured.
-    const res = await page.request.post(`${ZBC_BASE_URL}/api/lead`, {
-      headers: formTokenHeader(),
-      data: { form: "campaign", submission_id: randomUUID(), fields: { name: "A", organization: "B", promoting: "C", focus: "brands", reach: "D", state: "US-CA" } },
-    });
-    expect(res.status()).toBe(200);
-    expect(res.headers()["x-zbest-lead-transport"]).toBe("fake");
   });
 });
 
@@ -640,6 +619,8 @@ test.describe("UI after a 409 conflict (AEGIS r2 N5)", () => {
     //    never sees the answer (a dropped response): the outcome is unknown.
     let firstId = "";
     await page.route("**/api/lead", async (route) => {
+      // The form token GET (RTS-3) goes through untouched.
+      if (route.request().method() !== "POST") return route.continue();
       firstId = route.request().postDataJSON().submission_id;
       await route.fetch(); // stored server-side
       await route.abort("failed");
@@ -720,7 +701,6 @@ test.describe("Before hydration (AEGIS r5 N1)", () => {
   const STUCK: { label: string; url: string; form: string }[] = [
     { label: "ZBM /start", url: `${ZBM_BASE_URL}/start?service=websites`, form: "start" },
     { label: "ZBM assessment", url: `${ZBM_BASE_URL}/revenue-recovery#assessment`, form: "assessment" },
-    { label: "ZBC clipper", url: `${ZBC_BASE_URL}/become-a-clipper`, form: "clipper" },
   ];
   for (const c of STUCK) {
     test(`scripts never load, ${c.label}: after ~10 s a CSS-only line says to refresh; no contact claim`, async ({ page }) => {
@@ -808,30 +788,6 @@ test.describe("Before hydration (AEGIS r5 N1)", () => {
         await answerAll(f, "data-readiness-question");
       },
     },
-    {
-      label: "ZBC campaign",
-      base: ZBC_BASE_URL,
-      path: "/launch-a-campaign",
-      form: "campaign",
-      submit: "Launch a Campaign",
-      server: "zbc",
-      fill: async (f, n) => {
-        await contact(f, n, { Organization: "Slow JS Label", "What are you promoting?": "A release.", "Best way to reach you": "slow@example.com" });
-        await f.getByLabel("Entertainment / Brands", { exact: true }).selectOption("brands");
-      },
-    },
-    {
-      label: "ZBC clipper",
-      base: ZBC_BASE_URL,
-      path: "/become-a-clipper",
-      form: "clipper",
-      submit: "Join the clipper list",
-      server: "zbc",
-      fill: async (f, n) => {
-        await contact(f, n, { Email: "slow-clipper@example.com" });
-        await f.getByLabel("Primary platform", { exact: true }).selectOption("tiktok");
-      },
-    },
   ];
 
   for (const c of CASES) {
@@ -871,7 +827,7 @@ test.describe("Before hydration (AEGIS r5 N1)", () => {
       expect(page.url()).toBe(url);
       expect(await form.getByLabel("Name", { exact: true }).inputValue()).toBe(name);
       const [response] = await Promise.all([
-        page.waitForResponse((r) => r.url().endsWith("/api/lead")),
+        page.waitForResponse((r) => r.url().endsWith("/api/lead") && r.request().method() === "POST"),
         form.getByRole("button", { name: c.submit }).click(),
       ]);
       expect(response.status(), await response.text()).toBe(200);
@@ -926,11 +882,9 @@ test.describe("Service area (founder decisions 2026-10-30): 50 US states, DC, PR
     expect(row).toMatchObject({ service_area: "VI" });
   });
 
-  test("'outside' is declined in both apps and on the assessment; nothing is stored", async ({ page }) => {
+  test("'outside' is declined (ZBM; ZBC's route is closed, RTS-1); nothing is stored", async ({ page }) => {
     const cases = [
       [ZBM_BASE_URL, "zbm", { form: "contact", submission_id: randomUUID(), fields: { name: "A", business: "B", problem: "C", reach: "D", state: "outside" } }],
-      [ZBC_BASE_URL, "zbc", { form: "clipper", submission_id: randomUUID(), fields: { name: "A", email: "a@example.com", platform: "tiktok", state: "outside" } }],
-      [ZBC_BASE_URL, "zbc", { form: "campaign", submission_id: randomUUID(), fields: { name: "A", organization: "B", promoting: "C", focus: "brands", reach: "D", state: "outside" } }],
     ] as const;
     for (const [base, app, data] of cases) {
       const res = await page.request.post(`${base}/api/lead`, { headers: formTokenHeader(), data, failOnStatusCode: false });

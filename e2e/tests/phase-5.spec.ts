@@ -295,7 +295,7 @@ test.describe("Free assessment — the form and its result (§11.3, §11.5)", ()
     const section = await openAssessment(page);
     let sent = 0;
     page.on("request", (r) => {
-      if (r.url().endsWith("/api/lead")) sent += 1;
+      if (r.url().endsWith("/api/lead") && r.method() === "POST") sent += 1;
     });
     await fillContact(section);
     await choose(section, { follow_up: "Very true" });
@@ -311,7 +311,7 @@ test.describe("Free assessment — the form and its result (§11.3, §11.5)", ()
     await fillContact(section);
     await choose(section, { ...everyOther("Not true"), conversion: "Very true", trust: "Somewhat true" });
     const [response] = await Promise.all([
-      page.waitForResponse((r) => r.url().endsWith("/api/lead")),
+      page.waitForResponse((r) => r.url().endsWith("/api/lead") && r.request().method() === "POST"),
       section.getByRole("button", { name: "Get an Assessment" }).click(),
     ]);
     expect(response.headers()["x-zbest-lead-transport"]).toBe("fake");

@@ -1,6 +1,6 @@
 import { ButtonLink, Card, pageMetadata } from "@zbest/ui";
 import { CtaRow, FixtureNote, LedgerList, PageHeader, PageSection } from "@/components/page";
-import { LeadForm } from "@/components/lead-form";
+import { NotAccepting } from "@/components/not-accepting";
 import { SITE } from "@/lib/site";
 
 export const metadata = pageMetadata(SITE, {
@@ -17,9 +17,10 @@ export const metadata = pageMetadata(SITE, {
  * The ONLY page carrying clipper payout figures (§9: clipper-facing pricing is
  * transparent here and never crosses onto buyer-facing pages).
  *
- * "Browse Active Campaigns": until a real campaign exists it opens the clipper
- * waitlist form (§6.1) with the label §B4 supplies. Labeled as a fixture, and
- * the form posts to the §6.2 lead route.
+ * "Browse Active Campaigns": until a real campaign exists it leads to the
+ * waitlist section. Red team RTS-1: while ZBC's Privacy Policy is unpublished
+ * that section collects nothing — a not-accepting message and an email
+ * address instead of the §6.1 form (components/not-accepting.tsx).
  */
 export default function BecomeAClipperPage() {
   return (
@@ -33,7 +34,7 @@ export default function BecomeAClipperPage() {
             <ButtonLink href="#waitlist">Browse Active Campaigns</ButtonLink>
           </CtaRow>
           <FixtureNote>
-            No campaigns are open yet — this opens the clipper waitlist.
+            No campaigns are open yet.
           </FixtureNote>
         </div>
       </PageHeader>
@@ -81,10 +82,10 @@ export default function BecomeAClipperPage() {
       <PageSection
         id="waitlist"
         label="Browse Active Campaigns"
-        title="Join the clipper list — we’ll notify you when the first campaigns open."
+        title="The first campaigns aren’t open yet."
       >
         <div className="max-w-2xl">
-          <LeadForm form="clipper" submitLabel="Join the clipper list" />
+          <NotAccepting>We’ll publish how to join, and the terms clippers work under, before the first campaign opens.</NotAccepting>
         </div>
       </PageSection>
     </main>

@@ -366,6 +366,8 @@ test.describe("keyboard @keyboard", () => {
       let release!: () => void;
       const held = new Promise<void>((r) => (release = r));
       await page.route("**/api/lead", async (route) => {
+        // The form token GET (RTS-3) goes through untouched.
+        if (route.request().method() !== "POST") return route.continue();
         await held;
         await route.fulfill(
           outcome === "accepted"
@@ -394,6 +396,8 @@ test.describe("keyboard @keyboard", () => {
     const message = "That source isn’t one we recognise.";
     let calls = 0;
     await page.route("**/api/lead", async (route) => {
+      // The form token GET (RTS-3) goes through untouched.
+      if (route.request().method() !== "POST") return route.continue();
       calls++;
       await route.fulfill({
         status: 400,

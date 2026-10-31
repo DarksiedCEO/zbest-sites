@@ -381,6 +381,8 @@ test.describe("Readiness check — the form, the result and §12.7 routing", () 
   test("validates with the shared schema before sending — nothing reaches the route", async ({ page }) => {
     const sent: string[] = [];
     await page.route("**/api/lead", (route) => {
+      // The form token GET (RTS-3) goes through untouched.
+      if (route.request().method() !== "POST") return route.continue();
       sent.push(route.request().url());
       return route.abort();
     });

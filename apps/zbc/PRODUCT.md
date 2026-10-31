@@ -77,6 +77,9 @@ after keyword research. The 13 SEO landing pages are **not at launch.**
 **Forms:** Launch a Campaign (Name · Organization · What are you promoting? ·
 Entertainment / Brands · Budget range optional · Best way to reach you) and Become a
 Clipper waitlist (Name · Email · Primary platform · Profile link optional).
+**Switched off until ZBC publishes its Privacy Policy** (red team RTS-1, Oct 30
+2026): both pages show "Z Best Clips is not yet accepting clients or clippers."
+with a mailto: hello@zbestmedia.com link, and /api/lead answers 410.
 
 **Hard content constraints:**
 - **No real company, league or studio names anywhere on this site** — category

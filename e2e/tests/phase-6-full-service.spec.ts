@@ -239,7 +239,7 @@ test.describe("/start — universal intake", () => {
     await form(page).getByLabel("Best way to reach you", { exact: true }).fill("test@example.com");
     await formReady(form(page));
     const [response] = await Promise.all([
-      page.waitForResponse((r) => r.url().endsWith("/api/lead")),
+      page.waitForResponse((r) => r.url().endsWith("/api/lead") && r.request().method() === "POST"),
       form(page).getByRole("button", { name: "Send" }).click(),
     ]);
     expect(response.status()).toBe(422);
@@ -263,7 +263,7 @@ test.describe("/start — universal intake", () => {
     await form(page).getByLabel("State or territory", { exact: true }).selectOption("US-CA");
     await formReady(form(page));
     const [response] = await Promise.all([
-      page.waitForResponse((r) => r.url().endsWith("/api/lead")),
+      page.waitForResponse((r) => r.url().endsWith("/api/lead") && r.request().method() === "POST"),
       form(page).getByRole("button", { name: "Send" }).click(),
     ]);
     expect(response.status()).toBe(200);

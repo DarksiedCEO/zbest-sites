@@ -80,7 +80,7 @@ const privacyPolicy: InEffectLegalDocument = {
           p: `This policy is issued by ${LEGAL_ISSUER} (“Z Best Media”, “we”, “us”). It covers personal information we collect through our website at zbestmedia.com (the “site”), including its contact form, project intake form and free assessment tools.`,
         },
         {
-          p: "It does not cover information we receive while doing paid work for a client. That information is governed by the contract with that client. It also does not cover Z Best Clips (zbestclips.com), which is a separate website with its own policies.",
+          p: "It does not cover information we receive while doing paid work for a client. That information is governed by the contract with that client. It also does not cover Z Best Clips (zbestclips.com), a separate website. Z Best Clips is not yet operating: it accepts no clients or clippers and collects no personal data through its site, and it will publish its own privacy policy before it does.",
         },
         {
           p: "We are a business-to-business advertising agency. Most people who contact us do so on behalf of a business. We still treat what you tell us about yourself — your name, email address or phone number — as personal information and protect it as described here.",
@@ -508,7 +508,7 @@ const termsOfService: InEffectLegalDocument = {
       heading: "Other websites",
       blocks: [
         {
-          p: "The site links to other websites, including Z Best Clips (zbestclips.com), which has its own terms and policies. We aren’t responsible for other websites’ content or practices, and a link isn’t an endorsement.",
+          p: "The site links to other websites, including Z Best Clips (zbestclips.com), which is not yet operating and will publish its own terms and policies before it launches. We aren’t responsible for other websites’ content or practices, and a link isn’t an endorsement.",
         },
       ],
     },

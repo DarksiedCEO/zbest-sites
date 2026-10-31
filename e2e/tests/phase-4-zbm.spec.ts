@@ -458,7 +458,7 @@ test.describe("Revenue Recovery (§A4, filtered live carry-over)", () => {
       await question.getByRole("radio", { name: "Somewhat true", exact: true }).check();
     }
     const [response] = await Promise.all([
-      page.waitForResponse((r) => r.url().endsWith("/api/lead")),
+      page.waitForResponse((r) => r.url().endsWith("/api/lead") && r.request().method() === "POST"),
       form.getByRole("button", { name: "Get an Assessment" }).click(),
     ]);
     expect(response.status()).toBe(200);
@@ -564,7 +564,7 @@ test.describe("About and Contact (§A4)", () => {
     await form.getByLabel("Best way to reach you", { exact: true }).fill("test@example.com");
     await form.getByLabel("State or territory", { exact: true }).selectOption("US-CA");
     const [response] = await Promise.all([
-      page.waitForResponse((r) => r.url().endsWith("/api/lead")),
+      page.waitForResponse((r) => r.url().endsWith("/api/lead") && r.request().method() === "POST"),
       form.getByRole("button", { name: "Send" }).click(),
     ]);
     expect(response.status()).toBe(200);

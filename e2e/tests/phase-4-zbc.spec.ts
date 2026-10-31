@@ -1,4 +1,3 @@
-import { formReady } from "../support/ready";
 import { expect, test, type Page } from "@playwright/test";
 import path from "node:path";
 import { captureFullPage } from "../capture";
@@ -327,45 +326,22 @@ test.describe("Become a Clipper (§B4)", () => {
     await expect(rates).toContainText("$3–5 per 1,000 views bonus");
   });
 
-  test("Browse Active Campaigns opens the labeled waitlist form, which posts to the lead route", async ({ page }) => {
+  test("RTS-1: until ZBC's privacy policy is published, the waitlist is a message and an email link — no form, nothing posted", async ({ page }) => {
+    const posts: string[] = [];
+    page.on("request", (r) => {
+      if (r.method() === "POST") posts.push(r.url());
+    });
     await visit(page, byPath("/become-a-clipper"));
     const cta = page.locator("main header").getByRole("link", { name: "Browse Active Campaigns" });
     await expect(cta).toHaveAttribute("href", "#waitlist");
     await expect(page.locator("main header [data-fixture-note]")).toContainText("No campaigns are open yet");
     const section = page.locator("#waitlist");
-    await expect(section.getByRole("heading", { level: 2 })).toHaveText(
-      "Join the clipper list — we’ll notify you when the first campaigns open.",
-    );
-    const form = section.locator('form[data-lead-form="clipper"]');
-    await formReady(form);
-    await expect(form).not.toContainText("Stub");
-    for (const label of ["Name", "Email", "State or territory", "Primary platform"]) {
-      await expect(form.getByLabel(label, { exact: true })).toBeVisible();
-    }
-    await expect(form.getByLabel(/Profile link/)).toBeVisible();
-
-    await form.getByRole("button", { name: "Join the clipper list" }).click();
-    await expect(form.getByText("Enter a valid email address.")).toBeVisible();
-    await expect(form.getByText("Choose your primary platform.")).toBeVisible();
-
-    await form.getByLabel("Name", { exact: true }).fill("Test Clipper");
-    await form.getByLabel("Email", { exact: true }).fill("clipper@example.com");
-    await form.getByLabel("Primary platform", { exact: true }).selectOption("tiktok");
-    await form.getByLabel("State or territory", { exact: true }).selectOption("US-NY");
-    const [response] = await Promise.all([
-      page.waitForResponse((r) => r.url().endsWith("/api/lead")),
-      form.getByRole("button", { name: "Join the clipper list" }).click(),
-    ]);
-    expect(response.status()).toBe(200);
-    expect(response.headers()["x-zbest-lead-transport"]).toBe("fake");
-    expect(response.request().postDataJSON().fields).toEqual({
-      name: "Test Clipper",
-      email: "clipper@example.com",
-      platform: "tiktok",
-      profile: "",
-      state: "US-NY",
-    });
-    await expect(section.locator('[data-lead-result="accepted"]')).toContainText("Received");
+    await expect(section.locator("[data-not-accepting]")).toContainText("Z Best Clips is not yet accepting clients or clippers.");
+    const mail = section.getByRole("link", { name: "hello@zbestmedia.com" });
+    await expect(mail).toHaveAttribute("href", "mailto:hello@zbestmedia.com");
+    await expect(page.locator("main form")).toHaveCount(0);
+    await expect(page.locator("main input, main textarea, main select")).toHaveCount(0);
+    expect(posts).toEqual([]);
   });
 });
 
@@ -377,74 +353,34 @@ test.describe("Launch a Campaign (§B4)", () => {
     );
   });
 
-  test("four steps, both ways to start, and a form with the §6.1 fields posting to the lead route", async ({ page }) => {
+  test("four steps, both ways to start, and (RTS-1) the not-accepting message with an email link instead of a form", async ({ page }) => {
     await visit(page, byPath("/launch-a-campaign"));
     await expect(page.locator("#what-happens h3")).toHaveCount(4);
     await expect(page.locator("#start").getByRole("link", { name: "See How It Works" })).toHaveAttribute("href", "/");
-    const form = page.locator('form[data-lead-form="campaign"]');
-    await formReady(form);
-    await expect(form).not.toContainText("Stub");
-    for (const label of ["Name", "Organization", "State or territory", "What are you promoting?", "Entertainment / Brands", "Best way to reach you"]) {
-      await expect(form.getByLabel(label, { exact: true })).toBeVisible();
-    }
-    await expect(form.getByLabel(/Budget range/)).toBeVisible();
-    const focusOptions = await form.getByLabel("Entertainment / Brands", { exact: true }).locator("option").allTextContents();
-    expect(focusOptions).toEqual(["Choose one", "Entertainment", "Brands"]);
-
-    await form.getByLabel("Name", { exact: true }).fill("Test Person");
-    await form.getByLabel("Organization", { exact: true }).fill("Test Label");
-    await form.getByLabel("What are you promoting?", { exact: true }).fill("A single release.");
-    await form.getByLabel("Best way to reach you", { exact: true }).fill("test@example.com");
-    await form.getByRole("button", { name: "Launch a Campaign" }).click();
-    await expect(form.getByText("Choose Entertainment or Brands.")).toBeVisible();
-
-    await form.getByLabel("Entertainment / Brands", { exact: true }).selectOption("entertainment");
-    // Service area: a territory is served too.
-    await form.getByLabel("State or territory", { exact: true }).selectOption("PR");
-    const [response] = await Promise.all([
-      page.waitForResponse((r) => r.url().endsWith("/api/lead")),
-      form.getByRole("button", { name: "Launch a Campaign" }).click(),
-    ]);
-    expect(response.status()).toBe(200);
-    expect(response.headers()["x-zbest-lead-transport"]).toBe("fake");
-    await expect(page.locator('[data-lead-result="accepted"]')).toContainText("we have your details");
+    await expect(page.locator("#start").getByRole("link", { name: "Email us" })).toHaveAttribute("href", "#campaign-form");
+    const section = page.locator("#campaign-form");
+    await expect(section.locator("[data-not-accepting]")).toContainText("Z Best Clips is not yet accepting clients or clippers.");
+    await expect(section.getByRole("link", { name: "hello@zbestmedia.com" })).toHaveAttribute("href", "mailto:hello@zbestmedia.com");
+    await expect(page.locator("main form")).toHaveCount(0);
   });
 });
 
-test.describe("Lead route (§6.2, ZBC)", () => {
-  const id = "5f0c2b8e-4f7a-4c1e-9d7b-0f5d3a2b1c9e";
-  const post = (page: Page, data: unknown) =>
-    page.request.post(`${ZBC_BASE_URL}/api/lead`, { headers: formTokenHeader(), data, failOnStatusCode: false });
-
-  test("rejects ZBM's form names and unknown focus or platform values", async ({ page }) => {
-    expect((await post(page, { form: "contact", submission_id: id, fields: {} })).status()).toBe(400);
-    const badFocus = await post(page, {
-      form: "campaign",
-      submission_id: id,
-      fields: { name: "A", organization: "B", promoting: "C", focus: "sports", reach: "D", state: "US-CA" },
-    });
-    expect(badFocus.status()).toBe(422);
-    expect(Object.keys((await badFocus.json()).error.fields)).toEqual(["focus"]);
-    const badPlatform = await post(page, {
-      form: "clipper",
-      submission_id: id,
-      fields: { name: "A", email: "a@example.com", platform: "vine", state: "US-CA" },
-    });
-    expect(badPlatform.status()).toBe(422);
-    expect(Object.keys((await badPlatform.json()).error.fields)).toEqual(["platform"]);
-  });
-
-  test("valid submissions and a filled honeypot are acknowledged", async ({ page }) => {
-    const ok = await post(page, {
-      form: "clipper",
-      submission_id: id,
-      fields: { name: "A", email: "a@example.com", platform: "youtube-shorts", profile: "youtube.com/@a", state: "US-CA" },
-    });
-    expect(ok.status()).toBe(200);
-    expect(await ok.json()).toEqual({ ok: true, submission_id: id });
-    expect(ok.headers()["x-zbest-lead-stub"]).toBeUndefined();
-    const bot = await post(page, { form: "campaign", submission_id: id, fields: {}, company_url: "x" });
-    expect(bot.status()).toBe(200);
+test.describe("Lead route (§6.2, ZBC) — closed until ZBC publishes its privacy policy (RTS-1)", () => {
+  test("every POST and the token GET are 410 not_accepting; nothing is stored or sent", async ({ page }) => {
+    const id = "5f0c2b8e-4f7a-4c1e-9d7b-0f5d3a2b1c9e";
+    for (const data of [
+      { form: "clipper", submission_id: id, fields: { name: "A", email: "a@example.com", platform: "youtube-shorts", state: "US-CA" } },
+      { form: "campaign", submission_id: id, fields: { name: "A", organization: "B", promoting: "C", focus: "brands", reach: "D", state: "US-CA" } },
+      { form: "campaign", submission_id: id, fields: {}, company_url: "x" },
+      "not json",
+    ]) {
+      const res = await page.request.post(`${ZBC_BASE_URL}/api/lead`, { headers: formTokenHeader(), data, failOnStatusCode: false });
+      expect(res.status()).toBe(410);
+      expect(await res.json()).toEqual({ ok: false, error: { code: "not_accepting" } });
+      expect(res.headers()["cache-control"]).toBe("no-store");
+    }
+    const get = await page.request.get(`${ZBC_BASE_URL}/api/lead`, { failOnStatusCode: false });
+    expect(get.status()).toBe(410);
   });
 });
 
