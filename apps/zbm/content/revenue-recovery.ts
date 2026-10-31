@@ -37,6 +37,20 @@ import type { LedgerItem } from "@/components/page";
  *     dollars it recovers"), and the leak library intro.
  */
 
+/**
+ * The six places revenue leaks (Brief Home §3 copy). One list, used by Home,
+ * the Revenue Recovery section of the same name, and the Revenue Recovery
+ * hero ledger (components/leak-ledger.tsx), so the three cannot drift.
+ */
+export const WHERE_REVENUE_LEAKS = [
+  "Missed and unreturned calls",
+  "Forms that break on mobile",
+  "Follow-up that dies after one touch",
+  "Pages that load too slowly to convert",
+  "Ad traffic landing on the wrong page",
+  "No retargeting on the people who almost bought",
+] as const;
+
 /** live 135 */
 export const DEFINITION =
   "Revenue Recovery is the process of identifying and fixing the marketing, website, advertising, conversion, follow-up, trust, and visibility issues that prevent a business from reaching its revenue potential.";
