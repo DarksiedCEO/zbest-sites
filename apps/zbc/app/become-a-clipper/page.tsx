@@ -79,15 +79,17 @@ export default function BecomeAClipperPage() {
         </p>
       </PageSection>
 
-      {/* RTS-6: the FTC disclosure rule, before anyone joins anything. */}
+      {/* RTS-6, AEGIS F5: the FTC disclosure rule — in the clip itself, plus the platform label and #ad. */}
       <PageSection id="disclosure" label="Disclosing paid posts" title="Every paid clip says it’s paid.">
         <p data-disclosure-rule className="type-body-lead max-w-prose text-text-primary">
-          A clip you post for a campaign is a paid endorsement, so it must be disclosed every
-          time: turn on the platform&rsquo;s paid-partnership label (for example
-          &ldquo;Paid partnership&rdquo; on TikTok and Instagram, or &ldquo;Includes paid
-          promotion&rdquo; on YouTube), or put #ad at the start of the caption where it
-          can&rsquo;t be missed. The FTC&rsquo;s Endorsement Guides (16 CFR Part 255) require
-          it, and a clip without a clear disclosure is not approved or paid.
+          A clip you post for a campaign is a paid endorsement, so it has to say so in the clip
+          itself — on screen, and out loud too if you speak in it — for example &ldquo;Ad&rdquo; or
+          &ldquo;Paid partnership with&rdquo; and the brand&rsquo;s name. On top of that, turn on
+          the platform&rsquo;s paid-partnership label (&ldquo;Paid partnership&rdquo; on TikTok
+          and Instagram, &ldquo;Includes paid promotion&rdquo; on YouTube) and put #ad near the
+          start of the caption. The platform label alone isn&rsquo;t enough. This is what the
+          FTC&rsquo;s Endorsement Guides (16 CFR Part 255) and its guidance for social media
+          influencers call for, and every campaign brief will repeat it.
         </p>
       </PageSection>
 

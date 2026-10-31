@@ -329,14 +329,17 @@ test.describe("Become a Clipper (§B4)", () => {
     expect(await mainText(page)).not.toMatch(/guarantee/i);
   });
 
-  test("RTS-6: clippers are told every paid clip must be disclosed (#ad / paid partnership, 16 CFR Part 255)", async ({ page }) => {
+  test("RTS-6/AEGIS F5: every paid clip is disclosed in the clip itself plus the platform label and #ad (16 CFR Part 255)", async ({ page }) => {
     await visit(page, byPath("/become-a-clipper"));
     const rule = page.locator("#disclosure [data-disclosure-rule]");
-    await expect(rule).toContainText("#ad");
+    // AEGIS F5 (FTC Disclosures 101): in the clip itself, plus the platform label and #ad.
+    await expect(rule).toContainText("in the clip itself — on screen, and out loud too if you speak in it");
     await expect(rule).toContainText("paid-partnership label");
-    await expect(rule).toContainText("FTC");
+    await expect(rule).toContainText("#ad near the start of the caption");
+    await expect(rule).toContainText("The platform label alone isn’t enough.");
     await expect(rule).toContainText("16 CFR Part 255");
-    await expect(rule).toContainText("not approved or paid");
+    // No promise of a backend enforcement step that is not verified.
+    await expect(rule).not.toContainText("not approved or paid");
   });
 
   test("RTS-1: until ZBC's privacy policy is published, the waitlist is a message and an email link — no form, nothing posted", async ({ page }) => {
