@@ -1,6 +1,6 @@
 import { resolveTransport, type Env, type TransportConfig } from "./config";
 import { consoleLogger, type LeadLogger } from "./log";
-import { deliverLead, KEY_WINDOW_MS, sendBatches, DIGEST_ALERT_DEFAULT } from "./notify";
+import { checkDeliveries, deliverLead, KEY_WINDOW_MS, sendBatches, DIGEST_ALERT_DEFAULT } from "./notify";
 import { cronAuthorized, notifyRetryDays } from "./retention";
 import type { LeadApp } from "./types";
 
@@ -8,15 +8,20 @@ import type { LeadApp } from "./types";
  * Chaos red team CH-8; AEGIS F1, r2 M1–M3, L2: founder emails are retried.
  *
  * The leads table is the durable outbox. Each run of /api/cron/retry-notify:
+ *   0. checks delivery of recently sent emails with Resend (AEGIS r4 M2,
+ *      notify.ts checkDeliveries): a lead whose email bounced, was
+ *      suppressed, complained about or failed goes back in this run's digest,
+ *      flagged, and /api/health reports delivery_failed;
  *   1. leads still 'pending'/'failed' and older than LEAD_NOTIFY_RETRY_DAYS
  *      (default 3) become 'expired_notify': never emailed one by one, but
  *      counted in a count email, sent as an immutable batch like a digest
  *      and retried under the same key until Resend accepts it; until then
  *      /api/health is degraded (notify_expired), then they are
  *      'expired_reported' (r2 M3, r3 M3);
- *   2. 'pending'/'failed' leads whose first attempt is over 23 h old become
- *      'delivery_unknown' (Resend keeps an idempotency key 24 h), so they go
- *      in the digest, flagged, instead of risking a second email (r2 M2);
+ *   2. 'pending'/'failed' leads whose first attempt is over 23 h old and
+ *      whose outcome is unknown become 'delivery_unknown' (Resend keeps an
+ *      idempotency key 24 h), so they go in the digest, flagged, instead of
+ *      risking a second email (r2 M2; definite failures are not flagged, r4 L6);
  *   3. 'pending'/'failed' leads older than LEAD_NOTIFY_INDIVIDUAL_HOURS
  *      (default 1) go to the digest instead of being emailed one by one, so
  *      the first runs after a deploy or an outage send a few digests, not
@@ -99,6 +104,9 @@ export async function handleNotifyRetry(request: Request, opts: NotifyRetryOptio
     const nowMs = (opts.now ?? (() => new Date()))().getTime();
     const days = notifyRetryDays(env);
     const ctx = { app, store, notifier, log, now: () => nowMs };
+
+    // 0. Delivery of recent sends (r4 M2): not delivered → back in the digest, flagged.
+    await checkDeliveries({ ...ctx, outbox });
 
     // 1. Too old to retry: counted in a count email, retried until accepted (r2 M3, r3 M3).
     const expired = await outbox.expireOld(app, new Date(nowMs - days * 86_400_000));

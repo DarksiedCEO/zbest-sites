@@ -62,7 +62,10 @@ function fakeResend() {
     modes,
     setLatency: (ms: number) => (latency = ms),
     forgetKeys: () => keys.clear(),
-    notifier: resendNotifier({ apiKey: "re_fake", from: "a@b.test", to: ["f@b.test"], fetchImpl, timeoutMs: 400 }),
+    // 2 s: long enough that a loaded CI host never times out an in-process
+    // fake send by accident (AEGIS r4 rerun flake), short enough for the
+    // hang-after-deliver cases.
+    notifier: resendNotifier({ apiKey: "re_fake", from: "a@b.test", to: ["f@b.test"], fetchImpl, timeoutMs: 2_000 }),
   };
 }
 const transportOf = (store: ReturnType<typeof postgresStore>, notifier: ReturnType<typeof resendNotifier> | null): TransportConfig => ({
@@ -206,7 +209,9 @@ describe.skipIf(!url)("AEGIS r2 — lead caps, outbox and digests (integration)"
     const id = randomUUID();
     r.modes.push("down");
     await lead(t, limiters, { problem: "old unknown" }, id);
-    await sql`UPDATE leads SET created_at = now() - interval '24 hours', notify_first_attempt_at = now() - interval '24 hours' WHERE submission_id = ${id}::uuid`;
+    // The attempt's outcome is unknown (as after a timeout). Since AEGIS r4 L6
+    // only such a lead is flagged; a definite failure goes in unflagged (aegis-r4.test.ts).
+    await sql`UPDATE leads SET created_at = now() - interval '24 hours', notify_first_attempt_at = now() - interval '24 hours', notify_outcome_unknown = true WHERE submission_id = ${id}::uuid`;
     const run = (await (await handleNotifyRetry(cronReq(), { app: "zbm", env: cronEnv(), transport: t })).json()) as { digest: number };
     expect(r.deliveries.filter((d) => d.key === `lead-zbm-${id}`)).toHaveLength(0);
     expect(run.digest).toBe(1);

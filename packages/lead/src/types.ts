@@ -5,6 +5,8 @@
  * config.ts, so tests swap in fakes without touching a handler.
  */
 
+import { NOTIFY_STATUSES } from "./notify-status";
+
 export type LeadApp = "zbm" | "zbc";
 
 /** One row of the §6.2 leads table, as the store receives it. */
@@ -39,7 +41,7 @@ export type LeadRecord = {
  * too old to retry; counted in a count email, and /api/health stays degraded
  * until that email is accepted, when it becomes "expired_reported" (r3 M3).
  */
-export type NotifyStatus = "pending" | "sent" | "failed" | "disabled" | "deferred" | "delivery_unknown" | "expired_notify" | "expired_reported";
+export type NotifyStatus = (typeof NOTIFY_STATUSES)[number];
 
 /**
  * `inserted: false` means (app, submission_id) already existed. With the same
@@ -77,6 +79,20 @@ export type StoredLead = LeadRecord & {
   /** SHA-256 of the batch email body, fixed when the batch was formed (AEGIS r3 H1). */
   notify_batch_hash: string | null;
   quarantined: boolean;
+  /** Resend's id for the accepted email this lead was in (AEGIS r4 M2). */
+  notify_email_id: string | null;
+  /**
+   * What Resend reported for that email (AEGIS r4 M2): null not checked yet,
+   * 'delivered', 'undelivered' (bounced / complained / suppressed / failed /
+   * canceled) or 'unconfirmed' (no final event within the check window).
+   */
+  notify_delivery: string | null;
+  /**
+   * Some attempt to email this lead ended without a known outcome (a timeout,
+   * a network error, a 409): only then is it flagged "may already have been
+   * emailed" (AEGIS r4 L6). Sticky.
+   */
+  notify_outcome_unknown: boolean;
 };
 /** Kept for readability at call sites: an unsent lead is a stored lead. */
 export type UnsentLead = StoredLead;
@@ -93,7 +109,7 @@ export interface LeadStore {
    * Records the email outcome. "failed" also counts an attempt; `retryAt`
    * (set by the retry cron) is when the next retry may happen (CH-8).
    */
-  setNotifyStatus(app: LeadApp, submissionId: string, status: NotifyStatus, retryAt?: Date): Promise<void>;
+  setNotifyStatus(app: LeadApp, submissionId: string, status: NotifyStatus, retryAt?: Date, extra?: NotifyExtra): Promise<void>;
   /**
    * Before an email attempt (AEGIS r2 M2): records the first attempt time
    * and body hash if not yet set, and returns what is stored.
@@ -103,10 +119,23 @@ export interface LeadStore {
   quarantine(app: LeadApp, submissionId: string): Promise<void>;
 }
 
+/**
+ * With a status update (AEGIS r4): `emailId` is Resend's id for the accepted
+ * email; `outcomeUnknown` marks an attempt that ended without a known outcome
+ * (sticky: once unknown, always flagged).
+ */
+export type NotifyExtra = { emailId?: string; outcomeUnknown?: boolean };
+
 /** Which batches: lead digests, or the count email for expired leads (AEGIS r3 M3). */
 export type BatchKind = "digest" | "expired";
-/** A formed batch: its key and every one of its leads. */
-export type Batch = { key: string; leads: StoredLead[] };
+/** What a batch email is built from besides its leads (an expired batch has only this: AEGIS r4 L3). */
+export type BatchSummary = { count: number; oldest: Date; newest: Date; formedAt: Date | null; hash: string | null };
+/**
+ * A formed batch: its key, its summary and — for a digest — every one of its
+ * leads. An expired batch carries no leads: its email is only a count, so
+ * payloads are never loaded (AEGIS r4 L3).
+ */
+export type Batch = { key: string; leads: StoredLead[]; summary: BatchSummary };
 
 /**
  * The durable notification outbox (CH-8, AEGIS F1, r2 M1–M3, L2, r3 H1/M3/L3).
@@ -131,16 +160,30 @@ export interface NotifyOutbox {
   claimBatch(app: LeadApp, kind: BatchKind): Promise<Batch | null>;
   /**
    * Forms a new batch from up to `limit` unbatched rows of this kind, oldest
-   * first, and fixes it in the same transaction: `seal` gives its key and the
-   * hash of its email body, written to every row before any send. Null when
-   * there is nothing to batch.
+   * first, under a new key, and fixes it in the same transaction: `seal`
+   * gives the hash of its email body, written to every row before any send.
+   * Null when there is nothing to batch.
    */
-  formBatch(app: LeadApp, kind: BatchKind, limit: number, seal: (leads: StoredLead[]) => { key: string; hash: string }): Promise<Batch | null>;
+  formBatch(app: LeadApp, kind: BatchKind, limit: number, seal: (batch: { leads: StoredLead[]; summary: BatchSummary }) => string): Promise<Batch | null>;
   /**
    * The batch Resend accepted: exactly these leads (and only while they are
    * still in batch `key`) become 'sent' ('expired_reported' for an expired batch).
    */
-  markBatchSent(app: LeadApp, kind: BatchKind, key: string, submissionIds: string[]): Promise<number>;
+  markBatchSent(app: LeadApp, kind: BatchKind, key: string, submissionIds: string[], emailId?: string): Promise<number>;
+  /** A send of batch `key` ended without a known outcome (timeout, network, 409): its leads are flagged if it is ever dissolved (AEGIS r4 L6). */
+  markBatchUnknown(app: LeadApp, key: string): Promise<void>;
+  /**
+   * AEGIS r4 M2: up to `limit` Resend email ids of sent leads not yet
+   * checked, sent after `since`, oldest first.
+   */
+  deliveriesToCheck(app: LeadApp, since: Date, limit: number): Promise<string[]>;
+  /**
+   * What Resend reported for an email: 'delivered' is final; 'undelivered'
+   * (and 'unconfirmed') put its leads back in the digest, flagged.
+   */
+  recordDelivery(app: LeadApp, emailId: string, outcome: "delivered" | "undelivered"): Promise<number>;
+  /** Sent leads still unchecked from before `before`: 'unconfirmed', back in the digest, flagged. */
+  expireDeliveryChecks(app: LeadApp, before: Date): Promise<number>;
   /**
    * Dissolves a batch that can no longer be re-sent under its key (past the
    * key window, or its rows changed). Digest leads become 'delivery_unknown'
@@ -157,8 +200,13 @@ export type LeadEmail = {
 };
 
 export interface LeadNotifier {
-  /** Resolves when the provider accepted the message; throws otherwise. */
-  send(email: LeadEmail, idempotencyKey: string): Promise<void>;
+  /** Resolves when the provider accepted the message (with its id when known); throws otherwise. */
+  send(email: LeadEmail, idempotencyKey: string): Promise<void | { id?: string }>;
+  /**
+   * AEGIS r4 M2: the provider's last event for an accepted email (Resend
+   * `last_event`), or null when it cannot be read now.
+   */
+  lastEvent?(emailId: string): Promise<string | null>;
 }
 
 export type RateDecision = { allowed: true } | { allowed: false; retryAfterSec: number };

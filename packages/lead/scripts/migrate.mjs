@@ -12,6 +12,9 @@
  *      one rolled-back insert per served code must succeed, and each of a
  *      set of near-miss codes must be refused (AEGIS R-M1). This catches a
  *      database still on 004's 53 codes, a missing constraint, or drift.
+ *   5. the notify-status CHECK accepts every status in src/notify-status.ts
+ *      and refuses near-misses (AEGIS r4 L4: e.g. 007 re-run by hand after
+ *      008 would drop 'expired_reported', and the app would then fail 23514);
  * All of it runs in ONE transaction under a transaction-scoped advisory lock,
  * so concurrent runs serialise and a failed run changes nothing.
  *
@@ -47,6 +50,10 @@ const SERVICE_CODES = (await loadTs("region.ts")).SERVICE_AREAS.map((a) => a.val
  * territories, other US-administered areas we do not serve, foreign codes,
  * case and whitespace variants, and the empty string.
  */
+/** Every notify_status the app writes (AEGIS r4 L4), and values the CHECK must refuse. */
+const NOTIFY_STATUSES = [...(await loadTs("notify-status.ts")).NOTIFY_STATUSES];
+const REFUSED_STATUSES = ["", "SENT", "expired", "unknown", " sent"];
+
 const REFUSED_CODES = ["outside", "US-PR", "US-GU", "US-VI", "US-AS", "US-MP", "UM", "US-UM", "CA", "GB", "us-ca", "vi", " US-CA", ""];
 
 /** The columns 001 creates: what a pre-existing table must already have. */
@@ -66,7 +73,7 @@ const BASE = {
   created_at: "timestamp with time zone",
 };
 
-/** After every migration: exactly what the app writes (004 service area, 006 content hash, 007 notify outbox, 008 batch hash). */
+/** After every migration: exactly what the app writes (004 service area, 006 content hash, 007 notify outbox, 008 batch hash, 009 delivery check). */
 const EXPECTED = {
   ...BASE,
   service_area: "text",
@@ -79,6 +86,10 @@ const EXPECTED = {
   notify_batch_at: "timestamp with time zone",
   notify_batch_hash: "text",
   quarantined: "boolean",
+  notify_email_id: "text",
+  notify_delivery: "text",
+  notify_undelivered_at: "timestamp with time zone",
+  notify_outcome_unknown: "boolean",
 };
 
 /**
@@ -265,6 +276,37 @@ try {
       );
     }
     lines.push(`service area check ok (${SERVICE_CODES.length} codes accepted, ${REFUSED_CODES.length} near-misses refused; rolled back)`);
+
+    // 5. The notify-status CHECK accepts every status the app writes (AEGIS r4 L4).
+    const tryStatus = (status) =>
+      tx
+        .savepoint(async (sp) => {
+          await sp`
+            INSERT INTO leads (submission_id, app, form, payload, payload_hash, notify_status)
+            VALUES (${crypto.randomUUID()}::uuid, 'zbm', 'migrate-check', '{}'::jsonb, 'migrate-hash', ${status})`;
+          throw Object.assign(new Error("rollback"), { code: ROLLBACK_OK });
+        })
+        .then(
+          () => "stored",
+          (error) => {
+            if (error?.code === ROLLBACK_OK) return "accepted";
+            if (error?.code === "23514") return "refused";
+            throw error;
+          },
+        );
+    const statusMissing = [];
+    for (const status of NOTIFY_STATUSES) if ((await tryStatus(status)) !== "accepted") statusMissing.push(status);
+    const statusLeaked = [];
+    for (const status of REFUSED_STATUSES) if ((await tryStatus(status)) !== "refused") statusLeaked.push(JSON.stringify(status));
+    if (statusMissing.length || statusLeaked.length) {
+      throw new CheckFailed(
+        "leads_notify_status_check does not match the app's notify statuses" +
+          (statusMissing.length ? `; refuses: ${statusMissing.join(", ")}` : "") +
+          (statusLeaked.length ? `; accepts: ${statusLeaked.join(", ")}` : "") +
+          ". Run sql/008_notify_batches.sql (or fix the constraint) before launch.",
+      );
+    }
+    lines.push(`notify status check ok (${NOTIFY_STATUSES.length} statuses accepted, ${REFUSED_STATUSES.length} near-misses refused; rolled back)`);
     return lines;
   });
   for (const line of report) console.log(line);

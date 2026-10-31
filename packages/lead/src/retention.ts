@@ -75,7 +75,7 @@ export interface PurgeLedger {
   leadState?(
     app: LeadApp,
     window: { unsentBefore: Date; retryAfter: Date },
-  ): Promise<{ unsent: number; digestPending: number; quarantined24h: number; stored24h: number; expiredUnreported?: number }>;
+  ): Promise<{ unsent: number; digestPending: number; quarantined24h: number; stored24h: number; expiredUnreported?: number; undelivered24h?: number }>;
   /** Bytes the lead tables occupy (pg_total_relation_size; AEGIS r3 M4). */
   dbBytes?(): Promise<number>;
   /** Columns the app writes that the database lacks (AEGIS F4: migrations 004/006/007/008 not applied). */
@@ -182,7 +182,7 @@ export type PurgeHealth =
   | "overdue"
   /** The ledger could not be read. */
   | "unknown"
-  /** A lead's founder email has not gone out for longer than LEAD_NOTIFY_ALERT_MINUTES (CH-8), or the email cap tripped (AEGIS F1). */
+  /** A lead's founder email has not gone out for longer than LEAD_NOTIFY_ALERT_MINUTES, however old the lead (CH-8, AEGIS r4 M1), or the email cap tripped (AEGIS F1). */
   | "notify_backlog"
   /** The database lacks columns this code writes: a migration was not run (AEGIS F4). */
   | "schema_outdated"
@@ -193,7 +193,14 @@ export type PurgeHealth =
   /** Leads too old to retry whose count email Resend has not accepted yet (AEGIS r3 M3). */
   | "notify_expired"
   /** The lead tables use 60% or more of LEAD_DB_BUDGET_MB (default 400; AEGIS r3 M4). */
-  | "db_budget";
+  | "db_budget"
+  /**
+   * Resend reported an accepted lead email as not delivered (bounced,
+   * complained, suppressed, failed) or never confirmed it, in the last 24 h
+   * (AEGIS r4 M2). If the founder inbox is on Resend's suppression list,
+   * remove it there (docs/LEAD-ROUTE-DESIGN.md §8).
+   */
+  | "delivery_failed";
 
 export type HealthOptions = {
   app: LeadApp;
@@ -289,6 +296,7 @@ export async function purgeHealth(opts: HealthOptions): Promise<{ status: PurgeH
     }
     // Every cap or guard trip degrades health (AEGIS r2 H1(c)).
     if (state.stored24h >= resolveCaps(env).hardLimit) return degraded("storage_guard");
+    if ((state.undelivered24h ?? 0) > 0) return degraded("delivery_failed");
     if (state.quarantined24h > 0) return degraded("quarantined");
     if ((state.expiredUnreported ?? 0) > 0) return degraded("notify_expired");
     if (state.digestPending > 0 || state.unsent > 0) return degraded("notify_backlog");

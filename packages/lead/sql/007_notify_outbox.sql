@@ -36,9 +36,12 @@ ALTER TABLE leads ADD COLUMN IF NOT EXISTS notify_batch_at timestamptz;
 ALTER TABLE leads ADD COLUMN IF NOT EXISTS quarantined boolean NOT NULL DEFAULT false;
 
 -- The 001 inline CHECK (auto-named leads_notify_status_check) is replaced.
+-- AEGIS r4 L4: the list includes 008's 'expired_reported', so running this
+-- file again by hand after 008 cannot narrow the CHECK; migrate also verifies
+-- the CHECK against src/notify-status.ts.
 ALTER TABLE leads DROP CONSTRAINT IF EXISTS leads_notify_status_check;
 ALTER TABLE leads ADD CONSTRAINT leads_notify_status_check
-  CHECK (notify_status IN ('pending', 'sent', 'failed', 'disabled', 'deferred', 'delivery_unknown', 'expired_notify'));
+  CHECK (notify_status IN ('pending', 'sent', 'failed', 'disabled', 'deferred', 'delivery_unknown', 'expired_notify', 'expired_reported'));
 
 DROP INDEX IF EXISTS leads_app_unsent_idx;
 CREATE INDEX leads_app_unsent_idx ON leads (app, created_at)

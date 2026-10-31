@@ -1,7 +1,8 @@
+import { randomBytes } from "node:crypto";
 import { appendFileSync, mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { storable } from "./text";
-import { DEDUPE_WINDOW_HOURS, DeliveryError, type Batch, type BatchKind, type InsertResult, type LeadApp, type LeadEmail, type LeadNotifier, type LeadRecord, type LeadStore, type NotifyOutbox, type NotifyStatus, type StoredLead } from "./types";
+import { DEDUPE_WINDOW_HOURS, DeliveryError, type Batch, type BatchKind, type BatchSummary, type InsertResult, type NotifyExtra, type LeadApp, type LeadEmail, type LeadNotifier, type LeadRecord, type LeadStore, type NotifyOutbox, type NotifyStatus, type StoredLead } from "./types";
 
 /**
  * TEST-ONLY transport: the store and the notifier append JSON lines to files
@@ -28,9 +29,15 @@ type RowState = {
   batchAt: number | null;
   batchHash: string | null;
   quarantined: boolean;
+  emailId: string | null;
+  delivery: string | null;
+  undeliveredAt: number | null;
+  outcomeUnknown: boolean;
+  sentAt: number | null;
 };
 const newRow = (record: LeadRecord, createdAt: number): RowState => ({
   record, createdAt, status: "pending", attempts: 0, nextAt: null, firstAttemptAt: null, bodyHash: null, batch: null, batchAt: null, batchHash: null, quarantined: false,
+  emailId: null, delivery: null, undeliveredAt: null, outcomeUnknown: false, sentAt: null,
 });
 const stored = (r: RowState): StoredLead => ({
   ...r.record,
@@ -43,6 +50,9 @@ const stored = (r: RowState): StoredLead => ({
   notify_batch_at: r.batchAt === null ? null : new Date(r.batchAt),
   notify_batch_hash: r.batchHash,
   quarantined: r.quarantined,
+  notify_email_id: r.emailId,
+  notify_delivery: r.delivery,
+  notify_outcome_unknown: r.outcomeUnknown,
 });
 const LEASE_MS = 10 * 60_000;
 /** As postgres.ts BATCH_STATUSES. */
@@ -126,6 +136,25 @@ export function fakeStore(dir: string, clock: () => number = () => Date.now()): 
   };
   const due = (r: RowState) => r.nextAt === null || r.nextAt <= clock();
   const byAge = (a: RowState, b: RowState) => a.createdAt - b.createdAt || (a.record.submission_id < b.record.submission_id ? -1 : 1);
+  const undeliver = (r: RowState) => {
+    setStatus(r, "deferred");
+    r.undeliveredAt = clock();
+    r.batch = null;
+    r.batchAt = null;
+    r.batchHash = null;
+    r.nextAt = null;
+  };
+  const batchOf = (kind: BatchKind, key: string, rows: RowState[]): Batch => {
+    const times = rows.map((r) => r.createdAt);
+    const summary: BatchSummary = {
+      count: rows.length,
+      oldest: new Date(Math.min(...times)),
+      newest: new Date(Math.max(...times)),
+      formedAt: rows[0]?.batchAt == null ? null : new Date(rows[0].batchAt),
+      hash: rows[0]?.batchHash ?? null,
+    };
+    return { key, leads: kind === "expired" ? [] : [...rows].sort(byAge).map(stored), summary };
+  };
   const mine = (app: LeadApp) => [...box.rows.values()].filter((r) => r.record.app === app);
   const setStatus = (r: RowState, status: NotifyStatus) => {
     r.status = status;
@@ -157,12 +186,18 @@ export function fakeStore(dir: string, clock: () => number = () => Date.now()): 
       append(box, "rows.jsonl", { ...record, created_at: new Date(at).toISOString() });
       return { inserted: true, createdAt: new Date(at) };
     },
-    async setNotifyStatus(app: LeadApp, submissionId: string, status: NotifyStatus, retryAt?: Date) {
+    async setNotifyStatus(app: LeadApp, submissionId: string, status: NotifyStatus, retryAt?: Date, extra: NotifyExtra = {}) {
       const r = row(app, submissionId);
       if (r) {
         r.status = status;
         if (status === "failed") r.attempts += 1;
         r.nextAt = retryAt ? retryAt.getTime() : null;
+        if (status === "sent") {
+          r.sentAt = clock();
+          r.emailId = extra.emailId ?? null;
+          r.delivery = null;
+        } else if (extra.emailId) r.emailId = extra.emailId;
+        if (extra.outcomeUnknown) r.outcomeUnknown = true;
       }
       log(app, submissionId, status);
     },
@@ -207,16 +242,15 @@ export function fakeStore(dir: string, clock: () => number = () => Date.now()): 
     },
     async markUnknown(app, firstAttemptBefore) {
       let n = 0;
-      for (const r of box.rows.values()) {
+      for (const r of mine(app)) {
         if (
-          r.record.app === app &&
           (r.status === "pending" || r.status === "failed") &&
           r.firstAttemptAt !== null &&
-          r.firstAttemptAt < firstAttemptBefore.getTime()
+          r.firstAttemptAt < firstAttemptBefore.getTime() &&
+          (r.outcomeUnknown || r.status === "pending")
         ) {
-          r.status = "delivery_unknown";
+          setStatus(r, "delivery_unknown");
           r.nextAt = null;
-          log(app, r.record.submission_id, r.status);
           n += 1;
         }
       }
@@ -226,7 +260,7 @@ export function fakeStore(dir: string, clock: () => number = () => Date.now()): 
       let n = 0;
       for (const r of mine(app)) {
         if ((r.status === "pending" || r.status === "failed") && r.createdAt < createdBefore.getTime()) {
-          setStatus(r, r.firstAttemptAt === null ? "deferred" : "delivery_unknown");
+          setStatus(r, r.outcomeUnknown || (r.status === "pending" && r.firstAttemptAt !== null) ? "delivery_unknown" : "deferred");
           r.nextAt = null;
           n += 1;
         }
@@ -242,7 +276,8 @@ export function fakeStore(dir: string, clock: () => number = () => Date.now()): 
       for (const [key] of [...keys].sort((a, b) => a[1] - b[1] || (a[0] < b[0] ? -1 : 1))) {
         const rows = mine(app).filter((r) => r.batch === key);
         if (rows.some((r) => !due(r))) continue;
-        return { key, leads: lease(rows.sort(byAge)) };
+        lease(rows);
+        return batchOf(kind, key, rows);
       }
       return null;
     },
@@ -250,26 +285,34 @@ export function fakeStore(dir: string, clock: () => number = () => Date.now()): 
       const { from } = KIND[kind];
       const rows = mine(app).filter((r) => r.batch === null && from.includes(r.status) && due(r)).sort(byAge).slice(0, limit);
       if (!rows.length) return null;
-      const { key, hash } = seal(rows.map(stored));
+      const key = `${kind}-${app}-${randomBytes(16).toString("hex")}`;
       for (const r of rows) {
         r.batch = key;
         r.batchAt = clock();
-        r.batchHash = hash;
       }
-      return { key, leads: lease(rows) };
+      lease(rows);
+      const hash = seal(batchOf(kind, key, rows));
+      for (const r of rows) r.batchHash = hash;
+      return batchOf(kind, key, rows);
     },
-    async markBatchSent(app, kind, key, submissionIds) {
+    async markBatchSent(app, kind, key, submissionIds, emailId) {
       const { from, done } = KIND[kind];
       const ids = new Set(submissionIds);
       let n = 0;
       for (const r of mine(app)) {
-        if (r.batch === key && ids.has(r.record.submission_id) && from.includes(r.status)) {
+        if (r.batch === key && (kind === "expired" || ids.has(r.record.submission_id)) && from.includes(r.status)) {
           setStatus(r, done);
           r.nextAt = null;
+          if (done === "sent") r.sentAt = clock();
+          r.emailId = emailId ?? null;
+          r.delivery = null;
           n += 1;
         }
       }
       return n;
+    },
+    async markBatchUnknown(app, key) {
+      for (const r of mine(app)) if (r.batch === key) r.outcomeUnknown = true;
     },
     async clearBatch(app, kind, key) {
       const { from } = KIND[kind];
@@ -279,9 +322,40 @@ export function fakeStore(dir: string, clock: () => number = () => Date.now()): 
           r.batchAt = null;
           r.batchHash = null;
           r.nextAt = null;
-          if (kind === "digest") setStatus(r, "delivery_unknown");
+          if (kind === "digest" && r.outcomeUnknown) setStatus(r, "delivery_unknown");
         }
       }
+    },
+    async deliveriesToCheck(app, since, limit) {
+      const first = new Map<string, number>();
+      for (const r of mine(app)) {
+        if (r.status === "sent" && r.emailId && r.delivery === null && (r.sentAt ?? 0) > since.getTime()) {
+          first.set(r.emailId, Math.min(first.get(r.emailId) ?? Infinity, r.sentAt ?? 0));
+        }
+      }
+      return [...first].sort((a, b) => a[1] - b[1] || (a[0] < b[0] ? -1 : 1)).slice(0, limit).map(([id]) => id);
+    },
+    async recordDelivery(app, emailId, outcome) {
+      let n = 0;
+      for (const r of mine(app)) {
+        if (r.status === "sent" && r.emailId === emailId && r.delivery === null) {
+          r.delivery = outcome;
+          if (outcome !== "delivered") undeliver(r);
+          n += 1;
+        }
+      }
+      return n;
+    },
+    async expireDeliveryChecks(app, before) {
+      let n = 0;
+      for (const r of mine(app)) {
+        if (r.status === "sent" && r.emailId && r.delivery === null && (r.sentAt ?? 0) <= before.getTime()) {
+          r.delivery = "unconfirmed";
+          undeliver(r);
+          n += 1;
+        }
+      }
+      return n;
     },
   };
 }
@@ -290,7 +364,13 @@ export function fakeNotifier(dir: string, to: string[]): LeadNotifier {
   const box = outbox(dir);
   return {
     async send(email: LeadEmail, idempotencyKey: string) {
-      append(box, "emails.jsonl", { to, idempotency_key: idempotencyKey, ...email });
+      const id = randomBytes(16).toString("hex");
+      append(box, "emails.jsonl", { to, idempotency_key: idempotencyKey, id, ...email });
+      return { id };
+    },
+    // The fake provider delivers everything it accepts.
+    async lastEvent() {
+      return "delivered";
     },
   };
 }

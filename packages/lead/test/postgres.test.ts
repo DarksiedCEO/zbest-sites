@@ -224,7 +224,7 @@ describe.skipIf(!url)("postgres store (integration)", () => {
     expect((await purger.leadState("zbc", { unsentBefore: new Date(0), retryAfter: new Date(0) })).digestPending).toBe(1);
     // Two claims on SEPARATE connections (distinct options → distinct clients).
     const other = postgresStore({ ...opts(url!), connect_timeout: 41 });
-    const seal = () => ({ key: `digest-zbc-${randomUUID()}`, hash: "h" });
+    const seal = () => "h";
     const [a, b] = await Promise.all([store.formBatch("zbc", "digest", 10, seal), other.formBatch("zbc", "digest", 10, seal)]);
     expect([...(a?.leads ?? []), ...(b?.leads ?? [])].map((r) => r.submission_id)).toEqual([id]);
     // The formed batch is leased whole: no other run can claim it now.

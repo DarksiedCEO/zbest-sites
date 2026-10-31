@@ -57,7 +57,9 @@ const CONTROL =
  *
  * The route stores the lead and notifies the founder (docs/LEAD-ROUTE-DESIGN.md).
  * "Received" is shown only when the route says the lead was stored; every
- * failure says nothing was saved and why (FAILURE_COPY).
+ * failure says what is known and why (FAILURE_COPY): nothing saved where the
+ * route refused before storing, "may still have reached us" where a store
+ * failure leaves it unknown (AEGIS r3 L1).
  *
  * One submission_id per form instance, reused on retry, so the handler's
  * upsert (§6.2) treats a double-click or a retry as one lead. The button is

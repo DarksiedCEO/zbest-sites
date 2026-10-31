@@ -16,7 +16,8 @@ import { legalDocumentStrings, legalPlaceholders, type ConsentCategory, type InE
  *   - what is stored:  packages/lead/sql/001_leads.sql, 002_retention.sql,
  *                      003_region.sql, src/pipeline.ts
  *   - retention:       packages/lead/src/retention.ts + /api/cron/purge-leads
- *                      (730 days rows, 90 days user agent: the env defaults)
+ *                      (730 days rows, 90 days user agent: the env defaults;
+ *                      "within 3 days" in the Resend row is LEAD_NOTIFY_RETRY_DAYS)
  *   - IP handling:     packages/lead/src/ip.ts (no IP or IP hash stored with a
  *                      lead; rate-limit keys are keyed HMACs of the address and,
  *                      for IPv6, its /48; the quarantine counter (AEGIS r3 M1)
@@ -132,7 +133,7 @@ const privacyPolicy: InEffectLegalDocument = {
             "Your browser’s user-agent string (it names your browser and operating system), shortened to 500 characters and deleted automatically after 90 days, so we can investigate spam and fix problems that affect particular browsers.",
             "The date and time of the submission, and a random submission ID your browser creates so a double-click doesn’t send the same form twice.",
             "A one-way fingerprint (a SHA-256 hash) of what you entered, stored with your submission and deleted with it, so the same message sent again within 24 hours reaches us once.",
-            "A one-way fingerprint (a SHA-256 hash) of each notification email about your submission that we send to ourselves, and when it was sent, stored with your submission and deleted with it, so the same email is never sent twice.",
+            "For each notification email about your submission that we send to ourselves: a one-way fingerprint (a SHA-256 hash) of the email, when it was sent, our email-delivery provider’s ID for it and whether the provider reported it delivered, stored with your submission and deleted with it. We use them to avoid sending ourselves the same email twice and to check that it arrived. If we can’t tell whether an earlier email arrived, we may send it again, marked as a possible duplicate.",
             "Whether your submission arrived while an unusually large number of submissions were coming from the same network or from everywhere at once. Such a submission is kept in full and reaches us in a summary email, marked so we check it before replying.",
             "If you reached the intake form from one of our campaign links, the short campaign tag in that link (for example from a billboard or an ad), so we know which campaign brought you. It identifies the campaign, not you.",
           ],
@@ -177,8 +178,8 @@ const privacyPolicy: InEffectLegalDocument = {
             head: ["Provider type", "What they do for us", "What they receive"],
             rows: [
               ["Website hosting (Vercel)", "Serves the site, runs the code that receives form submissions, and keeps short-lived request logs.", "Your requests to the site, including your IP address, browser details and the page addresses you visit, and the content of any form you submit."],
-              ["Database hosting", "Stores form submissions.", "The form contents, the state or territory you chose, user-agent string, campaign tag, submission ID, time, content fingerprint, email fingerprints and burst flag listed under “What we collect”. No IP address."],
-              ["Email delivery (Resend)", "Delivers each new submission to our inbox as an email: on its own, or in a summary email together with other submissions when many arrive at once or its own email could not be sent.", "The content of your submission."],
+              ["Database hosting", "Stores form submissions.", "The form contents, the state or territory you chose, user-agent string, campaign tag, submission ID, time, content fingerprint, notification-email records and burst flag listed under “What we collect”. No IP address."],
+              ["Email delivery (Resend)", "Delivers each new submission to our inbox as an email: on its own, or in a summary email together with other submissions when many arrive at once or its own email could not be sent. We also ask it whether each email was delivered. If a submission still could not be emailed to us within 3 days, it is reported to us only as a count of such submissions, and its content stays in our database until it is deleted on the normal schedule.", "The content of your submission (a count email contains none)."],
               ["Business email (our email provider)", "Holds the notification emails and our correspondence with you.", "The content of your submission and any emails you exchange with us."],
               ["Rate-limit store (if enabled)", "Counts submissions per source to stop floods of spam.", "Only keyed, one-way hashes of your IP address and of its network block, kept for about 10 minutes to limit abuse."],
             ],
