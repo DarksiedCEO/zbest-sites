@@ -411,7 +411,10 @@
         "zbm:/influencer-marketing",
         "zbm:/digital-advertising",
         "zbm:/websites",
-        "zbm:/legal/[document]"
+        "zbm:/legal/privacy-policy",
+        "zbm:/legal/terms-of-service",
+        "zbm:/legal/cookie-policy",
+        "zbm:/404"
       ],
       "plannedPages": []
     },
@@ -796,7 +799,10 @@
         "zbc:/brands",
         "zbc:/entertainment",
         "zbc:/launch-a-campaign",
-        "zbc:/legal/[document]"
+        "zbc:/legal/privacy-policy",
+        "zbc:/legal/terms-of-service",
+        "zbc:/legal/cookie-policy",
+        "zbc:/404"
       ],
       "plannedPages": []
     },

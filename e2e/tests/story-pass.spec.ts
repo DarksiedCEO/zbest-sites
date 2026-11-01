@@ -11,7 +11,7 @@ const supportingHeaders: Record<string, string> = {
   "zbm:/contact": "saltgrove-brand-system", "zbm:/search-intelligence": "marenvale-website",
   "zbc:/pricing": "zbc-clipper-phone", "zbc:/about": "zbc-clipper-phone", "zbc:/media-kit": "zbc-clipper-phone",
 };
-const sharedFooterPages = ["zbm:/start", "zbm:/faq", "zbc:/launch-a-campaign", "zbc:/faq",
+const sharedFooterPages = ["zbm:/start", "zbm:/faq", "zbc:/launch-a-campaign", "zbc:/faq", "zbm:/404", "zbc:/404",
   ...["zbm", "zbc"].flatMap((site) => ["privacy-policy", "terms-of-service", "cookie-policy"].map((policy) => `${site}:/legal/${policy}`)),
 ];
 const pages = [...new Set([...inventory.assets.map((a) => a.page), ...Object.keys(supportingHeaders), "zbm:/services", ...sharedFooterPages])];
