@@ -28,6 +28,9 @@ export { asset } from "./media/assets";
 export type { Asset, AssetClass, AssetId } from "./media/assets";
 export { ConceptBadge, CONCEPT_LABEL } from "./media/concept-badge";
 export { ConceptGroup } from "./media/concept-group";
+export { cropFits, cropPosition, parseAspect } from "./media/crop";
+export type { TextBlock } from "./media/crop";
+export { HeroMedia, ScrollDrift } from "./media/hero-media";
 export { MediaFrame } from "./media/media-frame";
 export { ServicePreview } from "./media/service-preview";
 export type { PreviewItem } from "./media/service-preview";
@@ -38,3 +41,9 @@ export { FOCUS_AREAS } from "./focus";
 export type { Focus } from "./focus";
 export { pageMetadata, siteMetadata } from "./metadata";
 export type { SiteIdentity } from "./metadata";
+
+export { StoryImage, type StoryAssetId } from "./media/story-image";
+
+export { ProcessDiagram } from "./media/process-diagram";
+
+export { DistributionDiagram } from "./media/distribution-diagram";

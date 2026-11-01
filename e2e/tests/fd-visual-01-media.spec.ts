@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { cutWords } from "../crop-check";
 import { ZBC_BASE_URL, ZBM_BASE_URL } from "../playwright.config";
 
 /**
@@ -23,7 +24,9 @@ import { ZBC_BASE_URL, ZBM_BASE_URL } from "../playwright.config";
  *   4. concept alt text starts with "Concept:" and matches the manifest;
  *   5. no frame is ever blank (founder pilot review, 2026-10-30): on load,
  *      before any scroll, every image in a visible frame is either loaded or
- *      showing its inline blurred preview.
+ *      showing its inline blurred preview;
+ *   6. no frame cuts a word (rollout brief, 2026-10-30): each block of an
+ *      image's own type is whole or cropped out (../crop-check.ts).
  *
  * Runs with the gate's default reduced motion, so every showpiece is in its
  * static frame and nothing is covered mid-animation.
@@ -64,9 +67,11 @@ async function scrollThrough(page: Page) {
   });
 }
 
+const SHARED_LAYOUT_ROUTES = ["/legal/privacy-policy", "/legal/terms-of-service", "/legal/cookie-policy", "/404"];
+
 const SITES = [
-  { site: "zbm", base: ZBM_BASE_URL, extra: ["/search-intelligence"] as string[] },
-  { site: "zbc", base: ZBC_BASE_URL, extra: [] as string[] },
+  { site: "zbm", base: ZBM_BASE_URL, extra: ["/search-intelligence", ...SHARED_LAYOUT_ROUTES] as string[] },
+  { site: "zbc", base: ZBC_BASE_URL, extra: SHARED_LAYOUT_ROUTES as string[] },
 ] as const;
 
 for (const { site, base, extra } of SITES) {
@@ -101,6 +106,7 @@ for (const { site, base, extra } of SITES) {
       await scrollThrough(page);
       await page.waitForLoadState("networkidle");
       page.off("response", onResponse);
+      problems.push(...(await cutWords(page, `${site}${route}`)));
 
       for (const url of requested) {
         if (url.startsWith("data:")) continue;

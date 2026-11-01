@@ -1,4 +1,5 @@
-import { ButtonLink, Card, pageMetadata } from "@zbest/ui";
+import { ProcessDiagram } from "@zbest/ui";
+import { ButtonLink, StoryImage, Card, HeroMedia, pageMetadata } from "@zbest/ui";
 import { CtaRow, FixtureNote, LedgerList, PageHeader, PageSection } from "@/components/page";
 import { LeadForm } from "@/components/lead-form";
 import { SITE } from "@/lib/site";
@@ -20,6 +21,10 @@ export const metadata = pageMetadata(SITE, {
  * "Browse Active Campaigns": until a real campaign exists it opens the clipper
  * waitlist form (§6.1) with the label §B4 supplies. Labeled as a fixture, and
  * the form posts to the §6.2 lead route.
+ *
+ * FD-VISUAL-01 §10: the hero carries the clipper's side of the work — a phone
+ * on a desk with a vertical-video edit on its timeline. Clipper-side only; no
+ * buyer pricing (§5).
  */
 export default function BecomeAClipperPage() {
   return (
@@ -27,6 +32,14 @@ export default function BecomeAClipperPage() {
       <PageHeader
         label="Become a Clipper"
         title="Turn footage into income. No experience required, no follower minimum."
+        aside={
+          <HeroMedia
+            asset="zbc-clipper-phone"
+            frame="plate"
+            className="mx-auto w-full max-w-[26rem]"
+            sizes="(min-width: 1024px) 416px, calc(100vw - 2.5rem)"
+          />
+        }
       >
         <div className="flex flex-col gap-4">
           <CtaRow>
@@ -38,7 +51,7 @@ export default function BecomeAClipperPage() {
         </div>
       </PageHeader>
 
-      <PageSection id="how-it-works" label="How it works">
+      <PageSection id="how-it-works" media={<ProcessDiagram title="Clipper workflow" steps={["Join a campaign", "Get source material", "Cut and post", "Submit for review", "Approved payouts"]} />} label="How it works">
         <LedgerList
           numbered
           items={[
@@ -51,7 +64,7 @@ export default function BecomeAClipperPage() {
         />
       </PageSection>
 
-      <PageSection id="payouts" label="Payouts" title="Two kinds of campaigns, two kinds of payout.">
+      <PageSection id="payouts" media={<StoryImage asset="zbc-clipper-paid" />} label="Payouts" title="Two kinds of campaigns, two kinds of payout.">
         <div className="grid gap-5 md:grid-cols-2">
           <Card accent data-focus="entertainment" eyebrow="Your account" title="Entertainment campaigns">
             <p className="type-body text-text-primary">

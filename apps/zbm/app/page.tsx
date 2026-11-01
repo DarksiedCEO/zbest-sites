@@ -1,7 +1,10 @@
-import { ButtonLink, LedgerRule, pageMetadata, ServicePreview, StatBlock, type AssetId } from "@zbest/ui";
+import { LeakLedger } from "@/components/leak-ledger";
+import { StoryImage, ButtonLink, LedgerRule, pageMetadata, ServicePreview, StatBlock } from "@zbest/ui";
 import Link from "next/link";
 import { HomeReel } from "@/components/home-reel";
 import { CtaRow, LedgerList, Lead, Note, PageSection } from "@/components/page";
+import { WHERE_REVENUE_LEAKS } from "@/content/revenue-recovery";
+import { SERVICE_IMAGE } from "@/content/service-media";
 import { SERVICES } from "@/content/services";
 import { ASSESSMENT_HREF, SITE } from "@/lib/site";
 
@@ -19,22 +22,6 @@ export const metadata = pageMetadata(SITE, { path: "/" });
  * stat block, Section 2 (every service, from content/services.ts), the Scale
  * step and the closing CTA now cover the full-service catalog.
  */
-/**
- * Each service's lead image (FD-VISUAL-01 §3.1 concept work; placements per the
- * founder's Oct 30 list). Revenue Recovery has none until its process visual
- * exists; its row leaves the preview as it was.
- */
-const SERVICE_IMAGE: Record<string, AssetId> = {
-  "digital-advertising": "quellmont-feed-sticker",
-  "tv-streaming": "quellmont-tv-keys",
-  "radio-audio": "saltgrove-radio",
-  "out-of-home": "ironhold-billboard",
-  "social-media": "marenvale-social",
-  "creative-production": "saltgrove-brand-system",
-  "influencer-marketing": "marenvale-influencer",
-  "z-best-clips": "zbc-clipper-phone",
-  websites: "marenvale-website",
-};
 
 export default function HomePage() {
   return (
@@ -129,7 +116,7 @@ export default function HomePage() {
 
       {/* Section 3 — Revenue Recovery, featured. */}
       <PageSection
-        id="revenue-recovery"
+        id="revenue-recovery" media={<LeakLedger leaks={WHERE_REVENUE_LEAKS} />}
         band
         label="Revenue Recovery"
         title="Find out where your revenue is going."
@@ -144,14 +131,7 @@ export default function HomePage() {
       >
         <LedgerList
           numbered
-          items={[
-            { title: "Missed and unreturned calls" },
-            { title: "Forms that break on mobile" },
-            { title: "Follow-up that dies after one touch" },
-            { title: "Pages that load too slowly to convert" },
-            { title: "Ad traffic landing on the wrong page" },
-            { title: "No retargeting on the people who almost bought" },
-          ]}
+          items={WHERE_REVENUE_LEAKS.map((title) => ({ title }))}
         />
         <div className="flex flex-col gap-4">
           {/*
@@ -178,7 +158,7 @@ export default function HomePage() {
       </PageSection>
 
       {/* Section 4 — How we work. No case study cards until real ones exist. */}
-      <PageSection id="how-we-work" label="How we work" title="Audit first. Evidence. Then scale.">
+      <PageSection id="how-we-work" label="How we work" title="Audit first. Evidence. Then scale." media={<StoryImage asset="home-how-we-work" />}>
         <ol className="grid gap-x-8 sm:grid-cols-2 lg:grid-cols-4">
           {[
             ["Assess", "A free look at where you’re likely losing revenue."],

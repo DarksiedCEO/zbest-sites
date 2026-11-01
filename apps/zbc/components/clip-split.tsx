@@ -103,9 +103,8 @@ function Stage() {
                 aspect="16 / 9"
                 priority
                 timecode="00:03:41:08"
-                // The 16:9 window shows ~32% of the still's height; at 45% it
-                // spans ~31–63%, clear of the handwriting above.
-                objectPosition="50% 45%"
+                // The 16:9 window shows ~32% of the still's height; the crop
+                // solver (crop.ts) keeps it clear of the handwriting above.
                 className="lg:max-w-[36rem]"
                 sizes="(min-width: 1024px) 576px, calc(100vw - 3rem)"
                 caption="Entertainment · source performance · long-form · Concept (poster still; source video in production)"
