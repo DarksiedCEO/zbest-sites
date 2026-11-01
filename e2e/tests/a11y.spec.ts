@@ -421,8 +421,13 @@ test.describe("keyboard @keyboard", () => {
     await page.emulateMedia({ reducedMotion: "no-preference" });
     await page.goto(ZBM_BASE_URL + "/", { waitUntil: "networkidle" });
     for (const y of [150, 300, 450]) {
-      await page.mouse.wheel(0, 150);
-      await page.waitForTimeout(250);
+      // Mobile WebKit has no mouse wheel. Scroll the actual document, then
+      // prove it reached the intended position before measuring contrast.
+      await page.evaluate((top) => window.scrollTo({ top, behavior: "instant" }), y);
+      await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(y);
+      await page.evaluate(() => new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      }));
       // No ancestor of the hero copy may be faded.
       const opacity = await page.locator("main header h1").evaluate((el) => {
         let o = 1;
@@ -435,3 +440,23 @@ test.describe("keyboard @keyboard", () => {
     }
   });
 });
+
+// These controlled pages exercise the detector itself, independently of site CSS.
+for (const staysCovered of [false, true]) {
+  test(`focus walk ${staysCovered ? "reports persistent obstruction" : "waits for deferred visibility"}`, async ({ page }) => {
+    await page.goto(ZBM_BASE_URL + "/contact", { waitUntil: "networkidle" });
+    await page.setContent(`<button id="start">Start</button><input aria-label="Target" style="position:fixed;top:100px;left:10px">
+      <div id="cover" style="position:fixed;inset:0;background:white;z-index:10"></div>`);
+    if (!staysCovered) {
+      await page.locator("input").evaluate((button) => {
+        button.addEventListener("focus", () => {
+          // Model the deferred visual update after a keyboard focus transition.
+          setTimeout(() => document.getElementById("cover")?.remove(), 150);
+        }, { once: true });
+      });
+    }
+    await page.locator("#start").focus();
+    expect(await walk(page, "Tab", 1)).toEqual(staysCovered ? ["#0 Target"] : []);
+    await expect(page.locator("input")).toBeFocused();
+  });
+}
