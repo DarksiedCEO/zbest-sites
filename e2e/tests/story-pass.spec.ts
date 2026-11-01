@@ -62,6 +62,16 @@ for (const route of pages) {
         await expect(frame.locator("[data-concept-badge]")).toBeVisible();
         await expect(frame.locator("img")).toHaveAttribute("alt", /^Concept:/);
       }
+      if (route === "zbm:/digital-advertising") {
+        const sample = page.locator("main section").filter({ has: page.locator(".type-label", { hasText: /^Who this is for$/ }) })
+          .locator('[data-asset-id="quellmont-feed-sticker"]');
+        await expect(sample).toHaveCount(1);
+        await sample.scrollIntoViewIfNeeded();
+        await expect(sample.locator("[data-concept-badge]")).toBeVisible();
+        await expect(sample.locator("img")).toHaveAttribute("alt", /^Concept:/);
+        const canvas = await sample.locator("[data-frame-window]").boundingBox();
+        expect(Math.abs(canvas!.width / canvas!.height - 1), "square ad keeps its full canvas").toBeLessThan(0.01);
+      }
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), "horizontal overflow").toBe(true);
       // Images are semantic non-interactive content, never keyboard traps.
       expect(await page.locator("[data-story-image] [tabindex]").count()).toBe(0);

@@ -229,7 +229,7 @@
   },
   {
     "path": "apps/zbm/app/digital-advertising/page.tsx",
-    "sha256": "4d32ea1222cb490a34cb86380cb546265709583c87e06c3fc28c33bdd597e150"
+    "sha256": "9e0f3320f699614c074461d0b3ca3ac7d7ebebfa5e2f67eb3d1c429894dee669"
   },
   {
     "path": "apps/zbm/app/faq/opengraph-image.tsx",
@@ -581,7 +581,7 @@
   },
   {
     "path": "e2e/tests/story-pass.spec.ts",
-    "sha256": "b89dfd6af3d1ab3b0dc382f753079dccb184c1b3fd3bdc36bf24a14b2f9815a1"
+    "sha256": "048cb4cb56e9913ddee2b4f6290f88e71db1188279b29d7824e2e7bac511ba7d"
   },
   {
     "path": "e2e/tsconfig.json",
@@ -781,7 +781,7 @@
   },
   {
     "path": "packages/ui/assets/manifest.json",
-    "sha256": "d5440f8101a11866774350c463f27d6f32f86f8e2c586a4f471003ace9c585c6"
+    "sha256": "670e3cd5bcbfe9e90d1c6956cc8e613693353ffb26ad50dfa56292c5ca6f3db2"
   },
   {
     "path": "packages/ui/assets/story-pass/about-workspace.png",

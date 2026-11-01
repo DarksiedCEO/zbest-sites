@@ -413,11 +413,11 @@
   },
   {
     "path": "e2e/snapshots/story-pass/zbm-digital-advertising-desktop-1440-motion.png",
-    "sha256": "f1cdc05e84b4f3430ae8dd95207fea49968b66481fdc8982039965af2eb34db3"
+    "sha256": "20985c5d518c7335bfd744e36eb113d224e7c9bfeeb754567b3eb794df200bc6"
   },
   {
     "path": "e2e/snapshots/story-pass/zbm-digital-advertising-desktop-1440-reduced.png",
-    "sha256": "f1cdc05e84b4f3430ae8dd95207fea49968b66481fdc8982039965af2eb34db3"
+    "sha256": "20985c5d518c7335bfd744e36eb113d224e7c9bfeeb754567b3eb794df200bc6"
   },
   {
     "path": "e2e/snapshots/story-pass/zbm-digital-advertising-mobile-390-first-frame.png",
@@ -425,11 +425,11 @@
   },
   {
     "path": "e2e/snapshots/story-pass/zbm-digital-advertising-mobile-390-motion.png",
-    "sha256": "0891095a17f0907cd9d72de318419a26c686799c397338be54ff20b237b6cc20"
+    "sha256": "97bd3bfafb5d7d1855d71f0ce3138e497557e0de7c894cb9a157a29e44607937"
   },
   {
     "path": "e2e/snapshots/story-pass/zbm-digital-advertising-mobile-390-reduced.png",
-    "sha256": "0891095a17f0907cd9d72de318419a26c686799c397338be54ff20b237b6cc20"
+    "sha256": "97bd3bfafb5d7d1855d71f0ce3138e497557e0de7c894cb9a157a29e44607937"
   },
   {
     "path": "e2e/snapshots/story-pass/zbm-faq-desktop-1440-first-frame.png",

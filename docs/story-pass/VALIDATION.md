@@ -1,6 +1,12 @@
 # Story-pass validation
 
-Final tested implementation (fresh-build image suite): `9e75d22c97fc2f2ddaa4d4061db14bf8965342b2` on `codex/story-pass-images`. Environment: macOS arm64, Node v24.9.0, pnpm 9.15.0. The Playwright harness creates fresh production builds, verifies its nonce, and uses test-fake transports.
+## PR #17 CI repair
+
+The first GitHub run exposed a Digital Advertising desktop coverage gap. [CI-REPAIR.md](CI-REPAIR.md) records the trace, cause and fix. The approved square ad now appears beside “Who this is for”; no source artwork or backend changed. After the repair, typecheck, lint and media validation passed, and all **18 focused E2E tests passed** (2.0m), including both sites’ coverage and manifest gates, geometry regressions, and the affected route at both viewports/motion settings. The new missing-image regression failed before the fix and passed afterward. Six Digital Advertising PNGs and four capture sidecars were refreshed; the other 192 PNGs retain their earlier validation provenance. BUILD-INPUTS.json now records the repaired source, and CAPTURE-HASHES.json records the mixed, explicitly scoped capture set. Full GitHub validation is reported on PR #17.
+
+## Initial integration validation
+
+Initial tested implementation (fresh-build image suite): `9e75d22c97fc2f2ddaa4d4061db14bf8965342b2` on `codex/story-pass-images`. Environment: macOS arm64, Node v24.9.0, pnpm 9.15.0. The Playwright harness creates fresh production builds, verifies its nonce, and uses test-fake transports.
 
 | Check | Result |
 |---|---|
