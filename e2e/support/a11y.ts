@@ -507,7 +507,23 @@ export async function walk(page: Page, key: "Tab" | "Shift+Tab", max = 160) {
   let first = "";
   for (let i = 0; i < max; i++) {
     await page.keyboard.press(key);
-    const f = await focused(page);
+    // Mobile WebKit can resolve keyboard.press before focus scrolling paints.
+    // Observe rendered geometry without scrolling or moving focus ourselves.
+    await page.evaluate(() => new Promise<void>((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+    }));
+    let f = await focused(page);
+    if (f.hidden) {
+      try {
+        await expect.poll(async () => {
+          f = await focused(page);
+          return f.hidden;
+        }, { timeout: 1_000, intervals: [16, 32, 50, 100] }).toBe(false);
+      } catch {
+        // A control still obscured at the deadline remains a failing stop.
+        f = await focused(page);
+      }
+    }
     if (f.body && i > 1) break;
     if (f.body) continue;
     if (f.key === first) break; // wrapped around
