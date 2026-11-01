@@ -1,43 +1,38 @@
 # Story-pass validation
 
-## Local results
+Final tested implementation (fresh-build image suite): `9e75d22c97fc2f2ddaa4d4061db14bf8965342b2` on `codex/story-pass-images`. Environment: macOS arm64, Node v24.9.0, pnpm 9.15.0. The Playwright harness creates fresh production builds, verifies its nonce, and uses test-fake transports.
 
-Environment: macOS arm64, Node v24.9.0, pnpm 9.15.0. Production builds are started and nonce-verified by the existing Playwright harness; no existing server is reused. All transports remain the repository’s test fakes.
-
-| Command / check | Result |
+| Check | Result |
 |---|---|
 | `pnpm typecheck` | PASS, 5 workspace tasks |
 | `pnpm lint` | PASS, 6 workspace tasks |
 | `pnpm test` | PASS, 86 tests; 27 existing PostgreSQL integration tests skipped |
-| `pnpm check:media` | PASS, 49 assets; 36 story sources hash/size/class/provenance verified |
-| `pnpm e2e` | **FAIL: 584 passed, 2 skipped, 4 failed (8.8min)** |
-| Full E2E image-specific assertions | PASS, 60/60 story tests; all 36 images at 1440/390 and normal/reduced motion |
-| Existing rendered manifest/badge/crop checks | PASS,  both sites and viewports |
-| Existing keyboard/navigation/security-header checks | PASS within full suite |
-| Gitleaks 8.30.1 changed source/documentation | PASS, no leaks |
-| Gitleaks 8.30.1 full Git history | PASS, 244 commits, no leaks |
+| `pnpm check:media` | PASS, 49 assets; 36 story hashes, sizes, classifications and provenance verified |
+| `pnpm e2e` on `252c9c2` | PASS, 658 passed, 2 existing skips, 0 failures (10.0m) |
+| Final fresh-build image/coverage/geometry suite | PASS, 146 tests on final source after metadata-only legal/404 placement correction |
+| Blocking full-page media coverage | PASS, both sites at both viewports; zero failing bands |
+| Story/supporting image captures | PASS, 132 tests covering 33 routes in both motion settings at both widths |
+| Geometry regressions | PASS, 6 runs including final-viewport and mobile-continuation cases |
+| Manifest, badges, protected text, motion, keyboard/navigation, copy and security-header checks | PASS within full E2E |
+| Gitleaks 8.30.1 Git history | PASS, 248 commits, no leaks |
+| Independent review | Source and representative rendered review completed; findings addressed |
 
-The four E2E failures are exclusively the newly blocking FD-VISUAL-01 §7.1 coverage gate: one per site/viewport. See [coverage failures](COVERAGE-FAILURES.json) and [independent review](REVIEW.md). This is not green CI, release readiness or builder-complete certification.
+## Image integrity and evidence
 
-## Final metadata verification
+All 36 PNGs were byte-compared again to immutable source commit `136c5ac75f398a99f572038a09916e54fca59ccc`: exact matches. Source declarations and accepted artwork limitations remain unchanged. All story canvases are protected in full; no source image was regenerated, retouched, cropped or replaced.
 
-After the full run, five superseded old hero-page declarations were removed from the manifest. Their source images remain on Home/Services; no rendering or source artwork changed. Static media validation passed afterward. `pnpm --filter e2e exec playwright test tests/fd-visual-01-media.spec.ts tests/story-pass.spec.ts` passed **64/64 (2.2min)** against fresh builds after this cleanup. This final run also regenerated all story screenshots.
+[SCREENSHOTS.md](SCREENSHOTS.md) indexes 198 PNGs: 132 normal/reduced full-page captures and 66 normal first frames. Full captures include dimension/scale sidecars. CAPTURE-HASHES.json records every PNG; BUILD-INPUTS.json records the exact production and test inputs. Dedicated captures are committed under `e2e/snapshots/story-pass/`.
 
-## Captures and provenance
+The earlier four coverage-test failures have been resolved. [MEDIA-COVERAGE.md](MEDIA-COVERAGE.md) explains the relevant artwork/illustration additions and the independently reviewed final-viewport correction. The gate remains blocking with its original substantive-media threshold and route exceptions.
 
-[Capture index](SCREENSHOTS.md): 90 PNGs covering 15 changed pages — 60 full-page captures (both viewport sizes, normal/reduced motion), plus 30 normal first frames. Full captures have dimension/scale sidecars.
+A full-suite attempt caught numeric process markers on the figure-free About page. Markers were replaced with dots, the strict copy test was preserved, and the complete suite was rerun successfully. A subsequent metadata-only correction lists concrete legal/404 footer placements; the rendered manifest check now explicitly visits these routes. After that correction, all 146 image, geometry and coverage tests were rerun against fresh builds and all final captures were regenerated. [REVIEW.md](REVIEW.md) records this and the other addressed findings.
 
-The harness captured a working tree, not a pre-existing commit; its dirty-tree notice is expected during implementation. Final build/test input hashes are recorded separately so the visual evidence can be compared with the committed source. No source image was regenerated, retouched, cropped or replaced. Every rendered source canvas is protected in full, including required text and subjects.
+## Remaining review and release constraints
 
-## Remaining blockers / limitations
+- Founder explicitly deferred PR #13/#15 merges and #12 closure. The branch inherits rollout commit `08dd3d3bfd14b8cfbbd968045703f0cfab1f979d`; reconcile the base after those operations before merging.
+- Local results are not a claim about remote CI or Vercel checks. Their current state is reported on the new PR.
+- Founder visual/release approval remains outstanding. Independent review is not AEGIS certification.
+- The approved source review's known limitations remain, including the small keypad-digit defect in `rr-missed-call.png`.
+- Backend implementation, scoring, adapters, transport and production configuration are unchanged. The two optional form illustration props affect presentation only.
 
-- Site-wide media coverage needs approved placements or layout work beyond the 36 designated image slots; inherited media-free pages and long text-only stretches remain. The gate stays blocking.
-- PR #13/#15 merges and #12 closure remain deferred by explicit founder instruction. This branch starts from the unmerged #13 rollout commit; reconcile with main before merge.
-- Remote CI and Vercel checks have not been claimed green for this integration.
-- Independent source/placement review is recorded; founder visual approval and release approval remain outstanding. No AEGIS certification.
-- Source REVIEW.md’s accepted artwork limitations remain unchanged, including the small keypad-digit defect in rr-missed-call.png.
-- Backend code, production services and release configuration were not changed.
-
-Final coverage inventory: 90 failing bands are recorded in COVERAGE-FAILURES.json. The four blocking coverage tests remain unchanged.
-
-Workspace note: the full suite also regenerated 175 legacy capture files. Automatic approval rejected cleanup because it could discard uncommitted files. Those files are retained locally and excluded from this PR; only the dedicated story-pass captures are committed.
+The full suite regenerated legacy screenshots as well. They remain locally retained and excluded from this change; automatic approval previously rejected discarding them because of possible uncommitted work. Only the dedicated final story-pass captures are included.
