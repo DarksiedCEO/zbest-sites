@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useRef, useState, type FormEvent, type Ref } from "react";
+import { CollectionNotice } from "./collection-notice";
 import { ButtonLink, LedgerRule } from "@zbest/ui";
 import { FAILURE_COPY, HONEYPOT_FIELD, type LeadFailure } from "@zbest/ui/lead/contract";
 import { SubmitStatus } from "@zbest/ui/lead/submit-status";
@@ -302,6 +303,7 @@ export function ReadinessCheck() {
           Some answers need attention.
         </p>
       ) : null}
+      <CollectionNotice />
       <button
         type="submit"
         disabled={!ready}

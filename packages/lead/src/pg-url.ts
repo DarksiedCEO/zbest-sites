@@ -37,8 +37,10 @@
  *   - `channel_binding=require` is accepted but NOT enforced (the driver has
  *     no channel binding). SCRAM still authenticates the password; use
  *     verify-full if you need protection against interception.
- *   - an explicit remote `sslmode=disable` is honoured as the operator's
- *     choice; without sslmode a remote host gets TLS.
+ *   - an explicit remote `sslmode=disable` parses, but resolveTransport
+ *     (config.ts) refuses it when NODE_ENV=production: the Privacy Policy
+ *     says submissions travel to the database encrypted (AEGIS r2 L5).
+ *     Without sslmode a remote host gets TLS.
  *
  * Remote hosts with no sslmode default to TLS (`require`): every hosted
  * Postgres the design considers (Neon, Supabase, Vercel Marketplace) requires
@@ -73,6 +75,9 @@ const SSL: Record<string, PgSsl> = {
 };
 
 const LOCAL = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
+
+/** A loopback host, where TLS is pointless and off by default. */
+export const isLocalHost = (host: string) => LOCAL.has(host);
 
 export function parsePostgresUrl(raw: string): PgUrlResult {
   let url: URL;
