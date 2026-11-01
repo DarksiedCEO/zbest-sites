@@ -47,7 +47,7 @@ export const metadata = pageMetadata(SITE, {
  */
 export default function RevenueRecoveryPage() {
   return (
-    <main>
+    <main id="main">
       <PageHeader label="Revenue Recovery" title="Find out where your revenue is going.">
         <Lead>
           Most businesses aren&rsquo;t short on traffic. They&rsquo;re losing the traffic

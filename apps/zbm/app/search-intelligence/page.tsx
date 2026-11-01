@@ -122,7 +122,7 @@ const FAQ_ITEMS = [
 
 export default function SearchIntelligencePage() {
   return (
-    <main>
+    <main id="main">
       <PageHeader label="Search Intelligence" title="Ranked isn’t the same as cited.">
         <Lead>
           Google&rsquo;s answer boxes, ChatGPT, Claude, Gemini, and Perplexity are

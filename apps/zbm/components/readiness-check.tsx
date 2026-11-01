@@ -1,11 +1,12 @@
 "use client";
 
-import { useId, useRef, useState, type FormEvent } from "react";
+import { useId, useRef, useState, type FormEvent, type Ref } from "react";
 import { ButtonLink, LedgerRule } from "@zbest/ui";
 import { FAILURE_COPY, HONEYPOT_FIELD, type LeadFailure } from "@zbest/ui/lead/contract";
 import { SubmitStatus } from "@zbest/ui/lead/submit-status";
 import { RegionFields } from "@zbest/ui/lead/region-fields";
 import { NOT_READY_LABEL, useHydrated } from "@zbest/ui/lead/use-hydrated";
+import { firstInvalid, useOutcomeFocus } from "@zbest/ui/lead/use-outcome-focus";
 import { submitReadiness } from "@/lib/visibility/contract";
 import { ACTIVE_RULE_SET, QUESTIONS, SCALE, type AnswerValue } from "@/lib/visibility/rules";
 import type { VisibilityReadinessResult } from "@/lib/visibility/score";
@@ -40,7 +41,7 @@ type State =
 // Matches the assessment form's control styling: .type-body caps at 68ch, and
 // max-w-none lets the control fill its column instead of stopping mid-width.
 const CONTROL =
-  "type-body mt-2 w-full max-w-none border border-text-secondary/35 bg-base px-3.5 py-3 text-text-primary placeholder:text-text-secondary/60 aria-[invalid=true]:border-accent";
+  "type-body mt-2 w-full max-w-none border border-text-secondary/70 bg-base px-3.5 py-3 text-text-primary placeholder:text-text-secondary/60 aria-[invalid=true]:border-accent";
 
 /** §12.7: the contact fields are §11.3's four, unchanged. */
 const CONTACT = [
@@ -50,9 +51,10 @@ const CONTACT = [
   { name: "reach", label: "Best way to reach you", type: "text", autoComplete: undefined },
 ] as const;
 
-function Result({ result }: { result: VisibilityReadinessResult }) {
+function Result({ result, ref }: { ref?: Ref<HTMLDivElement>; result: VisibilityReadinessResult }) {
   return (
     <div
+      ref={ref}
       role="status"
       tabIndex={-1}
       data-lead-result="accepted"
@@ -134,10 +136,22 @@ export function ReadinessCheck() {
   const submissionId = useRef<string | null>(null);
   const [state, setState] = useState<State>({ kind: "idle" });
   const ready = useHydrated();
+  // a11y (WCAG 2.4.3): focus follows the outcome; see use-outcome-focus.ts.
+  const formRef = useRef<HTMLFormElement>(null);
+  const resultRef = useRef<HTMLDivElement>(null);
+  const alertRef = useRef<HTMLParagraphElement>(null);
+  const inFlight = useRef(false);
+  useOutcomeFocus(state.kind, {
+    invalid: () => firstInvalid(formRef.current) ?? alertRef.current,
+    failed: () => alertRef.current,
+    superseded: () => alertRef.current,
+    checked: () => resultRef.current,
+  });
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (state.kind === "submitting") return;
+    if (state.kind === "submitting" || inFlight.current) return;
+    inFlight.current = true;
     submissionId.current ??= crypto.randomUUID();
     const data = new FormData(event.currentTarget);
     const text = (name: string) => String(data.get(name) ?? "");
@@ -150,30 +164,39 @@ export function ReadinessCheck() {
     const honeypot = text(HONEYPOT_FIELD);
 
     setState({ kind: "submitting" });
-    const outcome = await submitReadiness({
-      form: "readiness",
-      submission_id: submissionId.current,
-      rule_set_version: ACTIVE_RULE_SET.version,
-      contact: { name: text("name"), business: text("business"), website: text("website"), reach: text("reach") },
-      region: { state: text("state") },
-      answers,
-      ...(honeypot ? { company_url: honeypot } : {}),
-    });
-    if (outcome.status === "checked") setState({ kind: "checked", result: outcome.result });
-    else if (outcome.status === "invalid") setState({ kind: "invalid", fields: outcome.fields });
-    else if (outcome.status === "superseded") setState({ kind: "superseded" });
-    else {
-      if (outcome.reason === "conflict") submissionId.current = null;
-      setState({ kind: "failed", reason: outcome.reason });
+    // try/finally (AEGIS F8): a throwing adapter must not leave the form
+    // locked in "submitting"; it shows the unknown-outcome failure instead.
+    try {
+      const outcome = await submitReadiness({
+        form: "readiness",
+        submission_id: submissionId.current,
+        rule_set_version: ACTIVE_RULE_SET.version,
+        contact: { name: text("name"), business: text("business"), website: text("website"), reach: text("reach") },
+        region: { state: text("state") },
+        answers,
+        ...(honeypot ? { company_url: honeypot } : {}),
+      });
+      if (outcome.status === "checked") setState({ kind: "checked", result: outcome.result });
+      else if (outcome.status === "invalid") setState({ kind: "invalid", fields: outcome.fields });
+      else if (outcome.status === "superseded") setState({ kind: "superseded" });
+      else {
+        if (outcome.reason === "conflict") submissionId.current = null;
+        setState({ kind: "failed", reason: outcome.reason });
+      }
+    } catch {
+      setState({ kind: "failed", reason: "failed" });
+    } finally {
+      inFlight.current = false;
     }
   };
 
-  if (state.kind === "checked") return <Result result={state.result} />;
+  if (state.kind === "checked") return <Result ref={resultRef} result={state.result} />;
 
   const errors = state.kind === "invalid" ? state.fields : {};
 
   return (
     <form
+      ref={formRef}
       noValidate
       method="post"
       onSubmit={onSubmit}
@@ -223,6 +246,7 @@ export function ReadinessCheck() {
             key={question.id}
             data-readiness-question={question.id}
             aria-describedby={error ? errorId : undefined}
+            data-invalid={error ? "true" : undefined}
             className="border-b border-text-secondary/20 py-ledger"
           >
             <legend className="type-body flex gap-3 text-text-primary">
@@ -235,7 +259,7 @@ export function ReadinessCheck() {
               {SCALE.map((step) => (
                 <label
                   key={step.value}
-                  className="flex cursor-pointer items-center gap-3 border border-text-secondary/35 px-3.5 py-3 has-[:checked]:border-accent has-[:checked]:bg-panel"
+                  className="flex cursor-pointer items-center gap-3 border border-text-secondary/70 px-3.5 py-3 has-[:checked]:border-accent has-[:checked]:bg-panel"
                 >
                   <input
                     type="radio"
@@ -263,27 +287,30 @@ export function ReadinessCheck() {
       </div>
 
       {state.kind === "failed" ? (
-        <p role="alert" data-lead-failure={state.reason} className="type-small mt-4 text-accent">
+        <p ref={alertRef} tabIndex={-1} role="alert" data-lead-failure={state.reason} className="type-small mt-4 text-accent">
           {FAILURE_COPY[state.reason]}
         </p>
       ) : null}
       {state.kind === "superseded" ? (
-        <p role="alert" className="type-small mt-4 text-accent">
+        <p ref={alertRef} tabIndex={-1} role="alert" className="type-small mt-4 text-accent">
           These questions changed while you were answering. Reload the page to see the current
           ones — nothing was saved.
         </p>
       ) : null}
       {state.kind === "invalid" ? (
-        <p role="alert" className="type-small mt-4 text-accent">
+        <p ref={alertRef} tabIndex={-1} role="alert" className="type-small mt-4 text-accent">
           Some answers need attention.
         </p>
       ) : null}
       <button
         type="submit"
-        disabled={!ready || state.kind === "submitting"}
+        disabled={!ready}
+        // aria-disabled, not disabled, while sending: a disabled button loses
+        // focus to <body> (WCAG 2.4.3). onSubmit ignores repeat submits.
+        aria-disabled={state.kind === "submitting" ? true : undefined}
         aria-busy={ready ? undefined : true}
         aria-describedby={ready ? undefined : `${baseId}-loading`}
-        className="type-label mt-stack inline-flex items-center whitespace-nowrap bg-accent px-5 py-3.5 text-base disabled:opacity-60"
+        className="type-label mt-stack inline-flex items-center whitespace-nowrap bg-accent px-5 py-3.5 text-base disabled:opacity-60 aria-disabled:opacity-60"
       >
         {!ready ? NOT_READY_LABEL : state.kind === "submitting" ? "Checking…" : "Get Your Readiness Check"}
       </button>

@@ -197,7 +197,7 @@ for (const app of APPS) {
       await page.emulateMedia({ reducedMotion: "no-preference" });
       await page.goto(`${app.baseUrl}/dev/system`, { waitUntil: "domcontentloaded" });
 
-      const counter = page.locator("#counter .type-stat").first();
+      const counter = page.locator("#counter .type-stat [data-counter] > [aria-hidden]").first();
       await counter.scrollIntoViewIfNeeded();
 
       // It animates to the final value and settles there.
@@ -213,15 +213,16 @@ for (const app of APPS) {
       // fully readable with motion off).
       await page.emulateMedia({ reducedMotion: "reduce" });
       await page.goto(`${app.baseUrl}/dev/system`, { waitUntil: "domcontentloaded" });
-      const reduced = page.locator("#counter .type-stat").first();
+      const reduced = page.locator("#counter .type-stat [data-counter] > [aria-hidden]").first();
       expect(await reduced.textContent()).toBe("1,240,000");
 
-      // aria-label sits on the Counter's own element, not the type wrapper:
-      // assistive tech must never be read a number mid-count, so the final
-      // value is exposed there while the animating text is aria-hidden.
-      await expect(
-        page.locator("#counter .type-stat span[aria-label]").first(),
-      ).toHaveAttribute("aria-label", "1,240,000");
+      // Assistive tech must never be read a number mid-count: the final value
+      // is visually hidden text on the Counter's own element, the animating
+      // text is aria-hidden, and there is no aria-label on the role-less span
+      // (ARIA 1.2 prohibits it; WCAG 1.3.1/4.1.2).
+      const own = page.locator("#counter .type-stat [data-counter]").first();
+      await expect(own.locator("> .sr-only")).toHaveText("1,240,000");
+      await expect(own).not.toHaveAttribute("aria-label", /.*/);
     });
 
     // The reduced-motion read above used to race hydration: the server
@@ -235,7 +236,7 @@ for (const app of APPS) {
         const page = await context.newPage();
         await page.goto(`${app.baseUrl}/dev/system`, { waitUntil: "domcontentloaded" });
         expect(
-          await page.locator("#counter .type-stat").first().textContent(),
+          await page.locator("#counter .type-stat [data-counter] > [aria-hidden]").first().textContent(),
           `no-JS, reducedMotion=${reducedMotion}`,
         ).toBe("1,240,000");
         await context.close();

@@ -5,6 +5,12 @@
 # branch protection can require them by name:
 #   CI / typecheck, CI / lint, CI / unit, CI / audit, CI / e2e
 #
+# The Playwright gate runs as two parallel jobs, one per project
+# (e2e-project: desktop-1440 on Chromium, mobile-390 on WebKit). The job
+# named `e2e` only aggregates them and fails unless BOTH passed, so the
+# required check keeps its name and nothing is weakened (AEGIS F3).
+# Nightly accessibility extras: a11y-nightly.yml.
+#
 # Checkouts set persist-credentials: false: no job pushes, so the token is not
 # left in .git/config for later steps (security sweep 2026-10-30, L7).
 #
@@ -101,9 +107,20 @@ jobs:
       - name: pnpm audit (production dependencies, high and critical fail)
         run: pnpm audit --prod --audit-level=high
 
-  e2e:
+  e2e-project:
+    name: e2e (${{ matrix.project }})
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    strategy:
+      # Both legs always finish, so one failure never hides the other's.
+      fail-fast: false
+      matrix:
+        include:
+          - project: desktop-1440
+            browser: chromium
+          # The iPhone 14 profile runs on WebKit.
+          - project: mobile-390
+            browser: webkit
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -114,20 +131,33 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # desktop-1440 runs on Chromium; mobile-390 uses the iPhone 14 profile,
-      # which runs on WebKit.
-      - name: Install Playwright browsers
-        run: pnpm --filter e2e exec playwright install --with-deps chromium webkit
+      - name: Install Playwright browser
+        run: pnpm --filter e2e exec playwright install --with-deps ${{ matrix.browser }}
       # The gate builds and serves both apps itself (e2e/playwright.config.ts).
-      - name: Playwright gate
-        run: pnpm e2e
+      - name: Playwright gate (${{ matrix.project }})
+        run: pnpm --filter e2e exec playwright test --project=${{ matrix.project }}
       - name: Upload gate output
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: e2e-gate-${{ github.sha }}
+          name: e2e-gate-${{ matrix.project }}-${{ github.sha }}
           path: |
             e2e/playwright-report/
             e2e/test-results/
             e2e/snapshots/
           retention-days: 30
+
+  # The required check. Fails unless every e2e-project leg succeeded —
+  # including when one was cancelled, skipped or timed out. No checkout.
+  e2e:
+    if: ${{ always() }}
+    needs: [e2e-project]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Both Playwright projects passed
+        env:
+          RESULT: ${{ needs.e2e-project.result }}
+        run: |
+          echo "e2e-project (desktop-1440 + mobile-390): $RESULT"
+          test "$RESULT" = "success"

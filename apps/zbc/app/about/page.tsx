@@ -19,7 +19,7 @@ export const metadata = pageMetadata(SITE, {
  */
 export default function AboutPage() {
   return (
-    <main>
+    <main id="main">
       <PageHeader label="About" title="We come from advertising. Now we’re building the next version of it." />
 
       <PageSection id="story" label="Where we come from">

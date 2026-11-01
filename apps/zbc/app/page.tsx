@@ -24,7 +24,7 @@ const EXAMPLES = [
 
 export default function HowItWorksPage() {
   return (
-    <main>
+    <main id="main">
       <PageHeader
         label="How It Works"
         title="One source. Dozens of clips. Real reach."
@@ -46,7 +46,7 @@ export default function HowItWorksPage() {
 
       {/* Section 2 — The Process, on the timeline/scrubber device. */}
       <section id="process" className="mx-auto mt-section max-w-[90rem] scroll-mt-24 px-gutter lg:mt-section-lg lg:px-gutter-wide">
-        <p className="type-label text-text-secondary">The Process</p>
+        <h2 className="type-label text-text-secondary">The Process</h2>
         <div className="mt-stack">
           <Timeline
             steps={[
@@ -128,29 +128,29 @@ export default function HowItWorksPage() {
         on viewport entry. Swap for real results as campaigns land.
       */}
       <section id="examples" className="mx-auto mt-section max-w-[90rem] scroll-mt-24 px-gutter lg:mt-section-lg lg:px-gutter-wide">
-        <p className="type-label text-text-secondary">Examples</p>
+        <h2 className="type-label text-text-secondary">Examples</h2>
         <ul className="mt-stack grid gap-5 lg:grid-cols-3">
           {EXAMPLES.map((ex) => (
             <li key={ex.title} data-example-card data-focus={ex.focus}>
               <Card accent className="flex h-full flex-col" eyebrow={ex.focus === "entertainment" ? "Entertainment" : "Brands"} title={ex.title}>
-                <dl className="mt-3 flex flex-col gap-3">
-                  <div>
+                {/* One div per dt/dd pair, directly under the <dl> (WCAG 1.3.1);
+                    Views takes the full row, Clips and Platforms share the next. */}
+                <dl className="mt-3 flex flex-wrap gap-x-10 gap-y-3">
+                  <div className="w-full">
                     <dt className="type-label text-text-secondary">Views</dt>
                     <dd className="type-stat mt-1 text-[clamp(2.25rem,4vw,3.25rem)]">
                       <Counter value={ex.views} />
                     </dd>
                   </div>
-                  <div className="flex gap-10">
-                    <div>
-                      <dt className="type-label text-text-secondary">Clips</dt>
-                      <dd className="type-stat mt-1">
-                        <Counter value={ex.clips} />
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="type-label text-text-secondary">Platforms</dt>
-                      <dd className="type-mono mt-2">{ex.platforms}</dd>
-                    </div>
+                  <div>
+                    <dt className="type-label text-text-secondary">Clips</dt>
+                    <dd className="type-stat mt-1">
+                      <Counter value={ex.clips} />
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="type-label text-text-secondary">Platforms</dt>
+                    <dd className="type-mono mt-2">{ex.platforms}</dd>
                   </div>
                 </dl>
                 <div className="mt-auto pt-6">

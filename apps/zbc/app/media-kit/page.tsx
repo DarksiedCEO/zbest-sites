@@ -22,7 +22,7 @@ export const metadata = pageMetadata(SITE, {
  */
 export default function MediaKitPage() {
   return (
-    <main>
+    <main id="main">
       <PageHeader label="Media Kit" title="Z Best Clips — press kit." />
 
       <PageSection id="boilerplate" label="Boilerplate">

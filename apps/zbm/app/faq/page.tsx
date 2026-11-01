@@ -24,7 +24,7 @@ export const metadata = pageMetadata(SITE, {
  */
 export default function FaqPage() {
   return (
-    <main>
+    <main id="main">
       <PageHeader label="FAQ" title="Frequently asked questions" />
 
       {[
