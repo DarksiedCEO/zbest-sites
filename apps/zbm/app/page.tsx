@@ -1,4 +1,4 @@
-import { ButtonLink, LedgerRule, pageMetadata, ServicePreview, StatBlock } from "@zbest/ui";
+import { StoryImage, ButtonLink, LedgerRule, pageMetadata, ServicePreview, StatBlock } from "@zbest/ui";
 import Link from "next/link";
 import { HomeReel } from "@/components/home-reel";
 import { CtaRow, LedgerList, Lead, Note, PageSection } from "@/components/page";
@@ -157,7 +157,7 @@ export default function HomePage() {
       </PageSection>
 
       {/* Section 4 — How we work. No case study cards until real ones exist. */}
-      <PageSection id="how-we-work" label="How we work" title="Audit first. Evidence. Then scale.">
+      <PageSection id="how-we-work" label="How we work" title="Audit first. Evidence. Then scale." media={<StoryImage asset="home-how-we-work" />}>
         <ol className="grid gap-x-8 sm:grid-cols-2 lg:grid-cols-4">
           {[
             ["Assess", "A free look at where you’re likely losing revenue."],

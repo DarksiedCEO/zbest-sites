@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ButtonLink, LedgerRule, pageMetadata, ScrollDrift } from "@zbest/ui";
+import { ButtonLink, LedgerRule, pageMetadata, StoryImage, type StoryAssetId } from "@zbest/ui";
 import {
   Body,
   CtaRow,
@@ -57,9 +57,7 @@ export default function RevenueRecoveryPage() {
         label="Revenue Recovery"
         title="Find out where your revenue is going."
         aside={
-          <ScrollDrift className="mx-auto w-full max-w-[30rem]">
-            <LeakLedger leaks={WHERE_REVENUE_LEAKS} />
-          </ScrollDrift>
+          <StoryImage asset="rr-missed-call" hero />
         }
       >
         <Lead>
@@ -78,11 +76,16 @@ export default function RevenueRecoveryPage() {
         </div>
       </PageHeader>
 
-      <PageSection label="Where revenue leaks">
-        <LedgerList
-          numbered
-          items={WHERE_REVENUE_LEAKS.map((title) => ({ title }))}
-        />
+      <PageSection label="Where revenue leaks" media={<LeakLedger leaks={WHERE_REVENUE_LEAKS} />}>
+        <ol className="space-y-8">
+          {WHERE_REVENUE_LEAKS.map((title, i) => {
+            const images: (StoryAssetId | null)[] = [null, "rr-broken-form", "rr-no-follow-up", "rr-slow-page", "rr-wrong-page", null];
+            return <li key={title} className="border-t border-text-secondary/30 pt-5">
+              <h3 className="type-title mb-4"><span className="type-mono text-accent mr-3">{String(i + 1).padStart(2, "0")}</span>{title}</h3>
+              {images[i] ? <StoryImage asset={images[i]!} /> : null}
+            </li>;
+          })}
+        </ol>
       </PageSection>
 
       <PageSection id="leak-library" label={LEAK_LIBRARY.title} intro={<Lead>{LEAK_LIBRARY.intro}</Lead>}>
@@ -94,6 +97,7 @@ export default function RevenueRecoveryPage() {
       </PageSection>
 
       <PageSection
+        media={<StoryImage asset="rr-leak-report" />}
         id="audit"
         band
         label={AUDIT_DELIVERABLE.label}

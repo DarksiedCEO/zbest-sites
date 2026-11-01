@@ -46,6 +46,7 @@ export function PageSection({
   intro,
   children,
   band = false,
+  media,
 }: {
   id?: string;
   label: string;
@@ -54,6 +55,8 @@ export function PageSection({
   children?: ReactNode;
   /** Panel-surface band for the one featured section on a page. */
   band?: boolean;
+  /** Narrative image beside this section, preserving its original canvas. */
+  media?: ReactNode;
 }) {
   const inner = (
     <div className={FRAME}>
@@ -62,6 +65,7 @@ export function PageSection({
         <div className="lg:col-span-4">
           <p className="type-label text-text-secondary">{label}</p>
           {title ? <h2 className="type-headline mt-3">{title}</h2> : null}
+          {media ? <div className="mt-6">{media}</div> : null}
         </div>
         <div className="flex flex-col gap-stack lg:col-span-8">
           {intro ? <div className="flex flex-col gap-4">{intro}</div> : null}

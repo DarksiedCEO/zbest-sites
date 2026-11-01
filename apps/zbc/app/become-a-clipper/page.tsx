@@ -1,4 +1,4 @@
-import { ButtonLink, Card, HeroMedia, pageMetadata } from "@zbest/ui";
+import { ButtonLink, StoryImage, Card, HeroMedia, pageMetadata } from "@zbest/ui";
 import { CtaRow, FixtureNote, LedgerList, PageHeader, PageSection } from "@/components/page";
 import { LeadForm } from "@/components/lead-form";
 import { SITE } from "@/lib/site";
@@ -63,7 +63,7 @@ export default function BecomeAClipperPage() {
         />
       </PageSection>
 
-      <PageSection id="payouts" label="Payouts" title="Two kinds of campaigns, two kinds of payout.">
+      <PageSection id="payouts" media={<StoryImage asset="zbc-clipper-paid" />} label="Payouts" title="Two kinds of campaigns, two kinds of payout.">
         <div className="grid gap-5 md:grid-cols-2">
           <Card accent data-focus="entertainment" eyebrow="Your account" title="Entertainment campaigns">
             <p className="type-body text-text-primary">
