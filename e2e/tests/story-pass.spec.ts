@@ -7,10 +7,17 @@ import { ZBC_BASE_URL, ZBM_BASE_URL } from "../playwright.config";
 const inventory = JSON.parse(readFileSync(path.join(import.meta.dirname, "../../docs/story-pass/inventory.json"), "utf8")) as {
   assets: { id: string; page: string; section: string; width: number; height: number }[];
 };
-const pages = [...new Set(inventory.assets.map((a) => a.page))];
+const supportingHeaders: Record<string, string> = {
+  "zbm:/contact": "saltgrove-brand-system", "zbm:/search-intelligence": "marenvale-website",
+  "zbc:/pricing": "zbc-clipper-phone", "zbc:/about": "zbc-clipper-phone", "zbc:/media-kit": "zbc-clipper-phone",
+};
+const sharedFooterPages = ["zbm:/start", "zbm:/faq", "zbc:/launch-a-campaign", "zbc:/faq",
+  ...["zbm", "zbc"].flatMap((site) => ["privacy-policy", "terms-of-service", "cookie-policy"].map((policy) => `${site}:/legal/${policy}`)),
+];
+const pages = [...new Set([...inventory.assets.map((a) => a.page), ...Object.keys(supportingHeaders), "zbm:/services", ...sharedFooterPages])];
 for (const route of pages) {
   for (const motion of ["reduce", "no-preference"] as const) {
-    test(`${route}: all approved story slots, complete canvases, visible badges (${motion})`, async ({ page }, info) => {
+    test(`${route}: approved image layout, complete canvases, visible badges (${motion})`, async ({ page }, info) => {
       test.setTimeout(90_000);
       const [site, pathname] = route.split(":");
       await page.addInitScript(() => localStorage.setItem("zbest-cookie-consent", JSON.stringify({ choice: "rejected-non-essential", at: "2026-01-01T00:00:00.000Z" })));
@@ -48,6 +55,12 @@ for (const route of pages) {
           expect(win!.width).toBeLessThanOrEqual(416);
           await expect(slot.locator("xpath=ancestor::*[@data-timeline]")).toHaveCount(1);
         }
+      }
+      if (supportingHeaders[route]) {
+        const frame = page.locator(`main header [data-asset-id="${supportingHeaders[route]}"]`);
+        await expect(frame).toHaveCount(1);
+        await expect(frame.locator("[data-concept-badge]")).toBeVisible();
+        await expect(frame.locator("img")).toHaveAttribute("alt", /^Concept:/);
       }
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), "horizontal overflow").toBe(true);
       // Images are semantic non-interactive content, never keyboard traps.

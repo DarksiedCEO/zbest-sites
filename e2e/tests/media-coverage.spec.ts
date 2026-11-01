@@ -1,3 +1,4 @@
+import { coverageBands, uncoveredBands } from "../support/media-coverage";
 import { expect, test } from "@playwright/test";
 import { ZBC_BASE_URL, ZBM_BASE_URL } from "../playwright.config";
 
@@ -22,8 +23,7 @@ for (const [site, base] of [["zbm", ZBM_BASE_URL], ["zbc", ZBC_BASE_URL]]) {
         scrollTo(0, 0);
       });
       await page.waitForLoadState("networkidle");
-      const bands = await page.evaluate(() => {
-        const band = innerWidth >= 1024 ? 900 : 844;
+      const measurement = await page.evaluate(() => {
         const height = document.documentElement.scrollHeight;
         const shown = (el: Element) => {
           for (let node: Element | null = el; node; node = node.parentElement) {
@@ -32,22 +32,18 @@ for (const [site, base] of [["zbm", ZBM_BASE_URL], ["zbc", ZBC_BASE_URL]]) {
           }
           return true;
         };
-        const rects = [...document.querySelectorAll("main img, main video, main svg[role=img], main [data-leak-ledger]")].flatMap((el) => {
+        const rects = [...document.querySelectorAll("main img, main video, main svg[role=img], main [data-leak-ledger], footer img, footer video, footer svg[role=img]")].flatMap((el) => {
           const r = el.getBoundingClientRect();
           if (r.width < 80 || r.height < 80 || r.right <= 0 || r.left >= innerWidth || !shown(el)) return [];
           if (el instanceof HTMLImageElement && (!el.complete || !el.naturalWidth)) return [];
           return [{ top: r.top + scrollY, bottom: r.bottom + scrollY }];
         });
-        return Array.from({ length: Math.ceil(height / band) }, (_, i) => ({
-          top: i * band, bottom: Math.min(height, (i + 1) * band),
-          media: rects.some((r) => Math.min(r.bottom, (i + 1) * band) - Math.max(r.top, i * band) >= 24),
-        }));
+        return { height, rects };
       });
+      const bands = coverageBands(measurement.height, info.project.name === "mobile-390" ? 844 : 900, measurement.rects);
       await info.attach(`${site}${route.replaceAll("/", "-")}-coverage.json`, { body: JSON.stringify(bands, null, 2), contentType: "application/json" });
-      let run = 0;
-      for (const band of bands) {
-        run = band.media ? 0 : run + 1;
-        if (run > (info.project.name === "mobile-390" ? 2 : 0)) failures.push(`${site}${route}: text-only band ${band.top}–${band.bottom}px`);
+      for (const band of uncoveredBands(bands, info.project.name === "mobile-390" ? 2 : 0)) {
+        failures.push(`${site}${route}: text-only band ${band.top}–${band.bottom}px`);
       }
     }
     expect(failures, failures.join("\n")).toEqual([]);

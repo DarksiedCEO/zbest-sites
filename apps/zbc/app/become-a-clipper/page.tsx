@@ -1,3 +1,4 @@
+import { ProcessDiagram } from "@zbest/ui";
 import { ButtonLink, StoryImage, Card, HeroMedia, pageMetadata } from "@zbest/ui";
 import { CtaRow, FixtureNote, LedgerList, PageHeader, PageSection } from "@/components/page";
 import { LeadForm } from "@/components/lead-form";
@@ -50,7 +51,7 @@ export default function BecomeAClipperPage() {
         </div>
       </PageHeader>
 
-      <PageSection id="how-it-works" label="How it works">
+      <PageSection id="how-it-works" media={<ProcessDiagram title="Clipper workflow" steps={["Join a campaign", "Get source material", "Cut and post", "Submit for review", "Approved payouts"]} />} label="How it works">
         <LedgerList
           numbered
           items={[

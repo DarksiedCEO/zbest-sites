@@ -1,3 +1,4 @@
+import { LeakLedger } from "@/components/leak-ledger";
 import { StoryImage, ButtonLink, LedgerRule, pageMetadata, ServicePreview, StatBlock } from "@zbest/ui";
 import Link from "next/link";
 import { HomeReel } from "@/components/home-reel";
@@ -115,7 +116,7 @@ export default function HomePage() {
 
       {/* Section 3 — Revenue Recovery, featured. */}
       <PageSection
-        id="revenue-recovery"
+        id="revenue-recovery" media={<LeakLedger leaks={WHERE_REVENUE_LEAKS} />}
         band
         label="Revenue Recovery"
         title="Find out where your revenue is going."

@@ -1,3 +1,5 @@
+import { ProcessDiagram } from "@zbest/ui";
+import { DiagnosticIllustration, type DiagnosticKind } from "@/components/diagnostic-illustration";
 import Link from "next/link";
 import { ButtonLink, LedgerRule, pageMetadata, StoryImage, type StoryAssetId } from "@zbest/ui";
 import {
@@ -89,11 +91,11 @@ export default function RevenueRecoveryPage() {
       </PageSection>
 
       <PageSection id="leak-library" label={LEAK_LIBRARY.title} intro={<Lead>{LEAK_LIBRARY.intro}</Lead>}>
-        <LedgerList items={LEAK_LIBRARY.leaks} />
+        <LedgerList items={LEAK_LIBRARY.leaks.map((item, i) => ({ ...item, media: <DiagnosticIllustration kind={(["traffic", "conversion", "reviews", "offer", "followup", "tracking", "creative", "listings"] as DiagnosticKind[])[i]!} /> }))} />
       </PageSection>
 
       <PageSection label={INDUSTRY_PATTERNS.title} intro={<Lead>{INDUSTRY_PATTERNS.intro}</Lead>}>
-        <LedgerList items={INDUSTRY_PATTERNS.patterns} />
+        <LedgerList items={INDUSTRY_PATTERNS.patterns.map((item, i) => ({ ...item, media: <DiagnosticIllustration kind={(["followup", "offer", "reviews", "conversion", "answers", "tracking"] as DiagnosticKind[])[i]!} /> }))} />
       </PageSection>
 
       <PageSection
@@ -107,7 +109,7 @@ export default function RevenueRecoveryPage() {
         <LedgerList items={AUDIT_DELIVERABLE.parts} />
       </PageSection>
 
-      <PageSection label={ENGAGEMENTS.label} title={ENGAGEMENTS.title} intro={<Lead>{ENGAGEMENTS.intro}</Lead>}>
+      <PageSection media={<ProcessDiagram title="Engagement phases" steps={["Assessment", "Audit", "Implementation", "Program"]} />} label={ENGAGEMENTS.label} title={ENGAGEMENTS.title} intro={<Lead>{ENGAGEMENTS.intro}</Lead>}>
         <ol className="grid gap-x-8 sm:grid-cols-2">
           {ENGAGEMENTS.phases.map((phase) => (
             <li key={phase.title} className="flex flex-col">
@@ -123,7 +125,7 @@ export default function RevenueRecoveryPage() {
         </ol>
       </PageSection>
 
-      <PageSection id="faq" label="FAQ">
+      <PageSection id="faq" label="FAQ" media={<DiagnosticIllustration kind="answers" />}>
         <FaqList items={REVENUE_RECOVERY_FAQ} />
       </PageSection>
 
@@ -135,7 +137,7 @@ export default function RevenueRecoveryPage() {
         assessment ran on the page instead of being requested.
       */}
       <PageSection
-        id="assessment"
+        id="assessment" media={<ProcessDiagram title="Assessment" steps={["Your answers", "One prioritized leak", "Follow-up"]} />}
         label="Get an Assessment"
         title="Get your free assessment."
         intro={
@@ -150,7 +152,7 @@ export default function RevenueRecoveryPage() {
         }
       >
         <div className="max-w-3xl">
-          <AssessmentForm />
+          <AssessmentForm illustrations={{ tracking: <DiagnosticIllustration kind="tracking" /> }} />
         </div>
       </PageSection>
     </main>

@@ -43,3 +43,7 @@ export { pageMetadata, siteMetadata } from "./metadata";
 export type { SiteIdentity } from "./metadata";
 
 export { StoryImage, type StoryAssetId } from "./media/story-image";
+
+export { ProcessDiagram } from "./media/process-diagram";
+
+export { DistributionDiagram } from "./media/distribution-diagram";

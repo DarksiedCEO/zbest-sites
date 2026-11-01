@@ -1,4 +1,4 @@
-import { ButtonLink, HeroMedia, StoryImage, type StoryAssetId, pageMetadata } from "@zbest/ui";
+import { ButtonLink, HeroMedia, MediaFrame, StoryImage, type StoryAssetId, pageMetadata } from "@zbest/ui";
 import type { Metadata } from "next";
 import { CtaRow, FaqList, Lead, LedgerList, PageHeader, PageSection, RuledList } from "@/components/page";
 import { SERVICE_HERO } from "@/content/service-media";
@@ -79,7 +79,7 @@ export function ServicePage({ slug }: { slug: string }) {
         <p className="type-body-lead text-text-primary">{page.pricing}</p>
       </PageSection>
 
-      <PageSection label="Who this is for">
+      <PageSection label="Who this is for" media={hero ? <ServiceSampleMedia hero={hero} /> : undefined}>
         <p className="type-body-lead text-text-primary">{page.whoFor}</p>
         <CtaRow>
           <ButtonLink href={start}>Start a Project</ButtonLink>
@@ -101,4 +101,9 @@ function ServiceHeroMedia({ hero: { narrow, ...frame } }: { hero: NonNullable<(t
       sizes={narrow ? "320px" : "(min-width: 1440px) 520px, (min-width: 1024px) 36vw, calc(100vw - 2.5rem)"}
     />
   );
+}
+
+function ServiceSampleMedia({ hero: { narrow, ...frame } }: { hero: NonNullable<(typeof SERVICE_HERO)[string]> }) {
+  return <MediaFrame {...frame} className={narrow ? "w-full max-w-[20rem]" : undefined}
+    sizes={narrow ? "320px" : "(min-width: 1024px) 30vw, calc(100vw - 2.5rem)"} />;
 }

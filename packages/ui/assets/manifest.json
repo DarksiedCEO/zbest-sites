@@ -110,7 +110,8 @@
       "caption": "TV & Streaming · spot key frame · connected TV",
       "pages": [
         "zbm:/",
-        "zbm:/services"
+        "zbm:/services",
+        "zbm:/tv-streaming"
       ],
       "plannedPages": []
     },
@@ -247,7 +248,8 @@
       "caption": "Social Media · 4:5 feed post · organic",
       "pages": [
         "zbm:/",
-        "zbm:/services"
+        "zbm:/services",
+        "zbm:/social-media"
       ],
       "plannedPages": [],
       "handlesShown": [
@@ -307,7 +309,8 @@
       "caption": "Radio & Audio · spot key art · local radio",
       "pages": [
         "zbm:/",
-        "zbm:/services"
+        "zbm:/services",
+        "zbm:/radio-audio"
       ],
       "plannedPages": []
     },
@@ -394,7 +397,21 @@
       "pages": [
         "zbm:/",
         "zbm:/creative-production",
-        "zbm:/services"
+        "zbm:/services",
+        "zbm:/contact",
+        "zbm:/social-media",
+        "zbm:/radio-audio",
+        "zbm:/revenue-recovery",
+        "zbm:/search-intelligence",
+        "zbm:/faq",
+        "zbm:/out-of-home",
+        "zbm:/start",
+        "zbm:/about",
+        "zbm:/tv-streaming",
+        "zbm:/influencer-marketing",
+        "zbm:/digital-advertising",
+        "zbm:/websites",
+        "zbm:/legal/[document]"
       ],
       "plannedPages": []
     },
@@ -533,7 +550,9 @@
       "caption": "Websites & Landing Pages · homepage · desktop",
       "pages": [
         "zbm:/",
-        "zbm:/services"
+        "zbm:/services",
+        "zbm:/search-intelligence",
+        "zbm:/websites"
       ],
       "plannedPages": []
     },
@@ -685,7 +704,8 @@
       "alt": "Concept: a vertical Quellmont Motors cover — a car under a dark satin sheet in a lit showroom, a hand starting to pull it away, headlined “Your car is ready.”",
       "caption": "Brands · vertical clip cover · brand-owned account",
       "pages": [
-        "zbc:/brands"
+        "zbc:/brands",
+        "zbc:/"
       ],
       "plannedPages": []
     },
@@ -734,7 +754,8 @@
       "alt": "Concept: a vertical Maren Vale Aesthetics cover — a treatment room in late sun with a made treatment bed and a brass floor lamp, headlined “Your hour starts here.”",
       "caption": "Brands · vertical clip cover · brand-owned account",
       "pages": [
-        "zbc:/brands"
+        "zbc:/brands",
+        "zbc:/"
       ],
       "plannedPages": []
     },
@@ -766,7 +787,16 @@
       "pages": [
         "zbm:/",
         "zbm:/services",
-        "zbc:/become-a-clipper"
+        "zbc:/become-a-clipper",
+        "zbc:/pricing",
+        "zbc:/about",
+        "zbc:/media-kit",
+        "zbc:/",
+        "zbc:/faq",
+        "zbc:/brands",
+        "zbc:/entertainment",
+        "zbc:/launch-a-campaign",
+        "zbc:/legal/[document]"
       ],
       "plannedPages": []
     },

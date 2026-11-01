@@ -94,6 +94,7 @@ export function Body({ children }: { children: ReactNode }) {
 
 export type LedgerItem = {
   title: string;
+  media?: ReactNode;
   body?: ReactNode;
   href?: string;
   external?: boolean;
@@ -149,7 +150,7 @@ export function LedgerList({
                   {String(i + 1).padStart(2, "0")}
                 </span>
               ) : null}
-              <h3 className="type-title">{title}</h3>
+              <div><h3 className="type-title">{title}</h3>{item.media}</div>
               {hasDetail ? (
                 <div className={`flex flex-col gap-3 ${numbered ? "col-start-2 sm:col-start-auto" : ""}`}>
                   {item.body ? <div className="type-body text-text-secondary">{item.body}</div> : null}
