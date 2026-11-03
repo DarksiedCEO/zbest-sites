@@ -17,21 +17,23 @@
     "./lead/contract": "./src/lead/contract.ts",
     "./lead/use-hydrated": "./src/lead/use-hydrated.ts",
     "./lead/submit-status": "./src/lead/submit-status.tsx",
-    "./styles/lead.css": "./src/styles/lead.css"
+    "./styles/lead.css": "./src/styles/lead.css",
+    "./lead/region-fields": "./src/lead/region-fields.tsx"
   },
   "scripts": {
     "lint": "eslint .",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "motion": "13.3.0"
+    "motion": "13.3.0",
+    "@zbest/lead": "workspace:*"
   },
   "devDependencies": {
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@zbest/config": "workspace:*",
     "eslint": "9.39.5",
-    "next": "16.3.5",
+    "next": "16.4.3",
     "react": "19.3.0",
     "typescript": "5.9.3",
     "@types/node": "20.19.9"

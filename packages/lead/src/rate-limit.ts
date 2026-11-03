@@ -27,12 +27,33 @@ export function parseRateLimit(raw: string | undefined): RateLimitSpec | null {
   return { limit, windowSec };
 }
 
-export function memoryLimiter(spec: RateLimitSpec, now: () => number = Date.now, maxKeys = 50_000): RateLimiter {
+export type MemoryLimiter = RateLimiter & {
+  /** Buckets currently held (for tests and diagnostics). */
+  size(): number;
+};
+
+export function memoryLimiter(spec: RateLimitSpec, now: () => number = Date.now, maxKeys = 50_000): MemoryLimiter {
   const buckets = new Map<string, { tokens: number; at: number }>();
-  const refillPerMs = spec.limit / (spec.windowSec * 1000);
+  const windowMs = spec.windowSec * 1000;
+  const refillPerMs = spec.limit / windowMs;
+  /**
+   * Expiry (privacy sweep 2026-10-30, F7): a bucket untouched for a whole
+   * window has refilled completely, so it is indistinguishable from a new
+   * one and holding it only keeps a derivative of someone's address in
+   * memory. The map is in least-recently-used order, so expired buckets are
+   * all at the front: drop them until the first live one.
+   */
+  const expire = (t: number) => {
+    for (const [key, bucket] of buckets) {
+      if (t - bucket.at < windowMs) break;
+      buckets.delete(key);
+    }
+  };
   return {
+    size: () => buckets.size,
     async hit(key: string): Promise<RateDecision> {
       const t = now();
+      expire(t);
       const bucket = buckets.get(key) ?? { tokens: spec.limit, at: t };
       // Least-recently-used order: re-inserting moves this key to the end.
       buckets.delete(key);
