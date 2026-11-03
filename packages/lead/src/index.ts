@@ -11,7 +11,24 @@ export { payloadHash } from "./hash";
 export { leadEmail } from "./email";
 export { consoleLogger, sanitize, type LeadLogger, type LogFields } from "./log";
 export { memoryLimiter, restLimiter, parseRateLimit, DEFAULT_RATE_LIMIT } from "./rate-limit";
-export { postgresStore } from "./postgres";
+export { postgresStore, postgresPurger } from "./postgres";
+export {
+  handlePurge,
+  handleHealth,
+  resetHealthCache,
+  HEALTH_CACHE_MS,
+  purgeHealth,
+  PURGE_OVERDUE_HOURS,
+  type PurgeLedger,
+  type PurgeHealth,
+  resolveRetention,
+  retentionCutoffs,
+  DEFAULT_LEAD_RETENTION_DAYS,
+  DEFAULT_UA_RETENTION_DAYS,
+  type HandlePurgeOptions,
+  type LeadPurger,
+  type RetentionPolicy,
+} from "./retention";
 export { resendNotifier } from "./resend";
 export { fakeStore, fakeNotifier } from "./fake";
 export { clientIp } from "./ip";

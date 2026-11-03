@@ -585,7 +585,6 @@ describe("L6, L7 — email", () => {
     payload_hash: "h",
     services: [],
     source: null,
-    ip_hash: null,
     user_agent: null,
   };
 
@@ -781,14 +780,18 @@ describe("AEGIS r4 — R1 hops, R2 key normalisation, single-value Vercel header
     expect(ports).toEqual([200, 429, 429, 429, 429, 429, 429, 429, 429, 429]);
   });
 
-  it("R2: ip_hash is the HMAC of the full normalised address — port-free, never the /64 key", async () => {
+  it("privacy sweep 2026-10-30: no ip_hash and no address in any stored row (data minimisation)", async () => {
     const dir = tempOutbox();
     const o = { app: "zbm" as const, parse: toyParse, env: fakeEnv(dir), logger: captureLogger().logger, limiters: both(open()) };
     await handleLead(req(body(), { "x-forwarded-for": "198.51.100.30:5678" }), o);
     await handleLead(req(body(), { "x-forwarded-for": "[2001:db8:1:1::5]:443" }), o);
-    const rows = readJsonl<{ ip_hash: string }>(dir, "rows.jsonl");
-    const hash = hmacIp("fake-transport-not-a-secret");
-    expect(rows.map((r) => r.ip_hash)).toEqual([hash("198.51.100.30"), hash("2001:0db8:0001:0001:0000:0000:0000:0005")]);
+    const rows = readJsonl<Record<string, unknown>>(dir, "rows.jsonl");
+    expect(rows).toHaveLength(2);
+    for (const row of rows) expect(row).not.toHaveProperty("ip_hash");
+    const text = JSON.stringify(rows);
+    for (const leak of ["198.51.100.30", "2001:db8", "2001:0db8", hmacIp("fake-transport-not-a-secret")("198.51.100.30")]) {
+      expect(text).not.toContain(leak);
+    }
   });
 
   it("R2: a trusted header carrying a non-address is 503, never a bucket", async () => {
@@ -874,5 +877,56 @@ describe("AEGIS r5 — N3 IPv4 in IPv6, N5 edges", () => {
     });
     expect(resolvePolicy({ VERCEL: "1", LEAD_TRUSTED_PROXY_HOPS: "2" }).problems).toEqual(["LEAD_TRUSTED_PROXY_HOPS:only-with-x-forwarded-for"]);
     expect(resolvePolicy({ VERCEL: "1", LEAD_TRUSTED_PROXY: "1" }).problems.join()).toContain("LEAD_TRUSTED_PROXY:must-name-one-of-");
+  });
+});
+
+describe("privacy sweep 2026-10-30 F7 — rate-limit key and bucket expiry", () => {
+  it("the limiter key is the keyed HMAC of the normalised address, not a plain SHA-256", async () => {
+    const keys: string[] = [];
+    const spy: RateLimiter = { hit: async (key) => (keys.push(key), { allowed: true }) };
+    const o = { app: "zbm" as const, parse: toyParse, env: fakeEnv(tempOutbox()), logger: captureLogger().logger, limiters: both(spy) };
+    await handleLead(req(body(), { "x-forwarded-for": "198.51.100.30:5678" }), o);
+    const { createHash } = await import("node:crypto");
+    const hmac = hmacIp("fake-transport-not-a-secret")("v4:198.51.100.30").slice(0, 32);
+    const plain = createHash("sha256").update("v4:198.51.100.30").digest("hex").slice(0, 32);
+    expect(keys).toEqual([`zbm:${hmac}`]);
+    expect(keys[0]).not.toContain(plain);
+    expect(keys[0]).not.toContain("198.51.100.30");
+  });
+
+  it("a different secret gives a different key for the same address", () => {
+    expect(hmacIp("secret-one-0123456789")("v4:1.2.3.4")).not.toBe(hmacIp("secret-two-0123456789")("v4:1.2.3.4"));
+  });
+
+  it("memory buckets expire after a full idle window and never sooner", async () => {
+    let t = 0;
+    const limiter = memoryLimiter({ limit: 1, windowSec: 600 }, () => t);
+    await limiter.hit("a");
+    t = 100_000;
+    await limiter.hit("b");
+    expect(limiter.size()).toBe(2);
+    // 599.999 s after "a": still held, and still blocked.
+    t = 599_999;
+    expect((await limiter.hit("a")).allowed).toBe(false);
+    expect(limiter.size()).toBe(2);
+    // A full window after the last touch of "b" (100 s) and of "a" (599.999 s):
+    t = 700_000;
+    await limiter.hit("c");
+    expect(limiter.size()).toBe(2); // "b" expired; "a" (touched at 599.999 s) and "c" remain
+    t = 1_300_000;
+    await limiter.hit("d");
+    expect(limiter.size()).toBe(1); // only "d"
+  });
+
+  it("expiry does not change decisions: an expired key starts with a full bucket, as it would have anyway", async () => {
+    let t = 0;
+    const limiter = memoryLimiter({ limit: 2, windowSec: 10 }, () => t);
+    expect((await limiter.hit("k")).allowed).toBe(true);
+    expect((await limiter.hit("k")).allowed).toBe(true);
+    expect((await limiter.hit("k")).allowed).toBe(false);
+    t = 10_000;
+    expect((await limiter.hit("k")).allowed).toBe(true);
+    expect((await limiter.hit("k")).allowed).toBe(true);
+    expect((await limiter.hit("k")).allowed).toBe(false);
   });
 });

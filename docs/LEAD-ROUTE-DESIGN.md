@@ -109,7 +109,10 @@ The live site's older backend is the `zbm-server` service in the Railway project
   | Variable | Required | Meaning |
   |---|---|---|
   | `POSTGRES_URL` | yes | Lead store. Parsed by `src/pg-url.ts`, and the driver gets discrete options, never the raw URL (AEGIS H1/M1). Accepted params: `sslmode`; `channel_binding` (accepted, **not enforced**: the driver has no channel binding); `pgbouncer`, `supa`, `connection_limit`, `pool_timeout` (validated, then dropped as harmless hints); `options` **only** as `endpoint=<neon-id>`, passed to the server as the startup `options` parameter; `connect_timeout`. Any other param, or a repeated one, → `not_configured`, naming the key only. A remote host with no `sslmode` uses TLS. **Recommended: `?sslmode=verify-full`** for Neon and Supabase (public CAs). `require` encrypts but does not verify the certificate, as in libpq. Verification of an IP-literal host checks the chain only, not the name (a driver limit); vendor hosts are DNS names. A remote `sslmode=disable` is honoured as the operator's choice. Neon pooled/direct and Supabase pooler/direct formats are tested. |
-  | `LEAD_IP_HASH_SECRET` | yes (with Postgres) | HMAC key for `ip_hash`. The raw IP is never stored. |
+  | `LEAD_IP_HASH_SECRET` | yes (with Postgres) | HMAC key for the rate-limit key (≥ 16 chars). Since 2026-10-30 nothing derived from the IP is stored: `ip_hash` is no longer written (no code read it) and `sql/002_retention.sql` cleared old values. The raw IP is never stored. |
+  | `CRON_SECRET` | **yes, for the retention purge** (≥ 16 chars) | Vercel sends it as `Authorization: Bearer <CRON_SECRET>` on each cron call to `/api/cron/purge-leads` (`vercel.json`, daily). Without it the purge route refuses to run (`503`, error-level `purge_not_configured` on every invocation) and `/api/health` answers `503 cron_secret_missing`; a wrong or missing header is `401` and nothing is touched. Each successful run is recorded in `lead_purge_runs`; `/api/health` is `503 overdue` after 48 h without one (body `{"ok":false,"status":"overdue"}`, cached 60 s). See §5a. |
+  | `LEAD_RETENTION_DAYS` | optional, default `730` | Leads are deleted this many days after **submission** (`created_at`). There is no "last contact" column, so disclosures must count from submission. Whole days 1–3650; anything else → `503 not_configured` on the purge. |
+  | `LEAD_UA_RETENTION_DAYS` | optional, default `90` | The stored user agent is blanked this many days after submission (must not exceed `LEAD_RETENTION_DAYS`). |
   | `RESEND_API_KEY`, `LEAD_NOTIFY_FROM`, `LEAD_NOTIFY_TO` | yes, unless `LEAD_NOTIFY=disabled` | Founder notification. |
   | `LEAD_NOTIFY=disabled` | optional | Explicit store-only mode, for running before the Resend domain is verified. Rows get `notify_status = 'disabled'`. It is never inferred from a missing key. |
   | `LEAD_RATE_LIMIT` | optional, default `8/600` | Requests per window (seconds) per trusted client IP, per app. |
@@ -195,7 +198,7 @@ The live site's older backend is the `zbm-server` service in the Railway project
 4. **Retention and deletion.**
    - How long are leads kept, and who handles a deletion request?
    - No period is set in the Brief. The Legal Brief hands this to the attorney.
-   - The table supports a purge by `created_at`. Nothing purges automatically until a period is chosen.
+   - **Built 2026-10-30:** a daily Vercel Cron purge per app (`/api/cron/purge-leads`, `packages/lead/src/retention.ts`) deletes leads `LEAD_RETENTION_DAYS` (default 730) after submission and blanks user agents after `LEAD_UA_RETENTION_DAYS` (default 90). A deletion request is handled by hand with `packages/lead/scripts/delete-lead.mjs` (runbook in its header); there is no public deletion endpoint.
 5. **Consent / privacy notice on forms.**
    - The Brief requires no consent checkbox, so none was added.
    - Counsel should say whether the forms need a "see our Privacy Policy" line once the policy is final (CCPA notice at collection). The policy is still a draft shell.
@@ -215,9 +218,30 @@ The live site's older backend is the `zbm-server` service in the Railway project
     - network/other, outcome unknown: "We couldn't confirm that went through — please try again." (AEGIS L3: no claim that nothing was saved; a retry is safe because it reuses the id.)
     - changed resubmission (409): "We already have an earlier version of this from you. Send again to submit these changes as a new message."
 
+## 5a. Retention go-live runbook (the Privacy Policy's deletion promise depends on it)
+
+Do these in order, per Vercel project (zbm-site-v2, zbc-site-v1), before the policy goes live:
+
+1. **Migrate.** From a machine with the production env pulled (`vercel env pull .env.local`, then delete it afterwards): `pnpm --filter @zbest/lead migrate`. It must print `applied 002_retention.sql` and `applied 003_purge_runs.sql` (or `skip … (already applied)`), then `schema ok; unique key ok; round-trip insert ok (rolled back)`. 002 clears the unused `ip_hash` values; 003 creates `lead_purge_runs`, the ledger the health check reads. Deploying the code before the migration makes every purge fail, and `/api/health` then reports `unknown`.
+2. **Set `CRON_SECRET`** (Production; a random string of at least 16 characters, e.g. from a password generator). Optional: `LEAD_RETENTION_DAYS` (default 730) and `LEAD_UA_RETENTION_DAYS` (default 90), whole days 1–3650, UA ≤ leads. Redeploy so the cron and the new env apply.
+3. **Verify the first purge, for BOTH apps.** For each project (zbm-site-v2, then zbc-site-v1): Vercel → Settings → Cron Jobs lists `/api/cron/purge-leads` (daily 09:17 UTC); press **Run**. Then confirm both:
+   - **Logs** (filter `requestPath:/api/cron/purge-leads`): `{"scope":"lead","event":"purged","app":"zbm","deleted":N,"ua_cleared":N,"ip_hash_cleared":N,"days":730}` (`"app":"zbc"` for ZBC).
+   - **Ledger row**: `SELECT app, last_success_at, deleted, ua_cleared FROM lead_purge_runs ORDER BY app;` (Neon SQL editor) shows a row for **zbm and for zbc**, `last_success_at` a few minutes old. One app's row says nothing about the other.
+   - Then `GET https://<domain>/api/health` returns **200** `{"ok":true,"status":"ok"}`. It is cached for up to 60 s per instance and at the CDN, so allow a minute or two after the run.
+
+   **Deployment Protection can block the cron.** Both projects have Vercel Authentication on (`ssoProtection: all_except_custom_domains`) and, until a custom domain is attached, production is served only on `*.vercel.app`. How to tell who answered:
+   - a 401/403 with **no** `purge_*` line from the route (or a Vercel login page) means Vercel blocked the call before the route ran, and nothing was purged. Check Settings → Deployment Protection; attach the custom domain (cron then calls it unprotected) or create a Protection Bypass for Automation secret. UNVERIFIED: whether Vercel Cron passes Deployment Protection on its own.
+   - a 401 **with** a warn-level `purge_unauthorized` line means the route ran and rejected the header: `CRON_SECRET` does not match what Vercel sends (redeploy after setting it).
+   - a 503 with `purge_not_configured` means `CRON_SECRET`, the retention settings or `POSTGRES_URL` are missing or invalid.
+
+   Do not claim retention is enforced until a `purged` line and a `lead_purge_runs` row exist for each app.
+4. **Alert on it.** Point an uptime monitor at `/api/health` (503 = degraded) and/or a log alert on `purge_degraded` and `purge_not_configured` (error level). Degraded statuses: `cron_secret_missing`, `misconfigured`, `never_run`, `overdue` (last success > 48 h), `unknown` (ledger unreadable). The endpoint is public and cheap: each instance checks the database at most once a minute and logs `purge_degraded` at most once a minute; the body is only `{"ok":bool,"status":"<code>"}`. Until a custom domain is attached, a monitor needs a Protection Bypass for Automation token to reach it.
+5. **ip_hash.** 002 clears it once; the daily purge also clears any `ip_hash` a pre-hardening deployment wrote between the migration and this deploy (`ip_hash_cleared` in the log). The column stays, nullable and unused, as 002 documents.
+
+A "delete my data" request is handled by hand: `packages/lead/scripts/delete-lead.mjs` (runbook in its header). There is no public deletion endpoint.
+
 ## 6. Not done here
 - No CRM and no backend forwarder (Option B later, behind a spec revision).
-- No automatic retention purge.
 - No CAPTCHA (Brief: none at launch).
 - Nothing was deployed, no Vercel env was set, and neither the `zbestmedia-ui` project nor anything on Railway was touched.
 

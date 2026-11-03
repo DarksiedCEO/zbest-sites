@@ -51,6 +51,9 @@ export const NAV_CTA = { label: "Start a Project", href: "/start" };
  * §A3. Blog joins Resources with the first post; Work joins Company with the
  * first named client. Neither is here until then.
  */
+/** Build-time flag for the reserved "Your Privacy Choices" footer link. */
+const PRIVACY_CHOICES = process.env.NEXT_PUBLIC_PRIVACY_CHOICES === "1";
+
 export const FOOTER_COLUMNS: FooterColumn[] = [
   {
     heading: "Services",
@@ -75,6 +78,11 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
       { label: "Privacy Policy", href: "/legal/privacy-policy" },
       { label: "Terms of Service", href: "/legal/terms-of-service" },
       { label: "Cookie Settings", href: "/legal/cookie-policy" },
+      // Reserved slot (privacy sweep 2026-10-30, F9): CCPA's "Your Privacy
+      // Choices" link is needed only if the site ever sells or shares
+      // personal information. Off unless NEXT_PUBLIC_PRIVACY_CHOICES=1 at
+      // build time; the target anchor belongs to the Privacy Policy.
+      ...(PRIVACY_CHOICES ? [{ label: "Your Privacy Choices", href: "/legal/privacy-policy#your-privacy-choices" }] : []),
     ],
   },
 ];

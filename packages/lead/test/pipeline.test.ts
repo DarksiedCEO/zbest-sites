@@ -48,8 +48,8 @@ describe("success through the fake transport", () => {
       source: "bb-i405-oct",
       user_agent: PII.ua,
     });
-    // ip_hash is an HMAC, never the IP.
-    expect(rows[0]!.ip_hash).toMatch(/^[0-9a-f]{64}$/);
+    // No ip_hash at all since the 2026-10-30 privacy sweep, and never the IP.
+    expect(rows[0]).not.toHaveProperty("ip_hash");
     expect(JSON.stringify(rows)).not.toContain(PII.ip);
 
     const emails = readJsonl(dir, "emails.jsonl");
