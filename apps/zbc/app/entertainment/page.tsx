@@ -1,4 +1,4 @@
-import { ButtonLink, pageMetadata } from "@zbest/ui";
+import { ButtonLink, HeroMedia, pageMetadata } from "@zbest/ui";
 import { CtaRow, Lead, PageHeader, PageSection } from "@/components/page";
 import { NAV_CTA, SITE } from "@/lib/site";
 
@@ -16,11 +16,27 @@ export const metadata = pageMetadata(SITE, {
  *
  * §B4 note: no specific real companies, leagues or studios — categories only.
  * The Phase 4 gate enforces this with a blocklist on every ZBC page.
+ *
+ * FD-VISUAL-01 §10: the hero carries an Ivo Solace vertical clip in a phone,
+ * coral-graded with the page (§3.3). No handle is drawn over the clip, so
+ * nothing covers the creative's own type.
  */
 export default function EntertainmentPage() {
   return (
     <main data-page-focus="entertainment">
-      <PageHeader label="Entertainment" title="Get discovered by people who’ve never heard of you.">
+      <PageHeader
+        label="Entertainment"
+        title="Get discovered by people who’ve never heard of you."
+        aside={
+          <HeroMedia
+            asset="ivosolace-stage"
+            frame="phone"
+            chrome="clip"
+            className="mx-auto w-full max-w-[17rem]"
+            sizes="272px"
+          />
+        }
+      >
         <Lead>
           Music, film, television, streaming content, sports — and the artists, creators,
           teams, and organizations behind them. Whether it&rsquo;s a release, a game, a

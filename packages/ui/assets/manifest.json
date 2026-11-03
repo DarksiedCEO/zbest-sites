@@ -1,5 +1,5 @@
 {
-  "$comment": "FD-VISUAL-01 §3.2.4 asset manifest. Every image or video served by either app must have an entry here; CI fails otherwise (scripts/check-media.mjs, e2e/tests/fd-visual-01-media.spec.ts). 'pages' lists where the asset renders today and is checked against the built sites; 'plannedPages' is the founder-approved placement not yet built. 'focus' is the object-position used when a frame crops the asset.",
+  "$comment": "FD-VISUAL-01 §3.2.4 asset manifest. Every image or video served by either app must have an entry here; CI fails otherwise (scripts/check-media.mjs, e2e/tests/fd-visual-01-media.spec.ts). 'pages' lists where the asset renders today and is checked against the built sites; 'plannedPages' is the founder-approved placement not yet built. 'focus' is the object-position used when a frame crops the asset. 'text' lists the creative's own type as boxes in 0–1 image coordinates ([x0, y0, x1, y1]); every crop keeps each block whole or crops it out entirely, and a 'keep' block (a disclosure) always stays whole (packages/ui/src/media/crop.ts). 'handlesShown' lists invented social handles drawn in phone frames and whether each has been name-checked.",
   "version": 1,
   "assets": [
     {
@@ -9,6 +9,11 @@
       "width": 1672,
       "height": 941,
       "focus": "35% 35%",
+      "text": [
+        { "label": "headline", "box": [0.131, 0.173, 0.646, 0.457] },
+        { "label": "firm", "box": [0.131, 0.452, 0.317, 0.497] },
+        { "label": "location", "box": [0.571, 0.538, 0.631, 0.571] }
+      ],
       "class": "concept",
       "brand": "Ironhold Injury Law",
       "creator": "Z Best Media (founder-supplied)",
@@ -28,7 +33,8 @@
       "caption": "Out-of-Home · bulletin · street-side, Los Angeles",
       "pages": [
         "zbm:/",
-        "zbm:/out-of-home"
+        "zbm:/out-of-home",
+        "zbm:/services"
       ],
       "plannedPages": [
         "zbm:/out-of-home"
@@ -41,6 +47,10 @@
       "width": 1672,
       "height": 941,
       "focus": "45% 45%",
+      "text": [
+        { "label": "line", "box": [0.054, 0.792, 0.76, 0.876] },
+        { "label": "brand", "box": [0.76, 0.906, 0.974, 0.942] }
+      ],
       "class": "concept",
       "brand": "Quellmont Motors",
       "creator": "Z Best Media (founder-supplied)",
@@ -59,11 +69,11 @@
       "alt": "Concept: a TV spot frame for Quellmont Motors — one hand passes a car key to another across a dark showroom desk, captioned “The price on the window is the price.”",
       "caption": "TV & Streaming · spot key frame · connected TV",
       "pages": [
-        "zbm:/"
+        "zbm:/",
+        "zbm:/tv-streaming",
+        "zbm:/services"
       ],
-      "plannedPages": [
-        "zbm:/tv-streaming"
-      ]
+      "plannedPages": []
     },
     {
       "id": "quellmont-feed-sticker",
@@ -72,6 +82,13 @@
       "width": 1254,
       "height": 1254,
       "focus": "60% 60%",
+      "text": [
+        { "label": "headline", "box": [0.069, 0.1, 0.943, 0.179] },
+        { "label": "sub", "box": [0.154, 0.189, 0.857, 0.236] },
+        { "label": "brand", "box": [0.479, 0.44, 0.803, 0.477] },
+        { "label": "price", "box": [0.397, 0.54, 0.846, 0.683] },
+        { "label": "total", "box": [0.5, 0.729, 0.643, 0.777] }
+      ],
       "class": "concept",
       "brand": "Quellmont Motors",
       "creator": "Z Best Media (founder-supplied)",
@@ -90,10 +107,20 @@
       "alt": "Concept: a square feed ad for Quellmont Motors — a rain-beaded window sticker showing a $38,450 total price under “No haggling. No games.”",
       "caption": "Digital Advertising · square feed ad · paid social",
       "pages": [
-        "zbm:/"
+        "zbm:/",
+        "zbm:/digital-advertising",
+        "zbm:/services"
       ],
-      "plannedPages": [
-        "zbm:/digital-advertising"
+      "plannedPages": [],
+      "handlesShown": [
+        {
+          "handle": "quellmontmotors",
+          "pages": [
+            "zbm:/digital-advertising"
+          ],
+          "status": "unverified",
+          "note": "Invented social handle shown in a phone frame; not yet verified as unused on Instagram or TikTok. On the founder's name-check list with the §9 trademark checks (independent review of #13, 2026-10-31)."
+        }
       ]
     },
     {
@@ -103,6 +130,10 @@
       "width": 1122,
       "height": 1402,
       "focus": "50% 45%",
+      "text": [
+        { "label": "headline", "box": [0.246, 0.1, 0.782, 0.263] },
+        { "label": "brand", "box": [0.25, 0.933, 0.75, 0.963] }
+      ],
       "class": "concept",
       "brand": "Maren Vale Aesthetics",
       "creator": "Z Best Media (founder-supplied)",
@@ -121,10 +152,20 @@
       "alt": "Concept: a Maren Vale Aesthetics social post — a frosted serum bottle with a brass collar on travertine, headlined “Look rested. Not done.”",
       "caption": "Social Media · 4:5 feed post · organic",
       "pages": [
-        "zbm:/"
+        "zbm:/",
+        "zbm:/social-media",
+        "zbm:/services"
       ],
-      "plannedPages": [
-        "zbm:/social-media"
+      "plannedPages": [],
+      "handlesShown": [
+        {
+          "handle": "marenvale.aesthetics",
+          "pages": [
+            "zbm:/social-media"
+          ],
+          "status": "unverified",
+          "note": "Invented social handle shown in a phone frame; not yet verified as unused on Instagram or TikTok. On the founder's name-check list with the §9 trademark checks (independent review of #13, 2026-10-31)."
+        }
       ]
     },
     {
@@ -134,6 +175,10 @@
       "width": 1672,
       "height": 941,
       "focus": "68% 45%",
+      "text": [
+        { "label": "headline", "box": [0.063, 0.122, 0.436, 0.335] },
+        { "label": "brand", "box": [0.743, 0.934, 0.986, 0.972] }
+      ],
       "class": "concept",
       "brand": "Saltgrove Hospitality",
       "creator": "Z Best Media (founder-supplied)",
@@ -152,11 +197,11 @@
       "alt": "Concept: key art for a Saltgrove Hospitality radio spot — a vintage microphone on a wet patio table by a lit pier at dusk, headlined “Pull up a chair by the water.”",
       "caption": "Radio & Audio · spot key art · local radio",
       "pages": [
-        "zbm:/"
+        "zbm:/",
+        "zbm:/radio-audio",
+        "zbm:/services"
       ],
-      "plannedPages": [
-        "zbm:/radio-audio"
-      ]
+      "plannedPages": []
     },
     {
       "id": "saltgrove-brand-system",
@@ -165,6 +210,14 @@
       "width": 1672,
       "height": 941,
       "focus": "20% 45%",
+      "text": [
+        { "label": "menu", "box": [0.04, 0.152, 0.353, 0.949] },
+        { "label": "cup", "box": [0.393, 0.388, 0.511, 0.439] },
+        { "label": "bag", "box": [0.611, 0.284, 0.831, 0.36] },
+        { "label": "card", "box": [0.379, 0.756, 0.551, 0.822] },
+        { "label": "coaster", "box": [0.583, 0.782, 0.714, 0.838] },
+        { "label": "tent", "box": [0.776, 0.761, 0.926, 0.817] }
+      ],
       "class": "concept",
       "brand": "Saltgrove Hospitality",
       "creator": "Z Best Media (founder-supplied)",
@@ -183,11 +236,11 @@
       "alt": "Concept: the Saltgrove brand system laid out on navy linen — a menu, coffee-cup sleeve, takeaway bag, business card, coaster and table card.",
       "caption": "Creative & Production · brand system · print and packaging",
       "pages": [
-        "zbm:/"
+        "zbm:/",
+        "zbm:/creative-production",
+        "zbm:/services"
       ],
-      "plannedPages": [
-        "zbm:/creative-production"
-      ]
+      "plannedPages": []
     },
     {
       "id": "marenvale-influencer",
@@ -196,6 +249,11 @@
       "width": 1122,
       "height": 1402,
       "focus": "50% 45%",
+      "text": [
+        { "label": "headline", "box": [0.089, 0.083, 0.525, 0.286] },
+        { "label": "ad", "box": [0.893, 0.023, 0.964, 0.057], "keep": true },
+        { "label": "brand", "box": [0.304, 0.94, 0.696, 0.967] }
+      ],
       "class": "concept",
       "brand": "Maren Vale Aesthetics",
       "creator": "Z Best Media (founder-supplied)",
@@ -214,10 +272,20 @@
       "alt": "Concept: a creator post for Maren Vale Aesthetics marked #ad — a hand holds a serum bottle in morning light, captioned “3 weeks in. Still just me, but rested.”",
       "caption": "Influencer & Creator · creator post, disclosed #ad · 4:5 feed",
       "pages": [
-        "zbm:/"
+        "zbm:/",
+        "zbm:/influencer-marketing",
+        "zbm:/services"
       ],
-      "plannedPages": [
-        "zbm:/influencer-marketing"
+      "plannedPages": [],
+      "handlesShown": [
+        {
+          "handle": "creator",
+          "pages": [
+            "zbm:/influencer-marketing"
+          ],
+          "status": "unverified",
+          "note": "Generic placeholder handle shown in a phone frame; a plain word like this may belong to a real account. Not verified on Instagram or TikTok. On the founder's name-check list (independent review of #13, 2026-10-31)."
+        }
       ]
     },
     {
@@ -227,6 +295,12 @@
       "width": 1672,
       "height": 941,
       "focus": "25% 55%",
+      "text": [
+        { "label": "logo", "box": [0.1, 0.162, 0.271, 0.208] },
+        { "label": "nav", "box": [0.693, 0.162, 0.886, 0.203] },
+        { "label": "headline", "box": [0.106, 0.363, 0.481, 0.635] },
+        { "label": "button", "box": [0.109, 0.668, 0.317, 0.749] }
+      ],
       "class": "concept",
       "brand": "Maren Vale Aesthetics",
       "creator": "Z Best Media (founder-supplied)",
@@ -245,11 +319,11 @@
       "alt": "Concept: the Maren Vale homepage in a browser window — “Look rested. Not done.” beside a serum bottle, with a “Book a consultation” button.",
       "caption": "Websites & Landing Pages · homepage · desktop",
       "pages": [
-        "zbm:/"
+        "zbm:/",
+        "zbm:/websites",
+        "zbm:/services"
       ],
-      "plannedPages": [
-        "zbm:/websites"
-      ]
+      "plannedPages": []
     },
     {
       "id": "saltgrove-transit",
@@ -258,6 +332,10 @@
       "width": 1086,
       "height": 1448,
       "focus": "55% 50%",
+      "text": [
+        { "label": "headline", "box": [0.387, 0.261, 0.737, 0.377] },
+        { "label": "brand", "box": [0.438, 0.686, 0.718, 0.717] }
+      ],
       "class": "concept",
       "brand": "Saltgrove Hospitality",
       "creator": "Z Best Media (founder-supplied)",
@@ -289,6 +367,10 @@
       "width": 940,
       "height": 1672,
       "focus": "50% 40%",
+      "text": [
+        { "label": "script", "box": [0.076, 0.074, 0.962, 0.269] },
+        { "label": "single", "box": [0.356, 0.919, 0.649, 0.946] }
+      ],
       "class": "concept",
       "brand": "Ivo Solace",
       "creator": "Z Best Media (founder-supplied)",
@@ -307,11 +389,11 @@
       "alt": "Concept: a vertical poster for Ivo Solace’s new single — the artist, seen from behind in silhouette, sings to a crowd under coral stage light, the name in handwritten script.",
       "caption": "Entertainment · vertical clip poster · TikTok, Reels, Shorts",
       "pages": [
-        "zbc:/"
-      ],
-      "plannedPages": [
         "zbc:/",
         "zbc:/entertainment"
+      ],
+      "plannedPages": [
+        "zbc:/"
       ]
     },
     {
@@ -321,6 +403,10 @@
       "width": 941,
       "height": 1672,
       "focus": "50% 50%",
+      "text": [
+        { "label": "headline", "box": [0.223, 0.209, 0.779, 0.257] },
+        { "label": "brand", "box": [0.279, 0.913, 0.723, 0.934] }
+      ],
       "class": "concept",
       "brand": "Quellmont Motors",
       "creator": "Z Best Media (founder-supplied)",
@@ -338,10 +424,10 @@
       "trademarkCheck": "pending — brand names provisional until USPTO and California checks pass (amendment §9)",
       "alt": "Concept: a vertical Quellmont Motors cover — a car under a dark satin sheet in a lit showroom, a hand starting to pull it away, headlined “Your car is ready.”",
       "caption": "Brands · vertical clip cover · brand-owned account",
-      "pages": [],
-      "plannedPages": [
+      "pages": [
         "zbc:/brands"
-      ]
+      ],
+      "plannedPages": []
     },
     {
       "id": "marenvale-room",
@@ -350,6 +436,10 @@
       "width": 941,
       "height": 1672,
       "focus": "50% 45%",
+      "text": [
+        { "label": "headline", "box": [0.249, 0.119, 0.779, 0.246] },
+        { "label": "brand", "box": [0.244, 0.933, 0.756, 0.957] }
+      ],
       "class": "concept",
       "brand": "Maren Vale Aesthetics",
       "creator": "Z Best Media (founder-supplied)",
@@ -367,10 +457,10 @@
       "trademarkCheck": "pending — brand names provisional until USPTO and California checks pass (amendment §9)",
       "alt": "Concept: a vertical Maren Vale Aesthetics cover — a treatment room in late sun with a made treatment bed and a brass floor lamp, headlined “Your hour starts here.”",
       "caption": "Brands · vertical clip cover · brand-owned account",
-      "pages": [],
-      "plannedPages": [
+      "pages": [
         "zbc:/brands"
-      ]
+      ],
+      "plannedPages": []
     },
     {
       "id": "zbc-clipper-phone",
@@ -379,6 +469,7 @@
       "width": 1122,
       "height": 1402,
       "focus": "50% 55%",
+      "text": [],
       "class": "concept",
       "brand": "Z Best Clips (illustrative)",
       "creator": "Z Best Media (founder-supplied)",
@@ -397,11 +488,11 @@
       "alt": "Concept: a phone on a dark desk showing a vertical-video editing timeline of a palm-lined skyline at sunset, beside headphones and a coffee cup.",
       "caption": "Become a Clipper · editing timeline · clipper workflow",
       "pages": [
-        "zbm:/"
-      ],
-      "plannedPages": [
+        "zbm:/",
+        "zbm:/services",
         "zbc:/become-a-clipper"
-      ]
+      ],
+      "plannedPages": []
     }
   ]
 }

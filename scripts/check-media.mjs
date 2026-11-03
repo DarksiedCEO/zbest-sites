@@ -8,7 +8,7 @@
  *   - a file's bytes or pixel size no longer match its entry (sha256, width,
  *     height), so an asset cannot be swapped under an approved entry;
  *   - an entry is missing a required field, or a concept entry's alt text does
- *     not start with "Concept:";
+ *     not start with "Concept:", or its `text` blocks are malformed;
  *   - the registry (packages/ui/src/media/assets.ts) and the manifest list
  *     different assets;
  *   - source outside packages/ui/src/media renders an image or video directly
@@ -30,7 +30,7 @@ const MEDIA_DIR = path.join(ROOT, "packages/ui/src/media");
 const MEDIA_EXT = /\.(png|jpe?g|webp|avif|gif|svg|ico|mp4|webm|mov)$/i;
 const SKIP_DIRS = new Set(["node_modules", ".next", ".turbo", "test-results", "playwright-report"]);
 const CLASSES = new Set(["real", "concept", "process", "portrait"]);
-const REQUIRED = ["id", "file", "sha256", "width", "height", "class", "creator", "date", "rightsHolder", "alt", "caption", "pages"];
+const REQUIRED = ["id", "file", "sha256", "width", "height", "class", "creator", "date", "rightsHolder", "alt", "caption", "pages", "text"];
 
 const errors = [];
 const fail = (msg) => errors.push(msg);
@@ -68,6 +68,14 @@ for (const e of entries) {
   if (!CLASSES.has(e.class)) fail(`${where}: class "${e.class}" is not one of ${[...CLASSES].join(", ")}`);
   if (e.class === "concept" && !String(e.alt).startsWith("Concept:")) fail(`${where}: concept alt text must start with "Concept:"`);
   if (!Array.isArray(e.pages)) fail(`${where}: "pages" must be a list`);
+  // The creative's own type, so crops keep each block whole or cut it out
+  // (packages/ui/src/media/crop.ts). An image with no type has an empty list.
+  if (!Array.isArray(e.text)) fail(`${where}: "text" must be a list (empty when the image has no type)`);
+  for (const t of Array.isArray(e.text) ? e.text : []) {
+    const [x0, y0, x1, y1] = Array.isArray(t.box) ? t.box : [];
+    const ok = [x0, y0, x1, y1].every((v) => typeof v === "number" && v >= 0 && v <= 1) && x0 < x1 && y0 < y1;
+    if (!t.label || !ok) fail(`${where}: text block ${JSON.stringify(t)} needs a label and a box [x0, y0, x1, y1] within 0–1`);
+  }
   if (ids.has(e.id)) fail(`${where}: duplicate id`);
   ids.add(e.id);
 

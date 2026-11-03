@@ -4,7 +4,8 @@ import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { LedgerRule } from "../components/ledger-rule";
-import type { AssetId } from "./assets";
+import { asset, type AssetId } from "./assets";
+import { cropFits } from "./crop";
 import { MediaFrame, type FrameKind } from "./media-frame";
 import { useMotionAllowed } from "./showpiece";
 
@@ -27,7 +28,12 @@ export type PreviewItem = {
  * Mobile: each row carries its image inline; nothing depends on hover.
  *
  * Only rows react to hover, because rows are links (§4.3).
+ *
+ * Mobile thumbnails are square when a square crop keeps every block of the
+ * image's type whole or out (crop.ts); otherwise the thumbnail keeps the
+ * image's own shape, so no thumbnail shows part of a word.
  */
+const thumbAspect = (id: AssetId) => (cropFits(asset(id), "1 / 1") ? "1 / 1" : undefined);
 export function ServicePreview({ items }: { items: PreviewItem[] }) {
   const firstWithAsset = items.findIndex((i) => i.asset);
   const [active, setActive] = useState(Math.max(firstWithAsset, 0));
@@ -74,7 +80,7 @@ export function ServicePreview({ items }: { items: PreviewItem[] }) {
                     <MediaFrame
                       asset={item.asset}
                       frame="plate"
-                      aspect="1 / 1"
+                      aspect={thumbAspect(item.asset)}
                       // Loaded with the page, not on scroll, so the row's image is
                       // there whenever its frame is. Hidden at lg (the panel takes
                       // over), where "1px" makes the browser fetch only the
