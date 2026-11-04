@@ -15,6 +15,7 @@ import {
   ZBM_UNCONFIGURED_URL,
   outboxFor,
 } from "../playwright.config";
+import { FORM_TOKEN_HEADER, formTokenHeader } from "../support/form-token";
 
 /**
  * Lead route gate (docs/LEAD-ROUTE-DESIGN.md; Brief §6.2).
@@ -35,7 +36,8 @@ import {
  *   - honeypot: looks like success, nothing stored or sent
  *   - misconfiguration: honest failure, never a success
  *   - rate limit: honest failure after the limit
- *   - assessment / readiness / ZBC forms record their leads too
+ *   - assessment / readiness forms record their leads too; ZBC's route is
+ *     closed (410) until ZBC publishes its privacy policy (red team RTS-1)
  *
  * What this cannot assert: real Postgres, real Resend, Vercel's edge headers.
  * Postgres is covered by packages/lead/test/postgres.test.ts against a real
@@ -191,7 +193,7 @@ test.describe("Success through the fake transport (§6.2)", () => {
     // And the server holds even when the client does not: replay the exact
     // request twice more, concurrently. (A replay with CHANGED content is a
     // 409 conflict — asserted in the hardening block below.)
-    const replay = () => page.request.post(`${ZBM_BASE_URL}/api/lead`, { data: sentBody, failOnStatusCode: false });
+    const replay = () => page.request.post(`${ZBM_BASE_URL}/api/lead`, { headers: formTokenHeader(), data: sentBody, failOnStatusCode: false });
     const [a, b] = await Promise.all([replay(), replay()]);
     for (const r of [a, b]) {
       expect(r.status()).toBe(200);
@@ -203,33 +205,21 @@ test.describe("Success through the fake transport (§6.2)", () => {
     expect(await rowsMentioning("zbm", name)).toHaveLength(1);
   });
 
-  test("Z Best Clips: a clipper waitlist lead is stored as app 'zbc', reply-to the clipper", async ({ page }, testInfo) => {
-    await presetConsent(page);
-    await page.goto(`${ZBC_BASE_URL}/become-a-clipper`, { waitUntil: "domcontentloaded" });
-    const form = page.locator('form[data-lead-form="clipper"]');
-    const name = marker("clipper", testInfo.project.name);
-    await form.getByLabel("Name", { exact: true }).fill(name);
-    await form.getByLabel("Email", { exact: true }).fill("clipper-gate@example.com");
-    await form.getByLabel("Primary platform", { exact: true }).selectOption("instagram-reels");
-    await form.getByLabel("State or territory", { exact: true }).selectOption("US-NY");
-    const [response] = await Promise.all([
-      page.waitForResponse((r) => r.url().endsWith("/api/lead")),
-      form.getByRole("button", { name: "Join the clipper list" }).click(),
-    ]);
-    expect(response.status()).toBe(200);
-    const id = response.request().postDataJSON().submission_id as string;
-    await expect(page.locator('[data-lead-result="accepted"]')).toContainText("Received");
-
-    const rows = await rowsFor("zbc", id);
-    expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ app: "zbc", form: "clipper", services: [], source: null });
-    expect(rows[0]!.payload).toMatchObject({ name, email: "clipper-gate@example.com", platform: "instagram-reels" });
-    const emails = await emailsFor("zbc", id);
-    expect(emails).toHaveLength(1);
-    expect(emails[0]!.subject).toBe("New lead — Z Best Clips · clipper");
-    expect(emails[0]!.replyTo).toBe("clipper-gate@example.com");
-    // Never in ZBM's store.
-    expect(await rowsFor("zbm", id)).toHaveLength(0);
+  test("Z Best Clips (RTS-1): no form on either page, and the route refuses with 410 — nothing stored or sent", async ({ page }) => {
+    for (const path of ["/become-a-clipper", "/launch-a-campaign"]) {
+      await page.goto(`${ZBC_BASE_URL}${path}`, { waitUntil: "domcontentloaded" });
+      await expect(page.locator("main form")).toHaveCount(0);
+      await expect(page.locator("[data-not-accepting]")).toContainText("Z Best Clips is not yet accepting clients or clippers.");
+    }
+    const id = randomUUID();
+    const res = await page.request.post(`${ZBC_BASE_URL}/api/lead`, {
+      headers: formTokenHeader(),
+      data: { form: "clipper", submission_id: id, fields: { name: "A", email: "clipper-gate@example.com", platform: "tiktok", state: "US-NY" } },
+      failOnStatusCode: false,
+    });
+    expect(res.status()).toBe(410);
+    expect(await rowsFor("zbc", id)).toEqual([]);
+    expect(await emailsFor("zbc", id)).toEqual([]);
   });
 
   test("assessment and readiness submissions record the lead before returning a result (§11.3, §12.7)", async ({
@@ -238,6 +228,7 @@ test.describe("Success through the fake transport (§6.2)", () => {
     const contact = { name: marker("assess", testInfo.project.name), business: "B", website: "example.com", reach: "r@example.com" };
     const assessmentId = randomUUID();
     const assessment = await page.request.post(`${ZBM_BASE_URL}/api/lead`, {
+      headers: formTokenHeader(),
       data: {
         form: "assessment",
         submission_id: assessmentId,
@@ -259,6 +250,7 @@ test.describe("Success through the fake transport (§6.2)", () => {
 
     const readinessId = randomUUID();
     const readiness = await page.request.post(`${ZBM_BASE_URL}/api/lead`, {
+      headers: formTokenHeader(),
       data: {
         form: "readiness",
         submission_id: readinessId,
@@ -282,10 +274,12 @@ test.describe("Success through the fake transport (§6.2)", () => {
   test("a tampered source tag is dropped, never stored", async ({ page }) => {
     const id = randomUUID();
     const res = await page.request.post(`${ZBM_BASE_URL}/api/lead`, {
+      headers: formTokenHeader(),
       data: {
         form: "start",
         submission_id: id,
-        fields: { services: "radio-audio", name: "A", business: "B", reach: "C", website: "", budget: "", timing: "", details: "", source: "<script>x</script>", state: "US-CA" },
+        // details carries the id: identical content under a new id is one lead since RTS-3.
+        fields: { services: "radio-audio", name: "A", business: "B", reach: "C", website: "", budget: "", timing: "", details: id, source: "<script>x</script>", state: "US-CA" },
       },
     });
     expect(res.status()).toBe(200);
@@ -341,13 +335,14 @@ test.describe("Validation and abuse (§6.2)", () => {
       const id = randomUUID();
       ids.push(id);
       const ok = await page.request.post(`${ZBM_LIMITED_URL}/api/lead`, {
-        headers,
-        data: { form: "contact", submission_id: id, fields: { name: "A", business: "B", problem: "C", reach: "D", state: "US-CA" } },
+        headers: { ...formTokenHeader(), ...headers },
+        // Distinct content per request: identical content under a new id is one lead since RTS-3.
+        data: { form: "contact", submission_id: id, fields: { name: "A", business: "B", problem: `C ${id}`, reach: "D", state: "US-CA" } },
       });
       expect(ok.status(), `request ${i + 1} of ${LIMITED_RATE.limit}`).toBe(200);
     }
     const blocked = await page.request.post(`${ZBM_LIMITED_URL}/api/lead`, {
-      headers,
+      headers: { ...formTokenHeader(), ...headers },
       data: { form: "contact", submission_id: randomUUID(), fields: { name: "A", business: "B", problem: "C", reach: "D", state: "US-CA" } },
       failOnStatusCode: false,
     });
@@ -378,6 +373,7 @@ test.describe("Misconfiguration fails closed", () => {
     page,
   }, testInfo) => {
     const api = await page.request.post(`${ZBM_UNCONFIGURED_URL}/api/lead`, {
+      headers: formTokenHeader(),
       data: { form: "contact", submission_id: randomUUID(), fields: { name: "A", business: "B", problem: "C", reach: "D", state: "US-CA" } },
       failOnStatusCode: false,
     });
@@ -412,37 +408,29 @@ test.describe("Misconfiguration fails closed", () => {
       await question.getByRole("radio", { name: "Somewhat true", exact: true }).check();
     }
     const [response] = await Promise.all([
-      page.waitForResponse((r) => r.url().endsWith("/api/lead")),
+      page.waitForResponse((r) => r.url().endsWith("/api/lead") && r.request().method() === "POST"),
       form.getByRole("button", { name: "Get an Assessment" }).click(),
     ]);
     expect(response.status()).toBe(503);
     await expect(form.locator('[data-lead-failure="not_configured"]')).toBeVisible();
     await expect(section.locator('[data-lead-result="accepted"]')).toHaveCount(0);
   });
-
-  test("Z Best Clips' misconfiguration path is the same pipeline (unit-tested); its live server is configured", async ({ page }) => {
-    // Guard against the gate itself silently running ZBC unconfigured.
-    const res = await page.request.post(`${ZBC_BASE_URL}/api/lead`, {
-      data: { form: "campaign", submission_id: randomUUID(), fields: { name: "A", organization: "B", promoting: "C", focus: "brands", reach: "D", state: "US-CA" } },
-    });
-    expect(res.status()).toBe(200);
-    expect(res.headers()["x-zbest-lead-transport"]).toBe("fake");
-  });
 });
 
 test.describe("Hardening (AEGIS review of 55d3437)", () => {
-  const contact = (id: string, name = "A") => ({ form: "contact", submission_id: id, fields: { name, business: "B", problem: "C", reach: "D", state: "US-CA" } });
+  // The problem text carries the id: identical content under a new id is one lead since RTS-3.
+  const contact = (id: string, name = "A") => ({ form: "contact", submission_id: id, fields: { name, business: "B", problem: `C ${id}`, reach: "D", state: "US-CA" } });
 
   test("M3: non-JSON is 415 and a foreign Origin is 403; nothing is stored", async ({ page }, testInfo) => {
     const id = randomUUID();
     const plain = await page.request.post(`${ZBM_BASE_URL}/api/lead`, {
-      headers: { "content-type": "text/plain" },
+      headers: { ...formTokenHeader(), "content-type": "text/plain" },
       data: JSON.stringify(contact(id)),
       failOnStatusCode: false,
     });
     expect(plain.status()).toBe(415);
     const foreign = await page.request.post(`${ZBM_BASE_URL}/api/lead`, {
-      headers: { origin: "https://evil.example" },
+      headers: { ...formTokenHeader(), origin: "https://evil.example" },
       data: contact(id),
       failOnStatusCode: false,
     });
@@ -498,16 +486,86 @@ test.describe("Hardening (AEGIS review of 55d3437)", () => {
     expect(underCsp).toBe("blocked");
   });
 
+  test("RTS-3: GET issues a form token; without a valid one a POST is 403, under 3 s old it is 425 — nothing stored either way", async ({ page }) => {
+    const issued = await page.request.get(`${ZBM_BASE_URL}/api/lead`);
+    expect(issued.status()).toBe(200);
+    expect(issued.headers()["cache-control"]).toBe("no-store");
+    const { token } = (await issued.json()) as { token: string };
+    expect(token).toMatch(/^v1\.\d{13}\./);
+
+    // Missing, forged, or bound to the other site (AEGIS F2): refused.
+    for (const headers of [{}, { [FORM_TOKEN_HEADER]: "v1.forged" }, formTokenHeader(10_000, "zbc")]) {
+      const id = randomUUID();
+      const res = await page.request.post(`${ZBM_BASE_URL}/api/lead`, { headers, data: contact(id), failOnStatusCode: false });
+      expect(res.status()).toBe(403);
+      expect(await res.json()).toEqual({ ok: false, error: { code: "form_expired" } });
+      expect(await rowsFor("zbm", id)).toEqual([]);
+    }
+    // Too new (the fresh server token, or one a second old): 425 with a retry time (AEGIS F2).
+    for (const headers of [{ [FORM_TOKEN_HEADER]: token }, formTokenHeader(1_000)]) {
+      const id = randomUUID();
+      const res = await page.request.post(`${ZBM_BASE_URL}/api/lead`, { headers, data: contact(id), failOnStatusCode: false });
+      expect(res.status()).toBe(425);
+      const body = (await res.json()) as { error: { code: string; retry_after_s: number } };
+      expect(body.error.code).toBe("form_too_fast");
+      expect(Number(res.headers()["retry-after"])).toBe(body.error.retry_after_s);
+      expect(await rowsFor("zbm", id)).toEqual([]);
+    }
+    // The same server-issued token, once it is 3 s old, is accepted.
+    await page.waitForTimeout(3_300);
+    const id = randomUUID();
+    const ok = await page.request.post(`${ZBM_BASE_URL}/api/lead`, { headers: { [FORM_TOKEN_HEADER]: token }, data: contact(id) });
+    expect(ok.status()).toBe(200);
+    expect(await rowsFor("zbm", id)).toHaveLength(1);
+  });
+
+  test("RTS-3: the same content under a new submission_id is one row and one email", async ({ page }) => {
+    const words = `Same words ${randomUUID()}`;
+    const ids = [randomUUID(), randomUUID()];
+    for (const [i, id] of ids.entries()) {
+      const data = { form: "contact", submission_id: id, fields: { name: "A", business: "B", problem: i ? `  ${words.toUpperCase()} ` : words, reach: "D", state: "US-CA" } };
+      expect((await page.request.post(`${ZBM_BASE_URL}/api/lead`, { headers: formTokenHeader(), data })).status()).toBe(200);
+    }
+    expect(await rowsFor("zbm", ids[0]!)).toHaveLength(1);
+    expect(await rowsFor("zbm", ids[1]!)).toEqual([]);
+    expect(await emailsFor("zbm", ids[0]!)).toHaveLength(1);
+    expect(await emailsFor("zbm", ids[1]!)).toEqual([]);
+  });
+
+  test("RTS-7: NUL and lone surrogates are stripped before storage; a field left empty is a 422 field error", async ({ page }) => {
+    const id = randomUUID();
+    // Raw JSON text: Playwright would re-encode a JS string with a lone surrogate.
+    const raw = `{"form":"contact","submission_id":"${id}","fields":{"name":"A","business":"B","problem":"a\\u0000b \\ud800c ${id}","reach":"D","state":"US-CA"}}`;
+    const res = await page.request.post(`${ZBM_BASE_URL}/api/lead`, {
+      headers: { ...formTokenHeader(), "content-type": "application/json" },
+      data: raw,
+    });
+    expect(res.status()).toBe(200);
+    const [row] = await rowsFor("zbm", id);
+    expect(row!.payload.problem).toBe(`ab c ${id}`);
+
+    const empty = randomUUID();
+    const bad = await page.request.post(`${ZBM_BASE_URL}/api/lead`, {
+      headers: { ...formTokenHeader(), "content-type": "application/json" },
+      data: `{"form":"contact","submission_id":"${empty}","fields":{"name":"\\u0000","business":"B","problem":"C ${empty}","reach":"D","state":"US-CA"}}`,
+      failOnStatusCode: false,
+    });
+    expect(bad.status()).toBe(422);
+    expect(await bad.json()).toMatchObject({ ok: false, error: { code: "validation", fields: { name: expect.any(String) } } });
+    expect(await rowsFor("zbm", empty)).toEqual([]);
+  });
+
   test("L1: an oversized body is 413; L2: a changed resubmission is 409", async ({ page }) => {
     const big = await page.request.post(`${ZBM_BASE_URL}/api/lead`, {
+      headers: formTokenHeader(),
       data: contact(randomUUID(), "x".repeat(70 * 1024)),
       failOnStatusCode: false,
     });
     expect(big.status()).toBe(413);
 
     const id = randomUUID();
-    expect((await page.request.post(`${ZBM_BASE_URL}/api/lead`, { data: contact(id, "First") })).status()).toBe(200);
-    const changed = await page.request.post(`${ZBM_BASE_URL}/api/lead`, { data: contact(id, "Edited"), failOnStatusCode: false });
+    expect((await page.request.post(`${ZBM_BASE_URL}/api/lead`, { headers: formTokenHeader(), data: contact(id, "First") })).status()).toBe(200);
+    const changed = await page.request.post(`${ZBM_BASE_URL}/api/lead`, { headers: formTokenHeader(), data: contact(id, "Edited"), failOnStatusCode: false });
     expect(changed.status()).toBe(409);
     expect(await changed.json()).toEqual({ ok: false, error: { code: "conflict" } });
     const rows = await rowsFor("zbm", id);
@@ -547,7 +605,7 @@ test.describe("Hardening (AEGIS review of 55d3437)", () => {
         })
         .toBe(200);
       for (let i = 0; i < 3; i++) {
-        const res = await page.request.post(`${base}/api/lead`, { data: contact(randomUUID()), failOnStatusCode: false });
+        const res = await page.request.post(`${base}/api/lead`, { headers: formTokenHeader(), data: contact(randomUUID()), failOnStatusCode: false });
         expect(res.status()).toBe(503);
         expect(await res.json()).toEqual({ ok: false, error: { code: "not_configured" } });
       }
@@ -574,6 +632,8 @@ test.describe("UI after a 409 conflict (AEGIS r2 N5)", () => {
     //    never sees the answer (a dropped response): the outcome is unknown.
     let firstId = "";
     await page.route("**/api/lead", async (route) => {
+      // The form token GET (RTS-3) goes through untouched.
+      if (route.request().method() !== "POST") return route.continue();
       firstId = route.request().postDataJSON().submission_id;
       await route.fetch(); // stored server-side
       await route.abort("failed");
@@ -654,7 +714,6 @@ test.describe("Before hydration (AEGIS r5 N1)", () => {
   const STUCK: { label: string; url: string; form: string }[] = [
     { label: "ZBM /start", url: `${ZBM_BASE_URL}/start?service=websites`, form: "start" },
     { label: "ZBM assessment", url: `${ZBM_BASE_URL}/revenue-recovery#assessment`, form: "assessment" },
-    { label: "ZBC clipper", url: `${ZBC_BASE_URL}/become-a-clipper`, form: "clipper" },
   ];
   for (const c of STUCK) {
     test(`scripts never load, ${c.label}: after ~10 s a CSS-only line says to refresh; no contact claim`, async ({ page }) => {
@@ -742,30 +801,6 @@ test.describe("Before hydration (AEGIS r5 N1)", () => {
         await answerAll(f, "data-readiness-question");
       },
     },
-    {
-      label: "ZBC campaign",
-      base: ZBC_BASE_URL,
-      path: "/launch-a-campaign",
-      form: "campaign",
-      submit: "Launch a Campaign",
-      server: "zbc",
-      fill: async (f, n) => {
-        await contact(f, n, { Organization: "Slow JS Label", "What are you promoting?": "A release.", "Best way to reach you": "slow@example.com" });
-        await f.getByLabel("Entertainment / Brands", { exact: true }).selectOption("brands");
-      },
-    },
-    {
-      label: "ZBC clipper",
-      base: ZBC_BASE_URL,
-      path: "/become-a-clipper",
-      form: "clipper",
-      submit: "Join the clipper list",
-      server: "zbc",
-      fill: async (f, n) => {
-        await contact(f, n, { Email: "slow-clipper@example.com" });
-        await f.getByLabel("Primary platform", { exact: true }).selectOption("tiktok");
-      },
-    },
   ];
 
   for (const c of CASES) {
@@ -805,7 +840,7 @@ test.describe("Before hydration (AEGIS r5 N1)", () => {
       expect(page.url()).toBe(url);
       expect(await form.getByLabel("Name", { exact: true }).inputValue()).toBe(name);
       const [response] = await Promise.all([
-        page.waitForResponse((r) => r.url().endsWith("/api/lead")),
+        page.waitForResponse((r) => r.url().endsWith("/api/lead") && r.request().method() === "POST"),
         form.getByRole("button", { name: c.submit }).click(),
       ]);
       expect(response.status(), await response.text()).toBe(200);
@@ -860,14 +895,12 @@ test.describe("Service area (founder decisions 2026-10-30): 50 US states, DC, PR
     expect(row).toMatchObject({ service_area: "VI" });
   });
 
-  test("'outside' is declined in both apps and on the assessment; nothing is stored", async ({ page }) => {
+  test("'outside' is declined (ZBM; ZBC's route is closed, RTS-1); nothing is stored", async ({ page }) => {
     const cases = [
       [ZBM_BASE_URL, "zbm", { form: "contact", submission_id: randomUUID(), fields: { name: "A", business: "B", problem: "C", reach: "D", state: "outside" } }],
-      [ZBC_BASE_URL, "zbc", { form: "clipper", submission_id: randomUUID(), fields: { name: "A", email: "a@example.com", platform: "tiktok", state: "outside" } }],
-      [ZBC_BASE_URL, "zbc", { form: "campaign", submission_id: randomUUID(), fields: { name: "A", organization: "B", promoting: "C", focus: "brands", reach: "D", state: "outside" } }],
     ] as const;
     for (const [base, app, data] of cases) {
-      const res = await page.request.post(`${base}/api/lead`, { data, failOnStatusCode: false });
+      const res = await page.request.post(`${base}/api/lead`, { headers: formTokenHeader(), data, failOnStatusCode: false });
       expect(res.status(), `${app} ${data.form}`).toBe(422);
       expect(await res.json()).toEqual({ ok: false, error: { code: "region_unavailable" } });
       expect(await rowsFor(app, data.submission_id)).toHaveLength(0);
@@ -883,6 +916,7 @@ test.describe("Service area (founder decisions 2026-10-30): 50 US states, DC, PR
     for (const [form, version, ids] of cases) {
       for (const region of [undefined, null, {}, { state: "US-VI" }]) {
         const res = await page.request.post(`${ZBM_BASE_URL}/api/lead`, {
+          headers: formTokenHeader(),
           data: {
             form,
             submission_id: randomUUID(),
@@ -902,6 +936,7 @@ test.describe("Service area (founder decisions 2026-10-30): 50 US states, DC, PR
   test("a missing area, or a code outside the exact set, is a field error, not a lead", async ({ page }) => {
     for (const state of [undefined, "", "CA", "US-PR", "US-VI", "UM", "ON"]) {
       const res = await page.request.post(`${ZBM_BASE_URL}/api/lead`, {
+        headers: formTokenHeader(),
         data: { form: "contact", submission_id: randomUUID(), fields: { name: "A", business: "B", problem: "C", reach: "D", ...(state === undefined ? {} : { state }) } },
         failOnStatusCode: false,
       });

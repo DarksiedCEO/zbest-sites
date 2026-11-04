@@ -9,9 +9,10 @@ import { clientIp, hmacIp, normalizeIp } from "../src/ip";
 import { parsePostgresUrl } from "../src/pg-url";
 import { handleLead } from "../src/pipeline";
 import { memoryLimiter } from "../src/rate-limit";
+import { neutralizeCell } from "../src/text";
 import type { RateLimiter } from "../src/types";
 import type { ParsedLead } from "../src/pipeline";
-import { PII, captureLogger, readJsonl, tempOutbox, toyParse } from "./helpers";
+import { PII, captureLogger, readJsonl, tempOutbox, tokenHeader, toyParse } from "./helpers";
 
 /**
  * Regression tests for the AEGIS review of lead-route-v1@55d3437
@@ -30,13 +31,14 @@ const fakeEnv = (dir: string, extra: Record<string, string> = {}) => ({
   LEAD_TRUSTED_PROXY: "x-forwarded-for",
   ...extra,
 });
+// `details` differs per submission: identical content under a new id is one lead since RTS-3.
 const body = (id = randomUUID(), fields: Record<string, string> = {}) =>
-  JSON.stringify({ form: "start", submission_id: id, fields: { name: PII.name, business: "B", reach: PII.reach, ...fields } });
+  JSON.stringify({ form: "start", submission_id: id, fields: { name: PII.name, business: "B", reach: PII.reach, details: id, ...fields } });
 const req = (payload: string | ReadableStream, headers: Record<string, string> = {}) =>
   new Request("http://www.zbestmedia.com/api/lead", {
     method: "POST",
     // A proxy-supplied client address, as the trusted header would carry it.
-    headers: { "content-type": "application/json", host: "www.zbestmedia.com", "x-forwarded-for": "198.51.100.1", ...headers },
+    headers: { "content-type": "application/json", host: "www.zbestmedia.com", "x-forwarded-for": "198.51.100.1", ...tokenHeader(), ...headers },
     body: payload,
     // Required by undici for a stream body.
     ...(typeof payload === "string" ? {} : { duplex: "half" }),
@@ -608,6 +610,7 @@ describe("L6, L7 — email", () => {
     form: "clipper",
     payload: { name: "Mallory" } as Record<string, unknown>,
     payload_hash: "h",
+    content_hash: "c",
     services: [],
     source: null,
     service_area: "US-CA",
@@ -674,7 +677,8 @@ describe("L6, L7 — email", () => {
         assertQuoted(text, label);
         const lines = text.split("\n");
         // Non-vacuous: the forged line really is its own line, and is quoted.
-        expect(lines, label).toContain(`> ${forged}`);
+        // RTS-10: a line starting with "-" is also defused for spreadsheets.
+        expect(lines, label).toContain(`> ${neutralizeCell(forged)}`);
         expect(lines, label).toContain("> From: ceo@zbestmedia.com");
       }
     }
@@ -691,7 +695,7 @@ describe("L6, L7 — email", () => {
   it("the Resend idempotency key is namespaced by app", async () => {
     const dir = tempOutbox();
     const id = randomUUID();
-    await handleLead(req(body(id)), { app: "zbc", parse: toyParse, env: fakeEnv(dir), logger: captureLogger().logger, limiters: both(open()) });
+    await handleLead(req(body(id), tokenHeader("zbc")), { app: "zbc", parse: toyParse, env: fakeEnv(dir), logger: captureLogger().logger, limiters: both(open()) });
     expect(readJsonl<{ idempotency_key: string }>(dir, "emails.jsonl")[0]!.idempotency_key).toBe(`lead-zbc-${id}`);
   });
 });
@@ -768,9 +772,11 @@ describe("AEGIS r4 — R1 hops, R2 key normalisation, single-value Vercel header
     expect(normalizeIp("[2001:db8:1:1::5]:443")).toEqual({
       address: "2001:0db8:0001:0001:0000:0000:0000:0005",
       key: "v6/64:2001:0db8:0001:0001",
+      net: "v6/48:2001:0db8:0001",
     });
     expect(normalizeIp("2001:DB8:1:1:aaaa:bbbb:cccc:dddd")?.key).toBe("v6/64:2001:0db8:0001:0001");
     expect(normalizeIp("64:ff9b::198.51.100.1")).toEqual({
+      net: "v6/48:0064:ff9b:0000",
       address: "0064:ff9b:0000:0000:0000:0000:c633:6401",
       key: "v6/64:0064:ff9b:0000:0000",
     });
@@ -883,7 +889,7 @@ describe("AEGIS r5 — N3 IPv4 in IPv6, N5 edges", () => {
   it("N5: valid inputs of 40–64 characters are accepted (the length cap is not lower than real addresses)", () => {
     const long = "[ffff:ffff:ffff:ffff:ffff:ffff:255.255.255.255]:65535"; // 53 chars
     expect(long.length).toBeGreaterThanOrEqual(40);
-    expect(normalizeIp(long)).toEqual({ address: "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", key: "v6/64:ffff:ffff:ffff:ffff" });
+    expect(normalizeIp(long)).toEqual({ address: "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", key: "v6/64:ffff:ffff:ffff:ffff", net: "v6/48:ffff:ffff:ffff" });
     const uncompressed = "[2001:0db8:0001:0001:0000:0000:0000:0005]:443"; // 45 chars
     expect(normalizeIp(uncompressed)?.key).toBe("v6/64:2001:0db8:0001:0001");
     expect(normalizeIp(`  ${uncompressed}  `)?.key).toBe("v6/64:2001:0db8:0001:0001");

@@ -45,7 +45,7 @@ export const REVENUE_RECOVERY_FAQ: FaqItem[] = [
   {
     question: "What is Revenue Recovery?",
     answer:
-      "An audit-first approach that finds where your existing traffic and campaigns are losing conversions, fixes those leaks, then scales what’s proven to work.",
+      "Finding where revenue is being lost, and fixing it before you spend more. Today the paid analysis reads your Shopify orders for discount codes stacking past what you intended, with every figure labelled by how it was measured; the free assessment scores your own answers against fixed rules.",
   },
   /*
    * Held in Phase 4 ("A free 60-second assessment identifies likely leak
@@ -61,12 +61,12 @@ export const REVENUE_RECOVERY_FAQ: FaqItem[] = [
   {
     question: "What happens after the free assessment?",
     answer:
-      "If there’s enough signal, the next step is a paid audit — a full diagnostic of where revenue is actually being lost.",
+      "If you sell on Shopify, the next step can be the paid Revenue Recovery Analysis: read-only access to your orders, measured for discount-code stacking, with every figure’s evidence and assumptions written out and recommendations written by a person.",
   },
   {
     question: "How is pricing structured?",
     answer:
-      "Phased. Start free, pay for the audit, and anything after that is scoped from your Leak Report.",
+      "Phased. Start free, pay for the analysis, and anything after that is scoped from your report.",
   },
   {
     question: "Why audit before running ads?",
@@ -76,7 +76,7 @@ export const REVENUE_RECOVERY_FAQ: FaqItem[] = [
   {
     question: "What counts as a “leak”?",
     answer:
-      "Any point where traffic arrives but doesn’t convert — identified in the assessment and audit, not assumed.",
+      "Any point where traffic arrives but doesn’t convert, or money is lost after the sale — like discount codes stacking past what you intended. The paid analysis reports only what it measured.",
   },
   {
     question: "What industries does Revenue Recovery work for?",
@@ -97,7 +97,7 @@ export const OUT_OF_HOME_FAQ: FaqItem[] = [
   },
   {
     question: "Do you only sell your own inventory?",
-    answer: "No — we plan across Lamar, Clear Channel, OUTFRONT, and regional operators.",
+    answer: "No — we plan across major out-of-home networks and regional operators.",
   },
   {
     question: "Do you offer digital billboards, or only static?",

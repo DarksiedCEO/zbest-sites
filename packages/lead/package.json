@@ -5,7 +5,9 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./region": "./src/region.ts"
+    "./region": "./src/region.ts",
+    "./text": "./src/text.ts",
+    "./form-token-wire": "./src/form-token-wire.ts"
   },
   "scripts": {
     "lint": "eslint .",
@@ -13,7 +15,8 @@
     "test": "vitest run",
     "test:integration": "node scripts/test-integration.mjs",
     "migrate": "node scripts/migrate.mjs",
-    "delete-lead": "node scripts/delete-lead.mjs"
+    "delete-lead": "node scripts/delete-lead.mjs",
+    "notify-backlog-report": "node scripts/notify-backlog-report.mjs"
   },
   "dependencies": {
     "postgres": "3.4.9",

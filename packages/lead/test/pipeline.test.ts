@@ -4,7 +4,7 @@ import { resolveTransport, type RequestPolicy, type TransportConfig } from "../s
 import { handleLead } from "../src/pipeline";
 import { memoryLimiter } from "../src/rate-limit";
 import { DeliveryError, type LeadNotifier, type LeadStore, type RateLimiter } from "../src/types";
-import { PII, captureLogger, readJsonl, request, tempOutbox, toyParse } from "./helpers";
+import { PII, captureLogger, readJsonl, request, tempOutbox, testTokens, tokenHeader, toyParse } from "./helpers";
 
 const open = () => memoryLimiter({ limit: 1000, windowSec: 60 });
 const both = (l: RateLimiter) => ({ perIp: l });
@@ -18,10 +18,11 @@ const fakeEnv = (dir: string, extra: Record<string, string> = {}) => ({
   LEAD_TRUSTED_PROXY: "x-forwarded-for",
   ...extra,
 });
+// `details` differs per submission: identical content under a new id is one lead since RTS-3.
 const valid = (id = randomUUID(), extra: Record<string, string> = {}) => ({
   form: "start",
   submission_id: id,
-  fields: { name: PII.name, business: PII.business, reach: PII.reach, services: "out-of-home,tv-streaming", source: "bb-i405-oct", ...extra },
+  fields: { name: PII.name, business: PII.business, reach: PII.reach, services: "out-of-home,tv-streaming", source: "bb-i405-oct", details: id, ...extra },
 });
 
 afterEach(() => vi.restoreAllMocks());
@@ -77,7 +78,7 @@ describe("success through the fake transport", () => {
   it("LEAD_NOTIFY=disabled stores the row and records 'disabled', sends nothing", async () => {
     const dir = tempOutbox();
     const id = randomUUID();
-    const res = await handleLead(request(valid(id)), {
+    const res = await handleLead(request(valid(id), tokenHeader("zbc")), {
       app: "zbc",
       parse: toyParse,
       env: fakeEnv(dir, { LEAD_NOTIFY: "disabled" }),
@@ -183,7 +184,7 @@ describe("validation and abuse", () => {
     const limiter = memoryLimiter({ limit: 1, windowSec: 600 });
     const base = { parse: toyParse, env: fakeEnv(tempOutbox()), logger: captureLogger().logger, limiters: both(limiter) };
     expect((await handleLead(request(valid()), { ...base, app: "zbm" })).status).toBe(200);
-    expect((await handleLead(request(valid()), { ...base, app: "zbc" })).status).toBe(200);
+    expect((await handleLead(request(valid(), tokenHeader("zbc")), { ...base, app: "zbc" })).status).toBe(200);
     expect((await handleLead(request(valid()), { ...base, app: "zbm" })).status).toBe(429);
   });
 });
@@ -191,7 +192,7 @@ describe("validation and abuse", () => {
 describe("delivery failures (Brief §6.2 failure mode)", () => {
   const transportWith = (store: LeadStore, notifier: LeadNotifier | null): TransportConfig => ({
     ok: true,
-    transport: { mode: "live", store, notifier, hashIp: () => "h" },
+    transport: { mode: "live", store, notifier, hashIp: () => "h", formTokens: testTokens },
   });
 
   it("store failure: 503 unavailable, no email, never a success", async () => {
@@ -200,7 +201,7 @@ describe("delivery failures (Brief §6.2 failure mode)", () => {
       insert: async () => {
         throw new DeliveryError("store_failed", "08006");
       },
-      setNotifyStatus: async () => {},
+      setNotifyStatus: async () => {}, markAttempt: async (_a: string, _i: string, h: string) => ({ firstAttemptAt: new Date(), bodyHash: h }), quarantine: async () => {},
     };
     const log = captureLogger();
     const res = await handleLead(request(valid()), {
@@ -219,7 +220,10 @@ describe("delivery failures (Brief §6.2 failure mode)", () => {
 
   it("email failure after the row is written: visitor sees success, row marked failed, failure logged", async () => {
     const statuses: string[] = [];
-    const store: LeadStore = { insert: async () => ({ inserted: true as const }), setNotifyStatus: async (_app, _id, s) => void statuses.push(s) };
+    const store: LeadStore = {
+      insert: async () => ({ inserted: true as const, createdAt: new Date() }),
+      setNotifyStatus: async (_app, _id, s) => void statuses.push(s), markAttempt: async (_a: string, _i: string, h: string) => ({ firstAttemptAt: new Date(), bodyHash: h }), quarantine: async () => {},
+    };
     const notifier: LeadNotifier = {
       send: async () => {
         throw new DeliveryError("notify_rejected", 403);

@@ -79,6 +79,7 @@ describe.skipIf(!url)("postgres store (integration)", () => {
       form: "start",
       payload: { name: "Ada", services: ["out-of-home"], nested: { a: 1 } },
       payload_hash: payloadHash({ name: "Ada" }),
+      content_hash: randomUUID(),
       services: ["out-of-home", "tv-streaming"],
       source: "bb-i405",
       service_area: "PR",
@@ -86,9 +87,9 @@ describe.skipIf(!url)("postgres store (integration)", () => {
     };
     const results = await Promise.all([store.insert(record), store.insert(record), store.insert(record)]);
     expect(results.filter((r) => r.inserted)).toHaveLength(1);
-    expect(results.filter((r) => !r.inserted && r.samePayload)).toHaveLength(2);
+    expect(results.filter((r) => !r.inserted && "samePayload" in r && r.samePayload)).toHaveLength(2);
     // Same id, changed content: reported as a conflict, never stored over the first.
-    expect(await store.insert({ ...record, payload: { name: "Edited" }, payload_hash: payloadHash({ name: "Edited" }) })).toEqual({
+    expect(await store.insert({ ...record, payload: { name: "Edited" }, payload_hash: payloadHash({ name: "Edited" }) })).toMatchObject({
       inserted: false,
       samePayload: false,
     });
@@ -114,10 +115,122 @@ describe.skipIf(!url)("postgres store (integration)", () => {
   it("the same submission_id in the other app is a different lead (key is per app)", async () => {
     const store = postgresStore(opts(url!));
     const id = randomUUID();
-    const base = { submission_id: id, form: "x", payload: {}, payload_hash: "h1", services: [], source: null, service_area: "US-CA", user_agent: null };
+    const base = { submission_id: id, form: "x", payload: {}, payload_hash: "h1", content_hash: randomUUID(), services: [], source: null, service_area: "US-CA", user_agent: null };
     expect((await store.insert({ ...base, app: "zbm" })).inserted).toBe(true);
     expect((await store.insert({ ...base, app: "zbc" })).inserted).toBe(true);
     expect((await store.insert({ ...base, app: "zbc" })).inserted).toBe(false);
+  });
+
+  it("RTS-3: the same content under a new submission_id within 24 h is one row; racing copies too; another app is separate", async () => {
+    const store = postgresStore(opts(url!));
+    const content = randomUUID();
+    const rec = (app: "zbm" | "zbc" = "zbm") => ({
+      submission_id: randomUUID(), app, form: "start", payload: { n: content }, payload_hash: content, content_hash: content,
+      services: [], source: null, service_area: "US-CA", user_agent: null,
+    });
+    const results = await Promise.all([store.insert(rec()), store.insert(rec()), store.insert(rec())]);
+    expect(results.filter((r) => r.inserted)).toHaveLength(1);
+    expect(results.filter((r) => "duplicateOf" in r)).toHaveLength(2);
+    expect(await store.insert(rec("zbc"))).toMatchObject({ inserted: true });
+    const rows = await sql`SELECT app, content_hash FROM leads WHERE content_hash = ${content} ORDER BY app`;
+    expect(rows.map((r) => r.app)).toEqual(["zbc", "zbm"]);
+    // Older than the window: no longer a duplicate.
+    await sql`UPDATE leads SET created_at = now() - interval '25 hours' WHERE content_hash = ${content}`;
+    expect(await store.insert(rec())).toMatchObject({ inserted: true });
+  });
+
+  it("CH-9: a lock on the leads table fails the insert fast (lock/statement timeout), never hangs", async () => {
+    const store = postgresStore(opts(url!), { statementTimeoutMs: 1_000 });
+    const locker = connect(url!);
+    let release!: () => void;
+    const held = new Promise<void>((r) => (release = r));
+    let locked!: () => void;
+    const isLocked = new Promise<void>((r) => (locked = r));
+    const lock = locker.begin(async (tx) => {
+      await tx`LOCK TABLE leads IN ACCESS EXCLUSIVE MODE`;
+      locked();
+      await held;
+    });
+    await isLocked;
+    const started = Date.now();
+    const error = await store
+      .insert({
+        submission_id: randomUUID(), app: "zbm", form: "x", payload: {}, payload_hash: "h", content_hash: randomUUID(),
+        services: [], source: null, service_area: "US-CA", user_agent: null,
+      })
+      .catch((e: unknown) => e);
+    const took = Date.now() - started;
+    release();
+    await lock;
+    await locker.end();
+    expect(error).toBeInstanceOf(DeliveryError);
+    expect(["55P03", "57014"]).toContain((error as DeliveryError).detail);
+    expect(took).toBeLessThan(4_000);
+  });
+
+  it("CH-8: the outbox — failed and stale pending rows are claimed once (lease), backoff and grace respected; a duplicate reports its email state", async () => {
+    const store = postgresStore(opts(url!));
+    const app = "zbc" as const; // its own app, so other tests' rows do not interfere
+    await sql`DELETE FROM leads WHERE app = 'zbc'`;
+    const row = (id = randomUUID()) => ({
+      submission_id: id, app, form: "start", payload: { n: id }, payload_hash: id, content_hash: id,
+      services: [], source: null, service_area: "US-CA", user_agent: null,
+    });
+    const failed = row();
+    const freshPending = row();
+    const stalePending = row();
+    const backedOff = row();
+    const sent = row();
+    for (const r of [failed, freshPending, stalePending, backedOff, sent]) expect((await store.insert(r)).inserted).toBe(true);
+    await store.setNotifyStatus(app, failed.submission_id, "failed");
+    await store.setNotifyStatus(app, backedOff.submission_id, "failed", new Date(Date.now() + 3_600_000));
+    await store.setNotifyStatus(app, sent.submission_id, "sent");
+    await sql`UPDATE leads SET created_at = now() - interval '10 minutes' WHERE submission_id = ${stalePending.submission_id}::uuid`;
+
+    const dup = await store.insert(failed);
+    expect(dup).toMatchObject({ inserted: false, samePayload: true, stored: { notify_status: "failed" } });
+
+    const claimOpts = { pendingBefore: new Date(Date.now() - 5 * 60_000), createdAfter: new Date(Date.now() - 3 * 86_400_000), maxAttempts: 10, limit: 50 };
+    // Two claims on SEPARATE connections (distinct options → distinct clients), so the lease is really raced.
+    const store2 = postgresStore({ ...opts(url!), connect_timeout: 42 });
+    const [a, b] = await Promise.all([store.claimUnsent(app, claimOpts), store2.claimUnsent(app, claimOpts)]);
+    const claimed = [...a, ...b].map((r) => r.submission_id).sort();
+    expect(claimed).toEqual([failed.submission_id, stalePending.submission_id].sort());
+    expect([...a, ...b].find((r) => r.submission_id === failed.submission_id)?.notify_attempts).toBe(1);
+    // Leased: a third run finds nothing.
+    expect(await store.claimUnsent(app, claimOpts)).toEqual([]);
+
+    const purger = postgresPurger(opts(url!));
+    const state = () => purger.leadState(app, { unsentBefore: new Date(Date.now() + 60_000), retryAfter: new Date(Date.now() - 3 * 86_400_000) });
+    expect((await state()).unsent).toBe(4);
+    await store.setNotifyStatus(app, failed.submission_id, "sent");
+    expect((await state()).unsent).toBe(3);
+    await sql`DELETE FROM leads WHERE app = 'zbc'`;
+  });
+
+  it("AEGIS F1/F3/F4, r3 H1: deferred leads are batched once for a digest and count as backlog; a content duplicate returns the stored copy; the schema check sees every column", async () => {
+    const store = postgresStore(opts(url!));
+    const purger = postgresPurger(opts(url!));
+    await sql`DELETE FROM leads WHERE app = 'zbc'`;
+    const id = randomUUID();
+    const content = randomUUID();
+    const rec = { submission_id: id, app: "zbc" as const, form: "start", payload: { n: 1 }, payload_hash: "p", content_hash: content, services: [], source: null, service_area: "US-CA", user_agent: null };
+    expect(await store.insert(rec)).toMatchObject({ inserted: true });
+    await store.setNotifyStatus("zbc", id, "failed");
+    const dup = await store.insert({ ...rec, submission_id: randomUUID() });
+    expect(dup).toMatchObject({ inserted: false, duplicateOf: "content", original: { submission_id: id, notify_status: "failed", payload: { n: 1 } } });
+
+    await store.setNotifyStatus("zbc", id, "deferred");
+    expect((await purger.leadState("zbc", { unsentBefore: new Date(0), retryAfter: new Date(0) })).digestPending).toBe(1);
+    // Two claims on SEPARATE connections (distinct options → distinct clients).
+    const other = postgresStore({ ...opts(url!), connect_timeout: 41 });
+    const seal = () => "h";
+    const [a, b] = await Promise.all([store.formBatch("zbc", "digest", 10, seal), other.formBatch("zbc", "digest", 10, seal)]);
+    expect([...(a?.leads ?? []), ...(b?.leads ?? [])].map((r) => r.submission_id)).toEqual([id]);
+    // The formed batch is leased whole: no other run can claim it now.
+    expect(await other.claimBatch("zbc", "digest")).toBeNull();
+    expect(await purger.missingColumns()).toEqual([]);
+    await sql`DELETE FROM leads WHERE app = 'zbc'`;
   });
 
   it("the table rejects an unknown app, and the error surfaces as a SQLSTATE only", async () => {
@@ -129,6 +242,7 @@ describe.skipIf(!url)("postgres store (integration)", () => {
         form: "x",
         payload: { secret: "PII-VALUE" },
         payload_hash: "h",
+        content_hash: randomUUID(),
         services: [],
         source: null,
         service_area: "US-CA",
@@ -149,6 +263,7 @@ describe.skipIf(!url)("postgres store (integration)", () => {
         form: "x",
         payload: {},
         payload_hash: "h",
+        content_hash: randomUUID(),
         services: [],
         source: null,
         service_area: "US-CA",
@@ -230,12 +345,13 @@ describe.skipIf(!neonShaped)("postgres store with a Neon-shaped URL (TLS + SCRAM
       form: "clipper",
       payload: { name: "TLS" },
       payload_hash: "h",
+      content_hash: randomUUID(),
       services: [],
       source: null,
       service_area: "US-CA",
       user_agent: null,
     });
-    expect(result).toEqual({ inserted: true });
+    expect(result).toMatchObject({ inserted: true });
     const sql = connect(url!);
     const [row] = await sql`SELECT form FROM leads WHERE app = 'zbc' AND submission_id = ${id}`;
     await sql.end();
@@ -290,7 +406,7 @@ describe.skipIf(!url)("migrate script (integration)", () => {
     expect(await db`SELECT version FROM schema_migrations ORDER BY version`).toEqual(MIGRATIONS.map((f) => ({ version: f.slice(0, 3) })));
     expect(await db`SELECT count(*)::int AS n FROM leads`).toEqual([{ n: 0 }]);
     await db.end();
-  });
+  }, 60_000);
 
   it("R-M1: a database that already ran the 53-code 004 is fixed by 005, and VI/AS/MP then store", async () => {
     // 001-004 exactly as 004 was first committed (53 codes), recorded as applied.
@@ -606,6 +722,7 @@ describe.skipIf(!neonShaped)("TLS modes and startup options (integration)", () =
         form: "tls-check",
         payload: {},
         payload_hash: "h",
+        content_hash: randomUUID(),
         services: [],
         source: null,
         service_area: "US-CA",

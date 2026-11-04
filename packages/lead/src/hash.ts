@@ -11,3 +11,21 @@ function canonical(value: unknown): string {
 }
 
 export const payloadHash = (payload: unknown) => createHash("sha256").update(canonical(payload)).digest("hex");
+
+/** Case, runs of whitespace, leading/trailing space and Unicode form do not make a message different. */
+function normalized(value: unknown): unknown {
+  if (typeof value === "string") return value.normalize("NFKC").toLowerCase().replace(/\s+/g, " ").trim();
+  if (Array.isArray(value)) return value.map(normalized);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, normalized(v)]));
+  }
+  return value;
+}
+
+/**
+ * Red team RTS-3: the dedupe key. The same words re-sent under a fresh
+ * submission_id (a script, or a visitor pressing send in a new tab) hash
+ * equal; any change in wording does not.
+ */
+export const contentHash = (content: { form: string; region: unknown; payload: unknown }) =>
+  createHash("sha256").update(`content-v1:${canonical(normalized(content))}`).digest("hex");

@@ -118,8 +118,7 @@ export const FORM_ROUTES = [
   { base: ZBM_BASE_URL, route: "/start" },
   { base: ZBM_BASE_URL, route: "/revenue-recovery" },
   { base: ZBM_BASE_URL, route: "/search-intelligence" },
-  { base: ZBC_BASE_URL, route: "/launch-a-campaign" },
-  { base: ZBC_BASE_URL, route: "/become-a-clipper" },
+  // Z Best Clips has no forms until its privacy policy is published (red team RTS-1).
 ];
 
 export const siteOf = (base: string) => (base === ZBM_BASE_URL ? "zbm" : "zbc");

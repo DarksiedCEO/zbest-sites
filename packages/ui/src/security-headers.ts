@@ -41,21 +41,43 @@ export function contentSecurityPolicy(env: Env = process.env): string {
     .join("; ");
 }
 
-export function securityHeaders(env: Env = process.env) {
+/** The six headers every response carries, as key/value pairs. */
+export function securityHeaderList(env: Env = process.env): { key: string; value: string }[] {
   return [
+    { key: "Content-Security-Policy", value: contentSecurityPolicy(env) },
+    { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
+    { key: "X-Content-Type-Options", value: "nosniff" },
+    { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
     {
-      source: "/:path*",
-      headers: [
-        { key: "Content-Security-Policy", value: contentSecurityPolicy(env) },
-        { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
-        { key: "X-Content-Type-Options", value: "nosniff" },
-        { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-        {
-          key: "Permissions-Policy",
-          value: "camera=(), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()",
-        },
-        { key: "X-Frame-Options", value: "DENY" },
-      ],
+      key: "Permissions-Policy",
+      value: "camera=(), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()",
     },
+    { key: "X-Frame-Options", value: "DENY" },
   ];
+}
+
+export function securityHeaders(env: Env = process.env) {
+  return [{ source: "/:path*", headers: securityHeaderList(env) }];
+}
+
+/** True when some segment of a raw URL path is not valid percent-encoding (e.g. /legal/%E0%A4%A). */
+export function malformedPath(rawPath: string): boolean {
+  try {
+    decodeURIComponent(rawPath);
+    return false;
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * Red team RTS-9: a malformed percent-encoding in a dynamic route used to
+ * end in Next's bare text/plain 500, which skips the next.config headers.
+ * Each app's proxy.ts answers such a request itself — 400, plain text, no
+ * detail — with all six headers.
+ */
+export function malformedPathResponse(env: Env = process.env): Response {
+  const headers = new Headers({ "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" });
+  for (const { key, value } of securityHeaderList(env)) headers.set(key, value);
+  return new Response("Bad request", { status: 400, headers });
 }

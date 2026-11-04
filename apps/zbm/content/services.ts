@@ -410,7 +410,7 @@ export const SERVICES: Service[] = [
     slug: "revenue-recovery",
     name: "Revenue Recovery",
     group: "conversion",
-    summary: "The audit that finds where your traffic leaks — and fixes it before you spend more.",
+    summary: "Find where revenue is being lost before you spend more — starting with a free self-assessment.",
     href: "/revenue-recovery",
   },
   {
@@ -422,15 +422,15 @@ export const SERVICES: Service[] = [
     page: {
       heroTitle: "Websites built to convert, not just to exist.",
       metaDescription:
-        "Websites and landing pages designed, written, and built to convert — fast on mobile and wired to track every lead.",
+        "Websites and landing pages designed, written, and built to convert — mobile-first and wired to track every lead.",
       lead: [
-        "Sites and landing pages designed, written, and built for the traffic you’re paying for — fast on a phone, clear at a glance, and wired to track every lead.",
+        "Sites and landing pages designed, written, and built for the traffic you’re paying for — built for the phone first, clear at a glance, and wired to track every lead.",
         "The site you’re reading is our own work.",
       ],
       included: [
         "Campaign landing pages — one page per offer, matched to the ad that sends the traffic",
         "Full websites — design, copy, and build on a modern stack",
-        "Mobile-first performance — pages that load fast on the phone most of your visitors use",
+        "Mobile-first design — built for the phone most of your visitors use",
         "Lead capture that works — forms, click-to-call, and booking wired end to end and tested before launch",
         "Accessibility — built to WCAG 2.2 AA as the target, with automated accessibility checks and keyboard testing before launch",
         "Search-ready structure — clean markup, metadata, and structured data so search engines and AI assistants can read the site",
@@ -468,7 +468,7 @@ export const SERVICES: Service[] = [
         {
           question: "How does this connect to Revenue Recovery?",
           answer:
-            "Revenue Recovery finds where visitors drop off. Many of those leaks live on the page itself — a broken mobile form, a slow load, the wrong page for the ad. This is where they get fixed.",
+            "Revenue Recovery points to where visitors drop off. When a leak lives on the page itself — the wrong page for the ad, an unclear next step — this is where it gets fixed.",
         },
       ],
     },
