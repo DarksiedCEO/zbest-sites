@@ -99,6 +99,7 @@ export function LegalDocument({
   issuer,
   effectiveDate,
   lastUpdated,
+  status,
   children,
 }: {
   doc: InEffectLegalDocument;
@@ -107,6 +108,11 @@ export function LegalDocument({
   issuer: string;
   effectiveDate: string;
   lastUpdated: string;
+  /**
+   * The document's status, shown first in <main> while it is set (for example
+   * "Draft — pending attorney review."). The app supplies the words.
+   */
+  status?: string;
   /** Page-specific controls, e.g. Cookie Settings on the Cookie Policy. */
   children?: ReactNode;
 }) {
@@ -116,7 +122,8 @@ export function LegalDocument({
       data-legal-document
       className="mx-auto max-w-[90rem] px-gutter py-section lg:px-gutter-wide"
     >
-      <header className="max-w-3xl">
+      {status ? <LegalStatus text={status} /> : null}
+      <header className={status ? "mt-stack max-w-3xl" : "max-w-3xl"}>
         <p className="type-label text-text-secondary">Legal · {site}</p>
         <h1 className="type-headline mt-3">{doc.title}</h1>
         <p className="type-body mt-4 text-text-secondary">{inline(doc.subtitle)}</p>
@@ -245,5 +252,14 @@ export function LegalDocument({
         ))}
       </div>
     </main>
+  );
+}
+
+/** A document-status line (e.g. a draft notice), first in <main>. */
+export function LegalStatus({ text }: { text: string }) {
+  return (
+    <div role="note" aria-label="Document status" data-legal-status className="max-w-3xl border border-accent bg-panel px-5 py-4">
+      <p className="type-label text-accent">{text}</p>
+    </div>
   );
 }

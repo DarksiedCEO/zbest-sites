@@ -25,8 +25,39 @@ const CONSENT_KEY = "zbest-cookie-consent";
 /**
  * Founder decision, Oct 30 2026: neither site may carry review-status or draft
  * wording about its legal documents. ZBC shows this notice until launch.
+ *
+ * Founder direction, Nov 7 2026: until he approves the adoption summary in
+ * writing on PR #10, every legal page shows exactly LEGAL_DRAFT_STATUS, first
+ * in <main> ([data-legal-status]); nothing else on the page, in metadata or in
+ * the cookie banner may carry status wording. Mirrors LEGAL_ADOPTED in
+ * apps/{zbm,zbc}/lib/legal.ts: flip both together.
  */
 const STATUS_WORDING = /pending attorney|attorney review|not yet in effect|not legal advice|\bdraft\b/i;
+const LEGAL_ADOPTED = false;
+const LEGAL_DRAFT_STATUS = "Draft — pending attorney review.";
+
+/**
+ * Checks the legal page's status line (present and first while not adopted,
+ * absent once adopted) and returns <main>'s text without it, for the
+ * no-other-status-wording checks.
+ */
+async function legalPageText(page: Page): Promise<string> {
+  const status = page.locator("[data-legal-status]");
+  if (LEGAL_ADOPTED) {
+    expect(await status.count()).toBe(0);
+  } else {
+    await expect(status).toHaveCount(1);
+    await expect(status).toHaveText(LEGAL_DRAFT_STATUS);
+    await expect(status).toBeInViewport();
+    const first = await page.evaluate(() => document.querySelector("main")?.firstElementChild?.hasAttribute("data-legal-status") ?? false);
+    expect(first).toBe(true);
+  }
+  return page.evaluate(() => {
+    const main = document.querySelector("main")!.cloneNode(true) as HTMLElement;
+    main.querySelector("[data-legal-status]")?.remove();
+    return main.textContent ?? "";
+  });
+}
 const ZBC_LEGAL_NOTICE = "Z Best Clips is not yet accepting clients. These terms will be published before launch.";
 
 const LEGAL = [
@@ -282,14 +313,14 @@ for (const app of APPS) {
     // Z Best Media's documents are IN EFFECT (founder decision Oct 30 2026,
     // CLAUDE.md): real text, no draft banner. Z Best Clips keeps the shells.
     for (const doc of app.slug === "zbm" ? LEGAL : []) {
-      test(`${doc.path} — in-effect document: no draft banner, real sections, dated`, async ({ page }) => {
+      test(`${doc.path} — in-effect document: draft line until adopted, real sections, dated`, async ({ page }) => {
         await presetConsent(page);
         const response = await page.goto(`${app.baseUrl}${doc.path}`, { waitUntil: "domcontentloaded" });
         expect(response?.status()).toBe(200);
 
         await expect(page.locator("[data-legal-document]")).toBeVisible();
         expect(await page.locator("[data-legal-notice]").count()).toBe(0);
-        const text = await page.locator("main").innerText();
+        const text = await legalPageText(page);
         expect(text).not.toMatch(STATUS_WORDING);
         expect(await head(page, 'meta[name="description"]')).not.toMatch(STATUS_WORDING);
 
@@ -329,21 +360,21 @@ for (const app of APPS) {
           { path: "/legal/accessibility", title: "Accessibility Statement" },
         ]
       : []) {
-      test(`${doc.path} — in effect, no status wording`, async ({ page }) => {
+      test(`${doc.path} — draft line until adopted, no other status wording`, async ({ page }) => {
         await presetConsent(page);
         const response = await page.goto(`${app.baseUrl}${doc.path}`, { waitUntil: "domcontentloaded" });
         expect(response?.status()).toBe(200);
         await expect(page.locator("[data-legal-document]")).toBeVisible();
         await expect(page.getByRole("heading", { level: 1 })).toHaveText(doc.title);
         expect(await page.locator("[data-legal-notice]").count()).toBe(0);
-        expect(await page.locator("main").innerText()).not.toMatch(STATUS_WORDING);
+        expect(await legalPageText(page)).not.toMatch(STATUS_WORDING);
         expect(await head(page, 'meta[name="description"]')).not.toMatch(STATUS_WORDING);
         expect(await head(page, 'meta[name="robots"]')).toMatch(/noindex/);
       });
     }
 
     for (const doc of app.slug === "zbm" ? [] : LEGAL) {
-      test(`${doc.path} — outline carries the not-yet-accepting-clients notice and no status wording`, async ({ page }) => {
+      test(`${doc.path} — outline carries the not-yet-accepting-clients notice, draft line until adopted`, async ({ page }) => {
         await presetConsent(page);
         const response = await page.goto(`${app.baseUrl}${doc.path}`, {
           waitUntil: "domcontentloaded",
@@ -378,7 +409,7 @@ for (const app of APPS) {
         expect(await page.locator("main").innerText()).not.toMatch(/\[[A-Z]/);
 
         // The contracting entity is unconfirmed; no candidate name appears.
-        const text = await page.locator("main").innerText();
+        const text = await legalPageText(page);
         expect(text).not.toMatch(/silverback|pussycat/i);
         expect(text).not.toMatch(STATUS_WORDING);
         expect(await head(page, 'meta[name="description"]')).not.toMatch(STATUS_WORDING);
@@ -508,6 +539,20 @@ for (const app of APPS) {
       // Phase 2 carry-forward: the banner's Cookie Policy link now resolves.
       const policyHref = await dialog.getByRole("link", { name: "Cookie Policy" }).getAttribute("href");
       expect((await page.request.get(`${app.baseUrl}${policyHref}`)).status()).toBe(200);
+
+      // The Cookie Policy promises "equal prominence": Reject and Accept look
+      // the same — same box, colors, border, type and padding.
+      const look = (name: string) =>
+        dialog.getByRole("button", { name, exact: true }).evaluate((el) => {
+          const c = getComputedStyle(el);
+          const r = el.getBoundingClientRect();
+          return {
+            background: c.backgroundColor, color: c.color, border: `${c.borderTopWidth} ${c.borderTopStyle} ${c.borderTopColor}`,
+            font: `${c.fontSize} ${c.fontWeight} ${c.fontFamily}`, padding: c.padding, decoration: c.textDecorationLine,
+            height: Math.round(r.height),
+          };
+        });
+      expect(await look("Accept all")).toEqual(await look("Reject non-essential"));
 
       await dialog.getByRole("button", { name: "Reject non-essential" }).click();
       await expect(dialog).toBeHidden();

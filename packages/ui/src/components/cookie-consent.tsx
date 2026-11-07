@@ -49,6 +49,13 @@ const gpcOn = () => {
  */
 export type ConsentCategory = { name: string; body: string };
 
+/**
+ * "Reject non-essential" and "Accept all" share one style, so neither is
+ * nudged: the Cookie Policy says they have equal prominence, and e2e
+ * (phase-3) compares their computed styles.
+ */
+const CHOICE_BUTTON = "type-label border border-text-secondary/40 px-4 py-2.5 text-text-primary";
+
 export function CookieConsent({
   policyHref = "/legal/cookie-policy",
   className = "",
@@ -191,7 +198,8 @@ export function CookieConsent({
             <button
               type="button"
               onClick={() => choose("rejected-non-essential")}
-              className="type-label border border-text-secondary/40 px-4 py-2.5 text-text-primary"
+              data-consent-choice="reject"
+              className={CHOICE_BUTTON}
             >
               Reject non-essential
             </button>
@@ -203,7 +211,8 @@ export function CookieConsent({
               <button
                 type="button"
                 onClick={() => choose("accepted-all")}
-                className="type-label bg-accent px-4 py-2.5 text-base"
+                data-consent-choice="accept"
+                className={CHOICE_BUTTON}
               >
                 Accept all
               </button>

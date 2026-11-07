@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { LedgerRule } from "./ledger-rule";
+import { LegalStatus } from "./legal-document";
 
 export type LegalPart = {
   /** Only for documents with more than one audience, e.g. ZBC's two Terms. */
@@ -27,6 +28,7 @@ export function LegalShell({
   notice,
   pendingText,
   issuerText,
+  status,
   children,
 }: {
   title: string;
@@ -38,17 +40,20 @@ export function LegalShell({
   pendingText: string;
   /** The issuer line; plain text, never a bracketed token. */
   issuerText: string;
+  /** The documents' status (e.g. a draft notice), shown above the notice while set. */
+  status?: string;
   /** Page-specific controls, e.g. Cookie Settings on the Cookie Policy. */
   children?: ReactNode;
 }) {
   let n = 0;
   return (
     <main id="main" className="mx-auto max-w-[90rem] px-gutter py-section lg:px-gutter-wide">
+      {status ? <LegalStatus text={status} /> : null}
       <div
         role="note"
         aria-label="Legal page notice"
         data-legal-notice
-        className="border border-accent bg-panel px-5 py-4"
+        className={`border border-accent bg-panel px-5 py-4${status ? " mt-4" : ""}`}
       >
         <p className="type-label text-accent">{notice}</p>
       </div>

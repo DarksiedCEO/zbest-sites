@@ -3,14 +3,18 @@ import type { LegalPart } from "@zbest/ui";
 /**
  * Z Best Clips legal pages: outlines until launch.
  *
- * Founder decision, Oct 30 2026: no review-status or draft wording on either
- * site. Until Z Best Clips accepts clients and publishes its terms, each page
+ * Founder direction, Nov 7 2026 (supersedes the Oct 30 no-draft-wording
+ * decision until he approves docs/LEGAL-ADOPTION-SUMMARY.md in writing on PR
+ * #10): every legal page on both sites shows ZBC_LEGAL_STATUS first. Set
+ * ZBC_LEGAL_ADOPTED to true together with ZBM's LEGAL_ADOPTED. Until Z Best Clips accepts clients and publishes its terms, each page
  * shows the notice below, the topics its document will cover, and nothing that
  * reads as a policy, a promise or a term. Pages stay noindex (lib/site.ts).
  *
  * The Terms are one page in two parts because the footer carries a single
  * "Terms of Service" entry (§B3), while clippers and clients get separate terms.
  */
+export const ZBC_LEGAL_ADOPTED = false;
+export const ZBC_LEGAL_STATUS: string | undefined = ZBC_LEGAL_ADOPTED ? undefined : "Draft — pending attorney review.";
 export const ZBC_LEGAL_NOTICE =
   "Z Best Clips is not yet accepting clients. These terms will be published before launch.";
 export const ZBC_LEGAL_PENDING = "Published before Z Best Clips launches.";
