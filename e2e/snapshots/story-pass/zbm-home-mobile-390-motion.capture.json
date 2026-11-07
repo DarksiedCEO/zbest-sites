@@ -1,9 +1,9 @@
 {
   "file": "zbm-home-mobile-390-motion.png",
   "cssWidth": 390,
-  "cssHeight": 8287,
+  "cssHeight": 14399,
   "dpr": 3,
-  "scale": "device",
+  "scale": "css",
   "segments": null,
   "limit": 32767
 }

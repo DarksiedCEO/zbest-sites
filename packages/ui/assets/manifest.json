@@ -605,7 +605,8 @@
       "alt": "Concept: a lit bus-shelter poster for Saltgrove on a rainy seafront at night — grilled fish on a plate under “Dinner by the water.”",
       "caption": "Out-of-Home · transit shelter poster · seafront",
       "pages": [
-        "zbm:/out-of-home"
+        "zbm:/out-of-home",
+        "zbm:/"
       ],
       "plannedPages": [
         "zbm:/out-of-home"
@@ -657,7 +658,8 @@
       "caption": "Entertainment · vertical clip poster · TikTok, Reels, Shorts",
       "pages": [
         "zbc:/",
-        "zbc:/entertainment"
+        "zbc:/entertainment",
+        "zbm:/"
       ],
       "plannedPages": [
         "zbc:/"
@@ -709,7 +711,8 @@
       "caption": "Brands · vertical clip cover · brand-owned account",
       "pages": [
         "zbc:/brands",
-        "zbc:/"
+        "zbc:/",
+        "zbm:/"
       ],
       "plannedPages": []
     },
@@ -759,7 +762,8 @@
       "caption": "Brands · vertical clip cover · brand-owned account",
       "pages": [
         "zbc:/brands",
-        "zbc:/"
+        "zbc:/",
+        "zbm:/"
       ],
       "plannedPages": []
     },
@@ -841,7 +845,8 @@
       "alt": "Concept: a phone showing missed calls beside a closed shop sign.",
       "caption": "The problem · AI-generated scene",
       "pages": [
-        "zbm:/revenue-recovery"
+        "zbm:/revenue-recovery",
+        "zbm:/"
       ],
       "plannedPages": []
     },
@@ -879,7 +884,8 @@
       "alt": "Concept: a mobile enquiry form with an error and a submit button cut off by the depicted screen.",
       "caption": "Forms that break on mobile · AI-generated scene",
       "pages": [
-        "zbm:/revenue-recovery"
+        "zbm:/revenue-recovery",
+        "zbm:/"
       ],
       "plannedPages": []
     },
@@ -917,7 +923,8 @@
       "alt": "Concept: an unanswered quote follow-up marked No reply — 9 days, beside a cold mug.",
       "caption": "Follow-up that dies after one touch · AI-generated scene",
       "pages": [
-        "zbm:/revenue-recovery"
+        "zbm:/revenue-recovery",
+        "zbm:/"
       ],
       "plannedPages": []
     },
@@ -955,7 +962,8 @@
       "alt": "Concept: a phone stuck on a loading screen as a thumb moves toward the back control.",
       "caption": "Pages that load too slowly to convert · AI-generated scene",
       "pages": [
-        "zbm:/revenue-recovery"
+        "zbm:/revenue-recovery",
+        "zbm:/"
       ],
       "plannedPages": []
     },
@@ -1031,7 +1039,8 @@
       "alt": "Concept: a sample report listing six revenue leaks in site order without performance metrics.",
       "caption": "The Audit Deliverable · AI-generated scene",
       "pages": [
-        "zbm:/revenue-recovery"
+        "zbm:/revenue-recovery",
+        "zbm:/"
       ],
       "plannedPages": []
     },
@@ -1107,7 +1116,8 @@
       "alt": "Concept: a campaign planning screen with automotive, home and skincare creative and an amber timeline.",
       "caption": "What’s included · AI-generated scene",
       "pages": [
-        "zbm:/digital-advertising"
+        "zbm:/digital-advertising",
+        "zbm:/"
       ],
       "plannedPages": []
     },
@@ -1145,7 +1155,8 @@
       "alt": "Concept: a phone receiving two New lead notifications in a busy shop.",
       "caption": "How it fits with the rest of what we do · AI-generated scene",
       "pages": [
-        "zbm:/digital-advertising"
+        "zbm:/digital-advertising",
+        "zbm:/"
       ],
       "plannedPages": []
     },
@@ -1260,7 +1271,8 @@
       "alt": "Concept: two viewers seen from behind watching a showroom car commercial.",
       "caption": "How it fits with the rest of what we do · AI-generated scene",
       "pages": [
-        "zbm:/tv-streaming"
+        "zbm:/tv-streaming",
+        "zbm:/"
       ],
       "plannedPages": [],
       "toolNote": "Local reviewer retouching recorded in REVIEW.md: From behind the couch: couple, arm around shoulder, watching a calm premium showroom car ad; pairs with tv-problem-wrong-room (empty couch → engaged viewers). Faces: back of heads only (ear/jaw edge at 3x, no features). Small hood emblem removed locally (6×4px ellipse at 851,257), verified at 4x. No on-screen text."
@@ -1299,7 +1311,8 @@
       "alt": "Concept: a driver in Los Angeles freeway traffic with an amber radio equalizer.",
       "caption": "The problem · AI-generated scene",
       "pages": [
-        "zbm:/radio-audio"
+        "zbm:/radio-audio",
+        "zbm:/"
       ],
       "plannedPages": []
     },
@@ -1337,7 +1350,8 @@
       "alt": "Concept: a radio production booth with a microphone, mixing desk and amber waveform.",
       "caption": "What’s included · AI-generated scene",
       "pages": [
-        "zbm:/radio-audio"
+        "zbm:/radio-audio",
+        "zbm:/"
       ],
       "plannedPages": []
     },
@@ -1375,7 +1389,8 @@
       "alt": "Concept: a car arriving at a seaside restaurant with the radio still glowing.",
       "caption": "How it fits with the rest of what we do · AI-generated scene",
       "pages": [
-        "zbm:/radio-audio"
+        "zbm:/radio-audio",
+        "zbm:/"
       ],
       "plannedPages": []
     },
@@ -1527,7 +1542,8 @@
       "alt": "Concept: a social content calendar with creative thumbnails and generic platform placeholders.",
       "caption": "What’s included · AI-generated scene",
       "pages": [
-        "zbm:/social-media"
+        "zbm:/social-media",
+        "zbm:/"
       ],
       "plannedPages": []
     },
@@ -1565,7 +1581,8 @@
       "alt": "Concept: a social post with generic response bubbles in a busy, brightly lit shop.",
       "caption": "How it fits with the rest of what we do · AI-generated scene",
       "pages": [
-        "zbm:/social-media"
+        "zbm:/social-media",
+        "zbm:/"
       ],
       "plannedPages": []
     },
@@ -1603,7 +1620,8 @@
       "alt": "Concept: a six-frame campaign storyboard beside matching sketches on a tablet.",
       "caption": "What’s included · AI-generated scene",
       "pages": [
-        "zbm:/creative-production"
+        "zbm:/creative-production",
+        "zbm:/"
       ],
       "plannedPages": [],
       "toolNote": "Local reviewer retouching recorded in REVIEW.md: v1: frame-5 singer face visible in profile (eye/nose/lips) + hood emblem on frame-1 car. v2 ChatGPT edit: silhouette now solid black (verified); hood emblem survived. Emblem removed locally with OpenCV inpaint (9×5px ellipse at 497,224); verified clean at 4x. Six-frame storyboard + matching pencil sketches on tablet; no checklist motif."
@@ -1642,7 +1660,8 @@
       "alt": "Concept: an unbranded serum bottle on stone being filmed with a phone and studio lights.",
       "caption": "How it fits with the rest of what we do · AI-generated scene",
       "pages": [
-        "zbm:/creative-production"
+        "zbm:/creative-production",
+        "zbm:/"
       ],
       "plannedPages": []
     },
@@ -1680,7 +1699,8 @@
       "alt": "Concept: hands filming an unbranded serum bottle on a phone in a bathroom setting.",
       "caption": "What’s included · AI-generated scene",
       "pages": [
-        "zbm:/influencer-marketing"
+        "zbm:/influencer-marketing",
+        "zbm:/"
       ],
       "plannedPages": []
     },
@@ -1718,7 +1738,8 @@
       "alt": "Concept: a creator brief reading Creator Brief: Maren Vale and Disclosure: #ad.",
       "caption": "How it fits with the rest of what we do · AI-generated scene",
       "pages": [
-        "zbm:/influencer-marketing"
+        "zbm:/influencer-marketing",
+        "zbm:/"
       ],
       "plannedPages": []
     },
@@ -1794,7 +1815,8 @@
       "alt": "Concept: responsive desktop, tablet and phone wireframes with a Strategy, Wireframe, Design, Build, Launch process bar.",
       "caption": "What’s included · AI-generated scene",
       "pages": [
-        "zbm:/websites"
+        "zbm:/websites",
+        "zbm:/"
       ],
       "plannedPages": []
     },

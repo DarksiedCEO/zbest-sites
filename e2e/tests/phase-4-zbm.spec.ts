@@ -213,20 +213,11 @@ const visit = async (page: Page, p: PageDef) => {
 const byPath = (path: string) => PAGES.find((p) => p.path === path)!;
 
 test.describe("Home (§A4)", () => {
-  test("hero stat block shows non-outcome facts only, no counter claim", async ({ page }) => {
+  // Founder direction 2026-11-07 (homepage "Audit + Line"): the hero stat block
+  // is retired with the old layout. The rulings it carried still hold.
+  test("hero: no founding year, no outcome figures, no counter claim", async ({ page }) => {
     await visit(page, byPath("/"));
-    const rows = await page.evaluate(() =>
-      [...document.querySelectorAll("main header dl > div > div")].map((row) => [
-        row.querySelector("dt")?.textContent?.trim(),
-        row.querySelector("dd")?.textContent?.trim(),
-      ]),
-    );
-    expect(rows).toEqual([
-      // Amended Oct 4, 2026: the full-service catalog replaced "Disciplines | 4".
-      // Founder copy ruling Oct 30, 2026: the "Services | 10" row is removed.
-      ["Platforms we plan across", "Google · Meta · TikTok · Lamar · Clear Channel · OUTFRONT"],
-      ["Standard", "Audit first. Evidence. Then scale."],
-    ]);
+    expect(await page.locator("main header dl").count(), "no stat block in the hero").toBe(0);
     // Founder ruling Sep 17: no founding-year claim anywhere on the page.
     expect(await mainText(page)).not.toMatch(/2011|Est\./);
     // The Counter is not wired to a claim until a verified figure exists (§6.3).
@@ -246,11 +237,11 @@ test.describe("Home (§A4)", () => {
     ]);
   });
 
-  // Amended Oct 4, 2026: Section 2 lists every service in the catalog.
-  test("every service links to its page; See What We Do anchors to them", async ({ page }) => {
+  // Amended Oct 4, 2026: every service in the catalog. Founder direction
+  // 2026-11-07: each is a stop on the customer line, its heading a link.
+  test("every service links to its page from its stop on the line", async ({ page }) => {
     await visit(page, byPath("/"));
-    const section = page.locator("#what-we-do");
-    await expect(section.getByRole("heading", { level: 2 })).toHaveText("One team. Every way to be seen.");
+    const main = page.locator("main");
     for (const [name, href] of <[string, string][]>[
       ["Digital Advertising", "/digital-advertising"],
       ["TV & Streaming", "/tv-streaming"],
@@ -263,16 +254,15 @@ test.describe("Home (§A4)", () => {
       ["Revenue Recovery", "/revenue-recovery"],
       ["Websites & Landing Pages", "/websites"],
     ]) {
-      await expect(section.getByRole("link", { name: new RegExp(`^${name}`) })).toHaveAttribute("href", href);
+      await expect(main.getByRole("heading").getByRole("link", { name, exact: true })).toHaveAttribute("href", href);
     }
-    await expect(page.getByRole("link", { name: "See What We Do" })).toHaveAttribute("href", "#what-we-do");
   });
 
   // The Sep 17 ruling put ZBC's clip volume at "dozens"; this card on the ZBM
   // home still said "hundreds" after the ZBC sweep.
   test("the Z Best Clips card says dozens of clips, never hundreds", async ({ page }) => {
     await visit(page, byPath("/"));
-    await expect(page.locator("#what-we-do")).toContainText("One source, dozens of clips, real reach.");
+    await expect(page.locator("main")).toContainText("One source, dozens of clips, real reach.");
     expect(await mainText(page)).not.toMatch(/[Hh]undreds of/);
   });
 
@@ -306,30 +296,29 @@ test.describe("Home (§A4)", () => {
     expect(await section.innerText()).not.toMatch(/case stud|representative|%/i);
   });
 
-  // Superseded by FD-VISUAL-01 §5 (docs/DESIGN-visual-amendment-v1.md): the
-  // §A4 scroll-scrubbed headline became "The reel" — the headline now HOLDS
-  // while the reel beside it is driven by scroll. The full showpiece contract
-  // is in fd-visual-01-pilot.spec.ts; this keeps the hero's half of it here.
-  test("the scroll-driven hero: the reel moves with scroll, the headline holds, and nothing moves with reduced motion", async ({ page }) => {
+  // Founder direction 2026-11-07: the reel is replaced by the customer line.
+  // The full line contract is in fd-visual-01-pilot.spec.ts; this keeps the
+  // hero's half here: the headline holds while the line moves.
+  test("the line moves with scroll, the headline holds, and nothing moves with reduced motion", async ({ page }) => {
     await presetConsent(page);
     await page.emulateMedia({ reducedMotion: "no-preference" });
     await page.goto(`${ZBM_BASE_URL}/`, { waitUntil: "domcontentloaded" });
-    const reel = page.locator('[data-showpiece="zbm-home-reel"]');
-    await expect(reel).toHaveAttribute("data-showpiece-state", "live");
-    // The last tile's image: it pushes in as its turn in the sequence comes.
-    const tile = reel.locator("[data-frame-window] img").last().locator("..");
-    const before = await tile.evaluate((el) => getComputedStyle(el).transform);
+    const sp = page.locator('[data-showpiece="zbm-home-line"]');
+    await expect(sp).toHaveAttribute("data-showpiece-state", "live");
+    const line = () => page.locator("#hl-a").evaluate((el) => getComputedStyle(el).strokeDashoffset);
+    await expect.poll(line).not.toBe("");
+    const before = await line();
     await page.evaluate(() => window.scrollTo(0, window.innerHeight * 1.2));
-    await expect.poll(() => tile.evaluate((el) => getComputedStyle(el).transform)).not.toBe(before);
+    await expect.poll(line).not.toBe(before);
     expect(await page.locator("main header h1").evaluate((el) => getComputedStyle(el).transform)).toBe("none");
 
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto(`${ZBM_BASE_URL}/`, { waitUntil: "domcontentloaded" });
-    await expect(reel).toHaveAttribute("data-showpiece-state", "static");
-    const still = await tile.evaluate((el) => getComputedStyle(el).transform);
+    await expect(sp).toHaveAttribute("data-showpiece-state", "static");
+    const still = await line();
     await page.evaluate(() => window.scrollTo(0, window.innerHeight * 1.2));
-    await page.waitForTimeout(200);
-    expect(await tile.evaluate((el) => getComputedStyle(el).transform)).toBe(still);
+    await page.waitForTimeout(300);
+    expect(await line()).toBe(still);
   });
 });
 

@@ -27,7 +27,6 @@ const CONSENT_KEY = "zbest-cookie-consent";
 const FRAMES = [0, 0.33, 0.66, 1];
 
 const PILOTS = [
-  { name: "zbm-home", base: ZBM_BASE_URL, path: "/", showpiece: "zbm-home-reel" },
   { name: "zbm-out-of-home", base: ZBM_BASE_URL, path: "/out-of-home", showpiece: "zbm-ooh-billboard" },
   { name: "zbc-how-it-works", base: ZBC_BASE_URL, path: "/", showpiece: "zbc-clip-split" },
 ] as const;
@@ -176,28 +175,91 @@ for (const pilot of PILOTS) {
 }
 
 /**
- * Founder pilot review (2026-10-30): a service-row preview must have its image
- * whenever its frame is. Rows load their images with the page, not on scroll.
+ * Home showpiece, founder direction 2026-11-07: "the line". It runs the length
+ * of the page instead of pinning a hero, so it has its own contract here in
+ * place of the pilot loop's pin and first-paint rules (which assume a short
+ * pinned hero). Same guarantees, applied to what the line is:
+ *   - reduced motion: static, nothing sticky, the whole line drawn, no dots,
+ *     and scrolling changes nothing;
+ *   - motion on: live, and scroll drives the line and the customer's dot;
+ *   - nothing on screen is an empty frame, at every stop, for every business
+ *     the visitor can pick (images hidden because another business is picked
+ *     are not on screen and are skipped).
  */
-test("zbm-home — every service-row image is present without scrolling; the Digital Advertising row is captured in view", async ({ page }, testInfo) => {
-  await presetConsent(page);
-  await page.goto(`${ZBM_BASE_URL}/`, { waitUntil: "networkidle" });
-  expect(await page.evaluate(() => window.scrollY)).toBe(0);
-  const missing = await page.evaluate(() =>
-    [...document.querySelectorAll("[data-service-preview] [data-media-frame]")].flatMap((frame) => {
-      const r = frame.getBoundingClientRect();
-      if (r.width === 0 || r.height === 0) return []; // not rendered at this viewport
-      const img = frame.querySelector("img");
-      return img && img.complete && img.naturalWidth > 0 ? [] : [frame.getAttribute("data-asset-id")];
+const LINE = "zbm-home-line";
+
+async function visibleImagesNotShown(page: Page) {
+  return page.evaluate(() =>
+    [...document.querySelectorAll<HTMLImageElement>("[data-home-line] img")].flatMap((img) => {
+      const r = img.getBoundingClientRect();
+      if (r.width === 0 || r.height === 0) return []; // another business is picked
+      if (r.bottom < 0 || r.top > window.innerHeight) return []; // off screen
+      return img.complete && img.naturalWidth > 0 ? [] : [img.closest("[data-asset-id]")?.getAttribute("data-asset-id") ?? img.src];
     }),
   );
-  expect(missing, "service-row frames without their image, before any scroll").toEqual([]);
+}
 
-  const row = page.locator("[data-service-preview] li", { hasText: "Digital Advertising" });
-  await row.scrollIntoViewIfNeeded();
-  await page.waitForTimeout(300);
-  await mkdir(SNAPSHOT_DIR, { recursive: true });
-  const target = testInfo.project.name === "mobile-390" ? row : page.locator("[data-service-preview]");
-  await target.screenshot({ path: path.join(SNAPSHOT_DIR, `zbm-home-${testInfo.project.name}-digital-advertising-row.png`) });
+test.describe(`zbm-home — ${LINE}`, () => {
+  test("reduced motion: static, drawn in full, nothing sticky, scroll moves nothing", async ({ page }, testInfo) => {
+    await presetConsent(page);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto(`${ZBM_BASE_URL}/`, { waitUntil: "networkidle" });
+    const sp = page.locator(`[data-showpiece="${LINE}"]`);
+    await expect(sp).toHaveAttribute("data-showpiece-state", "static");
+    await expect(page.locator("[data-line-state]")).toHaveAttribute("data-line-state", "static");
+    await expect.poll(() => page.locator("#hl-a").evaluate((el) => getComputedStyle(el).strokeDashoffset)).toMatch(/^0(px)?$/);
+    await expect(page.locator("#hl-dot-a")).toBeHidden();
+    const stuck = await page.evaluate(
+      (n) => [...document.querySelectorAll(`[data-showpiece="${n}"] *`)].some((el) => getComputedStyle(el).position === "sticky"),
+      LINE,
+    );
+    expect(stuck, "a sticky pin under reduced motion").toBe(false);
+    const before = await fingerprint(page, LINE);
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight / 2));
+    await page.waitForTimeout(400);
+    expect(await fingerprint(page, LINE), "scroll moved something under reduced motion").toBe(before);
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await mkdir(SNAPSHOT_DIR, { recursive: true });
+    await captureFullPage(page, path.join(SNAPSHOT_DIR, `zbm-home-line-${testInfo.project.name}-reduced.png`), testInfo);
+  });
+
+  test("motion on: live, and scroll draws the line and moves the customer", async ({ page }, testInfo) => {
+    await presetConsent(page);
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await page.goto(`${ZBM_BASE_URL}/`, { waitUntil: "networkidle" });
+    await expect(page.locator(`[data-showpiece="${LINE}"]`)).toHaveAttribute("data-showpiece-state", "live");
+    await expect(page.locator("[data-line-state]")).toHaveAttribute("data-line-state", "live");
+    expect(await visibleImagesNotShown(page), "empty frames on first paint").toEqual([]);
+    const line = () => page.locator("#hl-a").evaluate((el) => getComputedStyle(el).strokeDashoffset);
+    const dot = () => page.locator("#hl-dot-a").evaluate((el) => getComputedStyle(el).offsetDistance);
+    await expect.poll(line).not.toBe("");
+    const [l0, d0] = [await line(), await dot()];
+    await page.evaluate(() => window.scrollTo(0, window.innerHeight * 2.5));
+    await expect.poll(line, "scroll did not draw the line").not.toBe(l0);
+    await expect.poll(dot, "scroll did not move the customer").not.toBe(d0);
+    expect(await page.locator("main header h1").evaluate((el) => getComputedStyle(el).transform)).toBe("none");
+    await mkdir(SNAPSHOT_DIR, { recursive: true });
+    await page.screenshot({ path: path.join(SNAPSHOT_DIR, `zbm-home-line-${testInfo.project.name}-motion-250.png`) });
+  });
+
+  test("every business: picking it swaps the story, and every frame on screen has its image", async ({ page }) => {
+    await presetConsent(page);
+    await page.goto(`${ZBM_BASE_URL}/`, { waitUntil: "networkidle" });
+    for (const [label, ooh] of [
+      ["Auto dealer", "Quellmont Motors"],
+      ["Med spa", "Your hour starts here"],
+      ["Injury law", "Talk to a lawyer"],
+      ["Restaurant", "Dinner by the water"],
+      ["Artist", "Ivo Solace"],
+    ] as const) {
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.getByText(label, { exact: true }).click();
+      await expect(page.locator(".hl-ooh .hl-moment")).toContainText(ooh);
+      const height = await page.evaluate(() => document.documentElement.scrollHeight);
+      for (let y = 0; y < height; y += 600) {
+        await page.evaluate((v) => window.scrollTo(0, v), y);
+        await expect.poll(() => visibleImagesNotShown(page), `${label}: empty frame near y=${y}`).toEqual([]);
+      }
+    }
+  });
 });
-

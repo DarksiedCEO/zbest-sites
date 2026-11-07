@@ -1,9 +1,9 @@
 {
   "file": "zbm-home-mobile-390.png",
   "cssWidth": 390,
-  "cssHeight": 7008,
+  "cssHeight": 14399,
   "dpr": 3,
-  "scale": "device",
+  "scale": "css",
   "segments": null,
   "limit": 32767
 }

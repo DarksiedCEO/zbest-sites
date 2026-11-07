@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./fonts/zbm": "./src/fonts/zbm.ts",
+    "./fonts/zbm-home": "./src/fonts/zbm-home.ts",
     "./fonts/zbc": "./src/fonts/zbc.ts",
     "./styles/tokens.css": "./src/styles/tokens.css",
     "./gate": "./src/gate.tsx",
