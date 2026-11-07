@@ -1,4 +1,4 @@
-import { ButtonLink, pageMetadata } from "@zbest/ui";
+import { ButtonLink, StoryImage, pageMetadata } from "@zbest/ui";
 import { CtaRow, Lead, PageHeader, PageSection } from "@/components/page";
 import { SITE } from "@/lib/site";
 
@@ -17,7 +17,7 @@ export const metadata = pageMetadata(SITE, {
 export default function AboutPage() {
   return (
     <main>
-      <PageHeader label="About" title="An advertising agency built on evidence, not promises.">
+      <PageHeader label="About" title="An advertising agency built on evidence, not promises." aside={<StoryImage asset="about-workspace" hero />}>
         <Lead>
           Z Best Media is a full-service advertising agency — digital, TV, radio,
           out-of-home, social, creative, influencer, websites, revenue recovery, and

@@ -1,4 +1,4 @@
-import { ButtonLink, HeroMedia, pageMetadata } from "@zbest/ui";
+import { ButtonLink, HeroMedia, MediaFrame, StoryImage, type StoryAssetId, pageMetadata } from "@zbest/ui";
 import type { Metadata } from "next";
 import { CtaRow, FaqList, Lead, LedgerList, PageHeader, PageSection, RuledList } from "@/components/page";
 import { SERVICE_HERO } from "@/content/service-media";
@@ -34,6 +34,15 @@ export function ServicePage({ slug }: { slug: string }) {
   const start = startHref(service.slug);
   const hero = SERVICE_HERO[service.slug];
 
+  const story: Partial<Record<string, { problem?: StoryAssetId; work: StoryAssetId; result?: StoryAssetId }>> = {
+    "tv-streaming": { problem: "tv-problem-wrong-room", work: "tv-work-set", result: "tv-result-watching" },
+    "radio-audio": { problem: "radio-problem-commute", work: "radio-work-studio", result: "radio-result-car" },
+    "social-media": { problem: "social-problem-dead-page", work: "social-work-calendar", result: "social-result-engaged" },
+    "creative-production": { work: "creative-work-storyboard", result: "creative-work-shoot" },
+    "influencer-marketing": { work: "influencer-work-filming", result: "influencer-work-brief" },
+    websites: { problem: "web-problem-old-site", work: "web-work-wireframes" },
+  };
+  const images = story[slug];
   const fits = page.fits.map(({ slug: sibling, body }) => {
     const other = serviceBySlug(sibling);
     if (!other) throw new Error(`Service "${slug}" fits with unknown service "${sibling}"`);
@@ -45,7 +54,7 @@ export function ServicePage({ slug }: { slug: string }) {
       <PageHeader
         label={service.name}
         title={page.heroTitle}
-        aside={hero ? <ServiceHeroMedia hero={hero} /> : undefined}
+        aside={images?.problem ? <StoryImage asset={images.problem} hero /> : hero ? <ServiceHeroMedia hero={hero} /> : undefined}
       >
         {page.lead.map((paragraph) => (
           <Lead key={paragraph}>{paragraph}</Lead>
@@ -58,11 +67,11 @@ export function ServicePage({ slug }: { slug: string }) {
         </CtaRow>
       </PageHeader>
 
-      <PageSection label="What’s included">
+      <PageSection label="What’s included" media={images ? <StoryImage asset={images.work} /> : undefined}>
         <RuledList items={page.included} />
       </PageSection>
 
-      <PageSection label="How it fits with the rest of what we do">
+      <PageSection label="How it fits with the rest of what we do" media={images?.result ? <StoryImage asset={images.result} /> : undefined}>
         <LedgerList items={fits} />
       </PageSection>
 
@@ -70,7 +79,7 @@ export function ServicePage({ slug }: { slug: string }) {
         <p className="type-body-lead text-text-primary">{page.pricing}</p>
       </PageSection>
 
-      <PageSection label="Who this is for">
+      <PageSection label="Who this is for" media={hero ? <ServiceSampleMedia hero={hero} /> : undefined}>
         <p className="type-body-lead text-text-primary">{page.whoFor}</p>
         <CtaRow>
           <ButtonLink href={start}>Start a Project</ButtonLink>
@@ -92,4 +101,9 @@ function ServiceHeroMedia({ hero: { narrow, ...frame } }: { hero: NonNullable<(t
       sizes={narrow ? "320px" : "(min-width: 1440px) 520px, (min-width: 1024px) 36vw, calc(100vw - 2.5rem)"}
     />
   );
+}
+
+function ServiceSampleMedia({ hero: { narrow, ...frame } }: { hero: NonNullable<(typeof SERVICE_HERO)[string]> }) {
+  return <MediaFrame {...frame} className={narrow ? "w-full max-w-[20rem]" : undefined}
+    sizes={narrow ? "320px" : "(min-width: 1024px) 30vw, calc(100vw - 2.5rem)"} />;
 }

@@ -98,6 +98,23 @@ for (const e of entries) {
   }
 }
 
+// Founder 36-image handoff: the independently recorded source inventory pins
+// the complete set, designated pages, provenance and unchanged source bytes.
+const story = JSON.parse(readFileSync(path.join(ROOT, "docs/story-pass/inventory.json"), "utf8"));
+if (story.assets.length !== 36 || new Set(story.assets.map((e) => e.id)).size !== 36) fail("story inventory must contain exactly 36 unique assets");
+const retouched = new Set(["creative-work-storyboard", "tv-problem-wrong-room", "tv-result-watching", "about-workspace"]);
+for (const source of story.assets) {
+  const e = entries.find((e) => e.id === source.id);
+  if (!e) { fail(`story: missing ${source.id}`); continue; }
+  if (e.class !== "concept") fail(`story ${e.id}: all founder-supplied scenes must be concept`);
+  if (e.sha256 !== source.sha256 || e.width !== source.width || e.height !== source.height) fail(`story ${e.id}: differs from immutable source inventory`);
+  if (e.provenance?.commit !== story.sourceCommit || e.provenance?.path !== source.source) fail(`story ${e.id}: source provenance mismatch`);
+  if (e.creator !== "Z Best Media (founder-supplied)" || e.tool !== "ChatGPT image generation" || e.rightsHolder !== "Z Best Media") fail(`story ${e.id}: founder provenance declaration mismatch`);
+  if (!e.facesCheck || !e.pages.includes(source.page)) fail(`story ${e.id}: missing review or designated page`);
+  if (retouched.has(e.id) && !e.toolNote?.includes("REVIEW.md")) fail(`story ${e.id}: missing local reviewer retouch note`);
+  if (!e.text.some((t) => t.keep && JSON.stringify(t.box) === "[0,0,1,1]")) fail(`story ${e.id}: the full approved scene must be protected`);
+}
+
 // Every media file in the apps and packages must be a manifest entry.
 // design-inputs/ is the founder's provenance record, not served, so it is not scanned.
 for (const p of [...walk(path.join(ROOT, "apps")), ...walk(path.join(ROOT, "packages"))]) {
