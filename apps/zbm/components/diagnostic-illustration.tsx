@@ -24,8 +24,8 @@ export function DiagnosticIllustration({ kind }: { kind: DiagnosticKind }) {
   const card = (x: number, label: string, incomplete = false) => (
     <g transform={`translate(${x} 45)`}>
       <rect width="108" height="112" rx="4" />
-      <path d="M0 23H108" />
-      <text x="54" y="16" textAnchor="middle" fill="currentColor" stroke="none" fontSize="16">{label}</text>
+      <path d="M0 27H108" />
+      <text x="54" y="19" textAnchor="middle" fill="currentColor" stroke="none" fontSize="16">{label}</text>
       <path d="M16 43H90 M16 61H77 M16 79H87" opacity=".6" />
       {incomplete ? <rect x="16" y="91" width="76" height="12" strokeDasharray="4 4" className="text-accent" /> : <path d="M16 96H69" className="text-accent" />}
     </g>
