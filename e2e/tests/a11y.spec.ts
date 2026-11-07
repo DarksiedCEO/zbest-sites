@@ -139,6 +139,47 @@ test("the gate fails on low-contrast banner text over a pseudo-element backgroun
   await expect(expectNoViolations(page, "probe")).rejects.toThrow(/color-contrast needs review|axe violations/);
 });
 
+// Probes for the gate's own measurements (exemptions d and e in
+// e2e/support/a11y.ts): each makes the measured text fail, and the gate MUST
+// then fail. Dismiss the banner first so only the probe is in play.
+async function dismissed(page: import("@playwright/test").Page, url: string) {
+  await page.goto(url, { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Reject non-essential" }).click();
+  await expect(banner(page)).toBeHidden();
+}
+
+test("the gate fails on low-contrast SVG diagram text (svg-text probe)", async ({ page }) => {
+  await dismissed(page, ZBM_BASE_URL + "/revenue-recovery");
+  await page.evaluate(() => {
+    for (const t of document.querySelectorAll("figure svg text")) t.setAttribute("fill", "rgb(40 42 48)");
+  });
+  await expect(expectNoViolations(page, "probe")).rejects.toThrow(/color-contrast|axe violations/);
+});
+
+test("the gate fails on SVG text crossed by a painted shape (svg-shape probe)", async ({ page }) => {
+  await dismissed(page, ZBM_BASE_URL + "/revenue-recovery");
+  await page.evaluate(() => {
+    const t = document.querySelector("figure svg text") as SVGTextElement;
+    const r = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    const b = t.getBBox();
+    for (const [k, v] of Object.entries({ x: b.x, y: b.y, width: b.width / 2, height: b.height, fill: "rgb(200 200 200)" })) r.setAttribute(k, String(v));
+    t.parentNode!.insertBefore(r, t);
+  });
+  await expect(expectNoViolations(page, "probe")).rejects.toThrow(/color-contrast|axe violations/);
+});
+
+test("the gate fails on low-contrast text behind a clipped-away overlap (clipped-overlap probe)", async ({ page }) => {
+  await dismissed(page, ZBC_BASE_URL + "/");
+  await page.addStyleTag({ content: `[data-concept-group-badge] { color: rgb(30 32 36) !important; }` });
+  await expect(expectNoViolations(page, "probe")).rejects.toThrow(/color-contrast|axe violations/);
+});
+
+test("the gate fails on low-contrast text on its own opaque chip (own-background probe)", async ({ page }) => {
+  await dismissed(page, ZBC_BASE_URL + "/");
+  await page.addStyleTag({ content: `[data-clip-label] { color: rgb(30 32 36) !important; }` });
+  await expect(expectNoViolations(page, "probe")).rejects.toThrow(/color-contrast|axe violations/);
+});
+
 // ---------------------------------------------------------------------------
 // 2. Scripted keyboard checks: what axe cannot see.
 // ---------------------------------------------------------------------------

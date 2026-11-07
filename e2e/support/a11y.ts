@@ -63,8 +63,37 @@ export type IncompleteNode = {
   ariaHidden: boolean;
   /** Page text under an open overlay (outside it). */
   overlapsOverlay: boolean;
+  /**
+   * A position:fixed overlay (the consent banner) is open and this text is
+   * outside it. axe scrolls each node into view to measure it, so the banner
+   * can cover text that sits clear of it at the scroll position the gate
+   * checks afterwards (seen on ZBC / with FD-VISUAL-01 media). The
+   * banner-dismissed pass measures the same text with nothing over it.
+   */
+  outsideFixedOverlay: boolean;
   /** Text inside an overlay: its contrast against the overlay's own opaque panel. */
   inOverlay: null | { ratio: number; required: number };
+  /**
+   * SVG <text> in an inline diagram, which axe never measures (imgNode /
+   * bgOverlap): its contrast against the first opaque CSS background behind
+   * the <svg>, or null when that can't be decided (see measureSvgText).
+   */
+  svgText: null | { ratio: number; required: number };
+  /**
+   * `bgOverlap` where every element whose box overlaps the text is clipped
+   * away before it reaches the text (an overflow-hidden/clip ancestor that
+   * does not touch the text's box: e.g. a zoomed crop inside its frame, which
+   * axe's box geometry counts). Then nothing paints over the text, and it is
+   * measured against its own opaque background; null when undecidable.
+   */
+  clippedOverlap: null | { ratio: number; required: number };
+  /**
+   * The text element's OWN background is opaque (no opacity, filter, blend
+   * mode or background image on it or above it): its contrast against that
+   * background. Used only for `elmPartiallyObscuring` — something BENEATH
+   * covers part of it — since nothing beneath an opaque background shows.
+   */
+  ownOpaque: null | { ratio: number; required: number };
 };
 
 export const ZBM_ROUTES = [
@@ -144,8 +173,10 @@ export const banner = (page: Page) => page.getByRole("dialog", { name: "Cookies 
  *     drop them);
  *   - no undecided color-contrast result, except:
  *       a. the decorative glyphs in CONTRAST_REVIEW_ALLOWLIST;
- *       b. page text an open OVERLAY covers (`bgOverlap`) — the consent banner,
- *          or a positioned menu panel opened by an aria-expanded button. The
+ *       b. page text an open OVERLAY covers (any OVERLAP_REASONS) — the consent banner,
+ *          or a positioned menu panel opened by an aria-expanded button; with
+ *          the fixed consent banner open, any `bgOverlap` outside it (axe
+ *          scrolls each node under the banner to measure it). The
  *          a11y spec also scans every route with no overlay open, where the
  *          same text is measured with nothing over it;
  *       c. text INSIDE an overlay that axe left undecided only because
@@ -160,10 +191,23 @@ export const banner = (page: Page) => page.getByRole("dialog", { name: "Cookies 
  *          a filter, a blend mode, or another painted element in the overlay
  *          touching the text's box). The spec has a probe proving a
  *          pseudo-element background behind banner text fails the gate.
- *          The sticky site header counts as an overlay too, but its panel is
- *          translucent (bg-base/95): there the background is BOUNDED, with
+ *          The sticky site header counts as an overlay too. Its panel is now
+ *          opaque (bg-base); were it translucent, the background is BOUNDED, with
  *          black and then white composited under the panel, and the text must
  *          clear the ratio against the whole range, or it stays undecided.
+ *       d. SVG <text> in inline diagrams, which axe never measures (`imgNode`,
+ *          `bgOverlap`): the gate measures it itself against the first opaque
+ *          CSS background behind the <svg>, and it passes only at 4.5:1 (3:1
+ *          large). It stays undecided, and fails, if the fill is translucent,
+ *          anything up the tree has opacity/filter/blend/background image, a
+ *          painted fill touches the label, or a stroke crosses it;
+ *       e. `bgOverlap` where every overlapping box is clipped away by an
+ *          overflow-hidden ancestor that doesn't reach the text (a zoomed crop
+ *          in its frame): measured against the text's own opaque background,
+ *          and it must reach the ratio;
+ *       f. `elmPartiallyObscuring` (something beneath covers part of the
+ *          text) when the text element's own background is opaque: measured
+ *          against that background, and it must reach the ratio.
  */
 export async function expectNoViolations(page: Page, label: string) {
   const results = await new AxeBuilder({ page })
@@ -203,6 +247,7 @@ export async function expectNoViolations(page: Page, label: string) {
         document.querySelector<HTMLElement>("header:has(> nav[aria-label='Primary'])"),
       ].filter((o): o is HTMLElement => !!o && ["absolute", "fixed", "sticky"].includes(getComputedStyle(o).position));
       const dialog = overlays.find((o) => o.contains(el)) ?? null;
+      const outsideFixedOverlay = !!el && !dialog && overlays.some((o) => getComputedStyle(o).position === "fixed");
       let overlapsOverlay = false;
       let inOverlay: null | { ratio: number; required: number } = null;
       if (el && !dialog) {
@@ -310,7 +355,157 @@ export async function expectNoViolations(page: Page, label: string) {
           else if (lf <= lo) inOverlay = { ratio: (lo + 0.05) / (lf + 0.05), required };
         }
       }
+      // SVG <text> (inline diagrams, FD-VISUAL-01): axe gives up on every SVG
+      // label. Decide it here, or leave it undecided (null) and fail, when:
+      // the label's fill is translucent; anything up the tree has opacity < 1,
+      // a filter, a blend mode or a background image; no opaque CSS
+      // background is found; any other SVG element with a painted fill
+      // touches the label's box; or a painted stroke crosses the label's box
+      // without fully enclosing it (a frame around a label is fine, a line
+      // through it is not).
+      let svgText: null | { ratio: number; required: number } = null;
+      const textEl = el?.closest("text");
+      const svg = textEl?.ownerSVGElement;
+      if (textEl && svg) {
+        const cv = document.createElement("canvas");
+        cv.width = cv.height = 1;
+        const cx = cv.getContext("2d", { willReadFrequently: true })!;
+        const col = (css: string): [number, number, number, number] => {
+          cx.clearRect(0, 0, 1, 1);
+          cx.fillStyle = "rgba(0,0,0,0)";
+          cx.fillStyle = css;
+          cx.fillRect(0, 0, 1, 1);
+          const d = cx.getImageData(0, 0, 1, 1).data;
+          return [d[0]!, d[1]!, d[2]!, d[3]! / 255];
+        };
+        const L = ([r, g, b2]: number[]) => {
+          const ch = (v: number) => ((v /= 255) <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+          return 0.2126 * ch(r!) + 0.7152 * ch(g!) + 0.0722 * ch(b2!);
+        };
+        const tcs = getComputedStyle(textEl);
+        const fg = col(tcs.fill);
+        let ok = fg[3] >= 1 && Number(tcs.fillOpacity) >= 1;
+        const t = textEl.getBoundingClientRect();
+        for (const o of svg.querySelectorAll<SVGGraphicsElement>("*")) {
+          if (!ok) break;
+          if (o === textEl || textEl.contains(o) || o.contains(textEl) || ["g", "defs", "title", "desc", "tspan"].includes(o.tagName)) continue;
+          const r = o.getBoundingClientRect();
+          if (!(r.right > t.left && r.left < t.right && r.bottom > t.top && r.top < t.bottom)) continue;
+          const ocs = getComputedStyle(o);
+          const filled = ocs.fill !== "none" && col(ocs.fill)[3] > 0 && Number(ocs.fillOpacity) > 0;
+          const stroked = ocs.stroke !== "none" && col(ocs.stroke)[3] > 0 && Number(ocs.strokeOpacity) > 0;
+          const encloses = r.left <= t.left && r.right >= t.right && r.top <= t.top && r.bottom >= t.bottom;
+          if (filled || o.tagName === "text" || o.tagName === "image" || (stroked && !encloses)) ok = false;
+        }
+        let bg: number[] | null = null;
+        for (let n2: Element | null = textEl; n2 && ok; n2 = n2.parentElement) {
+          const cs2 = getComputedStyle(n2);
+          if (Number(cs2.opacity) < 1 || cs2.filter !== "none" || cs2.mixBlendMode !== "normal" || cs2.backgroundImage !== "none") ok = false;
+          const c = col(cs2.backgroundColor);
+          if (c[3] >= 1) {
+            bg = c;
+            break;
+          }
+          if (c[3] > 0) ok = false; // translucent layer: what shows through is unknown
+        }
+        if (ok && bg) {
+          const scale = svg.viewBox.baseVal?.width ? svg.getBoundingClientRect().width / svg.viewBox.baseVal.width : 1;
+          const px = parseFloat(tcs.fontSize) * scale;
+          const required = px >= 24 || (px >= 18.66 && Number(tcs.fontWeight) >= 700) ? 3 : 4.5;
+          const [hi, lo] = [L(fg), L(bg)].sort((x, y) => y - x);
+          svgText = { ratio: (hi! + 0.05) / (lo! + 0.05), required };
+        }
+      }
+      let ownOpaque: null | { ratio: number; required: number } = null;
+      if (el && !textEl) {
+        const cv = document.createElement("canvas");
+        cv.width = cv.height = 1;
+        const cx = cv.getContext("2d", { willReadFrequently: true })!;
+        const col = (css: string) => {
+          cx.clearRect(0, 0, 1, 1);
+          cx.fillStyle = "rgba(0,0,0,0)";
+          cx.fillStyle = css;
+          cx.fillRect(0, 0, 1, 1);
+          const d = cx.getImageData(0, 0, 1, 1).data;
+          return [d[0]!, d[1]!, d[2]!, d[3]! / 255];
+        };
+        const L = ([r, g, b2]: number[]) => {
+          const ch = (v: number) => ((v /= 255) <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+          return 0.2126 * ch(r!) + 0.7152 * ch(g!) + 0.0722 * ch(b2!);
+        };
+        const ecs = getComputedStyle(el);
+        const own = col(ecs.backgroundColor);
+        const fg = col(ecs.color);
+        let clean = own[3]! >= 1 && fg[3]! >= 1 && ecs.backgroundImage === "none";
+        for (let n2: Element | null = el; n2 && clean; n2 = n2.parentElement) {
+          const cs2 = getComputedStyle(n2);
+          if (Number(cs2.opacity) < 1 || cs2.filter !== "none" || cs2.mixBlendMode !== "normal") clean = false;
+        }
+        if (clean) {
+          const px = parseFloat(ecs.fontSize);
+          const required = px >= 24 || (px >= 18.66 && Number(ecs.fontWeight) >= 700) ? 3 : 4.5;
+          const [hi, lo] = [L(fg), L(own)].sort((x, y) => y - x);
+          ownOpaque = { ratio: (hi! + 0.05) / (lo! + 0.05), required };
+        }
+      }
+      let clippedOverlap: null | { ratio: number; required: number } = null;
+      if (el && !textEl) {
+        const t = el.getBoundingClientRect();
+        const touches = (r: DOMRect) => r.right > t.left && r.left < t.right && r.bottom > t.top && r.top < t.bottom;
+        const hits = [...document.querySelectorAll<HTMLElement>("body *")].filter(
+          (o) => o !== el && !o.contains(el) && !el.contains(o) && touches(o.getBoundingClientRect()),
+        );
+        const clippedAway = (o: Element) => {
+          for (let a = o.parentElement; a; a = a.parentElement) {
+            if (a.contains(el)) return false;
+            const cs3 = getComputedStyle(a);
+            if (/(hidden|clip)/.test(cs3.overflowX + cs3.overflowY) && !touches(a.getBoundingClientRect())) return true;
+          }
+          return false;
+        };
+        if (hits.length && hits.every(clippedAway)) {
+          const cv = document.createElement("canvas");
+          cv.width = cv.height = 1;
+          const cx = cv.getContext("2d", { willReadFrequently: true })!;
+          const col = (css: string) => {
+            cx.clearRect(0, 0, 1, 1);
+            cx.fillStyle = "rgba(0,0,0,0)";
+            cx.fillStyle = css;
+            cx.fillRect(0, 0, 1, 1);
+            const d = cx.getImageData(0, 0, 1, 1).data;
+            return [d[0]!, d[1]!, d[2]!, d[3]! / 255];
+          };
+          const L = ([r, g, b2]: number[]) => {
+            const ch = (v: number) => ((v /= 255) <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+            return 0.2126 * ch(r!) + 0.7152 * ch(g!) + 0.0722 * ch(b2!);
+          };
+          const ecs = getComputedStyle(el);
+          const fg = col(ecs.color);
+          let bg: number[] | null = null;
+          let ok = fg[3]! >= 1;
+          for (let n2: Element | null = el; n2 && ok; n2 = n2.parentElement) {
+            const cs2 = getComputedStyle(n2);
+            if (Number(cs2.opacity) < 1 || cs2.filter !== "none" || cs2.mixBlendMode !== "normal" || cs2.backgroundImage !== "none") ok = false;
+            const c = col(cs2.backgroundColor);
+            if (c[3]! >= 1) {
+              bg = c;
+              break;
+            }
+            if (c[3]! > 0) ok = false;
+          }
+          if (ok && bg) {
+            const px = parseFloat(ecs.fontSize);
+            const required = px >= 24 || (px >= 18.66 && Number(ecs.fontWeight) >= 700) ? 3 : 4.5;
+            const [hi, lo] = [L(fg), L(bg)].sort((x, y) => y - x);
+            clippedOverlap = { ratio: (hi! + 0.05) / (lo! + 0.05), required };
+          }
+        }
+      }
       return {
+        ownOpaque,
+        clippedOverlap,
+        outsideFixedOverlay,
+        svgText,
         text: (el?.textContent ?? "").trim().slice(0, 60),
         ariaHidden: !!el?.closest('[aria-hidden="true"]'),
         overlapsOverlay,
@@ -320,13 +515,18 @@ export async function expectNoViolations(page: Page, label: string) {
     undecided.push({ target, messageKey, ...info });
   }
   const unreviewed = undecided
-    .filter((n) => !(n.messageKey === "bgOverlap" && n.overlapsOverlay))
+    .filter((n) => !(n.messageKey === "bgOverlap" && n.outsideFixedOverlay))
+    .filter((n) => !(OVERLAP_REASONS.includes(n.messageKey) && n.overlapsOverlay))
     .filter((n) => !(OVERLAP_REASONS.includes(n.messageKey) && n.inOverlay && n.inOverlay.ratio >= n.inOverlay.required))
+    .filter((n) => !(["imgNode", "bgOverlap"].includes(n.messageKey) && n.svgText && n.svgText.ratio >= n.svgText.required))
+    .filter((n) => !(n.messageKey === "bgOverlap" && n.clippedOverlap && n.clippedOverlap.ratio >= n.clippedOverlap.required))
+    .filter((n) => !(n.messageKey === "elmPartiallyObscuring" && n.ownOpaque && n.ownOpaque.ratio >= n.ownOpaque.required))
     .filter((n) => !CONTRAST_REVIEW_ALLOWLIST.some((a) => a.match(n)))
     .map(
       (n) =>
         `${n.messageKey}: ${n.target} "${n.text}"` +
-        (n.inOverlay ? ` (in overlay: ${n.inOverlay.ratio.toFixed(2)}:1, needs ${n.inOverlay.required}:1)` : ""),
+        (n.inOverlay ? ` (in overlay: ${n.inOverlay.ratio.toFixed(2)}:1, needs ${n.inOverlay.required}:1)` : "") +
+        (n.svgText ? ` (svg text: ${n.svgText.ratio.toFixed(2)}:1, needs ${n.svgText.required}:1)` : ""),
     );
   expect(unreviewed, `axe color-contrast needs review (not allowlisted) — ${label}`).toEqual([]);
 }

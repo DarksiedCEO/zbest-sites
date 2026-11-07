@@ -23,7 +23,7 @@ export function ConceptBadge({
     <span
       data-concept-badge
       title={compact ? CONCEPT_LABEL : undefined}
-      className={`type-label inline-flex items-center gap-2 border border-text-primary/30 bg-base/90 px-2 py-1 text-text-primary ${className}`}
+      className={`type-label inline-flex items-center gap-2 border border-text-primary/30 bg-base px-2 py-1 text-text-primary ${className}`}
       {...props}
     >
       <span aria-hidden="true" className="inline-block size-1.5 bg-accent" />

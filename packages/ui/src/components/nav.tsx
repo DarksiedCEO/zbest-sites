@@ -97,7 +97,7 @@ export function Nav({
     <header
       ref={headerRef}
       data-nav-ready={ready ? "true" : undefined}
-      className={`sticky top-0 z-50 border-b border-text-secondary/20 bg-base/95 backdrop-blur-sm ${className}`}
+      className={`sticky top-0 z-50 border-b border-text-secondary/20 bg-base ${className}`}
     >
       <nav
         aria-label="Primary"

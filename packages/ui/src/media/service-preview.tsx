@@ -57,7 +57,9 @@ export function ServicePreview({ items }: { items: PreviewItem[] }) {
                     className="group inline-block"
                     {...(item.external ? { rel: "noopener noreferrer", target: "_blank" } : {})}
                   >
-                    <span className="bg-[linear-gradient(currentColor,currentColor)] bg-[length:0%_1px] bg-left-bottom bg-no-repeat pb-0.5 transition-[background-size] duration-[var(--duration-hover)] ease-[var(--ease-ledger)] group-hover:bg-[length:100%_1px] group-focus-visible:bg-[length:100%_1px]">
+                    {/* A real text underline, not a background gradient: axe cannot measure
+                        text contrast over a background image (a11y gate, WCAG 1.4.3). */}
+                    <span className="underline decoration-transparent decoration-1 underline-offset-4 transition-[text-decoration-color] duration-[var(--duration-hover)] ease-[var(--ease-ledger)] group-hover:decoration-current group-focus-visible:decoration-current">
                       {item.title}
                     </span>
                     {" "}
