@@ -1,4 +1,4 @@
-import { CookieConsent, Footer, MediaFrame, Nav, siteMetadata } from "@zbest/ui";
+import { CookieConsent, Footer, MediaFrame, Nav, SkipLink, siteMetadata } from "@zbest/ui";
 import { GateNonce } from "@zbest/ui/gate";
 import { zbcFontVariables } from "@zbest/ui/fonts/zbc";
 import { ENDORSEMENT, FOOTER_COLUMNS, NAV_CTA, NAV_ITEMS, SITE } from "@/lib/site";
@@ -21,6 +21,7 @@ export default function RootLayout({
     <html lang="en" data-brand="zbc" className={zbcFontVariables}>
       <body className="bg-base font-sans text-text-primary antialiased">
         <GateNonce />
+        <SkipLink />
         <Nav brandName={SITE.name} items={NAV_ITEMS} cta={NAV_CTA} />
         {children}
         <Footer media={<div className="max-w-sm"><MediaFrame asset="zbc-clipper-phone" caption="Concept editing workflow" frame="plate" sizes="(min-width: 480px) 320px, calc(100vw - 2.5rem)" /></div>} brandName={SITE.name} columns={FOOTER_COLUMNS} endorsement={ENDORSEMENT} />

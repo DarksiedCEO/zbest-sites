@@ -69,7 +69,7 @@ const ITEMS = [
 
 export default function FaqPage() {
   return (
-    <main>
+    <main id="main">
       <PageHeader label="FAQ" title="Frequently asked questions" />
       <PageSection id="faq" label="Questions">
         <FaqList items={ITEMS} />

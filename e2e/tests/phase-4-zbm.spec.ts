@@ -216,7 +216,7 @@ test.describe("Home (§A4)", () => {
   test("hero stat block shows non-outcome facts only, no counter claim", async ({ page }) => {
     await visit(page, byPath("/"));
     const rows = await page.evaluate(() =>
-      [...document.querySelectorAll("main header dl > div > div")].map((row) => [
+      [...document.querySelectorAll("main header dl > div")].map((row) => [
         row.querySelector("dt")?.textContent?.trim(),
         row.querySelector("dd")?.textContent?.trim(),
       ]),
@@ -230,7 +230,7 @@ test.describe("Home (§A4)", () => {
     // Founder ruling Sep 17: no founding-year claim anywhere on the page.
     expect(await mainText(page)).not.toMatch(/2011|Est\./);
     // The Counter is not wired to a claim until a verified figure exists (§6.3).
-    expect(await page.locator("main [aria-label] > [aria-hidden='true']").count()).toBe(0);
+    expect(await page.locator("main [data-counter]").count()).toBe(0);
   });
 
   test("How we work carries one process, capitalized, promising only priority and confidence", async ({ page }) => {

@@ -20,7 +20,7 @@ export const metadata = pageMetadata(SITE, {
  */
 export default function DigitalAdvertisingPage() {
   return (
-    <main>
+    <main id="main">
       <PageHeader
         label="Digital Advertising"
         title="The traffic engine, built to feed a funnel that actually converts."

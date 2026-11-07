@@ -250,22 +250,22 @@ test.describe("How It Works (§B4, served at /)", () => {
       const card = cards.nth(i);
       const [title, views, clips, platforms, accent] = expected[i]!;
       await expect(card.getByRole("heading", { level: 3 })).toHaveText(title);
-      // Final values are exposed on the Counter's aria-label (captures run reduced-motion).
-      await expect(card.locator("[aria-label]").nth(0)).toHaveAttribute("aria-label", views);
-      await expect(card.locator("[aria-label]").nth(1)).toHaveAttribute("aria-label", clips);
+      // Final values are exposed as the Counter's visually hidden text (captures run reduced-motion).
+      await expect(card.locator("[data-counter] > .sr-only").nth(0)).toHaveText(views);
+      await expect(card.locator("[data-counter] > .sr-only").nth(1)).toHaveText(clips);
       await expect(card).toContainText(platforms);
       await expect(card).toContainText("Illustrative example — not a client result");
       expect(await card.locator("> div").evaluate((el) => getComputedStyle(el).borderLeftColor)).toBe(accent);
     }
     // No unbadged figure anywhere else in the section.
-    await expect(page.locator("#examples [aria-label]")).toHaveCount(6);
+    await expect(page.locator("#examples [data-counter]")).toHaveCount(6);
   });
 
   test("view counters tick once on entry, and not at all with reduced motion", async ({ page }) => {
     await presetConsent(page);
     await page.emulateMedia({ reducedMotion: "no-preference" });
     await page.goto(`${ZBC_BASE_URL}/`, { waitUntil: "domcontentloaded" });
-    const views = page.locator("[data-example-card]").first().locator("[aria-label] > [aria-hidden]").first();
+    const views = page.locator("[data-example-card]").first().locator("[data-counter] > [aria-hidden]").first();
     await expect(views).toHaveText("0");
     await views.scrollIntoViewIfNeeded();
     await expect(views).toHaveText("1,240,000", { timeout: 5000 });
