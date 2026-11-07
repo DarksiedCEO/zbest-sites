@@ -1,4 +1,5 @@
-import { ButtonLink, pageMetadata } from "@zbest/ui";
+import { ButtonLink, MediaFrame, pageMetadata } from "@zbest/ui";
+import { BillboardShowpiece } from "@/components/billboard-showpiece";
 import { Cite, CtaRow, FaqList, Lead, PageHeader, PageSection, RuledList } from "@/components/page";
 import { OUT_OF_HOME_FAQ } from "@/content/faq";
 import { startHref } from "@/content/services";
@@ -51,6 +52,9 @@ export default function OutOfHomePage() {
         </CtaRow>
       </PageHeader>
 
+      {/* FD-VISUAL-01 §5 showpiece: the billboard you can't scroll past. */}
+      <BillboardShowpiece />
+
       <PageSection id="why-it-works" label="Why it still works">
         <p className="type-body-lead text-text-primary">
           U.S. Out-of-Home revenue hit{" "}
@@ -71,15 +75,24 @@ export default function OutOfHomePage() {
       </PageSection>
 
       <PageSection label="What’s included">
-        <RuledList
-          items={[
-            "Placement strategy — billboards, transit, other formats selected for where your audience lives, works, travels",
-            "Static and digital placements — traditional bulletins and posters alongside digital billboards and programmatic-eligible screens",
-            "Cross-operator sourcing — the right board, not the operator we happen to know",
-            "Creative built for the format — simple messaging, bold visuals, one clear call to action",
-            "Campaign timing guidance — static needs 8–12 weeks to build frequency; digital allows shorter test rotations",
-          ]}
-        />
+        {/* Second placement (FD-VISUAL-01): transit, beside the format list. */}
+        <div className="grid gap-stack md:grid-cols-[minmax(0,1fr)_minmax(0,17rem)] md:gap-x-10">
+          <RuledList
+            items={[
+              "Placement strategy — billboards, transit, other formats selected for where your audience lives, works, travels",
+              "Static and digital placements — traditional bulletins and posters alongside digital billboards and programmatic-eligible screens",
+              "Cross-operator sourcing — the right board, not the operator we happen to know",
+              "Creative built for the format — simple messaging, bold visuals, one clear call to action",
+              "Campaign timing guidance — static needs 8–12 weeks to build frequency; digital allows shorter test rotations",
+            ]}
+          />
+          <MediaFrame
+            asset="saltgrove-transit"
+            frame="poster"
+            sizes="(min-width: 768px) 272px, calc(100vw - 3rem)"
+            className="max-md:mx-auto max-md:max-w-[20rem]"
+          />
+        </div>
       </PageSection>
 
       <PageSection label="Pricing">
