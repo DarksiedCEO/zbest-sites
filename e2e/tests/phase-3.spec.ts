@@ -616,7 +616,11 @@ test.describe("Z Best Clips — Entertainment/Brands color-coded system", () => 
 
       // The consent banner lives in the root layout, outside <main>.
       const dialog = page.getByRole("dialog", { name: "Cookies on this site" });
-      expect(await bg(dialog.getByRole("button", { name: "Accept all" }))).toBe(f.accent);
+      // Accept and Reject look the same (equal prominence); both carry the focus
+      // colour in their border.
+      for (const name of ["Accept all", "Reject non-essential"]) {
+        expect(await dialog.getByRole("button", { name }).evaluate((el) => getComputedStyle(el).borderTopColor)).toBe(f.accent);
+      }
       await dialog.getByRole("button", { name: "Reject non-essential" }).click();
 
       // Nav CTA (root layout) and the dropdown entries, each in its own color.
