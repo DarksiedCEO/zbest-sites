@@ -310,7 +310,11 @@ describe("L5 — the privacy policy says what really happens", () => {
     expect(text).toMatch(/possible duplicate/i);
     expect(text).toMatch(/as a count/);
     expect(text).toMatch(/delivery/i);
-    expect(text).not.toMatch(/\bdraft\b|attorney review|pending legal review/i);
+    // The page-status switch (LEGAL_ADOPTED, founder direction Nov 7 2026) is
+    // the one place draft wording may live; the policy text itself has none.
+    const policyText = text.replace(/\/\*\*\n \* Founder direction, Nov 7 2026[\s\S]*?export const LEGAL_STATUS[^\n]*\n/, "");
+    expect(policyText).not.toBe(text);
+    expect(policyText).not.toMatch(/\bdraft\b|attorney review|pending legal review/i);
   });
 });
 

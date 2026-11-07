@@ -189,7 +189,11 @@ describe("R7-6 — the privacy policy's timing is true on the shipped schedule",
     expect(text).toMatch(/up to four times/);
     expect(text).toMatch(/hourly/);
     expect(text).toMatch(/longer/);
-    expect(text).not.toMatch(/\bdraft\b|attorney review|pending legal review/i);
+    // The page-status switch (LEGAL_ADOPTED, founder direction Nov 7 2026) is
+    // the one place draft wording may live; the policy text itself has none.
+    const policyText = text.replace(/\/\*\*\n \* Founder direction, Nov 7 2026[\s\S]*?export const LEGAL_STATUS[^\n]*\n/, "");
+    expect(policyText).not.toBe(text);
+    expect(policyText).not.toMatch(/\bdraft\b|attorney review|pending legal review/i);
   });
 });
 
