@@ -67,7 +67,8 @@ export type ConsentCategory = { name: string; body: string };
  * nudged: the Cookie Policy says they have equal prominence, and e2e
  * (phase-3) compares their computed styles.
  */
-const CHOICE_BUTTON = "type-label border border-text-secondary/40 px-4 py-2.5 text-text-primary";
+// The accent border carries the site's (or ZBC focus page's) colour on both.
+const CHOICE_BUTTON = "type-label border border-accent px-4 py-2.5 text-text-primary";
 
 export function CookieConsent({
   policyHref = "/legal/cookie-policy",
