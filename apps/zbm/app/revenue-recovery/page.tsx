@@ -83,10 +83,16 @@ export default function RevenueRecoveryPage() {
       <PageSection label="Where revenue leaks" media={<LeakLedger leaks={WHERE_REVENUE_LEAKS} />}>
         <ol className="space-y-8">
           {WHERE_REVENUE_LEAKS.map((title, i) => {
-            const images: (StoryAssetId | null)[] = [null, "rr-broken-form", "rr-no-follow-up", "rr-slow-page", "rr-wrong-page", null];
+            // Keyed by leak, not position: each image must show the leak it sits
+            // under (RTS-5: no image of a leak the paid analysis doesn't check).
+            const images: Partial<Record<string, StoryAssetId>> = {
+              "Follow-up that dies after one touch": "rr-no-follow-up",
+              "Ad traffic landing on the wrong page": "rr-wrong-page",
+            };
+            const image = images[title];
             return <li key={title} className="border-t border-text-secondary/30 pt-5">
               <h3 className="type-title mb-4"><span className="type-mono text-accent mr-3">{String(i + 1).padStart(2, "0")}</span>{title}</h3>
-              {images[i] ? <StoryImage asset={images[i]!} /> : null}
+              {image ? <StoryImage asset={image} /> : null}
             </li>;
           })}
         </ol>
@@ -112,7 +118,7 @@ export default function RevenueRecoveryPage() {
       </PageSection>
 
       {/* RTS-5: only what the backend runs today is listed as live (content/revenue-recovery.ts). */}
-      <PageSection id="automated-checks" label={AUTOMATED_CHECKS.label} intro={<Lead>{AUTOMATED_CHECKS.intro}</Lead>}>
+      <PageSection id="automated-checks" media={<ProcessDiagram title="The automated check" steps={["Read-only Shopify orders", "Fixed, written rules", "Stacked-discount finding", "Planned checks: NOT COVERED"]} />} label={AUTOMATED_CHECKS.label} intro={<Lead>{AUTOMATED_CHECKS.intro}</Lead>}>
         <ul className="border-t border-text-secondary/45">
           {AUTOMATED_CHECKS.live.map((check) => (
             <li key={check.title} data-check-status="live" className="grid gap-2 border-b border-text-secondary/20 py-ledger sm:grid-cols-[minmax(0,17rem)_1fr]">
