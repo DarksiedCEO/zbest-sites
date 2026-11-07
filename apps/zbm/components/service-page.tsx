@@ -34,13 +34,17 @@ export function ServicePage({ slug }: { slug: string }) {
   const start = startHref(service.slug);
   const hero = SERVICE_HERO[service.slug];
 
-  const story: Partial<Record<string, { problem?: StoryAssetId; work: StoryAssetId; result?: StoryAssetId }>> = {
+  // `fits`: images for "How it fits…", each at its native canvas (story-pass).
+  const story: Partial<Record<string, { problem?: StoryAssetId; work: StoryAssetId; result?: StoryAssetId; fits?: StoryAssetId[] }>> = {
     "tv-streaming": { problem: "tv-problem-wrong-room", work: "tv-work-set", result: "tv-result-watching" },
     "radio-audio": { problem: "radio-problem-commute", work: "radio-work-studio", result: "radio-result-car" },
     "social-media": { problem: "social-problem-dead-page", work: "social-work-calendar", result: "social-result-engaged" },
     "creative-production": { work: "creative-work-storyboard", result: "creative-work-shoot" },
     "influencer-marketing": { work: "influencer-work-filming", result: "influencer-work-brief" },
-    websites: { problem: "web-problem-old-site", work: "web-work-wireframes" },
+    // Founder decision 2026-11-07: the broken-form and slow-page scenes moved
+    // here from Revenue Recovery, whose copy (RTS-5) names only what its
+    // paid analysis checks. These are problems a new site fixes.
+    websites: { problem: "web-problem-old-site", work: "web-work-wireframes", fits: ["rr-broken-form", "rr-slow-page"] },
   };
   const images = story[slug];
   const fits = page.fits.map(({ slug: sibling, body }) => {
@@ -71,7 +75,20 @@ export function ServicePage({ slug }: { slug: string }) {
         <RuledList items={page.included} />
       </PageSection>
 
-      <PageSection label="How it fits with the rest of what we do" media={images?.result ? <StoryImage asset={images.result} /> : undefined}>
+      <PageSection
+        label="How it fits with the rest of what we do"
+        media={
+          images?.result ? (
+            <StoryImage asset={images.result} />
+          ) : images?.fits ? (
+            <div className="grid gap-stack">
+              {images.fits.map((asset) => (
+                <StoryImage key={asset} asset={asset} />
+              ))}
+            </div>
+          ) : undefined
+        }
+      >
         <LedgerList items={fits} />
       </PageSection>
 

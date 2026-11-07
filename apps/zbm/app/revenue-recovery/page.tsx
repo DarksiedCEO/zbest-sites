@@ -81,10 +81,16 @@ export default function RevenueRecoveryPage() {
       <PageSection label="Where revenue leaks" media={<LeakLedger leaks={WHERE_REVENUE_LEAKS} />}>
         <ol className="space-y-8">
           {WHERE_REVENUE_LEAKS.map((title, i) => {
-            const images: (StoryAssetId | null)[] = [null, "rr-broken-form", "rr-no-follow-up", "rr-slow-page", "rr-wrong-page", null];
+            // Keyed by leak, not position: each image must show the leak it sits
+            // under (RTS-5: no image of a leak the paid analysis doesn't check).
+            const images: Partial<Record<string, StoryAssetId>> = {
+              "Follow-up that dies after one touch": "rr-no-follow-up",
+              "Ad traffic landing on the wrong page": "rr-wrong-page",
+            };
+            const image = images[title];
             return <li key={title} className="border-t border-text-secondary/30 pt-5">
               <h3 className="type-title mb-4"><span className="type-mono text-accent mr-3">{String(i + 1).padStart(2, "0")}</span>{title}</h3>
-              {images[i] ? <StoryImage asset={images[i]!} /> : null}
+              {image ? <StoryImage asset={image} /> : null}
             </li>;
           })}
         </ol>
