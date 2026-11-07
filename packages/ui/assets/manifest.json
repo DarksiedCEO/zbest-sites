@@ -10,9 +10,33 @@
       "height": 941,
       "focus": "35% 35%",
       "text": [
-        { "label": "headline", "box": [0.131, 0.173, 0.646, 0.457] },
-        { "label": "firm", "box": [0.131, 0.452, 0.317, 0.497] },
-        { "label": "location", "box": [0.571, 0.538, 0.631, 0.571] }
+        {
+          "label": "headline",
+          "box": [
+            0.131,
+            0.173,
+            0.646,
+            0.457
+          ]
+        },
+        {
+          "label": "firm",
+          "box": [
+            0.131,
+            0.452,
+            0.317,
+            0.497
+          ]
+        },
+        {
+          "label": "location",
+          "box": [
+            0.571,
+            0.538,
+            0.631,
+            0.571
+          ]
+        }
       ],
       "class": "concept",
       "brand": "Ironhold Injury Law",
@@ -48,8 +72,24 @@
       "height": 941,
       "focus": "45% 45%",
       "text": [
-        { "label": "line", "box": [0.054, 0.792, 0.76, 0.876] },
-        { "label": "brand", "box": [0.76, 0.906, 0.974, 0.942] }
+        {
+          "label": "line",
+          "box": [
+            0.054,
+            0.792,
+            0.76,
+            0.876
+          ]
+        },
+        {
+          "label": "brand",
+          "box": [
+            0.76,
+            0.906,
+            0.974,
+            0.942
+          ]
+        }
       ],
       "class": "concept",
       "brand": "Quellmont Motors",
@@ -70,8 +110,8 @@
       "caption": "TV & Streaming · spot key frame · connected TV",
       "pages": [
         "zbm:/",
-        "zbm:/tv-streaming",
-        "zbm:/services"
+        "zbm:/services",
+        "zbm:/tv-streaming"
       ],
       "plannedPages": []
     },
@@ -83,11 +123,51 @@
       "height": 1254,
       "focus": "60% 60%",
       "text": [
-        { "label": "headline", "box": [0.069, 0.1, 0.943, 0.179] },
-        { "label": "sub", "box": [0.154, 0.189, 0.857, 0.236] },
-        { "label": "brand", "box": [0.479, 0.44, 0.803, 0.477] },
-        { "label": "price", "box": [0.397, 0.54, 0.846, 0.683] },
-        { "label": "total", "box": [0.5, 0.729, 0.643, 0.777] }
+        {
+          "label": "headline",
+          "box": [
+            0.069,
+            0.1,
+            0.943,
+            0.179
+          ]
+        },
+        {
+          "label": "sub",
+          "box": [
+            0.154,
+            0.189,
+            0.857,
+            0.236
+          ]
+        },
+        {
+          "label": "brand",
+          "box": [
+            0.479,
+            0.44,
+            0.803,
+            0.477
+          ]
+        },
+        {
+          "label": "price",
+          "box": [
+            0.397,
+            0.54,
+            0.846,
+            0.683
+          ]
+        },
+        {
+          "label": "total",
+          "box": [
+            0.5,
+            0.729,
+            0.643,
+            0.777
+          ]
+        }
       ],
       "class": "concept",
       "brand": "Quellmont Motors",
@@ -108,8 +188,8 @@
       "caption": "Digital Advertising · square feed ad · paid social",
       "pages": [
         "zbm:/",
-        "zbm:/digital-advertising",
-        "zbm:/services"
+        "zbm:/services",
+        "zbm:/digital-advertising"
       ],
       "plannedPages": [],
       "handlesShown": [
@@ -131,8 +211,24 @@
       "height": 1402,
       "focus": "50% 45%",
       "text": [
-        { "label": "headline", "box": [0.246, 0.1, 0.782, 0.263] },
-        { "label": "brand", "box": [0.25, 0.933, 0.75, 0.963] }
+        {
+          "label": "headline",
+          "box": [
+            0.246,
+            0.1,
+            0.782,
+            0.263
+          ]
+        },
+        {
+          "label": "brand",
+          "box": [
+            0.25,
+            0.933,
+            0.75,
+            0.963
+          ]
+        }
       ],
       "class": "concept",
       "brand": "Maren Vale Aesthetics",
@@ -153,8 +249,8 @@
       "caption": "Social Media · 4:5 feed post · organic",
       "pages": [
         "zbm:/",
-        "zbm:/social-media",
-        "zbm:/services"
+        "zbm:/services",
+        "zbm:/social-media"
       ],
       "plannedPages": [],
       "handlesShown": [
@@ -176,8 +272,24 @@
       "height": 941,
       "focus": "68% 45%",
       "text": [
-        { "label": "headline", "box": [0.063, 0.122, 0.436, 0.335] },
-        { "label": "brand", "box": [0.743, 0.934, 0.986, 0.972] }
+        {
+          "label": "headline",
+          "box": [
+            0.063,
+            0.122,
+            0.436,
+            0.335
+          ]
+        },
+        {
+          "label": "brand",
+          "box": [
+            0.743,
+            0.934,
+            0.986,
+            0.972
+          ]
+        }
       ],
       "class": "concept",
       "brand": "Saltgrove Hospitality",
@@ -198,8 +310,8 @@
       "caption": "Radio & Audio · spot key art · local radio",
       "pages": [
         "zbm:/",
-        "zbm:/radio-audio",
-        "zbm:/services"
+        "zbm:/services",
+        "zbm:/radio-audio"
       ],
       "plannedPages": []
     },
@@ -211,12 +323,60 @@
       "height": 941,
       "focus": "20% 45%",
       "text": [
-        { "label": "menu", "box": [0.04, 0.152, 0.353, 0.949] },
-        { "label": "cup", "box": [0.393, 0.388, 0.511, 0.439] },
-        { "label": "bag", "box": [0.611, 0.284, 0.831, 0.36] },
-        { "label": "card", "box": [0.379, 0.756, 0.551, 0.822] },
-        { "label": "coaster", "box": [0.583, 0.782, 0.714, 0.838] },
-        { "label": "tent", "box": [0.776, 0.761, 0.926, 0.817] }
+        {
+          "label": "menu",
+          "box": [
+            0.04,
+            0.152,
+            0.353,
+            0.949
+          ]
+        },
+        {
+          "label": "cup",
+          "box": [
+            0.393,
+            0.388,
+            0.511,
+            0.439
+          ]
+        },
+        {
+          "label": "bag",
+          "box": [
+            0.611,
+            0.284,
+            0.831,
+            0.36
+          ]
+        },
+        {
+          "label": "card",
+          "box": [
+            0.379,
+            0.756,
+            0.551,
+            0.822
+          ]
+        },
+        {
+          "label": "coaster",
+          "box": [
+            0.583,
+            0.782,
+            0.714,
+            0.838
+          ]
+        },
+        {
+          "label": "tent",
+          "box": [
+            0.776,
+            0.761,
+            0.926,
+            0.817
+          ]
+        }
       ],
       "class": "concept",
       "brand": "Saltgrove Hospitality",
@@ -238,7 +398,24 @@
       "pages": [
         "zbm:/",
         "zbm:/creative-production",
-        "zbm:/services"
+        "zbm:/services",
+        "zbm:/contact",
+        "zbm:/social-media",
+        "zbm:/radio-audio",
+        "zbm:/revenue-recovery",
+        "zbm:/search-intelligence",
+        "zbm:/faq",
+        "zbm:/out-of-home",
+        "zbm:/start",
+        "zbm:/about",
+        "zbm:/tv-streaming",
+        "zbm:/influencer-marketing",
+        "zbm:/digital-advertising",
+        "zbm:/websites",
+        "zbm:/legal/privacy-policy",
+        "zbm:/legal/terms-of-service",
+        "zbm:/legal/cookie-policy",
+        "zbm:/404"
       ],
       "plannedPages": []
     },
@@ -250,9 +427,34 @@
       "height": 1402,
       "focus": "50% 45%",
       "text": [
-        { "label": "headline", "box": [0.089, 0.083, 0.525, 0.286] },
-        { "label": "ad", "box": [0.893, 0.023, 0.964, 0.057], "keep": true },
-        { "label": "brand", "box": [0.304, 0.94, 0.696, 0.967] }
+        {
+          "label": "headline",
+          "box": [
+            0.089,
+            0.083,
+            0.525,
+            0.286
+          ]
+        },
+        {
+          "label": "ad",
+          "box": [
+            0.893,
+            0.023,
+            0.964,
+            0.057
+          ],
+          "keep": true
+        },
+        {
+          "label": "brand",
+          "box": [
+            0.304,
+            0.94,
+            0.696,
+            0.967
+          ]
+        }
       ],
       "class": "concept",
       "brand": "Maren Vale Aesthetics",
@@ -296,10 +498,42 @@
       "height": 941,
       "focus": "25% 55%",
       "text": [
-        { "label": "logo", "box": [0.1, 0.162, 0.271, 0.208] },
-        { "label": "nav", "box": [0.693, 0.162, 0.886, 0.203] },
-        { "label": "headline", "box": [0.106, 0.363, 0.481, 0.635] },
-        { "label": "button", "box": [0.109, 0.668, 0.317, 0.749] }
+        {
+          "label": "logo",
+          "box": [
+            0.1,
+            0.162,
+            0.271,
+            0.208
+          ]
+        },
+        {
+          "label": "nav",
+          "box": [
+            0.693,
+            0.162,
+            0.886,
+            0.203
+          ]
+        },
+        {
+          "label": "headline",
+          "box": [
+            0.106,
+            0.363,
+            0.481,
+            0.635
+          ]
+        },
+        {
+          "label": "button",
+          "box": [
+            0.109,
+            0.668,
+            0.317,
+            0.749
+          ]
+        }
       ],
       "class": "concept",
       "brand": "Maren Vale Aesthetics",
@@ -320,8 +554,9 @@
       "caption": "Websites & Landing Pages · homepage · desktop",
       "pages": [
         "zbm:/",
-        "zbm:/websites",
-        "zbm:/services"
+        "zbm:/services",
+        "zbm:/search-intelligence",
+        "zbm:/websites"
       ],
       "plannedPages": []
     },
@@ -333,8 +568,24 @@
       "height": 1448,
       "focus": "55% 50%",
       "text": [
-        { "label": "headline", "box": [0.387, 0.261, 0.737, 0.377] },
-        { "label": "brand", "box": [0.438, 0.686, 0.718, 0.717] }
+        {
+          "label": "headline",
+          "box": [
+            0.387,
+            0.261,
+            0.737,
+            0.377
+          ]
+        },
+        {
+          "label": "brand",
+          "box": [
+            0.438,
+            0.686,
+            0.718,
+            0.717
+          ]
+        }
       ],
       "class": "concept",
       "brand": "Saltgrove Hospitality",
@@ -368,8 +619,24 @@
       "height": 1672,
       "focus": "50% 40%",
       "text": [
-        { "label": "script", "box": [0.076, 0.074, 0.962, 0.269] },
-        { "label": "single", "box": [0.356, 0.919, 0.649, 0.946] }
+        {
+          "label": "script",
+          "box": [
+            0.076,
+            0.074,
+            0.962,
+            0.269
+          ]
+        },
+        {
+          "label": "single",
+          "box": [
+            0.356,
+            0.919,
+            0.649,
+            0.946
+          ]
+        }
       ],
       "class": "concept",
       "brand": "Ivo Solace",
@@ -404,8 +671,24 @@
       "height": 1672,
       "focus": "50% 50%",
       "text": [
-        { "label": "headline", "box": [0.223, 0.209, 0.779, 0.257] },
-        { "label": "brand", "box": [0.279, 0.913, 0.723, 0.934] }
+        {
+          "label": "headline",
+          "box": [
+            0.223,
+            0.209,
+            0.779,
+            0.257
+          ]
+        },
+        {
+          "label": "brand",
+          "box": [
+            0.279,
+            0.913,
+            0.723,
+            0.934
+          ]
+        }
       ],
       "class": "concept",
       "brand": "Quellmont Motors",
@@ -425,7 +708,8 @@
       "alt": "Concept: a vertical Quellmont Motors cover — a car under a dark satin sheet in a lit showroom, a hand starting to pull it away, headlined “Your car is ready.”",
       "caption": "Brands · vertical clip cover · brand-owned account",
       "pages": [
-        "zbc:/brands"
+        "zbc:/brands",
+        "zbc:/"
       ],
       "plannedPages": []
     },
@@ -437,8 +721,24 @@
       "height": 1672,
       "focus": "50% 45%",
       "text": [
-        { "label": "headline", "box": [0.249, 0.119, 0.779, 0.246] },
-        { "label": "brand", "box": [0.244, 0.933, 0.756, 0.957] }
+        {
+          "label": "headline",
+          "box": [
+            0.249,
+            0.119,
+            0.779,
+            0.246
+          ]
+        },
+        {
+          "label": "brand",
+          "box": [
+            0.244,
+            0.933,
+            0.756,
+            0.957
+          ]
+        }
       ],
       "class": "concept",
       "brand": "Maren Vale Aesthetics",
@@ -458,7 +758,8 @@
       "alt": "Concept: a vertical Maren Vale Aesthetics cover — a treatment room in late sun with a made treatment bed and a brass floor lamp, headlined “Your hour starts here.”",
       "caption": "Brands · vertical clip cover · brand-owned account",
       "pages": [
-        "zbc:/brands"
+        "zbc:/brands",
+        "zbc:/"
       ],
       "plannedPages": []
     },
@@ -490,6 +791,1390 @@
       "pages": [
         "zbm:/",
         "zbm:/services",
+        "zbc:/become-a-clipper",
+        "zbc:/pricing",
+        "zbc:/about",
+        "zbc:/media-kit",
+        "zbc:/",
+        "zbc:/faq",
+        "zbc:/brands",
+        "zbc:/entertainment",
+        "zbc:/launch-a-campaign",
+        "zbc:/legal/privacy-policy",
+        "zbc:/legal/terms-of-service",
+        "zbc:/legal/cookie-policy",
+        "zbc:/404"
+      ],
+      "plannedPages": []
+    },
+    {
+      "id": "rr-missed-call",
+      "file": "story-pass/rr-missed-call.png",
+      "sha256": "3d8f7bdaf5993290657d16cbe534e60987b74e6dde35c394536834ce632e1547",
+      "width": 1664,
+      "height": 936,
+      "focus": "50% 50%",
+      "text": [
+        {
+          "label": "Entire approved scene, including all story text and key subjects",
+          "box": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "keep": true
+        }
+      ],
+      "class": "concept",
+      "creator": "Z Best Media (founder-supplied)",
+      "tool": "ChatGPT image generation",
+      "date": "2026-10-31",
+      "rightsHolder": "Z Best Media",
+      "consentRef": null,
+      "provenance": {
+        "commit": "136c5ac75f398a99f572038a09916e54fca59ccc",
+        "path": "design-inputs/story-pass/rr-missed-call.png",
+        "approval": "36/36 founder-approved story pass; founder-supplied provenance declaration, not independent IP verification"
+      },
+      "facesCheck": "Strong story fit; no faces/logos; \"3 missed calls\" and \"Closed\" exact. Minor: keypad digits are AI-garbled (8 repeated, 6 missing) — barely visible at frame size; re-render if credits allow.",
+      "alt": "Concept: a phone showing missed calls beside a closed shop sign.",
+      "caption": "The problem · AI-generated scene",
+      "pages": [
+        "zbm:/revenue-recovery"
+      ],
+      "plannedPages": []
+    },
+    {
+      "id": "rr-broken-form",
+      "file": "story-pass/rr-broken-form.png",
+      "sha256": "76790c3e02e8b573fc18b87fda1b78881a83800bf6ac36b574fdbc39218c87ef",
+      "width": 1672,
+      "height": 941,
+      "focus": "50% 50%",
+      "text": [
+        {
+          "label": "Entire approved scene, including all story text and key subjects",
+          "box": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "keep": true
+        }
+      ],
+      "class": "concept",
+      "creator": "Z Best Media (founder-supplied)",
+      "tool": "ChatGPT image generation",
+      "date": "2026-10-31",
+      "rightsHolder": "Z Best Media",
+      "consentRef": null,
+      "provenance": {
+        "commit": "136c5ac75f398a99f572038a09916e54fca59ccc",
+        "path": "design-inputs/story-pass/rr-broken-form.png",
+        "approval": "36/36 founder-approved story pass; founder-supplied provenance declaration, not independent IP verification"
+      },
+      "facesCheck": "Error copy exact; Submit button cut off by the screen edge = the story; plausible hands; no faces/logos. Slot uses 16:9.",
+      "alt": "Concept: a mobile enquiry form with an error and a submit button cut off by the depicted screen.",
+      "caption": "Forms that break on mobile · AI-generated scene",
+      "pages": [
+        "zbm:/revenue-recovery"
+      ],
+      "plannedPages": []
+    },
+    {
+      "id": "rr-no-follow-up",
+      "file": "story-pass/rr-no-follow-up.png",
+      "sha256": "ab0fd8494c7cc9a2dc46f48d1852e5ed645cc5de2f9141b840246baad6bd2df1",
+      "width": 1672,
+      "height": 941,
+      "focus": "50% 50%",
+      "text": [
+        {
+          "label": "Entire approved scene, including all story text and key subjects",
+          "box": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "keep": true
+        }
+      ],
+      "class": "concept",
+      "creator": "Z Best Media (founder-supplied)",
+      "tool": "ChatGPT image generation",
+      "date": "2026-10-31",
+      "rightsHolder": "Z Best Media",
+      "consentRef": null,
+      "provenance": {
+        "commit": "136c5ac75f398a99f572038a09916e54fca59ccc",
+        "path": "design-inputs/story-pass/rr-no-follow-up.png",
+        "approval": "36/36 founder-approved story pass; founder-supplied provenance declaration, not independent IP verification"
+      },
+      "facesCheck": "Exact copy (\"Following up on your quote\", \"No reply — 9 days\"); stained cold mug + Follow up/Call/Confirm/Close note sell the story; no faces, no visible logos; blurred rows read as placeholders.",
+      "alt": "Concept: an unanswered quote follow-up marked No reply — 9 days, beside a cold mug.",
+      "caption": "Follow-up that dies after one touch · AI-generated scene",
+      "pages": [
+        "zbm:/revenue-recovery"
+      ],
+      "plannedPages": []
+    },
+    {
+      "id": "rr-slow-page",
+      "file": "story-pass/rr-slow-page.png",
+      "sha256": "059204da3cbdf3fe531d39847c56033659f867888f7da3ab6254ee283ca56b25",
+      "width": 1122,
+      "height": 1402,
+      "focus": "50% 50%",
+      "text": [
+        {
+          "label": "Entire approved scene, including all story text and key subjects",
+          "box": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "keep": true
+        }
+      ],
+      "class": "concept",
+      "creator": "Z Best Media (founder-supplied)",
+      "tool": "ChatGPT image generation",
+      "date": "2026-10-31",
+      "rightsHolder": "Z Best Media",
+      "consentRef": null,
+      "provenance": {
+        "commit": "136c5ac75f398a99f572038a09916e54fca59ccc",
+        "path": "design-inputs/story-pass/rr-slow-page.png",
+        "approval": "36/36 founder-approved story pass; founder-supplied provenance declaration, not independent IP verification"
+      },
+      "facesCheck": "Story reads instantly: grey skeleton, spinner, \"Loading...\", thumb drifting to back. URL edited to \"example.com\" (IANA-reserved); rest of frame unchanged.",
+      "alt": "Concept: a phone stuck on a loading screen as a thumb moves toward the back control.",
+      "caption": "Pages that load too slowly to convert · AI-generated scene",
+      "pages": [
+        "zbm:/revenue-recovery"
+      ],
+      "plannedPages": []
+    },
+    {
+      "id": "rr-wrong-page",
+      "file": "story-pass/rr-wrong-page.png",
+      "sha256": "40854a3ed3b3f3a2ad361f3370da75a56c0f0bdf175c4afa27e3998b855df2ae",
+      "width": 1671,
+      "height": 941,
+      "focus": "50% 50%",
+      "text": [
+        {
+          "label": "Entire approved scene, including all story text and key subjects",
+          "box": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "keep": true
+        }
+      ],
+      "class": "concept",
+      "creator": "Z Best Media (founder-supplied)",
+      "tool": "ChatGPT image generation",
+      "date": "2026-10-31",
+      "rightsHolder": "Z Best Media",
+      "consentRef": null,
+      "provenance": {
+        "commit": "136c5ac75f398a99f572038a09916e54fca59ccc",
+        "path": "design-inputs/story-pass/rr-wrong-page.png",
+        "approval": "36/36 founder-approved story pass; founder-supplied provenance declaration, not independent IP verification"
+      },
+      "facesCheck": "Ad copy exact (\"Free brake inspection\"); landing page shows no brake mention anywhere = the story; arrow + red X read instantly; generic phones, no logos, no faces.",
+      "alt": "Concept: a Free brake inspection ad pointing to a page that does not mention brakes.",
+      "caption": "Ad traffic landing on the wrong page · AI-generated scene",
+      "pages": [
+        "zbm:/revenue-recovery"
+      ],
+      "plannedPages": []
+    },
+    {
+      "id": "rr-leak-report",
+      "file": "story-pass/rr-leak-report.png",
+      "sha256": "361dd2eb67e157e17d01ff5101ac468304bed1a12d48e9eaaaf946b0d1dbca92",
+      "width": 1672,
+      "height": 941,
+      "focus": "50% 50%",
+      "text": [
+        {
+          "label": "Entire approved scene, including all story text and key subjects",
+          "box": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "keep": true
+        }
+      ],
+      "class": "concept",
+      "creator": "Z Best Media (founder-supplied)",
+      "tool": "ChatGPT image generation",
+      "date": "2026-10-31",
+      "rightsHolder": "Z Best Media",
+      "consentRef": null,
+      "provenance": {
+        "commit": "136c5ac75f398a99f572038a09916e54fca59ccc",
+        "path": "design-inputs/story-pass/rr-leak-report.png",
+        "approval": "36/36 founder-approved story pass; founder-supplied provenance declaration, not independent IP verification"
+      },
+      "facesCheck": "Six items exact and in site order; no percentages or metrics (item numbers 1–6 only); no faces/logos.",
+      "alt": "Concept: a sample report listing six revenue leaks in site order without performance metrics.",
+      "caption": "The Audit Deliverable · AI-generated scene",
+      "pages": [
+        "zbm:/revenue-recovery"
+      ],
+      "plannedPages": []
+    },
+    {
+      "id": "da-problem-wasted-spend",
+      "file": "story-pass/da-problem-wasted-spend.png",
+      "sha256": "849a497ed0610f018cffe91036fd73cbe14b8d7356d6fffb7bb3396b2c6b990e",
+      "width": 1672,
+      "height": 941,
+      "focus": "50% 50%",
+      "text": [
+        {
+          "label": "Entire approved scene, including all story text and key subjects",
+          "box": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "keep": true
+        }
+      ],
+      "class": "concept",
+      "creator": "Z Best Media (founder-supplied)",
+      "tool": "ChatGPT image generation",
+      "date": "2026-10-31",
+      "rightsHolder": "Z Best Media",
+      "consentRef": null,
+      "provenance": {
+        "commit": "136c5ac75f398a99f572038a09916e54fca59ccc",
+        "path": "design-inputs/story-pass/da-problem-wasted-spend.png",
+        "approval": "36/36 founder-approved story pass; founder-supplied provenance declaration, not independent IP verification"
+      },
+      "facesCheck": "Wordless/numberless per rule 5: tall red spend bar vs tiny grey leads bar, red down arrow, falling line. Closed shop after hours (roll-up shutter, chairs on tables, pendant light) — breaks desk pattern. Hand anatomy correct at 3x. Red sign by door is out-of-focus blur, unreadable. No logos/faces.",
+      "alt": "Concept: a spend-versus-leads chart in a closed shop.",
+      "caption": "The problem · AI-generated scene",
+      "pages": [
+        "zbm:/digital-advertising"
+      ],
+      "plannedPages": []
+    },
+    {
+      "id": "da-work-campaign",
+      "file": "story-pass/da-work-campaign.png",
+      "sha256": "8f84cef008969433b5eb9e9124ba2a7b3ddbe4af032a74b07beeccc7c5ab925b",
+      "width": 1671,
+      "height": 941,
+      "focus": "50% 50%",
+      "text": [
+        {
+          "label": "Entire approved scene, including all story text and key subjects",
+          "box": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "keep": true
+        }
+      ],
+      "class": "concept",
+      "creator": "Z Best Media (founder-supplied)",
+      "tool": "ChatGPT image generation",
+      "date": "2026-10-31",
+      "rightsHolder": "Z Best Media",
+      "consentRef": null,
+      "provenance": {
+        "commit": "136c5ac75f398a99f572038a09916e54fca59ccc",
+        "path": "design-inputs/story-pass/da-work-campaign.png",
+        "approval": "36/36 founder-approved story pass; founder-supplied provenance declaration, not independent IP verification"
+      },
+      "facesCheck": "v1 rejected: AI-invented \"Z BEST MEDIA\" mug wordmark (off-brand) + gibberish micro-text. v2: plain mug, micro-text cleared. Checklist + notebook spelled right; car/home/skincare ad row; amber timeline. No hands (prompt asked) — acceptable.",
+      "alt": "Concept: a campaign planning screen with automotive, home and skincare creative and an amber timeline.",
+      "caption": "What’s included · AI-generated scene",
+      "pages": [
+        "zbm:/digital-advertising"
+      ],
+      "plannedPages": []
+    },
+    {
+      "id": "da-result-lead",
+      "file": "story-pass/da-result-lead.png",
+      "sha256": "fca904d9bc10c508f1a3cd3189d3ffa624a31d74c53910fd302b0633fd73481f",
+      "width": 1122,
+      "height": 1402,
+      "focus": "50% 50%",
+      "text": [
+        {
+          "label": "Entire approved scene, including all story text and key subjects",
+          "box": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "keep": true
+        }
+      ],
+      "class": "concept",
+      "creator": "Z Best Media (founder-supplied)",
+      "tool": "ChatGPT image generation",
+      "date": "2026-10-31",
+      "rightsHolder": "Z Best Media",
+      "consentRef": null,
+      "provenance": {
+        "commit": "136c5ac75f398a99f572038a09916e54fca59ccc",
+        "path": "design-inputs/story-pass/da-result-lead.png",
+        "approval": "36/36 founder-approved story pass; founder-supplied provenance declaration, not independent IP verification"
+      },
+      "facesCheck": "Two stacked \"New lead\" notifications (spelled right, no numbers) in a busy daytime shop; pairs with da-problem-wasted-spend as before/after. Background shoppers seen from behind or defocused past recognition (checked at 3x). No logos/app icons; hand anatomy correct.",
+      "alt": "Concept: a phone receiving two New lead notifications in a busy shop.",
+      "caption": "How it fits with the rest of what we do · AI-generated scene",
+      "pages": [
+        "zbm:/digital-advertising"
+      ],
+      "plannedPages": []
+    },
+    {
+      "id": "tv-problem-wrong-room",
+      "file": "story-pass/tv-problem-wrong-room.png",
+      "sha256": "e7a50888ceea9b411ae18b53f61c890f73d163f19f4c449c6b5d27bbd9043d83",
+      "width": 1672,
+      "height": 941,
+      "focus": "50% 50%",
+      "text": [
+        {
+          "label": "Entire approved scene, including all story text and key subjects",
+          "box": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "keep": true
+        }
+      ],
+      "class": "concept",
+      "creator": "Z Best Media (founder-supplied)",
+      "tool": "ChatGPT image generation",
+      "date": "2026-10-31",
+      "rightsHolder": "Z Best Media",
+      "consentRef": null,
+      "provenance": {
+        "commit": "136c5ac75f398a99f572038a09916e54fca59ccc",
+        "path": "design-inputs/story-pass/tv-problem-wrong-room.png",
+        "approval": "36/36 founder-approved story pass; founder-supplied provenance declaration, not independent IP verification"
+      },
+      "facesCheck": "Empty room, TV playing a car ad to an empty couch, remote on cushion, throw on floor; blue TV glow + amber lamp. Grille emblem on the on-screen car resembled a real badge; removed locally (OpenCV inpaint, 8×6px ellipse at 471,233), verified at 4x. TV bezel and remote micro-marks are unreadable blur. No people.",
+      "alt": "Concept: a car commercial playing on a television in an empty room.",
+      "caption": "The problem · AI-generated scene",
+      "pages": [
+        "zbm:/tv-streaming"
+      ],
+      "plannedPages": [],
+      "toolNote": "Local reviewer retouching recorded in REVIEW.md: Empty room, TV playing a car ad to an empty couch, remote on cushion, throw on floor; blue TV glow + amber lamp. Grille emblem on the on-screen car resembled a real badge; removed locally (OpenCV inpaint, 8×6px ellipse at 471,233), verified at 4x. TV bezel and remote micro-marks are unreadable blur. No people."
+    },
+    {
+      "id": "tv-work-set",
+      "file": "story-pass/tv-work-set.png",
+      "sha256": "4b4f00145f1ceebb403a2464e1e2f7fe6dc2a7dc28bb5d12b21cd94868f01a3a",
+      "width": 1672,
+      "height": 941,
+      "focus": "50% 50%",
+      "text": [
+        {
+          "label": "Entire approved scene, including all story text and key subjects",
+          "box": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "keep": true
+        }
+      ],
+      "class": "concept",
+      "creator": "Z Best Media (founder-supplied)",
+      "tool": "ChatGPT image generation",
+      "date": "2026-10-31",
+      "rightsHolder": "Z Best Media",
+      "consentRef": null,
+      "provenance": {
+        "commit": "136c5ac75f398a99f572038a09916e54fca59ccc",
+        "path": "design-inputs/story-pass/tv-work-set.png",
+        "approval": "36/36 founder-approved story pass; founder-supplied provenance declaration, not independent IP verification"
+      },
+      "facesCheck": "v1 (talk-show set, \"RONIQ\" camera text) rejected as off-story. v2: commercial shoot in showroom, dolly track, 2 crew from behind (zoomed: no face), monitors show the car, clapper checklist spelled right; ties to tv-result-watching. v3 edit: grille emblem removed (verified at 4x); rest unchanged.",
+      "alt": "Concept: a commercial shoot in a showroom with a dolly track and crew seen from behind.",
+      "caption": "What’s included · AI-generated scene",
+      "pages": [
+        "zbm:/tv-streaming"
+      ],
+      "plannedPages": []
+    },
+    {
+      "id": "tv-result-watching",
+      "file": "story-pass/tv-result-watching.png",
+      "sha256": "911e927a2d1e7e8308ee293fd8b80534d1fbe3960f2083b3f3ed06c57a051dd8",
+      "width": 1671,
+      "height": 941,
+      "focus": "50% 50%",
+      "text": [
+        {
+          "label": "Entire approved scene, including all story text and key subjects",
+          "box": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "keep": true
+        }
+      ],
+      "class": "concept",
+      "creator": "Z Best Media (founder-supplied)",
+      "tool": "ChatGPT image generation",
+      "date": "2026-10-31",
+      "rightsHolder": "Z Best Media",
+      "consentRef": null,
+      "provenance": {
+        "commit": "136c5ac75f398a99f572038a09916e54fca59ccc",
+        "path": "design-inputs/story-pass/tv-result-watching.png",
+        "approval": "36/36 founder-approved story pass; founder-supplied provenance declaration, not independent IP verification"
+      },
+      "facesCheck": "From behind the couch: couple, arm around shoulder, watching a calm premium showroom car ad; pairs with tv-problem-wrong-room (empty couch → engaged viewers). Faces: back of heads only (ear/jaw edge at 3x, no features). Small hood emblem removed locally (6×4px ellipse at 851,257), verified at 4x. No on-screen text.",
+      "alt": "Concept: two viewers seen from behind watching a showroom car commercial.",
+      "caption": "How it fits with the rest of what we do · AI-generated scene",
+      "pages": [
+        "zbm:/tv-streaming"
+      ],
+      "plannedPages": [],
+      "toolNote": "Local reviewer retouching recorded in REVIEW.md: From behind the couch: couple, arm around shoulder, watching a calm premium showroom car ad; pairs with tv-problem-wrong-room (empty couch → engaged viewers). Faces: back of heads only (ear/jaw edge at 3x, no features). Small hood emblem removed locally (6×4px ellipse at 851,257), verified at 4x. No on-screen text."
+    },
+    {
+      "id": "radio-problem-commute",
+      "file": "story-pass/radio-problem-commute.png",
+      "sha256": "90b6c4a7a6855eec4b96804b9be713f58ba7265f211e90b3592087a6278f28df",
+      "width": 1671,
+      "height": 941,
+      "focus": "50% 50%",
+      "text": [
+        {
+          "label": "Entire approved scene, including all story text and key subjects",
+          "box": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "keep": true
+        }
+      ],
+      "class": "concept",
+      "creator": "Z Best Media (founder-supplied)",
+      "tool": "ChatGPT image generation",
+      "date": "2026-10-31",
+      "rightsHolder": "Z Best Media",
+      "consentRef": null,
+      "provenance": {
+        "commit": "136c5ac75f398a99f572038a09916e54fca59ccc",
+        "path": "design-inputs/story-pass/radio-problem-commute.png",
+        "approval": "36/36 founder-approved story pass; founder-supplied provenance declaration, not independent IP verification"
+      },
+      "facesCheck": "LA freeway jam at dusk from back seat: hands on wheel, sea of taillights, overpass, palms; radio display shows only an orange equalizer. Rear badges and plates on cars ahead are defocused ovals/blobs, unreadable at 4x. Radio button glyphs and gauge numerals are small and illegible. No steering-wheel badge, no faces/mirror reflection.",
+      "alt": "Concept: a driver in Los Angeles freeway traffic with an amber radio equalizer.",
+      "caption": "The problem · AI-generated scene",
+      "pages": [
+        "zbm:/radio-audio"
+      ],
+      "plannedPages": []
+    },
+    {
+      "id": "radio-work-studio",
+      "file": "story-pass/radio-work-studio.png",
+      "sha256": "d2f99779faf2204b7a6923b9e53373f85f873bb9eaee86d7500595241f503543",
+      "width": 1671,
+      "height": 941,
+      "focus": "50% 50%",
+      "text": [
+        {
+          "label": "Entire approved scene, including all story text and key subjects",
+          "box": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "keep": true
+        }
+      ],
+      "class": "concept",
+      "creator": "Z Best Media (founder-supplied)",
+      "tool": "ChatGPT image generation",
+      "date": "2026-10-31",
+      "rightsHolder": "Z Best Media",
+      "consentRef": null,
+      "provenance": {
+        "commit": "136c5ac75f398a99f572038a09916e54fca59ccc",
+        "path": "design-inputs/story-pass/radio-work-studio.png",
+        "approval": "36/36 founder-approved story pass; founder-supplied provenance declaration, not independent IP verification"
+      },
+      "facesCheck": "Mic + pop shield, mixing board, amber waveform, booth behind glass, ON AIR sign; notebook \"Radio Campaign: Script, Record, Produce, Air\" spelled right. Headphone cup mark generic at 4x; monitor UI blurred. Deviations: no hands, no \"SALTGROVE — 30 sec\" script (acceptable). Note: 3rd handwritten-checklist prop in a row (DA, TV, Radio) — ban the motif in remaining prompts.",
+      "alt": "Concept: a radio production booth with a microphone, mixing desk and amber waveform.",
+      "caption": "What’s included · AI-generated scene",
+      "pages": [
+        "zbm:/radio-audio"
+      ],
+      "plannedPages": []
+    },
+    {
+      "id": "radio-result-car",
+      "file": "story-pass/radio-result-car.png",
+      "sha256": "bf204bd4d71d8a0ffc0f91b8d3a7536228830d59aa9c26c83f73b530808c8c6e",
+      "width": 1122,
+      "height": 1402,
+      "focus": "50% 50%",
+      "text": [
+        {
+          "label": "Entire approved scene, including all story text and key subjects",
+          "box": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "keep": true
+        }
+      ],
+      "class": "concept",
+      "creator": "Z Best Media (founder-supplied)",
+      "tool": "ChatGPT image generation",
+      "date": "2026-10-31",
+      "rightsHolder": "Z Best Media",
+      "consentRef": null,
+      "provenance": {
+        "commit": "136c5ac75f398a99f572038a09916e54fca59ccc",
+        "path": "design-inputs/story-pass/radio-result-car.png",
+        "approval": "36/36 founder-approved story pass; founder-supplied provenance declaration, not independent IP verification"
+      },
+      "facesCheck": "Car turning into a packed seaside restaurant (string lights, pier, palms); radio still glowing with wordless orange EQ. Pairs with radio-problem-commute (stuck in traffic → arrived). Diners are small and defocused, no features at 3x. No signage/restaurant name. Button and gauge glyphs illegible.",
+      "alt": "Concept: a car arriving at a seaside restaurant with the radio still glowing.",
+      "caption": "How it fits with the rest of what we do · AI-generated scene",
+      "pages": [
+        "zbm:/radio-audio"
+      ],
+      "plannedPages": []
+    },
+    {
+      "id": "ooh-work-planning",
+      "file": "story-pass/ooh-work-planning.png",
+      "sha256": "7b92d1ea01fa38b7ea8bfc66ed3aa9a506153eb5dd107811bf761003d0346c8d",
+      "width": 1671,
+      "height": 941,
+      "focus": "50% 50%",
+      "text": [
+        {
+          "label": "Entire approved scene, including all story text and key subjects",
+          "box": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "keep": true
+        }
+      ],
+      "class": "concept",
+      "creator": "Z Best Media (founder-supplied)",
+      "tool": "ChatGPT image generation",
+      "date": "2026-10-31",
+      "rightsHolder": "Z Best Media",
+      "consentRef": null,
+      "provenance": {
+        "commit": "136c5ac75f398a99f572038a09916e54fca59ccc",
+        "path": "design-inputs/story-pass/ooh-work-planning.png",
+        "approval": "36/36 founder-approved story pass; founder-supplied provenance declaration, not independent IP verification"
+      },
+      "facesCheck": "v1: gibberish copy on all 3 billboard thumbnails (zoomed) — unacceptable on the OOH page. v2: ad faces now black with one orange line, no words. \"Los Angeles\" spelled right; pins on freeway map, paper map, real LA skyline. Laptop bezel micro-text unreadable. No hands (acceptable).",
+      "alt": "Concept: billboard placements planned on a Los Angeles map with wordless creative thumbnails.",
+      "caption": "What’s included · AI-generated scene",
+      "pages": [
+        "zbm:/out-of-home"
+      ],
+      "plannedPages": []
+    },
+    {
+      "id": "ooh-result-street",
+      "file": "story-pass/ooh-result-street.png",
+      "sha256": "1cc35f2b72ca79441c58bfc155b1379ac9b6744f8badcbf7626faff6eb9ff65e",
+      "width": 1122,
+      "height": 1402,
+      "focus": "50% 50%",
+      "text": [
+        {
+          "label": "Entire approved scene, including all story text and key subjects",
+          "box": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "keep": true
+        }
+      ],
+      "class": "concept",
+      "creator": "Z Best Media (founder-supplied)",
+      "tool": "ChatGPT image generation",
+      "date": "2026-10-31",
+      "rightsHolder": "Z Best Media",
+      "consentRef": null,
+      "provenance": {
+        "commit": "136c5ac75f398a99f572038a09916e54fca59ccc",
+        "path": "design-inputs/story-pass/ooh-result-street.png",
+        "approval": "36/36 founder-approved story pass; founder-supplied provenance declaration, not independent IP verification"
+      },
+      "facesCheck": "Huge DTLA digital billboard, black with one orange swoosh, no words — matches ooh-work-planning thumbnails. Light-trail traffic, wet crosswalk, palms, real skyline. Pedestrians from behind/motion-blurred (no features at 2.5x). Storefront glow has no readable signage. Deviation: no heads turned up (acceptable).",
+      "alt": "Concept: an illuminated wordless billboard above a wet downtown Los Angeles street.",
+      "caption": "Who this is for · AI-generated scene",
+      "pages": [
+        "zbm:/out-of-home"
+      ],
+      "plannedPages": []
+    },
+    {
+      "id": "social-problem-dead-page",
+      "file": "story-pass/social-problem-dead-page.png",
+      "sha256": "e4d31e2a5431dcd67a241840a22ef93c709843efa1ecb6da7423dda0ce822801",
+      "width": 1122,
+      "height": 1402,
+      "focus": "50% 50%",
+      "text": [
+        {
+          "label": "Entire approved scene, including all story text and key subjects",
+          "box": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "keep": true
+        }
+      ],
+      "class": "concept",
+      "creator": "Z Best Media (founder-supplied)",
+      "tool": "ChatGPT image generation",
+      "date": "2026-10-31",
+      "rightsHolder": "Z Best Media",
+      "consentRef": null,
+      "provenance": {
+        "commit": "136c5ac75f398a99f572038a09916e54fca59ccc",
+        "path": "design-inputs/story-pass/social-problem-dead-page.png",
+        "approval": "36/36 founder-approved story pass; founder-supplied provenance declaration, not independent IP verification"
+      },
+      "facesCheck": "\"Posted 8 months ago\" spelled right (4x); nine washed-out grey tiles, placeholder bars for profile name (no handle). Dusty shelf, cobwebbed OPEN sign (deviation: facing camera — stronger), shutter half down. No app icons/logos, no faces. Profile layout generic.",
+      "alt": "Concept: an inactive social profile marked Posted 8 months ago in a shuttered shop.",
+      "caption": "The problem · AI-generated scene",
+      "pages": [
+        "zbm:/social-media"
+      ],
+      "plannedPages": []
+    },
+    {
+      "id": "social-work-calendar",
+      "file": "story-pass/social-work-calendar.png",
+      "sha256": "7dcd5d2cf6577df1f9a2030ab459a44ef1fa3ecb37e803edc9f6d752ccee3520",
+      "width": 1670,
+      "height": 941,
+      "focus": "50% 50%",
+      "text": [
+        {
+          "label": "Entire approved scene, including all story text and key subjects",
+          "box": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "keep": true
+        }
+      ],
+      "class": "concept",
+      "creator": "Z Best Media (founder-supplied)",
+      "tool": "ChatGPT image generation",
+      "date": "2026-10-31",
+      "rightsHolder": "Z Best Media",
+      "consentRef": null,
+      "provenance": {
+        "commit": "136c5ac75f398a99f572038a09916e54fca59ccc",
+        "path": "design-inputs/story-pass/social-work-calendar.png",
+        "approval": "36/36 founder-approved story pass; founder-supplied provenance declaration, not independent IP verification"
+      },
+      "facesCheck": "v1: 7 real platform logos (IG, TikTok, YouTube, X, LinkedIn, Pinterest, Telegram) — rejected. v2: plain orange-outlined squares. Coherent month grid (starts Wed, 31 days), concept-brand thumbnails, Reach/Engagement/Leads rings. iMac-style form, no Apple logo visible.",
+      "alt": "Concept: a social content calendar with creative thumbnails and generic platform placeholders.",
+      "caption": "What’s included · AI-generated scene",
+      "pages": [
+        "zbm:/social-media"
+      ],
+      "plannedPages": []
+    },
+    {
+      "id": "social-result-engaged",
+      "file": "story-pass/social-result-engaged.png",
+      "sha256": "33abcb4e1f1a3a9d4c641870a54d5f7d06a3ff1666531366b822f5cf19d812e5",
+      "width": 1122,
+      "height": 1402,
+      "focus": "50% 50%",
+      "text": [
+        {
+          "label": "Entire approved scene, including all story text and key subjects",
+          "box": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "keep": true
+        }
+      ],
+      "class": "concept",
+      "creator": "Z Best Media (founder-supplied)",
+      "tool": "ChatGPT image generation",
+      "date": "2026-10-31",
+      "rightsHolder": "Z Best Media",
+      "consentRef": null,
+      "provenance": {
+        "commit": "136c5ac75f398a99f572038a09916e54fca59ccc",
+        "path": "design-inputs/story-pass/social-result-engaged.png",
+        "approval": "36/36 founder-approved story pass; founder-supplied provenance declaration, not independent IP verification"
+      },
+      "facesCheck": "Same-shop revival: clean lit OPEN sign, busy shop, phone post with floating hearts/comments/message bubbles, no numbers. Pairs with social-problem-dead-page. Shoppers defocused (no features at 2x). Note: blue/red/yellow 3D bubbles are generic (not platform logos) but lean stock-photo and off-palette; acceptable for a social UI, flag if founder wants a quieter amber-only version.",
+      "alt": "Concept: a social post with generic response bubbles in a busy, brightly lit shop.",
+      "caption": "How it fits with the rest of what we do · AI-generated scene",
+      "pages": [
+        "zbm:/social-media"
+      ],
+      "plannedPages": []
+    },
+    {
+      "id": "creative-work-storyboard",
+      "file": "story-pass/creative-work-storyboard.png",
+      "sha256": "8f9a825372cc6571ed7aa65c459335b28218b22e2f280e85c7090c50a411279b",
+      "width": 1672,
+      "height": 941,
+      "focus": "50% 50%",
+      "text": [
+        {
+          "label": "Entire approved scene, including all story text and key subjects",
+          "box": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "keep": true
+        }
+      ],
+      "class": "concept",
+      "creator": "Z Best Media (founder-supplied)",
+      "tool": "ChatGPT image generation",
+      "date": "2026-10-31",
+      "rightsHolder": "Z Best Media",
+      "consentRef": null,
+      "provenance": {
+        "commit": "136c5ac75f398a99f572038a09916e54fca59ccc",
+        "path": "design-inputs/story-pass/creative-work-storyboard.png",
+        "approval": "36/36 founder-approved story pass; founder-supplied provenance declaration, not independent IP verification"
+      },
+      "facesCheck": "v1: frame-5 singer face visible in profile (eye/nose/lips) + hood emblem on frame-1 car. v2 ChatGPT edit: silhouette now solid black (verified); hood emblem survived. Emblem removed locally with OpenCV inpaint (9×5px ellipse at 497,224); verified clean at 4x. Six-frame storyboard + matching pencil sketches on tablet; no checklist motif.",
+      "alt": "Concept: a six-frame campaign storyboard beside matching sketches on a tablet.",
+      "caption": "What’s included · AI-generated scene",
+      "pages": [
+        "zbm:/creative-production"
+      ],
+      "plannedPages": [],
+      "toolNote": "Local reviewer retouching recorded in REVIEW.md: v1: frame-5 singer face visible in profile (eye/nose/lips) + hood emblem on frame-1 car. v2 ChatGPT edit: silhouette now solid black (verified); hood emblem survived. Emblem removed locally with OpenCV inpaint (9×5px ellipse at 497,224); verified clean at 4x. Six-frame storyboard + matching pencil sketches on tablet; no checklist motif."
+    },
+    {
+      "id": "creative-work-shoot",
+      "file": "story-pass/creative-work-shoot.png",
+      "sha256": "43f994340734d6f0cf62c0348b382d4d39acf9464a717f58327a1e0bdd116b3d",
+      "width": 1122,
+      "height": 1402,
+      "focus": "50% 50%",
+      "text": [
+        {
+          "label": "Entire approved scene, including all story text and key subjects",
+          "box": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "keep": true
+        }
+      ],
+      "class": "concept",
+      "creator": "Z Best Media (founder-supplied)",
+      "tool": "ChatGPT image generation",
+      "date": "2026-10-31",
+      "rightsHolder": "Z Best Media",
+      "consentRef": null,
+      "provenance": {
+        "commit": "136c5ac75f398a99f572038a09916e54fca59ccc",
+        "path": "design-inputs/story-pass/creative-work-shoot.png",
+        "approval": "36/36 founder-approved story pass; founder-supplied provenance declaration, not independent IP verification"
+      },
+      "facesCheck": "Submitted as influencer-work-filming, but it has no creator/hands, so it reads as a product shoot. Reassigned to creative-work-shoot (frosted serum on stone, ring light + LED panel, phone on tripod recording, camera foreground). No text/logos on bottle, phone or camera. influencer-work-filming still needed WITH hands in frame. Slot uses 4:5.",
+      "alt": "Concept: an unbranded serum bottle on stone being filmed with a phone and studio lights.",
+      "caption": "How it fits with the rest of what we do · AI-generated scene",
+      "pages": [
+        "zbm:/creative-production"
+      ],
+      "plannedPages": []
+    },
+    {
+      "id": "influencer-work-filming",
+      "file": "story-pass/influencer-work-filming.png",
+      "sha256": "f87ce1a761f371d0864eb1b46c6027329fe2e208dfd7ff933b92a017229c470b",
+      "width": 1122,
+      "height": 1402,
+      "focus": "50% 50%",
+      "text": [
+        {
+          "label": "Entire approved scene, including all story text and key subjects",
+          "box": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "keep": true
+        }
+      ],
+      "class": "concept",
+      "creator": "Z Best Media (founder-supplied)",
+      "tool": "ChatGPT image generation",
+      "date": "2026-10-31",
+      "rightsHolder": "Z Best Media",
+      "consentRef": null,
+      "provenance": {
+        "commit": "136c5ac75f398a99f572038a09916e54fca59ccc",
+        "path": "design-inputs/story-pass/influencer-work-filming.png",
+        "approval": "36/36 founder-approved story pass; founder-supplied provenance declaration, not independent IP verification"
+      },
+      "facesCheck": "Over-shoulder: one hand holds the serum toward the phone, the other adjusts the phone on a mini tripod; phone preview matches the scene. Real bathroom (towel, soap pump, mirror, plant), ring light. Mirror shows no reflection of the creator. Hand anatomy correct. Phone status-bar micro-glyphs are illegible at 4x (acceptable). Steel bracelet, no visible dial/brand.",
+      "alt": "Concept: hands filming an unbranded serum bottle on a phone in a bathroom setting.",
+      "caption": "What’s included · AI-generated scene",
+      "pages": [
+        "zbm:/influencer-marketing"
+      ],
+      "plannedPages": []
+    },
+    {
+      "id": "influencer-work-brief",
+      "file": "story-pass/influencer-work-brief.png",
+      "sha256": "53f7d138b1a6029868fca1277470c8c174c9b5818ff733cadde754a97dcd4332",
+      "width": 1672,
+      "height": 941,
+      "focus": "50% 50%",
+      "text": [
+        {
+          "label": "Entire approved scene, including all story text and key subjects",
+          "box": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "keep": true
+        }
+      ],
+      "class": "concept",
+      "creator": "Z Best Media (founder-supplied)",
+      "tool": "ChatGPT image generation",
+      "date": "2026-10-31",
+      "rightsHolder": "Z Best Media",
+      "consentRef": null,
+      "provenance": {
+        "commit": "136c5ac75f398a99f572038a09916e54fca59ccc",
+        "path": "design-inputs/story-pass/influencer-work-brief.png",
+        "approval": "36/36 founder-approved story pass; founder-supplied provenance declaration, not independent IP verification"
+      },
+      "facesCheck": "Only two readable lines, both exact: \"Creator Brief: Maren Vale\", \"Disclosure: #ad\" circled in amber; rest grey placeholder bars. Med-spa marble counter, frosted serum (matches the influencer set), treatment bed + towels behind. Hand placing phone, anatomy correct. No logos/faces; phone back has no mark.",
+      "alt": "Concept: a creator brief reading Creator Brief: Maren Vale and Disclosure: #ad.",
+      "caption": "How it fits with the rest of what we do · AI-generated scene",
+      "pages": [
+        "zbm:/influencer-marketing"
+      ],
+      "plannedPages": []
+    },
+    {
+      "id": "web-problem-old-site",
+      "file": "story-pass/web-problem-old-site.png",
+      "sha256": "2ff31869ff6d42ada8389a40db317bcbc2e62a1252abd87cd9750dbb3d87bc36",
+      "width": 1672,
+      "height": 941,
+      "focus": "50% 50%",
+      "text": [
+        {
+          "label": "Entire approved scene, including all story text and key subjects",
+          "box": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "keep": true
+        }
+      ],
+      "class": "concept",
+      "creator": "Z Best Media (founder-supplied)",
+      "tool": "ChatGPT image generation",
+      "date": "2026-10-31",
+      "rightsHolder": "Z Best Media",
+      "consentRef": null,
+      "provenance": {
+        "commit": "136c5ac75f398a99f572038a09916e54fca59ccc",
+        "path": "design-inputs/story-pass/web-problem-old-site.png",
+        "approval": "36/36 founder-approved story pass; founder-supplied provenance declaration, not independent IP verification"
+      },
+      "facesCheck": "Cold green fluorescent back office (intentional off-palette contrast to web-work-wireframes). Ugly site: starburst, blinking marquee, broken-image icon, pop-up over content, clashing blue/red/yellow. All on-screen text blurred placeholder bars. Thumbnails are crude low-res blobs, no faces at 3x (reads as bad site imagery). Laptop keyboard-side, no logo. Paper stacks, cable tangle, calculator.",
+      "alt": "Concept: a cluttered, dated website on a laptop in a back office.",
+      "caption": "The problem · AI-generated scene",
+      "pages": [
+        "zbm:/websites"
+      ],
+      "plannedPages": []
+    },
+    {
+      "id": "web-work-wireframes",
+      "file": "story-pass/web-work-wireframes.png",
+      "sha256": "fb83a51c78ce499d98eb526ce0903237e3526f12f94c43c1c10fe515703f30fc",
+      "width": 1670,
+      "height": 941,
+      "focus": "50% 50%",
+      "text": [
+        {
+          "label": "Entire approved scene, including all story text and key subjects",
+          "box": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "keep": true
+        }
+      ],
+      "class": "concept",
+      "creator": "Z Best Media (founder-supplied)",
+      "tool": "ChatGPT image generation",
+      "date": "2026-10-31",
+      "rightsHolder": "Z Best Media",
+      "consentRef": null,
+      "provenance": {
+        "commit": "136c5ac75f398a99f572038a09916e54fca59ccc",
+        "path": "design-inputs/story-pass/web-work-wireframes.png",
+        "approval": "36/36 founder-approved story pass; founder-supplied provenance declaration, not independent IP verification"
+      },
+      "facesCheck": "Desktop/tablet/phone wireframes + component column; process bar \"Strategy, Wireframe, Design, Build, Launch\" spelled right; pen tablet on desk. Deviation: digital, not paper-to-finished transformation (acceptable). Set-level note: 5th \"monitor + lamp + black mug + sunset skyline\" composition (DA, OOH, social, creative, web) — remaining prompts must change setting.",
+      "alt": "Concept: responsive desktop, tablet and phone wireframes with a Strategy, Wireframe, Design, Build, Launch process bar.",
+      "caption": "What’s included · AI-generated scene",
+      "pages": [
+        "zbm:/websites"
+      ],
+      "plannedPages": []
+    },
+    {
+      "id": "home-how-we-work",
+      "file": "story-pass/home-how-we-work.png",
+      "sha256": "0fa536ce80842c89762eec42492fe1ba04dc4df3ba8e7cee82d8cf93636429bf",
+      "width": 1672,
+      "height": 941,
+      "focus": "50% 50%",
+      "text": [
+        {
+          "label": "Entire approved scene, including all story text and key subjects",
+          "box": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "keep": true
+        }
+      ],
+      "class": "concept",
+      "creator": "Z Best Media (founder-supplied)",
+      "tool": "ChatGPT image generation",
+      "date": "2026-10-31",
+      "rightsHolder": "Z Best Media",
+      "consentRef": null,
+      "provenance": {
+        "commit": "136c5ac75f398a99f572038a09916e54fca59ccc",
+        "path": "design-inputs/story-pass/home-how-we-work.png",
+        "approval": "36/36 founder-approved story pass; founder-supplied provenance declaration, not independent IP verification"
+      },
+      "facesCheck": "v1 rejected: labeled Strategy/Plan/Create/Edit/Deliver contradicted live home copy (Assess/Audit/Fix/Scale, \"Audit first. Evidence. Then scale.\") + \"ERATED\" camera text. v2: wordless overhead: audit report with amber-highlighted findings + pen, laptop rising chart with pointing hand, media-plan gantt, swatch fan. Hands anatomically correct (4x). Camera prism micro-text illegible at 4x. No lamp/mug/skyline.",
+      "alt": "Concept: an overhead view of audit findings, a media plan, swatches and a hand pointing at a chart.",
+      "caption": "How we work · AI-generated scene",
+      "pages": [
+        "zbm:/"
+      ],
+      "plannedPages": []
+    },
+    {
+      "id": "about-workspace",
+      "file": "story-pass/about-workspace.png",
+      "sha256": "0dfd000d65d86d93c408a58c00e5206547cde5ec59cf0038f7b43880a526931d",
+      "width": 1672,
+      "height": 941,
+      "focus": "50% 50%",
+      "text": [
+        {
+          "label": "Entire approved scene, including all story text and key subjects",
+          "box": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "keep": true
+        }
+      ],
+      "class": "concept",
+      "creator": "Z Best Media (founder-supplied)",
+      "tool": "ChatGPT image generation",
+      "date": "2026-10-31",
+      "rightsHolder": "Z Best Media",
+      "consentRef": null,
+      "provenance": {
+        "commit": "136c5ac75f398a99f572038a09916e54fca59ccc",
+        "path": "design-inputs/story-pass/about-workspace.png",
+        "approval": "36/36 founder-approved story pass; founder-supplied provenance declaration, not independent IP verification"
+      },
+      "facesCheck": "Empty agency studio at first light: concrete worktable, campaign wall (sedan, serum, dish, stage silhouette, billboard w/ orange line = matches set), cinema camera, road cases, frosted industrial windows (no skyline). Framed \"Audit first. Evidence. Then scale.\" exact = home-page headline. Retouched locally: diamond grille emblem + plate text on sedan print (inpaint), faint gibberish on serum-bottle print (seamless clone from lower bottle); verified at 5x. No people.",
+      "alt": "Concept: an empty agency studio with campaign artwork and the framed words Audit first. Evidence. Then scale..",
+      "caption": "The working environment · AI-generated scene",
+      "pages": [
+        "zbm:/about"
+      ],
+      "plannedPages": [],
+      "toolNote": "Local reviewer retouching recorded in REVIEW.md: Empty agency studio at first light: concrete worktable, campaign wall (sedan, serum, dish, stage silhouette, billboard w/ orange line = matches set), cinema camera, road cases, frosted industrial windows (no skyline). Framed \"Audit first. Evidence. Then scale.\" exact = home-page headline. Retouched locally: diamond grille emblem + plate text on sedan print (inpaint), faint gibberish on serum-bottle print (seamless clone from lower bottle); verified at 5x. No people."
+    },
+    {
+      "id": "zbc-step1-brief",
+      "file": "story-pass/zbc-step1-brief.png",
+      "sha256": "59fe19786d7d508e33096895cc3f25dec9ce2334f60f96918e196e07e2eabff0",
+      "width": 832,
+      "height": 465,
+      "focus": "50% 50%",
+      "text": [
+        {
+          "label": "Entire approved scene, including all story text and key subjects",
+          "box": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "keep": true
+        }
+      ],
+      "class": "concept",
+      "creator": "Z Best Media (founder-supplied)",
+      "tool": "ChatGPT image generation",
+      "date": "2026-10-31",
+      "rightsHolder": "Z Best Media",
+      "consentRef": null,
+      "provenance": {
+        "commit": "136c5ac75f398a99f572038a09916e54fca59ccc",
+        "path": "design-inputs/story-pass/zbc-step1-brief.png",
+        "approval": "36/36 founder-approved story pass; founder-supplied provenance declaration, not independent IP verification"
+      },
+      "facesCheck": "First 2×2 grid rejected: baked titles incl. \"Auto Publish & Grow\" contradicted live copy (\"Every Submission Reviewed\") + single editor. Second grid: wordless, coral. 1 brief w/ toggles + lock; 2 three different hands, same concert footage cropped 3 ways; 3 green/red review tags + finger tap; 4 bars + rising line, no numbers. Size OK because zbc Timeline is lg:grid-cols-4 (~320 CSS px/step; 832px ≥2.5x); single-column mobile ~2.3x. All four use 16:9 (list said 4:5 for 3–4) for a consistent row. Not suitable for hero/full-width use.",
+      "alt": "Concept: a campaign brief with toggles and a lock.",
+      "caption": "Set the Campaign · AI-generated scene",
+      "pages": [
+        "zbc:/"
+      ],
+      "plannedPages": []
+    },
+    {
+      "id": "zbc-step2-clippers",
+      "file": "story-pass/zbc-step2-clippers.png",
+      "sha256": "0b41bcedc9ea11ad73b7661b1302c6835ef999c8c4064e0db891f5a7649f59f1",
+      "width": 832,
+      "height": 465,
+      "focus": "50% 50%",
+      "text": [
+        {
+          "label": "Entire approved scene, including all story text and key subjects",
+          "box": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "keep": true
+        }
+      ],
+      "class": "concept",
+      "creator": "Z Best Media (founder-supplied)",
+      "tool": "ChatGPT image generation",
+      "date": "2026-10-31",
+      "rightsHolder": "Z Best Media",
+      "consentRef": null,
+      "provenance": {
+        "commit": "136c5ac75f398a99f572038a09916e54fca59ccc",
+        "path": "design-inputs/story-pass/zbc-step2-clippers.png",
+        "approval": "36/36 founder-approved story pass; founder-supplied provenance declaration, not independent IP verification"
+      },
+      "facesCheck": "First 2×2 grid rejected: baked titles incl. \"Auto Publish & Grow\" contradicted live copy (\"Every Submission Reviewed\") + single editor. Second grid: wordless, coral. 1 brief w/ toggles + lock; 2 three different hands, same concert footage cropped 3 ways; 3 green/red review tags + finger tap; 4 bars + rising line, no numbers. Size OK because zbc Timeline is lg:grid-cols-4 (~320 CSS px/step; 832px ≥2.5x); single-column mobile ~2.3x. All four use 16:9 (list said 4:5 for 3–4) for a consistent row. Not suitable for hero/full-width use.",
+      "alt": "Concept: three different hands editing the same concert footage into distinct clips.",
+      "caption": "Clippers Create and Post · AI-generated scene",
+      "pages": [
+        "zbc:/"
+      ],
+      "plannedPages": []
+    },
+    {
+      "id": "zbc-step3-review",
+      "file": "story-pass/zbc-step3-review.png",
+      "sha256": "61080d332cd36488c8f41d290033681c799f1accca74297613bb47b97173b5bf",
+      "width": 832,
+      "height": 468,
+      "focus": "50% 50%",
+      "text": [
+        {
+          "label": "Entire approved scene, including all story text and key subjects",
+          "box": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "keep": true
+        }
+      ],
+      "class": "concept",
+      "creator": "Z Best Media (founder-supplied)",
+      "tool": "ChatGPT image generation",
+      "date": "2026-10-31",
+      "rightsHolder": "Z Best Media",
+      "consentRef": null,
+      "provenance": {
+        "commit": "136c5ac75f398a99f572038a09916e54fca59ccc",
+        "path": "design-inputs/story-pass/zbc-step3-review.png",
+        "approval": "36/36 founder-approved story pass; founder-supplied provenance declaration, not independent IP verification"
+      },
+      "facesCheck": "First 2×2 grid rejected: baked titles incl. \"Auto Publish & Grow\" contradicted live copy (\"Every Submission Reviewed\") + single editor. Second grid: wordless, coral. 1 brief w/ toggles + lock; 2 three different hands, same concert footage cropped 3 ways; 3 green/red review tags + finger tap; 4 bars + rising line, no numbers. Size OK because zbc Timeline is lg:grid-cols-4 (~320 CSS px/step; 832px ≥2.5x); single-column mobile ~2.3x. All four use 16:9 (list said 4:5 for 3–4) for a consistent row. Not suitable for hero/full-width use.",
+      "alt": "Concept: a hand reviewing clips with green and red review tags.",
+      "caption": "Every Submission Reviewed · AI-generated scene",
+      "pages": [
+        "zbc:/"
+      ],
+      "plannedPages": []
+    },
+    {
+      "id": "zbc-step4-results",
+      "file": "story-pass/zbc-step4-results.png",
+      "sha256": "756221dfe240cc90359d5453cd0d5303e6fa3153cbb141300f66283af13442c8",
+      "width": 832,
+      "height": 468,
+      "focus": "50% 50%",
+      "text": [
+        {
+          "label": "Entire approved scene, including all story text and key subjects",
+          "box": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "keep": true
+        }
+      ],
+      "class": "concept",
+      "creator": "Z Best Media (founder-supplied)",
+      "tool": "ChatGPT image generation",
+      "date": "2026-10-31",
+      "rightsHolder": "Z Best Media",
+      "consentRef": null,
+      "provenance": {
+        "commit": "136c5ac75f398a99f572038a09916e54fca59ccc",
+        "path": "design-inputs/story-pass/zbc-step4-results.png",
+        "approval": "36/36 founder-approved story pass; founder-supplied provenance declaration, not independent IP verification"
+      },
+      "facesCheck": "First 2×2 grid rejected: baked titles incl. \"Auto Publish & Grow\" contradicted live copy (\"Every Submission Reviewed\") + single editor. Second grid: wordless, coral. 1 brief w/ toggles + lock; 2 three different hands, same concert footage cropped 3 ways; 3 green/red review tags + finger tap; 4 bars + rising line, no numbers. Size OK because zbc Timeline is lg:grid-cols-4 (~320 CSS px/step; 832px ≥2.5x); single-column mobile ~2.3x. All four use 16:9 (list said 4:5 for 3–4) for a consistent row. Not suitable for hero/full-width use.",
+      "alt": "Concept: a coral reporting chart with bars and a rising line, without numbers.",
+      "caption": "Verified Reporting · AI-generated scene",
+      "pages": [
+        "zbc:/"
+      ],
+      "plannedPages": []
+    },
+    {
+      "id": "zbc-ent-studio",
+      "file": "story-pass/zbc-ent-studio.png",
+      "sha256": "20986f6db0aa2d5162f5bfcb0ea12f19318d42aa225a8cc7f2a742bc0f1edef3",
+      "width": 1672,
+      "height": 941,
+      "focus": "50% 50%",
+      "text": [
+        {
+          "label": "Entire approved scene, including all story text and key subjects",
+          "box": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "keep": true
+        }
+      ],
+      "class": "concept",
+      "creator": "Z Best Media (founder-supplied)",
+      "tool": "ChatGPT image generation",
+      "date": "2026-10-31",
+      "rightsHolder": "Z Best Media",
+      "consentRef": null,
+      "provenance": {
+        "commit": "136c5ac75f398a99f572038a09916e54fca59ccc",
+        "path": "design-inputs/story-pass/zbc-ent-studio.png",
+        "approval": "36/36 founder-approved story pass; founder-supplied provenance declaration, not independent IP verification"
+      },
+      "facesCheck": "Reinterpreted (studio would duplicate radio-work-studio): one live set, three cameras, three different framings on their monitors = \"one source, cut many ways\". Coral/red haze, not amber. Artist is silhouette (profile outline only on right monitor, no features at 4x); operators from behind, defocused. Crowd from behind. No gear branding readable.",
+      "alt": "Concept: three cameras capturing different framings of the same coral-lit live performance.",
+      "caption": "Who this is for · AI-generated scene",
+      "pages": [
+        "zbc:/entertainment"
+      ],
+      "plannedPages": []
+    },
+    {
+      "id": "zbc-ent-fans",
+      "file": "story-pass/zbc-ent-fans.png",
+      "sha256": "e3b04ebcf6381ed17b3bde42ca6fec840b1e81987759a9359af96b4c2c616eb7",
+      "width": 1072,
+      "height": 1467,
+      "focus": "50% 50%",
+      "text": [
+        {
+          "label": "Entire approved scene, including all story text and key subjects",
+          "box": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "keep": true
+        }
+      ],
+      "class": "concept",
+      "creator": "Z Best Media (founder-supplied)",
+      "tool": "ChatGPT image generation",
+      "date": "2026-10-31",
+      "rightsHolder": "Z Best Media",
+      "consentRef": null,
+      "provenance": {
+        "commit": "136c5ac75f398a99f572038a09916e54fca59ccc",
+        "path": "design-inputs/story-pass/zbc-ent-fans.png",
+        "approval": "36/36 founder-approved story pass; founder-supplied provenance declaration, not independent IP verification"
+      },
+      "facesCheck": "Crowd from behind, dozens of raised phones each showing the coral-lit performer at a different angle = \"every fan is a camera\". Coral/red, not amber. Phones generic: no logos, no app UI/buttons/text. Performer is a distant silhouette; no faces. Ratio is ~3:4 not 4:5 — slot uses file ratio.",
+      "alt": "Concept: a crowd seen from behind filming a coral-lit performer on raised phones.",
+      "caption": "How it works · AI-generated scene",
+      "pages": [
+        "zbc:/entertainment"
+      ],
+      "plannedPages": []
+    },
+    {
+      "id": "zbc-brands-filming",
+      "file": "story-pass/zbc-brands-filming.png",
+      "sha256": "c2e93f80ed809968797f5b5103e7c8ebc11378c6c7ab2f09d5680371162fbf8d",
+      "width": 1071,
+      "height": 1468,
+      "focus": "50% 50%",
+      "text": [
+        {
+          "label": "Entire approved scene, including all story text and key subjects",
+          "box": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "keep": true
+        }
+      ],
+      "class": "concept",
+      "creator": "Z Best Media (founder-supplied)",
+      "tool": "ChatGPT image generation",
+      "date": "2026-10-31",
+      "rightsHolder": "Z Best Media",
+      "consentRef": null,
+      "provenance": {
+        "commit": "136c5ac75f398a99f572038a09916e54fca59ccc",
+        "path": "design-inputs/story-pass/zbc-brands-filming.png",
+        "approval": "36/36 founder-approved story pass; founder-supplied provenance declaration, not independent IP verification"
+      },
+      "facesCheck": "Two hands filming a covered car in an empty coral-lit showroom; phone screen mirrors the shot, no app UI. Cover removes badge risk. Background uncovered car is defocused, no badge/text at 4x. Coral, not amber. No faces.",
+      "alt": "Concept: hands filming a covered car in a coral-lit showroom.",
+      "caption": "How it works · AI-generated scene",
+      "pages": [
+        "zbc:/brands"
+      ],
+      "plannedPages": []
+    },
+    {
+      "id": "zbc-clipper-paid",
+      "file": "story-pass/zbc-clipper-paid.png",
+      "sha256": "a43162fda95a681534ff365d746577d9dc356e55bb721763fc9a7d66507af3a7",
+      "width": 1071,
+      "height": 1469,
+      "focus": "50% 50%",
+      "text": [
+        {
+          "label": "Entire approved scene, including all story text and key subjects",
+          "box": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "keep": true
+        }
+      ],
+      "class": "concept",
+      "creator": "Z Best Media (founder-supplied)",
+      "tool": "ChatGPT image generation",
+      "date": "2026-10-31",
+      "rightsHolder": "Z Best Media",
+      "consentRef": null,
+      "provenance": {
+        "commit": "136c5ac75f398a99f572038a09916e54fca59ccc",
+        "path": "design-inputs/story-pass/zbc-clipper-paid.png",
+        "approval": "36/36 founder-approved story pass; founder-supplied provenance declaration, not independent IP verification"
+      },
+      "facesCheck": "\"Clip approved\" exact + green check; no amount/number (matches page: \"Paid on approved posts and verified views\"). Bedroom creator setup: ring light, closed laptop (lid blank at 4x), wall of concert-silhouette prints tying to ZBC Entertainment. Coral glow. Hand anatomy correct; no faces/logos/app icons.",
+      "alt": "Concept: a phone displaying Clip approved and a check mark in a coral-lit creator workspace.",
+      "caption": "Payouts · AI-generated scene",
+      "pages": [
         "zbc:/become-a-clipper"
       ],
       "plannedPages": []

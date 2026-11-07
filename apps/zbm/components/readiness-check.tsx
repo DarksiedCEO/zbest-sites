@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useRef, useState, type FormEvent, type Ref } from "react";
+import { useId, useRef, useState, type FormEvent, type ReactNode, type Ref } from "react";
 import { ButtonLink, LedgerRule } from "@zbest/ui";
 import { FAILURE_COPY, HONEYPOT_FIELD, type LeadFailure } from "@zbest/ui/lead/contract";
 import { SubmitStatus } from "@zbest/ui/lead/submit-status";
@@ -131,7 +131,7 @@ function Result({ result, ref }: { ref?: Ref<HTMLDivElement>; result: Visibility
   );
 }
 
-export function ReadinessCheck() {
+export function ReadinessCheck({ illustrations }: { illustrations?: Partial<Record<string, ReactNode>> } = {}) {
   const baseId = useId();
   const submissionId = useRef<string | null>(null);
   const [state, setState] = useState<State>({ kind: "idle" });
@@ -255,6 +255,7 @@ export function ReadinessCheck() {
               </span>
               <span>{question.statement}</span>
             </legend>
+            {illustrations?.[question.id] ? <div className="my-5">{illustrations[question.id]}</div> : null}
             <div className="mt-3 grid gap-2 sm:grid-cols-3">
               {SCALE.map((step) => (
                 <label

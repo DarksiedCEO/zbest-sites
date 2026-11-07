@@ -67,9 +67,11 @@ async function scrollThrough(page: Page) {
   });
 }
 
+const SHARED_LAYOUT_ROUTES = ["/legal/privacy-policy", "/legal/terms-of-service", "/legal/cookie-policy", "/404"];
+
 const SITES = [
-  { site: "zbm", base: ZBM_BASE_URL, extra: ["/search-intelligence"] as string[] },
-  { site: "zbc", base: ZBC_BASE_URL, extra: [] as string[] },
+  { site: "zbm", base: ZBM_BASE_URL, extra: ["/search-intelligence", ...SHARED_LAYOUT_ROUTES] as string[] },
+  { site: "zbc", base: ZBC_BASE_URL, extra: SHARED_LAYOUT_ROUTES as string[] },
 ] as const;
 
 for (const { site, base, extra } of SITES) {
