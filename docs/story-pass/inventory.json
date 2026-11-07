@@ -13,8 +13,8 @@
     },
     {
       "id": "rr-broken-form",
-      "page": "zbm:/revenue-recovery",
-      "section": "Forms that break on mobile",
+      "page": "zbm:/websites",
+      "section": "How it fits with the rest of what we do",
       "width": 1672,
       "height": 941,
       "sha256": "76790c3e02e8b573fc18b87fda1b78881a83800bf6ac36b574fdbc39218c87ef",
@@ -31,8 +31,8 @@
     },
     {
       "id": "rr-slow-page",
-      "page": "zbm:/revenue-recovery",
-      "section": "Pages that load too slowly to convert",
+      "page": "zbm:/websites",
+      "section": "How it fits with the rest of what we do",
       "width": 1122,
       "height": 1402,
       "sha256": "059204da3cbdf3fe531d39847c56033659f867888f7da3ab6254ee283ca56b25",
@@ -50,7 +50,7 @@
     {
       "id": "rr-leak-report",
       "page": "zbm:/revenue-recovery",
-      "section": "The Audit Deliverable",
+      "section": "The Report",
       "width": 1672,
       "height": 941,
       "sha256": "361dd2eb67e157e17d01ff5101ac468304bed1a12d48e9eaaaf946b0d1dbca92",
