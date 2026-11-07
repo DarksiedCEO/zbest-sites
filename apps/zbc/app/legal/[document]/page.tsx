@@ -1,6 +1,6 @@
 import { CookieSettingsButton, LegalShell, legalPlaceholders, pageMetadata } from "@zbest/ui";
 import type { Metadata } from "next";
-import { LEGAL_DOCUMENTS, ZBC_LEGAL_ISSUER, ZBC_LEGAL_NOTICE, ZBC_LEGAL_PENDING, type LegalDocument } from "@/lib/legal";
+import { LEGAL_DOCUMENTS, ZBC_LEGAL_ISSUER, ZBC_LEGAL_NOTICE, ZBC_LEGAL_PENDING, ZBC_LEGAL_STATUS, type LegalDocument } from "@/lib/legal";
 import { SITE } from "@/lib/site";
 
 /** Only the three documents exist; any other /legal/* address is a 404. */
@@ -48,6 +48,7 @@ export default async function LegalPage({ params }: Props) {
       notice={ZBC_LEGAL_NOTICE}
       pendingText={ZBC_LEGAL_PENDING}
       issuerText={ZBC_LEGAL_ISSUER}
+      status={ZBC_LEGAL_STATUS}
     >
       {document === "cookie-policy" ? <CookieSettingsButton /> : null}
     </LegalShell>

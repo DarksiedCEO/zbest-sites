@@ -5,6 +5,7 @@ import {
   LEGAL_EFFECTIVE_DATE,
   LEGAL_ISSUER,
   LEGAL_LAST_UPDATED,
+  LEGAL_STATUS,
   unfilledLegalPlaceholders,
   type LegalDocument,
 } from "@/lib/legal";
@@ -53,6 +54,7 @@ export default async function LegalPage({ params }: Props) {
       issuer={LEGAL_ISSUER}
       effectiveDate={LEGAL_EFFECTIVE_DATE}
       lastUpdated={LEGAL_LAST_UPDATED}
+      status={LEGAL_STATUS}
     >
       {document === "cookie-policy" ? <CookieSettingsButton /> : null}
     </LegalDocumentView>

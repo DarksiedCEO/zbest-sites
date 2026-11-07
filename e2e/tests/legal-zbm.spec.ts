@@ -84,5 +84,8 @@ test("Refund and Cancellation Policy: in the footer, in effect, with a billing c
   }
   await expect(page.locator("section#cancel")).toContainText("15 days’ written notice");
   await expect(page.locator("section#how-paid")).toContainText("within 10 business days after the refund becomes due");
+  // Founder direction Nov 7 2026: no MSA, standard SOW or Stripe page exists,
+  // so the policy may not cite them or the productized services they defined.
+  expect(await page.locator("main").innerText()).not.toMatch(/\bMSA\b|\bSOWs?\b|Master Services Agreement|Statement of Work|Stripe|Option [AB]\b|success fee|SEO Technical Audit|Revenue Recovery Analysis/i);
   expect(await page.locator("meta[name=robots]").getAttribute("content")).toMatch(/noindex/);
 });

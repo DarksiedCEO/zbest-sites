@@ -53,6 +53,18 @@ import { legalDocumentStrings, legalPlaceholders, type ConsentCategory, type InE
  * (app/legal/[document]/page.tsx).
  */
 
+/**
+ * Founder direction, Nov 7 2026: the founder adopts these policies himself
+ * (attorney review later). Until he approves the plain-English summary
+ * (docs/LEGAL-ADOPTION-SUMMARY.md) in writing on PR #10, every legal page shows
+ * LEGAL_DRAFT_STATUS first in <main>. After that approval, set LEGAL_ADOPTED to
+ * true in the same change on both sites (apps/zbm and apps/zbc lib/legal.ts).
+ */
+export const LEGAL_ADOPTED = false;
+export const LEGAL_DRAFT_STATUS = "Draft — pending attorney review.";
+/** What the page shows as its status: the draft line until adopted, else nothing. */
+export const LEGAL_STATUS: string | undefined = LEGAL_ADOPTED ? undefined : LEGAL_DRAFT_STATUS;
+
 /** Shown on every document. Replace both tokens when the documents go live. */
 export const LEGAL_ISSUER = "[LEGAL ENTITY NAME]";
 export const LEGAL_EFFECTIVE_DATE = "[EFFECTIVE DATE]";
@@ -117,7 +129,7 @@ const privacyPolicy: InEffectLegalDocument = {
               ],
               [
                 "Free assessments (for example the Revenue Recovery assessment)",
-                "Your name, business name, business website, the best way to reach you and where your business is located, plus your answers to the assessment’s multiple-choice questions.",
+                "Your name, business name, business website, the best way to reach you and where your business is located, plus your answers to the assessment’s multiple-choice questions. We also store the result the assessment showed you.",
                 "To score your answers, show you the result, and follow up with you about it.",
               ],
             ],
@@ -181,7 +193,7 @@ const privacyPolicy: InEffectLegalDocument = {
             head: ["Provider type", "What they do for us", "What they receive"],
             rows: [
               ["Website hosting (Vercel)", "Serves the site, runs the code that receives form submissions, and keeps short-lived request logs.", "Your requests to the site, including your IP address, browser details and the page addresses you visit, and the content of any form you submit."],
-              ["Database hosting", "Stores form submissions.", "The form contents, the state or territory you chose, user-agent string, campaign tag, submission ID, time, content fingerprint, notification-email records and burst flag listed under “What we collect”. No IP address."],
+              ["Database hosting (Neon)", "Stores form submissions.", "The form contents, the state or territory you chose, user-agent string, campaign tag, submission ID, time, content fingerprint, notification-email records and burst flag listed under “What we collect”. No IP address."],
               ["Email delivery (Resend)", "Delivers each new submission to our inbox as an email: on its own, or in a summary email together with other submissions when many arrive at once or its own email could not be sent. We also ask it whether our emails were delivered. If a submission has still not been emailed to us when our retry system first gets to it more than 3 days after it was sent (for example after an outage of that system), it is reported to us only as a count, and its content stays in our database until it is deleted on the normal schedule.", "The content of your submission (a count email contains none)."],
               ["Business email (our email provider)", "Holds the notification emails and our correspondence with you.", "The content of your submission and any emails you exchange with us."],
               ["Rate-limit store (if enabled)", "Counts submissions per source to stop floods of spam.", "Only keyed, one-way hashes of your IP address and of its network block, kept for about 10 minutes to limit abuse."],
@@ -222,6 +234,7 @@ const privacyPolicy: InEffectLegalDocument = {
                 "We delete them from our inbox by hand on the same 24-month schedule. Our email-delivery provider keeps its own copy under its retention terms.",
               ],
               ["Rate-limit counters", "Keyed, one-way hashes of your IP address and of its network block, kept for about 10 minutes to limit abuse."],
+              ["Our record of reviewing undelivered notification emails", "If we review notification emails that could not be delivered, we keep a record of when we did and the random submission IDs involved, so we can show they were checked. It holds nothing you entered and is kept after your submission is deleted."],
               ["Request logs at our hosting provider (IP address, browser details, page address)", "Available to us for no more than 30 days, depending on our hosting plan, then deleted from our view. The provider handles its own operational records under its privacy policy."],
               ["Your cookie-banner choice", "Stored only in your own browser until you clear it. We never receive it."],
               ["Records of privacy requests", "24 months, to show we handled them as the law requires."],
@@ -416,7 +429,7 @@ const termsOfService: InEffectLegalDocument = {
       heading: "Paid services are governed by a separate agreement",
       blocks: [
         {
-          p: "Nothing on the site is an offer to provide services, and submitting a form doesn’t create a client relationship or oblige either of us to do business. Any paid work — advertising, media buying, out-of-home placements, revenue recovery audits or anything else — happens only under a written agreement signed by both of us, such as a master services agreement and a statement of work (a “client agreement”).",
+          p: "Nothing on the site is an offer to provide services, and submitting a form doesn’t create a client relationship or oblige either of us to do business. Any paid work — advertising, out-of-home campaigns, revenue recovery work or anything else — happens only under a written agreement signed by both of us (a “client agreement”).",
         },
         {
           p: "Prices, deliverables, payment terms, ownership of work product and our responsibilities for paid work are set by the client agreement, not by these terms or by statements on the site. If a client agreement conflicts with these terms, the client agreement controls.",
@@ -838,23 +851,23 @@ const accessibilityStatement: InEffectLegalDocument = {
 /* -------------------------------------------------------------------------- */
 
 /**
- * The published edition of zbm-refund-policy-v1 (Oct 2026), which MSA v1
- * §4.12(i) makes ZBM's public Refund and Cancellation Policy. It mirrors that
- * text section by section and adds nothing: its "short version" is this
- * page's summary, and cross-references name sections instead of numbering
- * them. When the policy or the MSA changes, change this in the same commit.
- * Contract tokens map to this file's: legal name and street address ->
- * LEGAL ENTITY NAME and BUSINESS MAILING ADDRESS.
+ * Plain refund and cancellation commitments for paid work (founder direction,
+ * Nov 7 2026). No master services agreement, standard SOW or Stripe payment
+ * page exists yet, so this page cites none: an earlier edition restated an
+ * "MSA v1" and two productized SOWs (SEO Technical Audit, Revenue Recovery
+ * Analysis with Options A/B) that were never adopted. It states only promises
+ * any signed client agreement can carry. When a standard client agreement is
+ * adopted, align this page with it in the same change.
  */
 const refundPolicy: InEffectLegalDocument = {
   title: "Refund and Cancellation Policy",
   subtitle: "When we give refunds, how you can cancel, and how to question a charge.",
   summary: [
     "No cancellation fees, no early-termination fees, no refund-processing fees, and no late fees.",
-    "Our standard services are one-time projects. There is no subscription and nothing renews automatically.",
+    "Nothing renews automatically. Each project is set out in a written agreement we both sign before any work starts or any payment is due.",
     "Cancel before the work starts and you get all your money back.",
     "Cancel after the work starts and you pay only for the work done. We refund anything you prepaid for work not done.",
-    "If something we deliver does not match the SOW, tell us within 30 days of delivery and we fix it free. If we cannot fix it, we refund what you paid for that part.",
+    "If something we deliver does not match what we agreed, tell us within 30 days of delivery and we fix it free. If we cannot fix it, we refund what you paid for that part.",
     "Refunds are paid within 10 business days after they become due, to the original payment method where possible.",
     `Questions about a charge? Email ${BILLING_EMAIL} within 15 days of receiving the invoice. Please contact us before asking your bank or card issuer to reverse a payment.`,
   ],
@@ -864,13 +877,13 @@ const refundPolicy: InEffectLegalDocument = {
       heading: "Who this policy is for",
       blocks: [
         {
-          p: `This policy explains, in plain English, when ${LEGAL_ISSUER} (“Z Best Media”, “ZBM”, “we”, “us”) gives refunds, how you can cancel, and how to question a charge. It applies to every project we do under our Master Services Agreement (the “MSA”) and a Statement of Work (an “SOW”).`,
+          p: `This policy explains, in plain English, when ${LEGAL_ISSUER} (“Z Best Media”, “ZBM”, “we”, “us”) gives refunds, how you can cancel, and how to question a charge. It applies to paid work we do for a client under a written agreement signed by both of us (a “client agreement”). Using the website and its free tools costs nothing, so there is nothing to refund for them.`,
         },
         {
-          p: "This policy restates the refund and cancellation terms of the MSA (Section 4.12 and the sections it refers to) and of our standard SOWs. Your project is governed by the versions of the MSA and the SOW you accepted. If this page and those documents ever differ, the MSA and your SOW control.",
+          p: "Your client agreement sets the details of your project: what we deliver, the price, the milestones and when invoices are due. This policy sets the minimum you can expect on refunds and cancellation. If your client agreement gives you better refund or cancellation terms, those apply.",
         },
         {
-          p: "We work only with businesses, not with individual consumers. We work only with businesses located in the 50 US states, the District of Columbia and the US territories: Puerto Rico, Guam, the US Virgin Islands, American Samoa and the Northern Mariana Islands (MSA Section 1.5). Nothing in this policy takes away any right you have under applicable law, or under the rules of your bank or card network.",
+          p: "We work only with businesses, not with individual consumers, located in the 50 US states, the District of Columbia and the US territories: Puerto Rico, Guam, the US Virgin Islands, American Samoa and the Northern Mariana Islands. Nothing in this policy takes away any right you have under applicable law, or under the rules of your bank or card network.",
         },
       ],
     },
@@ -880,12 +893,10 @@ const refundPolicy: InEffectLegalDocument = {
       blocks: [
         {
           list: [
-            "You pay ZBM directly, by ACH bank payment through our Stripe payment page, or by wire transfer. We accept a credit or debit card only where both your SOW and the invoice say card payment is available. We never add a surcharge, card fee or convenience fee.",
-            "Each invoice is due the number of days after the invoice date that your SOW states, or 15 days if your SOW states none.",
-            "SEO Technical Audit: we invoice the full fixed fee when the SOW takes effect. The audit runs only after your payment has cleared.",
-            "Revenue Recovery Analysis (Shopify): we invoice the flat fee (Option A) or the base fee (Option B) when the SOW takes effect. Under Option B, any success fee is invoiced once, after the measurement period ends (see “Revenue Recovery success fee”).",
+            "You pay ZBM directly, as your client agreement and the invoice say. We never add a surcharge, card fee or convenience fee.",
+            "Each invoice is due on the date your client agreement states, or 15 days after the invoice date if it states none.",
             "Taxes are not included in our fees. If sales, use or a similar tax applies, we show it separately on the invoice.",
-            "We will never send you bank details for payment by email alone. If you receive payment instructions that differ from those on our invoice or Stripe page, call us to confirm them before paying.",
+            "We will never send you bank details for payment by email alone. If you receive payment instructions that differ from those on our invoice, call us to confirm them before paying.",
           ],
         },
       ],
@@ -894,24 +905,14 @@ const refundPolicy: InEffectLegalDocument = {
       id: "full-refunds",
       heading: "Full refunds",
       blocks: [
-        { p: "You get back everything you paid under the SOW in each of these situations." },
         {
-          table: {
-            caption: "When you get a full refund",
-            head: ["Service", "When you get a full refund"],
-            rows: [
-              ["SEO Technical Audit", "You cancel the SOW before the audit has run."],
-              ["SEO Technical Audit (audit cannot run)", "We cannot run the audit for a reason within our control."],
-              ["Revenue Recovery Analysis", "You cancel the SOW before our first successful read of your Shopify orders (the first time our system successfully reads your order data with the access you granted)."],
-              ["Revenue Recovery Analysis (access not possible)", "Neither of the two ways of giving us read-only Shopify access described in the SOW works for your store, and either of us then cancels the SOW."],
-            ],
-          },
+          list: [
+            "You cancel before the work has started: you get back everything you paid for that project.",
+            "We cannot start the work for a reason within our control, and either of us then cancels: you get back everything you paid for that project.",
+          ],
         },
         {
-          p: "What “before” means. Whether the audit has run, or whether our first successful read has happened, is judged at the moment we receive your cancellation notice. Once we receive it, we will not start any work that has not already started, unless your notice asks us to continue.",
-        },
-        {
-          p: "If the audit cannot run for a reason outside our control (for example, your site blocks our crawler or is offline), the audit has not run, so you may cancel at any time before it runs and receive a full refund.",
+          p: "What “before” means. Whether work has started is judged at the moment we receive your cancellation notice. Once we receive it, we will not start any work that has not already started, unless your notice asks us to continue.",
         },
       ],
     },
@@ -919,34 +920,19 @@ const refundPolicy: InEffectLegalDocument = {
       id: "cancel",
       heading: "Cancelling after work has started",
       blocks: [
-        { p: "Either of us may cancel the MSA or any SOW, for any reason, with 15 days’ written notice (MSA Section 15.1). When an SOW ends:" },
+        { p: "Either of us may cancel a project, for any reason, with 15 days’ written notice, unless your client agreement allows a shorter notice. When a project ends:" },
         {
           list: [
-            "You pay only for work done up to the end date. For a fixed fee, that is the share of the fee for milestones completed. If the SOW has no milestones, it is a fair share of the fee based on the work actually performed, and we will show you how we worked it out if you ask.",
+            "You pay only for work done up to the end date. For a fixed fee, that is the share of the fee for milestones completed. If there are no milestones, it is a fair share of the fee based on the work actually performed, and we will show you how we worked it out if you ask.",
             "We refund anything you prepaid for work not done.",
-            "If you have not paid yet, within 10 business days after the SOW ends we either cancel the invoice in full or send you a credit note that reduces it to the amount for the work done. You owe nothing for work not performed.",
-            "If you cancel because of our breach that we did not fix within 15 days after your written notice describing it, you do not pay for work that the breach made of no value to you.",
+            "If you have not paid yet, within 10 business days after the project ends we either cancel the invoice in full or send you a credit note that reduces it to the amount for the work done. You owe nothing for work not performed.",
+            "If you cancel because we broke our agreement and did not fix it within 15 days after your written notice describing it, you do not pay for work that the breach made of no value to you.",
             "You receive the work completed so far. Once you have paid for the work done, we deliver the deliverables and work in progress completed up to the end date, as they are.",
-            "We stop all access to your systems and delete your data as the MSA describes.",
+            "We stop all access to your systems and delete your data as your client agreement describes.",
           ],
         },
         {
-          p: "We may also end an SOW, and we would then refund prepaid fees for work not done in the same way. If we end it because the service area or sanctions statements in MSA Section 1.5 are not true, we make refunds only to the extent the law allows.",
-        },
-      ],
-    },
-    {
-      id: "success-fee",
-      heading: "Revenue Recovery success fee (Option B only)",
-      blocks: [
-        {
-          list: [
-            "The success fee is a percentage of Verified Recovered Revenue, capped at the amount in your SOW. It is calculated exactly as SOW Section 7.4 describes, invoiced once after the measurement period ends, and never charged for any later period.",
-            "If you do not make or report a change to your discount settings within 60 days after the report is delivered, the success fee is zero. If the calculation produces zero or less, the success fee is zero.",
-            "With the success fee invoice, we send you both measurement periods’ dates, order counts, excluded-order counts by reason, total recorded excess and the full calculation.",
-            "If you revoke our access before the measurement period ends, so that we cannot measure it, the success fee is the fixed fallback amount stated in your SOW, unless you restore access long enough for us to complete the measurement.",
-            "You may dispute the calculation as described in “Questioning a charge”.",
-          ],
+          p: "If we end a project, we refund prepaid fees for work not done in the same way. If we end it because the service-area or sanctions statements you made turn out not to be true, we make refunds only to the extent the law allows.",
         },
       ],
     },
@@ -955,23 +941,17 @@ const refundPolicy: InEffectLegalDocument = {
       heading: "When something we deliver is not right",
       blocks: [
         {
-          p: "Review and revision. You have 10 business days after we deliver a report to review it and tell us in writing of any specific way it does not conform to the SOW. We correct those points and redeliver within 10 business days. One revision round is included. Accepting the report, or letting the review period pass, does not reduce your rights below.",
-        },
-        {
-          p: "Warranty fix or refund. If a service or deliverable does not materially conform to the SOW, or was not performed in a professional and workmanlike manner consistent with generally accepted industry standards for similar services (MSA Section 11.2(a) and (b)):",
+          p: "If a deliverable does not materially match what your client agreement describes, or was not done in a professional and workmanlike manner:",
         },
         {
           list: [
             "Tell us in writing within 30 days after delivery, describing the problem.",
             "We redo the nonconforming part at no charge, normally within 10 business days.",
-            "If we cannot fix it, you may end the affected SOW, and we refund the fees you paid for the nonconforming part.",
+            "If we cannot fix it, you may end the affected project, and we refund the fees you paid for the nonconforming part.",
           ],
         },
         {
-          p: "If a deliverable is claimed to infringe someone else’s US copyright, trademark or trade secret, we may change it so it no longer infringes, or refund the fees you paid for it (MSA Section 13.1).",
-        },
-        {
-          p: "Results are not guaranteed. Search rankings, traffic, citations by AI answer engines, sales and recovered revenue depend on things neither of us controls (MSA Section 11.5). Not reaching a particular result is not, on its own, a reason for a refund. You are entitled to a refund in the situations this policy and your SOW describe.",
+          p: "Results are not guaranteed. Search rankings, traffic, sales and recovered revenue depend on things neither of us controls. Not reaching a particular result is not, on its own, a reason for a refund, unless your client agreement says otherwise.",
         },
       ],
     },
@@ -999,7 +979,7 @@ const refundPolicy: InEffectLegalDocument = {
         {
           list: [
             "When: within 10 business days after the refund becomes due. If the payment being refunded has not yet cleared, the 10 business days start when it clears.",
-            "When a refund becomes due: on the date the SOW ends (cancellation refunds and the full refunds above); on the date we agree an amount was not owed (billing disputes); on the date you end the SOW because we could not fix a nonconforming deliverable; or on the date we tell you we have chosen to refund under the infringement clause.",
+            "When a refund becomes due: on the date the project ends (cancellation refunds and the full refunds above); on the date we agree an amount was not owed (billing disputes); or on the date you end the project because we could not fix a nonconforming deliverable.",
             "How: to the original payment method where possible. Otherwise by ACH or wire to an account you give us in writing.",
             "How much: the amount you paid us for the part being refunded, including any tax we stated and collected on that part.",
             "Cost to you: nothing. We charge no refund fee. Your bank may take a few days to show the money after we send it.",
@@ -1013,7 +993,7 @@ const refundPolicy: InEffectLegalDocument = {
       blocks: [
         {
           list: [
-            `To cancel an SOW or the MSA: email ${LEGAL_EMAIL} with “Legal Notice” in the subject line, and say which SOW (or the MSA) you are ending. You may copy ${BILLING_EMAIL}.`,
+            `To cancel a project: email ${LEGAL_EMAIL} with “Legal Notice” in the subject line, and say which project you are ending. You may copy ${BILLING_EMAIL}.`,
             `To request a refund or question a charge: email ${BILLING_EMAIL}.`,
             "We acknowledge every request within 2 business days.",
           ],
@@ -1025,7 +1005,7 @@ const refundPolicy: InEffectLegalDocument = {
       heading: "Contact",
       blocks: [
         {
-          p: `${LEGAL_ISSUER} (“Z Best Media”), ${MAILING_ADDRESS}. Billing: ${BILLING_EMAIL}. Notices: ${LEGAL_EMAIL}. This policy is governed by California law, as the MSA is.`,
+          p: `${LEGAL_ISSUER} (“Z Best Media”), ${MAILING_ADDRESS}. Billing: ${BILLING_EMAIL}. Notices: ${LEGAL_EMAIL}. This policy is governed by California law.`,
         },
       ],
     },
