@@ -112,7 +112,10 @@ type Driver = {
 
 function fakeDriver(): Driver {
   const dir = tempOutbox();
-  let clock = Date.parse("2026-11-01T12:00:00Z");
+  // Starts at the real time, not a fixed date: handleLead compares a lead's
+  // stored created_at with Date.now(), so a fixed past date made every lead
+  // look days old (and go to the digest) once the wall clock passed it.
+  let clock = Date.now();
   const store = fakeStore(dir, () => clock);
   return {
     store,
