@@ -93,6 +93,9 @@ export default function BecomeAClipperPage() {
 
       <PageSection
         id="waitlist"
+        // §7.1 media coverage: the required service-area field (#8) made this
+        // form tall enough to leave a 900px band with no visual material.
+        media={<HeroMedia asset="zbc-clipper-phone" caption="Concept editing workflow" frame="plate" sizes="(min-width: 1024px) 40vw, calc(100vw - 2.5rem)" />}
         label="Browse Active Campaigns"
         title="Join the clipper list — we’ll notify you when the first campaigns open."
       >
