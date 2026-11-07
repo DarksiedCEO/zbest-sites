@@ -28,7 +28,7 @@ const APPS = [
     baseUrl: ZBM_BASE_URL,
     base: "rgb(14, 15, 18)", // #0E0F12
     accent: "rgb(201, 154, 75)", // #C99A4B
-    headlineFamily: "Fraunces",
+    headlineVar: "--font-fraunces",
   },
   {
     slug: "zbc",
@@ -36,7 +36,7 @@ const APPS = [
     baseUrl: ZBC_BASE_URL,
     base: "rgb(11, 13, 16)", // #0B0D10
     accent: "rgb(255, 107, 91)", // #FF6B5B — Entertainment is the page default
-    headlineFamily: "Bricolage Grotesque",
+    headlineVar: "--font-bricolage",
   },
 ] as const;
 
@@ -71,7 +71,15 @@ for (const app of APPS) {
       // contrast — display must be substantially larger than title, or the
       // "real scale contrast" requirement (§A1) is not met.
       const display = page.locator(".type-display").first();
-      await expect(display).toHaveCSS("font-family", new RegExp(app.headlineFamily, "i"));
+      // The face's own family (first entry of its next/font variable), not its
+      // fallback — a name match alone passed on "… Fallback" once the fonts were
+      // self-hosted under generated family names (Oct 31, 2026).
+      const family = await page.evaluate(
+        (v) => getComputedStyle(document.documentElement).getPropertyValue(v).split(",")[0]!.trim().replace(/["']/g, ""),
+        app.headlineVar,
+      );
+      const used = (await display.evaluate((el) => getComputedStyle(el).fontFamily)).split(",")[0]!.trim().replace(/["']/g, "");
+      expect(used, "the display face leads the font stack").toBe(family);
       const sizes = await page.evaluate(() => {
         const px = (sel: string) =>
           parseFloat(getComputedStyle(document.querySelector(sel)!).fontSize);
