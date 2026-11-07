@@ -27,14 +27,16 @@ const APPS = [
     name: "Z Best Media",
     baseUrl: ZBM_BASE_URL,
     base: "rgb(14, 15, 18)", // #0E0F12
-    headlineFamily: "Fraunces",
+    headlineName: "Fraunces",
+    headlineVar: "--font-fraunces",
   },
   {
     slug: "zbc",
     name: "Z Best Clips",
     baseUrl: ZBC_BASE_URL,
     base: "rgb(11, 13, 16)", // #0B0D10
-    headlineFamily: "Bricolage Grotesque",
+    headlineName: "Bricolage Grotesque",
+    headlineVar: "--font-bricolage",
   },
 ] as const;
 
@@ -75,6 +77,17 @@ for (const app of APPS) {
       await expect(page.locator("body")).toHaveCSS("color", TEXT_PRIMARY);
 
       await page.evaluate(() => document.fonts.ready);
+
+      // The face's family is whatever next/font named it — "Fraunces" from the
+      // Google loader, the generated name since the fonts were self-hosted
+      // through next/font/local (Oct 31, 2026). Read it from the face's own CSS
+      // variable: its first entry, before the metric-matched fallback.
+      const headlineFamily = await page.evaluate(
+        (v) => getComputedStyle(document.documentElement).getPropertyValue(v).split(",")[0]!.trim().replace(/["']/g, ""),
+        app.headlineVar,
+      );
+      expect(headlineFamily, `${app.headlineVar} names a face`).not.toBe("");
+      expect(headlineFamily, `${app.headlineVar} names the face, not its fallback`).not.toMatch(/fallback/i);
 
       // Proof the face LOADED and is in use — not merely named in CSS. The same
       // string is computed whether or not the font was ever fetched, so the
@@ -118,22 +131,22 @@ for (const app of APPS) {
             withoutFace: measure(`"${missing}"`),
           };
         },
-        [app.headlineFamily, NO_SUCH_FAMILY] as const,
+        [headlineFamily, NO_SUCH_FAMILY] as const,
       );
 
       expect(face, "h1 must exist to measure").not.toBeNull();
-      expect(face!.declared).toContain(app.headlineFamily);
+      expect(face!.declared).toContain(headlineFamily);
       expect(
         face!.faceCount,
-        `${app.headlineFamily} is declared by this document via @font-face`,
+        `${headlineFamily} is declared by this document via @font-face`,
       ).toBeGreaterThan(0);
       expect(
         face!.loadedCount,
-        `${app.headlineFamily} has at least one face with status "loaded"`,
+        `${headlineFamily} has at least one face with status "loaded"`,
       ).toBeGreaterThan(0);
       expect(
         Math.abs(face!.withFace - face!.withoutFace),
-        `${app.headlineFamily} renders differently than the fallback ` +
+        `${headlineFamily} renders differently than the fallback ` +
           `(${face!.withFace}px vs ${face!.withoutFace}px)`,
       ).toBeGreaterThan(1);
 
