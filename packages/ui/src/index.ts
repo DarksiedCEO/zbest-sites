@@ -41,3 +41,9 @@ export { FOCUS_AREAS } from "./focus";
 export type { Focus } from "./focus";
 export { pageMetadata, siteMetadata } from "./metadata";
 export type { SiteIdentity } from "./metadata";
+
+export { StoryImage, type StoryAssetId } from "./media/story-image";
+
+export { ProcessDiagram } from "./media/process-diagram";
+
+export { DistributionDiagram } from "./media/distribution-diagram";

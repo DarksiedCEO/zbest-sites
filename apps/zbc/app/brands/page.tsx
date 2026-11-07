@@ -1,4 +1,4 @@
-import { ButtonLink, HeroMedia, pageMetadata } from "@zbest/ui";
+import { ButtonLink, StoryImage, HeroMedia, pageMetadata } from "@zbest/ui";
 import { CtaRow, Lead, PageHeader, PageSection } from "@/components/page";
 import { NAV_CTA, SITE } from "@/lib/site";
 
@@ -48,7 +48,7 @@ export default function BrandsPage() {
         </p>
       </PageSection>
 
-      <PageSection label="How it works" title="Owned distribution.">
+      <PageSection media={<StoryImage asset="zbc-brands-filming" />} label="How it works" title="Owned distribution.">
         <p className="type-body-lead text-text-primary">
           Content posts to your own accounts, so the following, content library, and audience
           relationship stay with your business after the campaign ends.

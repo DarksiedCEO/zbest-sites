@@ -1,3 +1,5 @@
+import { ProcessDiagram } from "@zbest/ui";
+import { HeroMedia } from "@zbest/ui";
 import { ButtonLink, pageMetadata } from "@zbest/ui";
 import { CtaRow, PageHeader, PageSection } from "@/components/page";
 import { NAV_CTA, SITE } from "@/lib/site";
@@ -20,9 +22,9 @@ export const metadata = pageMetadata(SITE, {
 export default function AboutPage() {
   return (
     <main>
-      <PageHeader label="About" title="We come from advertising. Now we’re building the next version of it." />
+      <PageHeader aside={<HeroMedia asset="zbc-clipper-phone" caption="Concept editing workflow" frame="plate" sizes="(min-width: 1024px) 40vw, calc(100vw - 2.5rem)" />} label="About" title="We come from advertising. Now we’re building the next version of it." />
 
-      <PageSection id="story" label="Where we come from">
+      <PageSection id="story" media={<ProcessDiagram title="Short-form distribution" steps={["Source material", "Create and post", "Submission review", "Verified reporting"]} />} label="Where we come from">
         <p className="type-body-lead text-text-primary">
           Z Best Clips was founded by a software engineer with years of experience in
           high-end automotive sales — moving into luxury and exotic brands, and building new
