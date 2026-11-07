@@ -1,4 +1,5 @@
-import { ButtonLink, Card, Counter, IllustrativeBadge, pageMetadata } from "@zbest/ui";
+import { DistributionDiagram } from "@zbest/ui";
+import { ButtonLink, Card, Counter, MediaFrame, IllustrativeBadge, pageMetadata } from "@zbest/ui";
 import { CtaRow, LedgerList, Lead, PageHeader, PageSection, RuledList } from "@/components/page";
 import { ClipSplit } from "@/components/clip-split";
 import { Timeline } from "@/components/timeline";
@@ -18,9 +19,9 @@ export const metadata = pageMetadata(SITE, {
  * model card and example card is scoped with data-focus instead (§B1).
  */
 const EXAMPLES = [
-  { title: "Independent single release", focus: "entertainment", views: 1_240_000, clips: 84, platforms: "TikTok · Reels · Shorts" },
-  { title: "Auto dealership showroom series", focus: "brands", views: 340_000, clips: 46, platforms: "TikTok · Reels" },
-  { title: "Med spa treatment-room series", focus: "brands", views: 215_000, clips: 38, platforms: "Reels · Shorts" },
+  { title: "Independent single release", asset: "ivosolace-stage", focus: "entertainment", views: 1_240_000, clips: 84, platforms: "TikTok · Reels · Shorts" },
+  { title: "Auto dealership showroom series", asset: "quellmont-cover", focus: "brands", views: 340_000, clips: 46, platforms: "TikTok · Reels" },
+  { title: "Med spa treatment-room series", asset: "marenvale-room", focus: "brands", views: 215_000, clips: 38, platforms: "Reels · Shorts" },
 ] as const;
 
 export default function HowItWorksPage() {
@@ -94,7 +95,7 @@ export default function HowItWorksPage() {
       </section>
 
       {/* Section 3 — two models, each in its own focus color. */}
-      <PageSection id="models" label="One Model Doesn’t Fit Every Campaign">
+      <PageSection id="models" media={<DistributionDiagram />} label="One Model Doesn’t Fit Every Campaign">
         <div className="grid gap-5 md:grid-cols-2">
           <Card accent data-focus="entertainment" eyebrow="Rented Distribution" title="Entertainment">
             <p className="type-small text-text-secondary">Music, Film, Sports, Streamers, Podcasts</p>
@@ -141,10 +142,10 @@ export default function HowItWorksPage() {
           {EXAMPLES.map((ex) => (
             <li key={ex.title} data-example-card data-focus={ex.focus}>
               <Card accent className="flex h-full flex-col" eyebrow={ex.focus === "entertainment" ? "Entertainment" : "Brands"} title={ex.title}>
-                {/* One div per dt/dd pair, directly under the <dl> (WCAG 1.3.1);
-                    Views takes the full row, Clips and Platforms share the next. */}
-                <dl className="mt-3 flex flex-wrap gap-x-10 gap-y-3">
-                  <div className="w-full">
+                <div className="my-4"><MediaFrame asset={ex.asset} frame="plate" sizes="(min-width: 1024px) 28vw, calc(100vw - 5rem)" caption="Concept illustration · hypothetical example below" /></div>
+                {/* One div per dt/dd pair, directly under the <dl> (WCAG 1.3.1). */}
+                <dl className="mt-3 flex flex-col gap-3">
+                  <div>
                     <dt className="type-label text-text-secondary">Views</dt>
                     <dd className="type-stat mt-1 text-[clamp(2.25rem,4vw,3.25rem)]">
                       <Counter value={ex.views} />

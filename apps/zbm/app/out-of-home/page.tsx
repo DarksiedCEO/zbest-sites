@@ -1,4 +1,4 @@
-import { ButtonLink, MediaFrame, pageMetadata } from "@zbest/ui";
+import { ButtonLink, MediaFrame, StoryImage, pageMetadata } from "@zbest/ui";
 import { BillboardShowpiece } from "@/components/billboard-showpiece";
 import { Cite, CtaRow, FaqList, Lead, PageHeader, PageSection, RuledList } from "@/components/page";
 import { OUT_OF_HOME_FAQ } from "@/content/faq";
@@ -76,7 +76,7 @@ export default function OutOfHomePage() {
         <p className="type-small text-text-secondary">Z Best Media is not affiliated with Clear Channel Outdoor or Kantar.</p>
       </PageSection>
 
-      <PageSection label="What’s included">
+      <PageSection label="What’s included" media={<StoryImage asset="ooh-work-planning" />}>
         {/* Second placement (FD-VISUAL-01): transit, beside the format list. */}
         <div className="grid gap-stack md:grid-cols-[minmax(0,1fr)_minmax(0,17rem)] md:gap-x-10">
           <RuledList
@@ -103,7 +103,7 @@ export default function OutOfHomePage() {
         </p>
       </PageSection>
 
-      <PageSection label="Who this is for">
+      <PageSection label="Who this is for" media={<StoryImage asset="ooh-result-street" />}>
         <p className="type-body-lead text-text-primary">
           Home services, med spas, legal and professional services, automotive,
           multi-location brands.

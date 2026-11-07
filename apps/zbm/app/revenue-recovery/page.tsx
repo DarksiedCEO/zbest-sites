@@ -1,5 +1,7 @@
+import { ProcessDiagram } from "@zbest/ui";
+import { DiagnosticIllustration, type DiagnosticKind } from "@/components/diagnostic-illustration";
 import Link from "next/link";
-import { ButtonLink, LedgerRule, pageMetadata, ScrollDrift } from "@zbest/ui";
+import { ButtonLink, LedgerRule, pageMetadata, StoryImage, type StoryAssetId } from "@zbest/ui";
 import {
   Body,
   CtaRow,
@@ -58,9 +60,7 @@ export default function RevenueRecoveryPage() {
         label="Revenue Recovery"
         title="Find out where your revenue is going."
         aside={
-          <ScrollDrift className="mx-auto w-full max-w-[30rem]">
-            <LeakLedger leaks={WHERE_REVENUE_LEAKS} />
-          </ScrollDrift>
+          <StoryImage asset="rr-missed-call" hero />
         }
       >
         <Lead>
@@ -80,22 +80,28 @@ export default function RevenueRecoveryPage() {
         </div>
       </PageHeader>
 
-      <PageSection label="Where revenue leaks">
-        <LedgerList
-          numbered
-          items={WHERE_REVENUE_LEAKS.map((title) => ({ title }))}
-        />
+      <PageSection label="Where revenue leaks" media={<LeakLedger leaks={WHERE_REVENUE_LEAKS} />}>
+        <ol className="space-y-8">
+          {WHERE_REVENUE_LEAKS.map((title, i) => {
+            const images: (StoryAssetId | null)[] = [null, "rr-broken-form", "rr-no-follow-up", "rr-slow-page", "rr-wrong-page", null];
+            return <li key={title} className="border-t border-text-secondary/30 pt-5">
+              <h3 className="type-title mb-4"><span className="type-mono text-accent mr-3">{String(i + 1).padStart(2, "0")}</span>{title}</h3>
+              {images[i] ? <StoryImage asset={images[i]!} /> : null}
+            </li>;
+          })}
+        </ol>
       </PageSection>
 
       <PageSection id="leak-library" label={LEAK_LIBRARY.title} intro={<Lead>{LEAK_LIBRARY.intro}</Lead>}>
-        <LedgerList items={LEAK_LIBRARY.leaks} />
+        <LedgerList items={LEAK_LIBRARY.leaks.map((item, i) => ({ ...item, media: <DiagnosticIllustration kind={(["traffic", "conversion", "reviews", "offer", "followup", "tracking", "creative", "listings"] as DiagnosticKind[])[i]!} /> }))} />
       </PageSection>
 
       <PageSection label={INDUSTRY_PATTERNS.title} intro={<Lead>{INDUSTRY_PATTERNS.intro}</Lead>}>
-        <LedgerList items={INDUSTRY_PATTERNS.patterns} />
+        <LedgerList items={INDUSTRY_PATTERNS.patterns.map((item, i) => ({ ...item, media: <DiagnosticIllustration kind={(["followup", "offer", "reviews", "conversion", "answers", "tracking"] as DiagnosticKind[])[i]!} /> }))} />
       </PageSection>
 
       <PageSection
+        media={<StoryImage asset="rr-leak-report" />}
         id="audit"
         band
         label={AUDIT_DELIVERABLE.label}
@@ -126,7 +132,7 @@ export default function RevenueRecoveryPage() {
         </ul>
       </PageSection>
 
-      <PageSection label={ENGAGEMENTS.label} title={ENGAGEMENTS.title} intro={<Lead>{ENGAGEMENTS.intro}</Lead>}>
+      <PageSection media={<ProcessDiagram title="Engagement phases" steps={["Assessment", "Audit", "Implementation", "Program"]} />} label={ENGAGEMENTS.label} title={ENGAGEMENTS.title} intro={<Lead>{ENGAGEMENTS.intro}</Lead>}>
         <ol className="grid gap-x-8 sm:grid-cols-2">
           {ENGAGEMENTS.phases.map((phase) => (
             <li key={phase.title} className="flex flex-col">
@@ -142,7 +148,7 @@ export default function RevenueRecoveryPage() {
         </ol>
       </PageSection>
 
-      <PageSection id="faq" label="FAQ">
+      <PageSection id="faq" label="FAQ" media={<DiagnosticIllustration kind="answers" />}>
         <FaqList items={REVENUE_RECOVERY_FAQ} />
       </PageSection>
 
@@ -154,7 +160,7 @@ export default function RevenueRecoveryPage() {
         assessment ran on the page instead of being requested.
       */}
       <PageSection
-        id="assessment"
+        id="assessment" media={<ProcessDiagram title="Assessment" steps={["Your answers", "One prioritized leak", "Follow-up"]} />}
         label="Get an Assessment"
         title="Get your free assessment."
         intro={
@@ -169,7 +175,7 @@ export default function RevenueRecoveryPage() {
         }
       >
         <div className="max-w-3xl">
-          <AssessmentForm />
+          <AssessmentForm illustrations={{ tracking: <DiagnosticIllustration kind="tracking" /> }} />
         </div>
       </PageSection>
     </main>

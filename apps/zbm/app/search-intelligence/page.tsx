@@ -1,3 +1,6 @@
+import { ProcessDiagram } from "@zbest/ui";
+import { DiagnosticIllustration, type DiagnosticKind } from "@/components/diagnostic-illustration";
+import { HeroMedia } from "@zbest/ui";
 import { ButtonLink, LedgerRule, pageMetadata } from "@zbest/ui";
 import { CtaRow, FaqList, LedgerList, Lead, PageHeader, PageSection, RuledList } from "@/components/page";
 import { ReadinessCheck } from "@/components/readiness-check";
@@ -128,7 +131,7 @@ const FAQ_ITEMS = [
 export default function SearchIntelligencePage() {
   return (
     <main id="main">
-      <PageHeader label="Search Intelligence" title="Ranked isn’t the same as cited.">
+      <PageHeader aside={<HeroMedia asset="marenvale-website" frame="plate" sizes="(min-width: 1024px) 40vw, calc(100vw - 2.5rem)" />} label="Search Intelligence" title="Ranked isn’t the same as cited.">
         <Lead>
           Google&rsquo;s answer boxes, ChatGPT, Claude, Gemini, and Perplexity are
           increasingly answering your customers&rsquo; questions directly — with zero
@@ -141,7 +144,7 @@ export default function SearchIntelligencePage() {
         </CtaRow>
       </PageHeader>
 
-      <PageSection label="What the planned tiers include">
+      <PageSection label="What the planned tiers include" media={<ProcessDiagram title="Managed work" steps={["Access and crawl audit", "Coverage and citations", "Prioritized fixes", "Reporting"]} />}>
         <RuledList
           items={[
             "Continuous backlink crawl with authority and toxicity scored together — one ledger with a keep/watch/disavow flag",
@@ -166,7 +169,7 @@ export default function SearchIntelligencePage() {
       </PageSection>
 
       <PageSection
-        id="pricing"
+        id="pricing" media={<DiagnosticIllustration kind="citations" />}
         label="How pricing works"
         intro={
           <p className="type-body-lead text-text-secondary">
@@ -248,8 +251,9 @@ export default function SearchIntelligencePage() {
         intro={<Lead>{VISIBILITY_GAP_LIBRARY.intro}</Lead>}
       >
         <LedgerList
-          items={VISIBILITY_GAP_LIBRARY.gaps.map((gap) => ({
+          items={VISIBILITY_GAP_LIBRARY.gaps.map((gap, i) => ({
             title: gap.name,
+            media: <DiagnosticIllustration kind={(["profile", "consistency", "reviews", "crawl", "structure", "answers", "citations", "listings"] as DiagnosticKind[])[i]!} />,
             body: gap.description,
             facts: [{ label: "Fix direction", value: gap.fix }],
           }))}
@@ -267,7 +271,7 @@ export default function SearchIntelligencePage() {
         any rendered page carrying them.
       */}
       <PageSection
-        id="readiness-check"
+        id="readiness-check" media={<ProcessDiagram title="Self-reported readiness" steps={["Your readiness signals", "One prioritized gap", "Fix direction"]} />}
         label="AI Visibility Readiness Check"
         title="Eight questions. One prioritized gap to fix first."
         intro={
@@ -277,7 +281,7 @@ export default function SearchIntelligencePage() {
           </Lead>
         }
       >
-        <ReadinessCheck />
+        <ReadinessCheck illustrations={{ structured_data: <DiagnosticIllustration kind="structure" /> }} />
       </PageSection>
 
       <PageSection label="Who this is for">
@@ -290,7 +294,7 @@ export default function SearchIntelligencePage() {
         </CtaRow>
       </PageSection>
 
-      <PageSection id="faq" label="FAQ">
+      <PageSection id="faq" label="FAQ" media={<DiagnosticIllustration kind="answers" />}>
         <FaqList items={FAQ_ITEMS} />
       </PageSection>
     </main>

@@ -46,6 +46,7 @@ export function PageSection({
   intro,
   children,
   band = false,
+  media,
 }: {
   id?: string;
   label: string;
@@ -54,6 +55,8 @@ export function PageSection({
   children?: ReactNode;
   /** Panel-surface band for the one featured section on a page. */
   band?: boolean;
+  /** Narrative image beside this section, preserving its original canvas. */
+  media?: ReactNode;
 }) {
   const inner = (
     <div className={FRAME}>
@@ -68,6 +71,7 @@ export function PageSection({
             <h2 className="type-label text-text-secondary">{label}</h2>
           )}
           {title ? <h2 className="type-headline mt-3">{title}</h2> : null}
+          {media ? <div className="mt-6">{media}</div> : null}
         </div>
         <div className="flex flex-col gap-stack lg:col-span-8">
           {intro ? <div className="flex flex-col gap-4">{intro}</div> : null}
@@ -96,6 +100,7 @@ export function Body({ children }: { children: ReactNode }) {
 
 export type LedgerItem = {
   title: string;
+  media?: ReactNode;
   body?: ReactNode;
   href?: string;
   external?: boolean;
@@ -155,7 +160,7 @@ export function LedgerList({
                   {String(i + 1).padStart(2, "0")}
                 </span>
               ) : null}
-              <RowHeading className="type-title">{title}</RowHeading>
+              <div><RowHeading className="type-title">{title}</RowHeading>{item.media}</div>
               {hasDetail ? (
                 <div className={`flex flex-col gap-3 ${numbered ? "col-start-2 sm:col-start-auto" : ""}`}>
                   {item.body ? <div className="type-body text-text-secondary">{item.body}</div> : null}
