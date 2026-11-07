@@ -950,3 +950,14 @@ Android device, Firefox added.
   it does not override the brief's §2.2 anti-references or the Phase 2 tokens.
 - **Emil Design Engineering — disposition pending.** Not adopted, not rejected. No founder
   ruling yet; nothing in the build depends on it until there is one.
+
+## FD-VISUAL-01 — Imagery, motion and the Visual Gate (2026-10-28)
+
+**Ruled by:** Andre (founder), 2026-10-27; amendment approved 2026-10-28 including
+the Nov 8 launch scope. **Text:** `docs/DESIGN-visual-amendment-v1.md` (inputs and the
+13 approved concept images recorded at `design-inputs/fd-visual-01/`, commit
+`a578490`). **Folded into:** `DESIGN.md` (marked [FD-VISUAL-01]); superseded Brief
+clauses (§2.2 lines 141 and 143, §7 imagery, §A1 and §B1 signature motion) are
+annotated in place. Numbered by its own name, as the amendment specifies, rather than
+as decision 12.
+

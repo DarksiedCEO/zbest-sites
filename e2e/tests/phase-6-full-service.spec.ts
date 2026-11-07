@@ -173,7 +173,14 @@ test("/services — every service, grouped, each linking to its page; captured",
   }
   // Industries only — no client names or logos.
   await expect(page.locator("#who-we-work-with li")).toHaveCount(9);
-  await expect(page.locator("main img")).toHaveCount(0);
+  // Amended by FD-VISUAL-01 §10 (rollout batch 2): the hub now carries concept
+  // imagery. Still no client names or logos: every image is concept work in a
+  // MediaFrame (its manifest entry and badge are checked by fd-visual-01-media).
+  const imgs = await page.locator("main img").evaluateAll((els) =>
+    els.map((el) => el.closest("[data-media-frame]")?.getAttribute("data-asset-class") ?? "unframed"),
+  );
+  expect(imgs.length).toBeGreaterThan(0);
+  expect(imgs.filter((c) => c !== "concept"), "hub images that are not framed concept work").toEqual([]);
 
   await capture(page, "services", testInfo.project.name);
 });
