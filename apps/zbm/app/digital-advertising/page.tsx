@@ -1,4 +1,4 @@
-import { ButtonLink, HeroMedia, pageMetadata } from "@zbest/ui";
+import { ButtonLink, MediaFrame, StoryImage, pageMetadata } from "@zbest/ui";
 import { CtaRow, FaqList, LedgerList, Lead, PageHeader, PageSection, RuledList } from "@/components/page";
 import { DIGITAL_ADVERTISING_FAQ } from "@/content/faq";
 import { startHref } from "@/content/services";
@@ -15,8 +15,8 @@ export const metadata = pageMetadata(SITE, {
 /**
  * Digital Advertising (Brief §A4). Copy verbatim.
  *
- * FD-VISUAL-01 §10: the hero carries the service's lead image — the Quellmont
- * Motors square ad, inside a native feed frame, where paid social runs (§3.3).
+ * The approved story images lead the page; the Quellmont Motors square ad
+ * supports audience fit in its native feed frame (FD-VISUAL-01 §3.3).
  */
 export default function DigitalAdvertisingPage() {
   return (
@@ -25,14 +25,7 @@ export default function DigitalAdvertisingPage() {
         label="Digital Advertising"
         title="The traffic engine, built to feed a funnel that actually converts."
         aside={
-          <HeroMedia
-            asset="quellmont-feed-sticker"
-            frame="phone"
-            chrome="feed"
-            handle="quellmontmotors"
-            className="mx-auto w-full max-w-[20rem]"
-            sizes="320px"
-          />
+          <StoryImage asset="da-problem-wasted-spend" hero />
         }
       >
         <Lead>
@@ -55,7 +48,7 @@ export default function DigitalAdvertisingPage() {
         </CtaRow>
       </PageHeader>
 
-      <PageSection label="What’s included">
+      <PageSection label="What’s included" media={<StoryImage asset="da-work-campaign" />}>
         <RuledList
           items={[
             "Platform strategy and media buying — paid social, search, and platform-specific campaigns built around where your actual customers are, not a one-size template",
@@ -73,7 +66,7 @@ export default function DigitalAdvertisingPage() {
         deliberately no component, flag or markup for it in this file.
       */}
 
-      <PageSection label="How it fits with the rest of what we do">
+      <PageSection label="How it fits with the rest of what we do" media={<StoryImage asset="da-result-lead" />}>
         <LedgerList
           items={[
             { title: "Digital Advertising", body: "brings the traffic" },
@@ -100,7 +93,19 @@ export default function DigitalAdvertisingPage() {
         </p>
       </PageSection>
 
-      <PageSection label="Who this is for">
+      <PageSection
+        label="Who this is for"
+        media={
+          <MediaFrame
+            asset="quellmont-feed-sticker"
+            frame="phone"
+            chrome="feed"
+            handle="quellmontmotors"
+            className="w-full max-w-[20rem]"
+            sizes="320px"
+          />
+        }
+      >
         <p className="type-body-lead text-text-primary">
           Businesses that need real traffic driving to a site or funnel — first
           campaign ever, or existing spend underperforming.

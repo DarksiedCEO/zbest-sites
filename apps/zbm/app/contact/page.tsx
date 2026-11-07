@@ -1,3 +1,5 @@
+import { ProcessDiagram } from "@zbest/ui";
+import { HeroMedia } from "@zbest/ui";
 import { pageMetadata } from "@zbest/ui";
 import { LeadForm } from "@/components/lead-form";
 import Link from "next/link";
@@ -16,7 +18,7 @@ export const metadata = pageMetadata(SITE, {
 export default function ContactPage() {
   return (
     <main id="main">
-      <PageHeader
+      <PageHeader aside={<HeroMedia asset="saltgrove-brand-system" frame="plate" sizes="(min-width: 1024px) 40vw, calc(100vw - 2.5rem)" />}
         label="Contact"
         title="Tell us what’s actually going on. We’ll tell you honestly whether we’re the right fit."
       >
@@ -34,7 +36,7 @@ export default function ContactPage() {
         </Lead>
       </PageHeader>
 
-      <PageSection id="contact-form" label="Contact form">
+      <PageSection id="contact-form" media={<ProcessDiagram title="Start a conversation" steps={["Your business", "What you want to solve", "How to reach you"]} />} label="Contact form">
         <div className="max-w-2xl">
           <LeadForm form="contact" submitLabel="Send" />
         </div>

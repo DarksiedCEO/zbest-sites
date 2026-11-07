@@ -1,3 +1,6 @@
+import { DistributionDiagram } from "@zbest/ui";
+import { ProcessDiagram } from "@zbest/ui";
+import { HeroMedia } from "@zbest/ui";
 import { pageMetadata, StatBlock } from "@zbest/ui";
 import { FixtureNote, Lead, PageHeader, PageSection } from "@/components/page";
 import { SITE } from "@/lib/site";
@@ -23,9 +26,9 @@ export const metadata = pageMetadata(SITE, {
 export default function MediaKitPage() {
   return (
     <main id="main">
-      <PageHeader label="Media Kit" title="Z Best Clips — press kit." />
+      <PageHeader aside={<HeroMedia asset="zbc-clipper-phone" caption="Concept editing workflow" frame="plate" sizes="(min-width: 1024px) 40vw, calc(100vw - 2.5rem)" />} label="Media Kit" title="Z Best Clips — press kit." />
 
-      <PageSection id="boilerplate" label="Boilerplate">
+      <PageSection id="boilerplate" media={<ProcessDiagram title="Content distribution" steps={["Source material", "Create and post", "Submission review", "Verified reporting"]} />} label="Boilerplate">
         <div className="flex flex-col gap-3">
           <p className="type-label text-text-secondary">Short</p>
           <Lead>
@@ -50,7 +53,7 @@ export default function MediaKitPage() {
         </div>
       </PageSection>
 
-      <PageSection id="facts" label="Company facts">
+      <PageSection id="facts" media={<DistributionDiagram />} label="Company facts">
         <StatBlock
           rows={[
             { label: "Parent", value: "Z Best Media, Los Angeles" },

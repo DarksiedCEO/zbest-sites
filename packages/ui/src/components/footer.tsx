@@ -22,12 +22,15 @@ export function Footer({
   brandName,
   columns,
   endorsement,
+  media,
   className = "",
 }: {
   brandName: ReactNode;
   columns: FooterColumn[];
   endorsement?: { label: string; href: string };
   className?: string;
+  /** Badged concept work, separate from the navigation columns. */
+  media?: ReactNode;
 }) {
   return (
     <footer className={`mt-section-lg ${className}`}>
@@ -43,6 +46,7 @@ export function Footer({
                 </Link>
               </p>
             ) : null}
+            {media ? <div className="mt-6 max-w-xs">{media}</div> : null}
           </div>
 
           <div className="grid grid-cols-2 gap-x-10 gap-y-stack sm:grid-cols-3 lg:flex lg:gap-14">

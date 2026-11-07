@@ -1,4 +1,4 @@
-import { CookieConsent, Footer, Nav, SkipLink, siteMetadata } from "@zbest/ui";
+import { CookieConsent, Footer, MediaFrame, Nav, SkipLink, siteMetadata } from "@zbest/ui";
 import { ZBC_CONSENT_CATEGORIES, ZBC_CONSENT_DETAIL_NOTICE, ZBC_CONSENT_SUMMARY } from "@/lib/consent";
 import { GateNonce } from "@zbest/ui/gate";
 import { zbcFontVariables } from "@zbest/ui/fonts/zbc";
@@ -25,7 +25,7 @@ export default function RootLayout({
         <SkipLink />
         <Nav brandName={SITE.name} items={NAV_ITEMS} cta={NAV_CTA} />
         {children}
-        <Footer brandName={SITE.name} columns={FOOTER_COLUMNS} endorsement={ENDORSEMENT} />
+        <Footer media={<div className="max-w-sm"><MediaFrame asset="zbc-clipper-phone" caption="Concept editing workflow" frame="plate" sizes="(min-width: 480px) 320px, calc(100vw - 2.5rem)" /></div>} brandName={SITE.name} columns={FOOTER_COLUMNS} endorsement={ENDORSEMENT} />
         <CookieConsent
           summary={ZBC_CONSENT_SUMMARY}
           categories={ZBC_CONSENT_CATEGORIES}

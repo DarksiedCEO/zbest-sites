@@ -99,7 +99,7 @@ export default function ServicesPage() {
         </PageSection>
       ))}
 
-      <PageSection id="who-we-work-with" label="Who we serve" title="Any business with something to sell.">
+      <PageSection id="who-we-work-with" media={<MediaFrame asset="ironhold-billboard" frame="billboard" sizes="(min-width: 1024px) 30vw, calc(100vw - 2.5rem)" />} label="Who we serve" title="Any business with something to sell.">
         <RuledList
           items={[
             "Home services — HVAC, roofing, plumbing, restoration",
