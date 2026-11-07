@@ -7,7 +7,11 @@
  *   1. the leads table has exactly the columns and types the app writes;
  *   2. it has the full UNIQUE (app, submission_id) the app's ON CONFLICT needs;
  *   3. a round-trip insert (twice: the repeat must be a no-op) + select,
- *      inside a savepoint that is rolled back.
+ *      inside a savepoint that is rolled back;
+ *   4. the service-area CHECK accepts exactly src/region.ts's SERVICE_AREAS:
+ *      one rolled-back insert per served code must succeed, and each of a
+ *      set of near-miss codes must be refused (AEGIS R-M1). This catches a
+ *      database still on 004's 53 codes, a missing constraint, or drift.
  * All of it runs in ONE transaction under a transaction-scoped advisory lock,
  * so concurrent runs serialise and a failed run changes nothing.
  *
@@ -25,17 +29,28 @@ import postgres from "postgres";
 
 const here = import.meta.dirname;
 
-/** Loads the TypeScript parser without a build step (Node ≥ 22.6 strips types). */
-async function loadParser() {
+/** Loads a TypeScript module without a build step (Node ≥ 22.6 strips types). */
+async function loadTs(file) {
   try {
-    return (await import(pathToFileURL(path.join(here, "..", "src", "pg-url.ts")).href)).parsePostgresUrl;
+    return await import(pathToFileURL(path.join(here, "..", "src", file)).href);
   } catch {
-    console.error("Could not load src/pg-url.ts — run with Node 22.6+ (type stripping). Nothing was changed.");
+    console.error(`Could not load src/${file} — run with Node 22.6+ (type stripping). Nothing was changed.`);
     process.exit(1);
   }
 }
+const loadParser = async () => (await loadTs("pg-url.ts")).parsePostgresUrl;
 
-const EXPECTED = {
+/** The codes the app accepts: the same list the forms and the zod schema use. */
+const SERVICE_CODES = (await loadTs("region.ts")).SERVICE_AREAS.map((a) => a.value);
+/**
+ * Codes the CHECK must refuse: the declined option, ISO look-alikes for the
+ * territories, other US-administered areas we do not serve, foreign codes,
+ * case and whitespace variants, and the empty string.
+ */
+const REFUSED_CODES = ["outside", "US-PR", "US-GU", "US-VI", "US-AS", "US-MP", "UM", "US-UM", "CA", "GB", "us-ca", "vi", " US-CA", ""];
+
+/** The columns 001 creates: what a pre-existing table must already have. */
+const BASE = {
   id: "uuid",
   submission_id: "uuid",
   app: "text",
@@ -50,6 +65,9 @@ const EXPECTED = {
   notified_at: "timestamp with time zone",
   created_at: "timestamp with time zone",
 };
+
+/** After every migration: exactly what the app writes (004 adds the service area). */
+const EXPECTED = { ...BASE, service_area: "text" };
 
 /**
  * Which URL to migrate with (AEGIS r3 F3). A transaction-mode pooler
@@ -111,12 +129,12 @@ const LOCK_KEY = 815_204_771; // arbitrary, fixed: "zbest-lead migrate"
 class CheckFailed extends Error {}
 
 /** Columns and types: exactly what the app writes. Throws CheckFailed naming the mismatches. */
-async function checkColumns(tx) {
+async function checkColumns(tx, expected = EXPECTED) {
   const columns = await tx`
     SELECT column_name, data_type FROM information_schema.columns
     WHERE table_schema = current_schema() AND table_name = 'leads'`;
   const actual = Object.fromEntries(columns.map((c) => [c.column_name, c.data_type]));
-  const wrong = Object.entries(EXPECTED).filter(([name, type]) => actual[name] !== type).map(([name]) => name);
+  const wrong = Object.entries(expected).filter(([name, type]) => actual[name] !== type).map(([name]) => name);
   if (wrong.length) throw new CheckFailed(`leads table does not match the app: ${wrong.join(", ")}. Fix the schema before launch.`);
 }
 
@@ -138,7 +156,7 @@ try {
     // EXISTS; check it BEFORE applying anything, so the report names the
     // mismatch instead of a later DDL error masking it (AEGIS r2 N5).
     const [existing] = await tx`SELECT to_regclass('leads') IS NOT NULL AS present`;
-    if (!done.has("001") && existing?.present) await checkColumns(tx);
+    if (!done.has("001") && existing?.present) await checkColumns(tx, BASE);
     // The file-name regex is what makes the first three characters a version.
     for (const file of readdirSync(dir).filter((f) => /^\d{3}_.+\.sql$/.test(f)).sort()) {
       const version = file.slice(0, 3);
@@ -201,6 +219,37 @@ try {
         if (error?.code !== ROLLBACK_OK) throw error;
       });
     lines.push("schema ok; unique key ok; round-trip insert ok (rolled back)");
+
+    // 4. The service-area CHECK is exactly the app's set (AEGIS R-M1).
+    const tryArea = (code) =>
+      tx
+        .savepoint(async (sp) => {
+          await sp`
+            INSERT INTO leads (submission_id, app, form, payload, payload_hash, service_area)
+            VALUES (${crypto.randomUUID()}::uuid, 'zbm', 'migrate-check', '{}'::jsonb, 'migrate-hash', ${code})`;
+          throw Object.assign(new Error("rollback"), { code: ROLLBACK_OK });
+        })
+        .then(
+          () => "stored",
+          (error) => {
+            if (error?.code === ROLLBACK_OK) return "accepted";
+            if (error?.code === "23514") return "refused";
+            throw error;
+          },
+        );
+    const missing = [];
+    for (const code of SERVICE_CODES) if ((await tryArea(code)) !== "accepted") missing.push(code);
+    const leaked = [];
+    for (const code of REFUSED_CODES) if ((await tryArea(code)) !== "refused") leaked.push(JSON.stringify(code));
+    if (missing.length || leaked.length) {
+      throw new CheckFailed(
+        `leads_service_area_check does not match the app's ${SERVICE_CODES.length} service areas` +
+          (missing.length ? `; refuses: ${missing.join(", ")}` : "") +
+          (leaked.length ? `; accepts: ${leaked.join(", ")}` : "") +
+          ". Fix the schema before launch.",
+      );
+    }
+    lines.push(`service area check ok (${SERVICE_CODES.length} codes accepted, ${REFUSED_CODES.length} near-misses refused; rolled back)`);
     return lines;
   });
   for (const line of report) console.log(line);
