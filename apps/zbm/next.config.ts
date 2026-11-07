@@ -15,6 +15,8 @@ const nextConfig: NextConfig = {
   transpilePackages: ["@zbest/ui", "@zbest/lead"],
   // FD-VISUAL-01 §4.5: images AVIF or WebP through next/image (AVIF first).
   images: { formats: ["image/avif", "image/webp"] },
+  // No "X-Powered-By: Next.js": it only advertises the framework (sweep L2).
+  poweredByHeader: false,
   // CSP, HSTS and friends (packages/ui/src/security-headers.ts).
   async headers() {
     return securityHeaders();

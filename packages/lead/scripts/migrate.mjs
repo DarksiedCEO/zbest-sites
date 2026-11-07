@@ -168,6 +168,10 @@ try {
              JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum = k.attnum) = ARRAY['app', 'submission_id']`;
     if (!unique) throw new CheckFailed("leads table lacks UNIQUE (app, submission_id). Fix the schema before launch.");
 
+    // 2b. The retention purge ledger (sql/003_purge_runs.sql) that /api/health reads.
+    const [ledger] = await tx`SELECT to_regclass('lead_purge_runs') IS NOT NULL AS present`;
+    if (!ledger?.present) throw new CheckFailed("lead_purge_runs table is missing. Fix the schema before launch.");
+
     // 3. Round trip with the app's own statement shape, inside a savepoint
     //    that is rolled back: the row reads back as written, defaults apply,
     //    and a repeat is a no-op.

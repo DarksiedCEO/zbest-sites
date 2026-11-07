@@ -1,5 +1,6 @@
 import postgres from "postgres";
 import type { PgOptions } from "./pg-url";
+import type { LeadPurger, PurgeLedger, PurgeResult } from "./retention";
 import { DeliveryError, type InsertResult, type LeadApp, type LeadRecord, type LeadStore, type NotifyStatus } from "./types";
 
 /**
@@ -70,12 +71,12 @@ export function postgresStore(options: PgOptions): LeadStore {
       try {
         const rows = await sql`
           INSERT INTO leads
-            (submission_id, app, form, payload, payload_hash, services, source, ip_hash, user_agent)
+            (submission_id, app, form, payload, payload_hash, services, source, user_agent)
           VALUES (
             ${record.submission_id}::uuid, ${record.app}, ${record.form},
             ${sql.json(record.payload as postgres.JSONValue)}::jsonb, ${record.payload_hash},
             ARRAY(SELECT jsonb_array_elements_text(${sql.json(record.services)}::jsonb)),
-            ${record.source}, ${record.ip_hash}, ${record.user_agent}
+            ${record.source}, ${record.user_agent}
           )
           ON CONFLICT (app, submission_id) DO NOTHING
           RETURNING id`;
@@ -95,6 +96,65 @@ export function postgresStore(options: PgOptions): LeadStore {
           SET notify_status = ${status}::text,
               notified_at = CASE WHEN ${status}::text = 'sent' THEN now() ELSE notified_at END
           WHERE app = ${app} AND submission_id = ${submissionId}::uuid`;
+      } catch (error) {
+        throw storeError(error);
+      }
+    },
+  };
+}
+
+/** The tagged-template shape purgeWith needs; postgres.Sql satisfies it, and so does a recording fake. */
+export type SqlTag = (strings: TemplateStringsArray, ...values: unknown[]) => PromiseLike<{ count: number }>;
+
+/**
+ * The retention statements (src/retention.ts), parameterised: the app, the
+ * cutoffs and the run time travel as bound values with explicit casts, never
+ * as SQL text. Scoped to one app, so each app's cron purges only its own rows
+ * even when both share a database. All idempotent. The last statement records
+ * this successful run in lead_purge_runs (sql/003_purge_runs.sql); the caller
+ * runs all three in one transaction, so the ledger never claims a purge that
+ * did not commit.
+ */
+export async function purgeWith(
+  sql: SqlTag,
+  app: LeadApp,
+  cutoffs: { leads: Date; userAgent: Date },
+  ranAt: Date = new Date(),
+): Promise<PurgeResult> {
+  const deleted = await sql`
+    DELETE FROM leads
+    WHERE app = ${app}::text AND created_at < ${cutoffs.leads.toISOString()}::timestamptz`;
+  const cleared = await sql`
+    UPDATE leads SET user_agent = NULL
+    WHERE app = ${app}::text AND user_agent IS NOT NULL AND created_at < ${cutoffs.userAgent.toISOString()}::timestamptz`;
+  // ip_hash is no longer written (sql/002_retention.sql cleared it once), but
+  // a deployment older than this change can still write it until this one is
+  // live; clearing it daily means no such value survives (AEGIS H-L1).
+  const ipCleared = await sql`
+    UPDATE leads SET ip_hash = NULL
+    WHERE app = ${app}::text AND ip_hash IS NOT NULL`;
+  await sql`
+    INSERT INTO lead_purge_runs (app, last_success_at, deleted, ua_cleared)
+    VALUES (${app}::text, ${ranAt.toISOString()}::timestamptz, ${deleted.count}::int, ${cleared.count}::int)
+    ON CONFLICT (app) DO UPDATE
+      SET last_success_at = EXCLUDED.last_success_at, deleted = EXCLUDED.deleted, ua_cleared = EXCLUDED.ua_cleared`;
+  return { deleted: deleted.count, uaCleared: cleared.count, ipHashCleared: ipCleared.count };
+}
+
+export function postgresPurger(options: PgOptions): LeadPurger & PurgeLedger {
+  const sql = client(options);
+  return {
+    async purge(app, cutoffs, ranAt) {
+      try {
+        return (await sql.begin((tx) => purgeWith(tx as unknown as SqlTag, app, cutoffs, ranAt))) as PurgeResult;
+      } catch (error) {
+        throw storeError(error);
+      }
+    },
+    async lastSuccess(app) {
+      try {
+        const [row] = await sql`SELECT last_success_at FROM lead_purge_runs WHERE app = ${app}::text`;
+        return row ? (row.last_success_at as Date) : null;
       } catch (error) {
         throw storeError(error);
       }
