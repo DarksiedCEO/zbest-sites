@@ -11,6 +11,8 @@
  *     not start with "Concept:", or its `text` blocks are malformed;
  *   - the registry (packages/ui/src/media/assets.ts) and the manifest list
  *     different assets;
+ *   - any source imports next/font/google or names a Google Fonts host (fonts
+ *     are self-hosted, packages/ui/src/fonts/files);
  *   - source outside packages/ui/src/media renders an image or video directly
  *     (<img>, <video>, <picture>, next/image), which would bypass MediaFrame
  *     and with it the ConceptBadge.
@@ -134,8 +136,17 @@ for (const p of [...walk(path.join(ROOT, "apps")), ...walk(path.join(ROOT, "pack
   if (m) fail(`${rel(p)}: renders media directly (${m[0].trim()}); use MediaFrame so the manifest and ConceptBadge apply`);
 }
 
+// Fonts are self-hosted (packages/ui/src/fonts/files; founder decision Oct 31,
+// 2026): a build must never fetch from Google Fonts.
+for (const p of [...walk(path.join(ROOT, "apps")), ...walk(path.join(ROOT, "packages"))]) {
+  if (!/\.(tsx?|jsx?|mjs|css)$/.test(p) || p.endsWith(".d.ts")) continue;
+  const src = readFileSync(p, "utf8");
+  const m = src.match(/from\s+["']next\/font\/google["']|fonts\.googleapis\.com|fonts\.gstatic\.com/);
+  if (m) fail(`${rel(p)}: loads fonts from Google (${m[0]}); use the self-hosted files through next/font/local`);
+}
+
 if (errors.length) {
   console.error(`check-media: ${errors.length} problem(s)\n${errors.map((e) => `  - ${e}`).join("\n")}`);
   process.exit(1);
 }
-console.log(`check-media: ${entries.length} manifest entries, files, hashes, sizes, alt text and registry agree; no direct media rendering.`);
+console.log(`check-media: ${entries.length} manifest entries, files, hashes, sizes, alt text and registry agree; no direct media rendering; no Google font loading.`);
