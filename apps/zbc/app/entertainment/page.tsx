@@ -1,4 +1,4 @@
-import { ButtonLink, HeroMedia, pageMetadata } from "@zbest/ui";
+import { ButtonLink, StoryImage, HeroMedia, pageMetadata } from "@zbest/ui";
 import { CtaRow, Lead, PageHeader, PageSection } from "@/components/page";
 import { NAV_CTA, SITE } from "@/lib/site";
 
@@ -48,7 +48,7 @@ export default function EntertainmentPage() {
         </CtaRow>
       </PageHeader>
 
-      <PageSection label="Who this is for">
+      <PageSection media={<StoryImage asset="zbc-ent-studio" />} label="Who this is for">
         <p className="type-body-lead text-text-primary">
           Independent artists and labels, filmmakers, streamers and podcasters, sports teams
           and leagues, streaming platforms and studios — anyone with a moment worth putting
@@ -56,7 +56,7 @@ export default function EntertainmentPage() {
         </p>
       </PageSection>
 
-      <PageSection label="How it works" title="Rented distribution.">
+      <PageSection media={<StoryImage asset="zbc-ent-fans" />} label="How it works" title="Rented distribution.">
         <p className="type-body-lead text-text-primary">
           Your content runs on our clipper network&rsquo;s own accounts, opening audiences
           and algorithmic reach no single account could reach alone.

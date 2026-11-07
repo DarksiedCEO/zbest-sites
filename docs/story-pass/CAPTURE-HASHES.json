@@ -1,0 +1,794 @@
+[
+  {
+    "path": "e2e/snapshots/story-pass/zbc-404-desktop-1440-first-frame.png",
+    "sha256": "309441ec869c1e3a2348298be18c6f36242522f520f04b821b3a6f036821fa15"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-404-desktop-1440-motion.png",
+    "sha256": "c5bd9e55de0d10ec0534896cbfb3ea8321739cc5c5603da6259947d81ddddf6f"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-404-desktop-1440-reduced.png",
+    "sha256": "c5bd9e55de0d10ec0534896cbfb3ea8321739cc5c5603da6259947d81ddddf6f"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-404-mobile-390-first-frame.png",
+    "sha256": "21843f5e52a0f44324f8970c664f46250011c5f89535c7c9bdd07c79f2249232"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-404-mobile-390-motion.png",
+    "sha256": "670af3e51d41ad36237510915ec8794951044d5747e65807129a51c8a5267fda"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-404-mobile-390-reduced.png",
+    "sha256": "670af3e51d41ad36237510915ec8794951044d5747e65807129a51c8a5267fda"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-about-desktop-1440-first-frame.png",
+    "sha256": "189b1dd67336951415b23dd7690f4c54698d8e9f5daadd68ee69267c0e79824b"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-about-desktop-1440-motion.png",
+    "sha256": "f8912e20c1ea388a7c53d5383a08ee7c0db762b9e87b52b34492bbd1c7aaacf9"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-about-desktop-1440-reduced.png",
+    "sha256": "f8912e20c1ea388a7c53d5383a08ee7c0db762b9e87b52b34492bbd1c7aaacf9"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-about-mobile-390-first-frame.png",
+    "sha256": "48efe237c6d8a95c1a2b8e0854c1c171c2366fdff782d20e240b16a3ce5028d9"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-about-mobile-390-motion.png",
+    "sha256": "cac533f7ab415bff3b80e8d15cf8af5613778f00484f063469ec6b5db024c462"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-about-mobile-390-reduced.png",
+    "sha256": "cac533f7ab415bff3b80e8d15cf8af5613778f00484f063469ec6b5db024c462"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-become-a-clipper-desktop-1440-first-frame.png",
+    "sha256": "3ea9a41754174ab4b2261e7327068cd95b5ff0270a2c60bb8590f2e4edfeada0"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-become-a-clipper-desktop-1440-motion.png",
+    "sha256": "c8b3ba2f4ae10e25c5e3190c9eb10dafff94c9de8bf659c2a843b58c47000c3c"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-become-a-clipper-desktop-1440-reduced.png",
+    "sha256": "c8b3ba2f4ae10e25c5e3190c9eb10dafff94c9de8bf659c2a843b58c47000c3c"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-become-a-clipper-mobile-390-first-frame.png",
+    "sha256": "e837475859c7f5680aa9c5051ee1ece385458fe57802045c87cc1867b88b55a6"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-become-a-clipper-mobile-390-motion.png",
+    "sha256": "367a721b8e369ae77249100cfe5fbaa96d335ee27dcc7fa12ffaa066a2889241"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-become-a-clipper-mobile-390-reduced.png",
+    "sha256": "367a721b8e369ae77249100cfe5fbaa96d335ee27dcc7fa12ffaa066a2889241"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-brands-desktop-1440-first-frame.png",
+    "sha256": "0bdfd1731543dc142edd98876d8f67daa6e1d157161c26926237d01d16cd3888"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-brands-desktop-1440-motion.png",
+    "sha256": "943446733f137745fe262a9ed5f06f3e63e1b1c24c641ae40abc08dd2f52a3a2"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-brands-desktop-1440-reduced.png",
+    "sha256": "943446733f137745fe262a9ed5f06f3e63e1b1c24c641ae40abc08dd2f52a3a2"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-brands-mobile-390-first-frame.png",
+    "sha256": "cf924a4864426e29c21e5bd52a135eb43bb8b739d0ea5a55db28578817ba8085"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-brands-mobile-390-motion.png",
+    "sha256": "82ec6b255af81e94aa6a8f573bb4184dfdd7f01671179ea236a467a8a9028e3d"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-brands-mobile-390-reduced.png",
+    "sha256": "82ec6b255af81e94aa6a8f573bb4184dfdd7f01671179ea236a467a8a9028e3d"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-entertainment-desktop-1440-first-frame.png",
+    "sha256": "ef8ddb2b064b0413f076bfbd433da8245dc38a740208324bc6d48765b0969fbb"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-entertainment-desktop-1440-motion.png",
+    "sha256": "9ad4843cbbb2ac259cbc64d427248c62617f5385843f8979959cdf650bcd7864"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-entertainment-desktop-1440-reduced.png",
+    "sha256": "9ad4843cbbb2ac259cbc64d427248c62617f5385843f8979959cdf650bcd7864"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-entertainment-mobile-390-first-frame.png",
+    "sha256": "433c344f595a167bb9006cc93ea33ca5503e05f3d6077fb3813cec28f3f4ccdc"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-entertainment-mobile-390-motion.png",
+    "sha256": "2ddc723b4abf9da6d2d2edd3fcb57090011db51c0fba7291385cf29210807c30"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-entertainment-mobile-390-reduced.png",
+    "sha256": "029c2c914a2d3be4f3e825796eae2e5c9a58eeaff18405d46523ab101bf43bdb"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-faq-desktop-1440-first-frame.png",
+    "sha256": "c51571ddaed9f0b3ec812efcd206cba8db75283d5966434e5e1264d316a56291"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-faq-desktop-1440-motion.png",
+    "sha256": "9a8538acfe376390a8a85fa5c5d0c710246b4652892177a2111b97139ad4faf6"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-faq-desktop-1440-reduced.png",
+    "sha256": "9a8538acfe376390a8a85fa5c5d0c710246b4652892177a2111b97139ad4faf6"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-faq-mobile-390-first-frame.png",
+    "sha256": "3a2e2e0761d2026e737313403e0a5478511aec6750e52195113cdb1204689b0c"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-faq-mobile-390-motion.png",
+    "sha256": "de114e4cb4889818a50e12d5294166b1fc4badbb902e2f6967891de1084b04b4"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-faq-mobile-390-reduced.png",
+    "sha256": "de114e4cb4889818a50e12d5294166b1fc4badbb902e2f6967891de1084b04b4"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-home-desktop-1440-first-frame.png",
+    "sha256": "db577c58de24c88355c261664b93ef16c247463b17819a77482a25bd7b10383a"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-home-desktop-1440-motion.png",
+    "sha256": "956c7620e49152090d08a4359f603d0116a7f6f03cdefa11336d2cc09fd8c32b"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-home-desktop-1440-reduced.png",
+    "sha256": "d19832137a10b643dcc27f1005683790d662275eacb3a3585023ac97ae099274"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-home-mobile-390-first-frame.png",
+    "sha256": "5025ecb7d0c895a5885b36e8a3055e9d76f5509d3ebbeb13342336c98c1e8ddf"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-home-mobile-390-motion.png",
+    "sha256": "ec3e59aacecba480d1817ce448fba26e143cd776345b8dc1a927c83847d15f30"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-home-mobile-390-reduced.png",
+    "sha256": "23d20a974e3535fa09cbcf73cc19b92afafecfc981629ab4da95a080be8f4ebd"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-launch-a-campaign-desktop-1440-first-frame.png",
+    "sha256": "563ec4dfe9ade49c9a8c11e8a65b09ca8f46e13040c072fbe273ab16973c2542"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-launch-a-campaign-desktop-1440-motion.png",
+    "sha256": "a468b2779d54cad0bc886a557b71f7c664744b35a9e9f87832de2b897ddefd00"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-launch-a-campaign-desktop-1440-reduced.png",
+    "sha256": "a468b2779d54cad0bc886a557b71f7c664744b35a9e9f87832de2b897ddefd00"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-launch-a-campaign-mobile-390-first-frame.png",
+    "sha256": "05f6dc551a990506c2debf46587d48020b04489fc9f743330e670a54e51dd42d"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-launch-a-campaign-mobile-390-motion.png",
+    "sha256": "053ed73749b7fd6de95c9eac3e6ad633f5516da2e547e0cd9b69ec4f379a7a56"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-launch-a-campaign-mobile-390-reduced.png",
+    "sha256": "053ed73749b7fd6de95c9eac3e6ad633f5516da2e547e0cd9b69ec4f379a7a56"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-legal-cookie-policy-desktop-1440-first-frame.png",
+    "sha256": "b64eb5fc0a8bfb212ef6423e80665fefe0b64ed6e277803b32398fd86929597d"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-legal-cookie-policy-desktop-1440-motion.png",
+    "sha256": "cafef71dc53fd2622522f86e7053c047af33618b36584e737b5226b7c3c1560d"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-legal-cookie-policy-desktop-1440-reduced.png",
+    "sha256": "cafef71dc53fd2622522f86e7053c047af33618b36584e737b5226b7c3c1560d"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-legal-cookie-policy-mobile-390-first-frame.png",
+    "sha256": "c8a4acc8ba2ad0555faca9fd3ab2896143612ae2d3865c6fd36a72aa7c32c84d"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-legal-cookie-policy-mobile-390-motion.png",
+    "sha256": "33051c07d7b0660d0be43a0016997d0e767d85d7115384615ff98d366387da5d"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-legal-cookie-policy-mobile-390-reduced.png",
+    "sha256": "33051c07d7b0660d0be43a0016997d0e767d85d7115384615ff98d366387da5d"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-legal-privacy-policy-desktop-1440-first-frame.png",
+    "sha256": "2296c199256d8671b37acec0aed0c10469a723cb6ac58c85ad51a998302fbb1f"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-legal-privacy-policy-desktop-1440-motion.png",
+    "sha256": "9087671019871b4ff9fe4d209605fdc09bca416f5a3fe4a3c49592cc8203ff41"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-legal-privacy-policy-desktop-1440-reduced.png",
+    "sha256": "9087671019871b4ff9fe4d209605fdc09bca416f5a3fe4a3c49592cc8203ff41"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-legal-privacy-policy-mobile-390-first-frame.png",
+    "sha256": "58be5b186f8aeabde3772971d5868a4a65de0d71d7000cc2b9e40db348b116ed"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-legal-privacy-policy-mobile-390-motion.png",
+    "sha256": "e510ad716b59932950a0107948f5c6325b95e2080f63e95db8525c6d50bdb23c"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-legal-privacy-policy-mobile-390-reduced.png",
+    "sha256": "e510ad716b59932950a0107948f5c6325b95e2080f63e95db8525c6d50bdb23c"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-legal-terms-of-service-desktop-1440-first-frame.png",
+    "sha256": "5daa3a6ec7c84c25f6df6a5f1739e9a740f190154d561088d745a532ef8f2c3b"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-legal-terms-of-service-desktop-1440-motion.png",
+    "sha256": "7cb2154ba9d7b70b9771a9562f74fd882edaf9d03474b76c7dd3f71abd1a968a"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-legal-terms-of-service-desktop-1440-reduced.png",
+    "sha256": "7cb2154ba9d7b70b9771a9562f74fd882edaf9d03474b76c7dd3f71abd1a968a"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-legal-terms-of-service-mobile-390-first-frame.png",
+    "sha256": "7629db7e15f87a27cac6a9edb8e6aca55cf74294fd9acb3447543dd236a09b48"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-legal-terms-of-service-mobile-390-motion.png",
+    "sha256": "900d908b1c800825705119a232817c925a9106e65d9df01d40b24d8b09c60f62"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-legal-terms-of-service-mobile-390-reduced.png",
+    "sha256": "900d908b1c800825705119a232817c925a9106e65d9df01d40b24d8b09c60f62"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-media-kit-desktop-1440-first-frame.png",
+    "sha256": "48ca7531a5cb335015bcec754f416950931b47773e7a4156f6361a3ac6341e1e"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-media-kit-desktop-1440-motion.png",
+    "sha256": "7c40d93cca5c9bf28772dccd7c6336b5562348e6517b2e040380079ab89af8d5"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-media-kit-desktop-1440-reduced.png",
+    "sha256": "7c40d93cca5c9bf28772dccd7c6336b5562348e6517b2e040380079ab89af8d5"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-media-kit-mobile-390-first-frame.png",
+    "sha256": "4ba8810e1b57347dc2be46250b9c831337a99fcfe3ee12986e9c8d874fca3003"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-media-kit-mobile-390-motion.png",
+    "sha256": "926df35aff26f48a54379313dd80cbdc92db8eafda926533c5a2e4f812b5848f"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-media-kit-mobile-390-reduced.png",
+    "sha256": "926df35aff26f48a54379313dd80cbdc92db8eafda926533c5a2e4f812b5848f"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-pricing-desktop-1440-first-frame.png",
+    "sha256": "c30f0a428add83aa34c93621f90bb4a3d9e711a6fb74e1c0e0e55cd430715f93"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-pricing-desktop-1440-motion.png",
+    "sha256": "94e4769a5fed2fd53f20b429750175f2bc029bd84619a3cbbcb9cadb8da47f2c"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-pricing-desktop-1440-reduced.png",
+    "sha256": "94e4769a5fed2fd53f20b429750175f2bc029bd84619a3cbbcb9cadb8da47f2c"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-pricing-mobile-390-first-frame.png",
+    "sha256": "c8f71034159e72d50c8ac726c8170bf33e895586897fd96185208ec8b23bad7e"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-pricing-mobile-390-motion.png",
+    "sha256": "f90c21af98bd6c07c72aa3f465748dc61590c890cf664337bd591a58fc7714ac"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbc-pricing-mobile-390-reduced.png",
+    "sha256": "f90c21af98bd6c07c72aa3f465748dc61590c890cf664337bd591a58fc7714ac"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-404-desktop-1440-first-frame.png",
+    "sha256": "c8e069ed70fc62f056f79162e994b68e647ff18509bdaacb075b36fcd5ceb59c"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-404-desktop-1440-motion.png",
+    "sha256": "c62168607760f7bee1e242d3f73c705fb6e10da130859c2e8cd20c9dea557ddc"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-404-desktop-1440-reduced.png",
+    "sha256": "c62168607760f7bee1e242d3f73c705fb6e10da130859c2e8cd20c9dea557ddc"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-404-mobile-390-first-frame.png",
+    "sha256": "4d5712b02d8da6ad7262f8145ce236c401c78c5d310a4fe63a5a9d22360f7faa"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-404-mobile-390-motion.png",
+    "sha256": "12186de2dc1d8ab50810fa971e6facda67aca51bd027c6954546344b4859a4bb"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-404-mobile-390-reduced.png",
+    "sha256": "12186de2dc1d8ab50810fa971e6facda67aca51bd027c6954546344b4859a4bb"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-about-desktop-1440-first-frame.png",
+    "sha256": "c1af2956e87238d2d6b40c41df7e2dc18fbee04a39f149c1e85f8f605b1f3052"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-about-desktop-1440-motion.png",
+    "sha256": "cfa70f95718d11264fc9c28e1c1552452b8e49181d671ac2252489c7ad717c66"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-about-desktop-1440-reduced.png",
+    "sha256": "cfa70f95718d11264fc9c28e1c1552452b8e49181d671ac2252489c7ad717c66"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-about-mobile-390-first-frame.png",
+    "sha256": "127cb26d88df67be7ee5f6ad5afbba71b12bc84e55e2d409c1016f3bb5db5459"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-about-mobile-390-motion.png",
+    "sha256": "363eb241b33a7cc861767e11c9385983793fc4738e8e9f6b77d898c404bc0e4e"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-about-mobile-390-reduced.png",
+    "sha256": "363eb241b33a7cc861767e11c9385983793fc4738e8e9f6b77d898c404bc0e4e"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-contact-desktop-1440-first-frame.png",
+    "sha256": "4450b75b5c18b25cff408502cc158cf4fa487773f56b007ba7424f174c581026"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-contact-desktop-1440-motion.png",
+    "sha256": "0c3c0d9c9841221e4644bd3ed6b1fc3a0897ee36484e9154637f58e665942ea0"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-contact-desktop-1440-reduced.png",
+    "sha256": "0c3c0d9c9841221e4644bd3ed6b1fc3a0897ee36484e9154637f58e665942ea0"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-contact-mobile-390-first-frame.png",
+    "sha256": "f91196016e0fe7baffda274ce2679d257f53f3e49f55277f0fb0f9acb7bd062b"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-contact-mobile-390-motion.png",
+    "sha256": "1c9caf60ff0eba9a36706d8a8475a960802c86a3863f4f231e34eaf49570f2b8"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-contact-mobile-390-reduced.png",
+    "sha256": "1c9caf60ff0eba9a36706d8a8475a960802c86a3863f4f231e34eaf49570f2b8"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-creative-production-desktop-1440-first-frame.png",
+    "sha256": "fb26bc4abc6d3818abda463c07ce5bef7ef3345c8c700970dc1370f5259975cb"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-creative-production-desktop-1440-motion.png",
+    "sha256": "29ef0567ec54a4bf11cc5e6eafb899f0fab37a4d31c3128582a49f926ffb208a"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-creative-production-desktop-1440-reduced.png",
+    "sha256": "29ef0567ec54a4bf11cc5e6eafb899f0fab37a4d31c3128582a49f926ffb208a"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-creative-production-mobile-390-first-frame.png",
+    "sha256": "376e060e7f87a9da188299fe1edcd13cf231303de756ad1d3b78c0a006898fd2"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-creative-production-mobile-390-motion.png",
+    "sha256": "04850b58fe9166c42c54870227d36fc85d0d8c8770e3d49293b6fd3d405ca950"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-creative-production-mobile-390-reduced.png",
+    "sha256": "67776979dc215bc740bfbf304244feb85da5977fab53b9fc6428e878070f64ed"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-digital-advertising-desktop-1440-first-frame.png",
+    "sha256": "700dbbdd86d7e7daa05ffcd32936cd3e1e70f476ffc40275894438547b56c15f"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-digital-advertising-desktop-1440-motion.png",
+    "sha256": "20985c5d518c7335bfd744e36eb113d224e7c9bfeeb754567b3eb794df200bc6"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-digital-advertising-desktop-1440-reduced.png",
+    "sha256": "20985c5d518c7335bfd744e36eb113d224e7c9bfeeb754567b3eb794df200bc6"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-digital-advertising-mobile-390-first-frame.png",
+    "sha256": "d5100926d51290dfea3199060b5c511675e6d8541c1444830d915cf725e5c01b"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-digital-advertising-mobile-390-motion.png",
+    "sha256": "97bd3bfafb5d7d1855d71f0ce3138e497557e0de7c894cb9a157a29e44607937"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-digital-advertising-mobile-390-reduced.png",
+    "sha256": "97bd3bfafb5d7d1855d71f0ce3138e497557e0de7c894cb9a157a29e44607937"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-faq-desktop-1440-first-frame.png",
+    "sha256": "048a812a01744b7c20d2725622d84b63d030716a9fd6ba013f36da6284c4d5c6"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-faq-desktop-1440-motion.png",
+    "sha256": "74cb5ef04c23f60bc94026107a45a22ade4c65caf7f2139a2efda7892e9c09a0"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-faq-desktop-1440-reduced.png",
+    "sha256": "74cb5ef04c23f60bc94026107a45a22ade4c65caf7f2139a2efda7892e9c09a0"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-faq-mobile-390-first-frame.png",
+    "sha256": "dc06c63ae5316fd18bf59e17759a5ef6250b1ef393986bb7ea23bbbdc5dd76c9"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-faq-mobile-390-motion.png",
+    "sha256": "fe1fef652ba121631ab47b3a39b14af475181f65a82d435ca83e840694af2c25"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-faq-mobile-390-reduced.png",
+    "sha256": "fe1fef652ba121631ab47b3a39b14af475181f65a82d435ca83e840694af2c25"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-home-desktop-1440-first-frame.png",
+    "sha256": "c09b0a1619d01cb1c0b94522cd88bd28c4878b32d02f10641524a86fe44ef054"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-home-desktop-1440-motion.png",
+    "sha256": "c462a2bf478eeaca5fe2d5c86f113d3f62841d476379fa29652e2490e346ad19"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-home-desktop-1440-reduced.png",
+    "sha256": "4015b4faa13634a82367ef0f61f2c146261248c5847d4125bda8547f9650121f"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-home-mobile-390-first-frame.png",
+    "sha256": "4bf7f68f8849e1362595d2144bf66490f82c61f8240793bf84bb93d071072296"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-home-mobile-390-motion.png",
+    "sha256": "4764ef0688a37453a3cf08fac03ce0b17601e2514ed0efdfe2a506aa688042a2"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-home-mobile-390-reduced.png",
+    "sha256": "6245ce499eec282bab6652379275a5b3e6f57f9dc93cd04bbef2a2a022b85bba"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-influencer-marketing-desktop-1440-first-frame.png",
+    "sha256": "8af67fc805d5eeb3544dc786c80eaaf558dad193e367994067d4a17bb3ee4485"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-influencer-marketing-desktop-1440-motion.png",
+    "sha256": "5aae68ec1e6b3e350632c061a52d5c7fdc41987c6706cd190972c642bb899e1c"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-influencer-marketing-desktop-1440-reduced.png",
+    "sha256": "5aae68ec1e6b3e350632c061a52d5c7fdc41987c6706cd190972c642bb899e1c"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-influencer-marketing-mobile-390-first-frame.png",
+    "sha256": "01acca5da1d8a1caef8f0c46c4d3a3a3f966f82769718329a9bbed9eb807ecd7"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-influencer-marketing-mobile-390-motion.png",
+    "sha256": "097b5ef6a1bab68efc22353d3e5843866ea8dcb3a96558e0950945a06171b2dc"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-influencer-marketing-mobile-390-reduced.png",
+    "sha256": "099155ba49b93c925fd4f0912be7264b8b190b61a78978c91a1cf8f0937ca8c9"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-legal-cookie-policy-desktop-1440-first-frame.png",
+    "sha256": "a9001461a5d0bea34ad26f0c6460a50385f145d6d09a4ca400291879d18353e6"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-legal-cookie-policy-desktop-1440-motion.png",
+    "sha256": "207dc02bedad2be40c3cad2d9a8990b0327303248838a46c0d6726136892854c"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-legal-cookie-policy-desktop-1440-reduced.png",
+    "sha256": "207dc02bedad2be40c3cad2d9a8990b0327303248838a46c0d6726136892854c"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-legal-cookie-policy-mobile-390-first-frame.png",
+    "sha256": "9ae4a1b53fcda5bf4f30c25998bbba5874cc7bd101705c452158301f8e4d409d"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-legal-cookie-policy-mobile-390-motion.png",
+    "sha256": "b87e323563f203c8dc8cf819996310065026baf288da33c07ca44ed0b87b6e04"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-legal-cookie-policy-mobile-390-reduced.png",
+    "sha256": "b87e323563f203c8dc8cf819996310065026baf288da33c07ca44ed0b87b6e04"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-legal-privacy-policy-desktop-1440-first-frame.png",
+    "sha256": "fbb8cd6456e01ec46f487a010c3c37272011d5b8b270cd9675ff1908a4a396c2"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-legal-privacy-policy-desktop-1440-motion.png",
+    "sha256": "84f56cb0f4d9bfb2a03199838cfb080a09fdb1cb8fe60aeae335ef4f9ec6b7ab"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-legal-privacy-policy-desktop-1440-reduced.png",
+    "sha256": "84f56cb0f4d9bfb2a03199838cfb080a09fdb1cb8fe60aeae335ef4f9ec6b7ab"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-legal-privacy-policy-mobile-390-first-frame.png",
+    "sha256": "f8ab322624779e8fc6647e0dd6ca018bde26eafe0dd7ac76ad99cbf61da53529"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-legal-privacy-policy-mobile-390-motion.png",
+    "sha256": "856ea6a162fe04348afd3a0220d28a3fc237f4174e0bfb04e38f51c54f81d651"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-legal-privacy-policy-mobile-390-reduced.png",
+    "sha256": "856ea6a162fe04348afd3a0220d28a3fc237f4174e0bfb04e38f51c54f81d651"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-legal-terms-of-service-desktop-1440-first-frame.png",
+    "sha256": "f5007cd742af24e248a678f15328b6a57747d10633c7af507a7f0d7dcb00804d"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-legal-terms-of-service-desktop-1440-motion.png",
+    "sha256": "5d540a718e5f827fcddcdc9007203de2f8230f45de1dd24089aa39c0a39d764e"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-legal-terms-of-service-desktop-1440-reduced.png",
+    "sha256": "5d540a718e5f827fcddcdc9007203de2f8230f45de1dd24089aa39c0a39d764e"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-legal-terms-of-service-mobile-390-first-frame.png",
+    "sha256": "1c417cccbaf13ac8631df406ea94d981abba259aa83e05e3973eea14cf3c002e"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-legal-terms-of-service-mobile-390-motion.png",
+    "sha256": "a2cf224f1a5099fa652ea3b50894ef13655e0ca926df34227c997fccddb48d50"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-legal-terms-of-service-mobile-390-reduced.png",
+    "sha256": "a2cf224f1a5099fa652ea3b50894ef13655e0ca926df34227c997fccddb48d50"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-out-of-home-desktop-1440-first-frame.png",
+    "sha256": "bce4e723beb2ebd6ea60d9ea328de2e704b7c5a83808872ff137767946b40971"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-out-of-home-desktop-1440-motion.png",
+    "sha256": "5836bcbb5a9832a31f7027b3759880856736c106530b46d816ef5328ebb58a49"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-out-of-home-desktop-1440-reduced.png",
+    "sha256": "085793756d0f224a75f6fb2e5b4c1b29efbf4c07ff998a2ff1519d0c417d3005"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-out-of-home-mobile-390-first-frame.png",
+    "sha256": "2429d1b7764d3104579ef1d80e8b4feb81ede646511900c828079b1b7d5bfdeb"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-out-of-home-mobile-390-motion.png",
+    "sha256": "e115487eaca228a6f49cca6aa6618a62e85510f56562793dbd0c89d78cb203f8"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-out-of-home-mobile-390-reduced.png",
+    "sha256": "411f99ba327d4e586213dd7fd02318dba794a78206af4a30c7b684109beaa5a0"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-radio-audio-desktop-1440-first-frame.png",
+    "sha256": "c1471e57483621f1ce8a180ee9cd3bb2c020da13b8b20b852d76b7b7d188369a"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-radio-audio-desktop-1440-motion.png",
+    "sha256": "e0216baf0408231002792dd825a0341223b9b111588aa4401ae0fde9b44a3dc6"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-radio-audio-desktop-1440-reduced.png",
+    "sha256": "e0216baf0408231002792dd825a0341223b9b111588aa4401ae0fde9b44a3dc6"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-radio-audio-mobile-390-first-frame.png",
+    "sha256": "baf8f10172e7aac1ceb4e6c2d9495020272c65839c1bd927309a530a98edb4fe"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-radio-audio-mobile-390-motion.png",
+    "sha256": "1cdabb8087f059403f59bc2f01ce1cb14f70d4f697824c2effb9d724cab9446e"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-radio-audio-mobile-390-reduced.png",
+    "sha256": "d5e928939afb52698983007e7394594f48f554ce6880e59515a43a2a9fa6c3c3"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-revenue-recovery-desktop-1440-first-frame.png",
+    "sha256": "81a324dce9965c8ab7be27700ecffd807bb644e69e1b9a0af581f93c2c2f6e20"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-revenue-recovery-desktop-1440-motion.png",
+    "sha256": "d34731522101483887c38227bb614ccc8825740a993a28b59139523bf48ee997"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-revenue-recovery-desktop-1440-reduced.png",
+    "sha256": "d34731522101483887c38227bb614ccc8825740a993a28b59139523bf48ee997"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-revenue-recovery-mobile-390-first-frame.png",
+    "sha256": "8fea0116f4a05681997c0678c5777e9365e06aa7d23f6bd68ee2b08f9d620fda"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-revenue-recovery-mobile-390-motion.png",
+    "sha256": "e2ba5102ca87c775c09dce41b307392cab4c15929e1e424429cfd7475e22e7d8"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-revenue-recovery-mobile-390-reduced.png",
+    "sha256": "e2ba5102ca87c775c09dce41b307392cab4c15929e1e424429cfd7475e22e7d8"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-search-intelligence-desktop-1440-first-frame.png",
+    "sha256": "810558b0e3901cc7441e1fc986f1cf27a3abbea944ef636035d9e5eca539329a"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-search-intelligence-desktop-1440-motion.png",
+    "sha256": "7565b46c19a30f19b4985b5470f1d37d5b85e84b7578551e475a73a06d7772e9"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-search-intelligence-desktop-1440-reduced.png",
+    "sha256": "7565b46c19a30f19b4985b5470f1d37d5b85e84b7578551e475a73a06d7772e9"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-search-intelligence-mobile-390-first-frame.png",
+    "sha256": "cd2d50ff61a35edd0f5e4c27b548719070631ae4bf3a28b9f6fa810372a581f0"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-search-intelligence-mobile-390-motion.png",
+    "sha256": "4cfbe86d1bbfece6b4a014cbf21db9b20e169b36337e9fe85e4b92849ed81114"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-search-intelligence-mobile-390-reduced.png",
+    "sha256": "4cfbe86d1bbfece6b4a014cbf21db9b20e169b36337e9fe85e4b92849ed81114"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-services-desktop-1440-first-frame.png",
+    "sha256": "18003ea3e5a11cfa377974bd0f7a138b2b182e32ccfb9c6be2f45f7478f2111d"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-services-desktop-1440-motion.png",
+    "sha256": "54b8a5495495e59b80e5ec9fdd1f26b171e92b764dcc82a13dcf6b604790a007"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-services-desktop-1440-reduced.png",
+    "sha256": "54b8a5495495e59b80e5ec9fdd1f26b171e92b764dcc82a13dcf6b604790a007"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-services-mobile-390-first-frame.png",
+    "sha256": "e166388d6dba3e5989030d966673abe4148f127a22d16c0ed402ee0db1111a3c"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-services-mobile-390-motion.png",
+    "sha256": "9779b33fd08358dd8c98aab4bd7b2b43b135320f981ace9f636d8157d89db6ce"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-services-mobile-390-reduced.png",
+    "sha256": "9779b33fd08358dd8c98aab4bd7b2b43b135320f981ace9f636d8157d89db6ce"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-social-media-desktop-1440-first-frame.png",
+    "sha256": "5338ea1c735c39dfcadcdd03b979ec362dcef5e66810133e88f1575707d1e881"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-social-media-desktop-1440-motion.png",
+    "sha256": "ea2c63a6dc6286b453361ac5fb8719340d22492b56c09040675098264df04d8c"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-social-media-desktop-1440-reduced.png",
+    "sha256": "ea2c63a6dc6286b453361ac5fb8719340d22492b56c09040675098264df04d8c"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-social-media-mobile-390-first-frame.png",
+    "sha256": "dfce28bb5a27b403a0468df66c0507729c9cf1c496a9e33ce6a72c89985ebc5f"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-social-media-mobile-390-motion.png",
+    "sha256": "eeced53c7ce818b8995b59ab30ab47c9d437c5c23432836692258542ad784fb4"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-social-media-mobile-390-reduced.png",
+    "sha256": "e7ff30d1a92ed50700f855bd35d2578b53014aa19de7813905cb31ccacdc8851"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-start-desktop-1440-first-frame.png",
+    "sha256": "534c7a8644684375abb613b028a1d07acf6cf2c460e35de33888cbdf3086c2f1"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-start-desktop-1440-motion.png",
+    "sha256": "9ca5e4b2488517568476927389d2c6878827bd7020adc78f7417c821ae3a47e8"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-start-desktop-1440-reduced.png",
+    "sha256": "9ca5e4b2488517568476927389d2c6878827bd7020adc78f7417c821ae3a47e8"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-start-mobile-390-first-frame.png",
+    "sha256": "cb0e4d93d97499f85ecea0b63b2401574b9f136b1459a319e5d6768b46a89280"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-start-mobile-390-motion.png",
+    "sha256": "116548ab434edf2e3a78aede3da572d914767f1c8e965e7b126a12a671202f07"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-start-mobile-390-reduced.png",
+    "sha256": "116548ab434edf2e3a78aede3da572d914767f1c8e965e7b126a12a671202f07"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-tv-streaming-desktop-1440-first-frame.png",
+    "sha256": "088d90fc6452c5dd14d4a545d0f1c1307f3f003c48eefa2d30538f148062c6f6"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-tv-streaming-desktop-1440-motion.png",
+    "sha256": "aeb623c3ca1487d40e759e180b1a07b21b20ac7950e5f4101942a37bb6f6c41d"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-tv-streaming-desktop-1440-reduced.png",
+    "sha256": "aeb623c3ca1487d40e759e180b1a07b21b20ac7950e5f4101942a37bb6f6c41d"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-tv-streaming-mobile-390-first-frame.png",
+    "sha256": "3f76fed30db084580745c3faa1ab9e4f57efa10676563ed60d0f9d39f8e1ee13"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-tv-streaming-mobile-390-motion.png",
+    "sha256": "4407839d3edf4e2d7ed886f0e2c2730a6d575a78c556adcd934abe0fde29589e"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-tv-streaming-mobile-390-reduced.png",
+    "sha256": "4407839d3edf4e2d7ed886f0e2c2730a6d575a78c556adcd934abe0fde29589e"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-websites-desktop-1440-first-frame.png",
+    "sha256": "59a492a6a0642b496b2d82d81b46689da2c761508dee106bd495ba4d873dfc6e"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-websites-desktop-1440-motion.png",
+    "sha256": "c47badc9339f662cbc44be6424108c84ecd3124243eab124c5f738d416163f17"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-websites-desktop-1440-reduced.png",
+    "sha256": "c47badc9339f662cbc44be6424108c84ecd3124243eab124c5f738d416163f17"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-websites-mobile-390-first-frame.png",
+    "sha256": "136f5c25448a956455a50b64bb48fd68bca0ba445d0779d4c8e1cde26228ee6e"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-websites-mobile-390-motion.png",
+    "sha256": "ef774ffa65e775921d602f829bcd977e04999a3ccb54dde95e808c4bcf82c882"
+  },
+  {
+    "path": "e2e/snapshots/story-pass/zbm-websites-mobile-390-reduced.png",
+    "sha256": "2c5ff3d910200060e263cc102c82e8983256791bb5c1100e190778c683bd719c"
+  }
+]
