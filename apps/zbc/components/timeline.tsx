@@ -1,6 +1,6 @@
 "use client";
 
-import { useMotionAllowed } from "@zbest/ui";
+import { useMotionAllowed, StoryImage, type StoryAssetId } from "@zbest/ui";
 import { motion, useMotionValue, useScroll, useTransform, type MotionValue } from "motion/react";
 import { useLayoutEffect, useRef, type ReactNode } from "react";
 
@@ -150,6 +150,9 @@ function Step({
       <p className="type-label text-accent">Step {String(index + 1).padStart(2, "0")}</p>
       <h3 className="type-title mt-2">{step.title}</h3>
       <div className="type-body mt-2 text-text-secondary">{step.body}</div>
+      <div className="mt-5">
+        <StoryImage asset={(["zbc-step1-brief", "zbc-step2-clippers", "zbc-step3-review", "zbc-step4-results"] satisfies StoryAssetId[])[index]!} />
+      </div>
     </li>
   );
 }
