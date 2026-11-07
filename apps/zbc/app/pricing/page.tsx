@@ -1,3 +1,5 @@
+import { ProcessDiagram } from "@zbest/ui";
+import { HeroMedia } from "@zbest/ui";
 import { ButtonLink, pageMetadata } from "@zbest/ui";
 import { CtaRow, LedgerList, Lead, PageHeader, PageSection, RuledList } from "@/components/page";
 import { NAV_CTA, SITE } from "@/lib/site";
@@ -21,7 +23,7 @@ export const metadata = pageMetadata(SITE, {
 export default function PricingPage() {
   return (
     <main>
-      <PageHeader label="Pricing" title="How a campaign is priced.">
+      <PageHeader aside={<HeroMedia asset="zbc-clipper-phone" caption="Concept editing workflow" frame="plate" sizes="(min-width: 1024px) 40vw, calc(100vw - 2.5rem)" />} label="Pricing" title="How a campaign is priced.">
         <Lead>
           You&rsquo;re not paying for hours or a retainer. You&rsquo;re funding a pool that
           pays creators for approved posts and verified views — nothing is billed before you
@@ -29,7 +31,7 @@ export default function PricingPage() {
         </Lead>
       </PageHeader>
 
-      <PageSection id="levers" label="Levers you control">
+      <PageSection id="levers" media={<ProcessDiagram title="Campaign funding" steps={["Campaign budget", "Approved posts", "Verified views", "Creator payouts"]} />} label="Levers you control">
         <LedgerList
           items={[
             { title: "Campaign budget", body: "funded, nothing charged upfront" },

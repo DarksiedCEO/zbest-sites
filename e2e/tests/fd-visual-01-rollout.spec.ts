@@ -13,9 +13,8 @@ import { ZBC_BASE_URL, ZBM_BASE_URL } from "../playwright.config";
  *     the image is loaded and fully visible on first paint (no empty frames);
  *     the Services hub instead carries one tile per act in its hero and one
  *     image-previewing list per act, each showing an image at both viewports;
- *     Revenue Recovery carries the six leaks as a code-drawn ledger with no
- *     numbers in it; About carries no image frame at all until the founder
- *     portrait arrives (no empty frame);
+ *     Revenue Recovery and About now carry approved AI story scenes, each
+ *     badged as concept; no founder portrait is implied;
  *   - reduced motion: the frame is still — scrolling moves nothing — and the
  *     full page is captured;
  *   - motion on: the first frame (viewport, before any scroll) is captured,
@@ -44,15 +43,15 @@ type RolloutPage = { name: string; base: string; path: string } & (
 
 const BATCHES: Record<string, RolloutPage[]> = {
   "batch-1": [
-    { name: "zbm-digital-advertising", base: ZBM_BASE_URL, path: "/digital-advertising", kind: "hero", asset: "quellmont-feed-sticker", frame: "phone" },
-    { name: "zbm-tv-streaming", base: ZBM_BASE_URL, path: "/tv-streaming", kind: "hero", asset: "quellmont-tv-keys", frame: "player" },
-    { name: "zbm-radio-audio", base: ZBM_BASE_URL, path: "/radio-audio", kind: "hero", asset: "saltgrove-radio", frame: "plate" },
-    { name: "zbm-social-media", base: ZBM_BASE_URL, path: "/social-media", kind: "hero", asset: "marenvale-social", frame: "phone" },
+    { name: "zbm-digital-advertising", base: ZBM_BASE_URL, path: "/digital-advertising", kind: "hero", asset: "da-problem-wasted-spend", frame: "plate" },
+    { name: "zbm-tv-streaming", base: ZBM_BASE_URL, path: "/tv-streaming", kind: "hero", asset: "tv-problem-wrong-room", frame: "plate" },
+    { name: "zbm-radio-audio", base: ZBM_BASE_URL, path: "/radio-audio", kind: "hero", asset: "radio-problem-commute", frame: "plate" },
+    { name: "zbm-social-media", base: ZBM_BASE_URL, path: "/social-media", kind: "hero", asset: "social-problem-dead-page", frame: "plate" },
   ],
   "batch-2": [
     { name: "zbm-creative-production", base: ZBM_BASE_URL, path: "/creative-production", kind: "hero", asset: "saltgrove-brand-system", frame: "plate" },
     { name: "zbm-influencer-marketing", base: ZBM_BASE_URL, path: "/influencer-marketing", kind: "hero", asset: "marenvale-influencer", frame: "phone" },
-    { name: "zbm-websites", base: ZBM_BASE_URL, path: "/websites", kind: "hero", asset: "marenvale-website", frame: "plate" },
+    { name: "zbm-websites", base: ZBM_BASE_URL, path: "/websites", kind: "hero", asset: "web-problem-old-site", frame: "plate" },
     { name: "zbm-services", base: ZBM_BASE_URL, path: "/services", kind: "hub", previews: 3, acts: 3 },
   ],
   "batch-3": [
@@ -61,8 +60,8 @@ const BATCHES: Record<string, RolloutPage[]> = {
     { name: "zbc-become-a-clipper", base: ZBC_BASE_URL, path: "/become-a-clipper", kind: "hero", asset: "zbc-clipper-phone", frame: "plate" },
   ],
   "batch-4": [
-    { name: "zbm-revenue-recovery", base: ZBM_BASE_URL, path: "/revenue-recovery", kind: "ledger", rows: 6 },
-    { name: "zbm-about", base: ZBM_BASE_URL, path: "/about", kind: "noFrame" },
+    { name: "zbm-revenue-recovery", base: ZBM_BASE_URL, path: "/revenue-recovery", kind: "hero", asset: "rr-missed-call", frame: "plate" },
+    { name: "zbm-about", base: ZBM_BASE_URL, path: "/about", kind: "hero", asset: "about-workspace", frame: "plate" },
   ],
 };
 
