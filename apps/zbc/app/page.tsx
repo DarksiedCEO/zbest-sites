@@ -1,5 +1,6 @@
 import { ButtonLink, Card, Counter, IllustrativeBadge, pageMetadata } from "@zbest/ui";
 import { CtaRow, LedgerList, Lead, PageHeader, PageSection, RuledList } from "@/components/page";
+import { ClipSplit } from "@/components/clip-split";
 import { Timeline } from "@/components/timeline";
 import { NAV_CTA, SITE } from "@/lib/site";
 
@@ -43,6 +44,12 @@ export default function HowItWorksPage() {
           </div>
         }
       />
+
+      {/*
+        FD-VISUAL-01 §5 showpiece: one source, dozens of clips. The step
+        timeline below it is now driven by its scroll scrubber.
+      */}
+      <ClipSplit />
 
       {/* Section 2 — The Process, on the timeline/scrubber device. */}
       <section id="process" className="mx-auto mt-section max-w-[90rem] scroll-mt-24 px-gutter lg:mt-section-lg lg:px-gutter-wide">

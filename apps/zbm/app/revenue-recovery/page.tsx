@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ButtonLink, LedgerRule, pageMetadata } from "@zbest/ui";
+import { ButtonLink, LedgerRule, pageMetadata, ScrollDrift } from "@zbest/ui";
 import {
   Body,
   CtaRow,
@@ -11,6 +11,7 @@ import {
   PageSection,
 } from "@/components/page";
 import { AssessmentForm } from "@/components/assessment-form";
+import { LeakLedger } from "@/components/leak-ledger";
 import { REVENUE_RECOVERY_FAQ } from "@/content/faq";
 import {
   AUDIT_DELIVERABLE,
@@ -19,6 +20,7 @@ import {
   ENGAGEMENTS,
   INDUSTRY_PATTERNS,
   LEAK_LIBRARY,
+  WHERE_REVENUE_LEAKS,
 } from "@/content/revenue-recovery";
 import { SITE } from "@/lib/site";
 
@@ -43,13 +45,24 @@ export const metadata = pageMetadata(SITE, {
  * was left out, what was rewritten, and why).
  * FAQ: §A4. "How does the process start?" was held in Phase 4 for its
  * 60-second answer; Phase 5 restored it, rewritten around founder decision 10.
+ * FD-VISUAL-01 §10 (rollout batch 4): the hero carries the six leaks as a
+ * code-drawn sample leak report (components/leak-ledger.tsx) — no numbers.
+ * The §5 scroll-marked leak report with its traffic line stays post-launch.
  * Assessment: the free assessment itself runs in #assessment (Backend Spec
  * v0.3 §11) — see components/assessment-form.tsx.
  */
 export default function RevenueRecoveryPage() {
   return (
     <main id="main">
-      <PageHeader label="Revenue Recovery" title="Find out where your revenue is going.">
+      <PageHeader
+        label="Revenue Recovery"
+        title="Find out where your revenue is going."
+        aside={
+          <ScrollDrift className="mx-auto w-full max-w-[30rem]">
+            <LeakLedger leaks={WHERE_REVENUE_LEAKS} />
+          </ScrollDrift>
+        }
+      >
         <Lead>
           Most businesses aren&rsquo;t short on traffic. They&rsquo;re losing the traffic
           they already paid for — at the phone, the follow-up, the checkout. We measure first,
@@ -70,13 +83,7 @@ export default function RevenueRecoveryPage() {
       <PageSection label="Where revenue leaks">
         <LedgerList
           numbered
-          items={[
-            { title: "Missed and unreturned calls" },
-            { title: "Follow-up that dies after one touch" },
-            { title: "Discount codes stacking past what you intended" },
-            { title: "Ad traffic landing on the wrong page" },
-            { title: "No retargeting on the people who almost bought" },
-          ]}
+          items={WHERE_REVENUE_LEAKS.map((title) => ({ title }))}
         />
       </PageSection>
 

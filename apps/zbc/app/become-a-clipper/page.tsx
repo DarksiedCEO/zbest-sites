@@ -1,4 +1,4 @@
-import { ButtonLink, Card, pageMetadata } from "@zbest/ui";
+import { ButtonLink, Card, HeroMedia, pageMetadata } from "@zbest/ui";
 import { CtaRow, FixtureNote, LedgerList, PageHeader, PageSection } from "@/components/page";
 import { NotAccepting } from "@/components/not-accepting";
 import { SITE } from "@/lib/site";
@@ -21,6 +21,10 @@ export const metadata = pageMetadata(SITE, {
  * waitlist section. Red team RTS-1: while ZBC's Privacy Policy is unpublished
  * that section collects nothing — a not-accepting message and an email
  * address instead of the §6.1 form (components/not-accepting.tsx).
+ *
+ * FD-VISUAL-01 §10: the hero carries the clipper's side of the work — a phone
+ * on a desk with a vertical-video edit on its timeline. Clipper-side only; no
+ * buyer pricing (§5).
  */
 export default function BecomeAClipperPage() {
   return (
@@ -28,6 +32,14 @@ export default function BecomeAClipperPage() {
       <PageHeader
         label="Become a Clipper"
         title="Turn footage into income. No experience required, no follower minimum."
+        aside={
+          <HeroMedia
+            asset="zbc-clipper-phone"
+            frame="plate"
+            className="mx-auto w-full max-w-[26rem]"
+            sizes="(min-width: 1024px) 416px, calc(100vw - 2.5rem)"
+          />
+        }
       >
         <div className="flex flex-col gap-4">
           <CtaRow>
