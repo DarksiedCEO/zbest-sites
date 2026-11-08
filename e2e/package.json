@@ -10,10 +10,11 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
     "@playwright/test": "1.63.0",
     "@types/node": "20.19.9",
-    "typescript": "5.9.3",
     "@zbest/config": "workspace:*",
-    "eslint": "9.39.5"
+    "eslint": "9.39.5",
+    "typescript": "5.9.3"
   }
 }

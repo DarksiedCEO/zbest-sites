@@ -16,7 +16,9 @@ if (missing.length) {
   console.error(`test:integration needs ${missing.join(" and ")}. For the no-database run use \`pnpm test\`.`);
   process.exit(2);
 }
-const result = spawnSync("vitest", ["run"], {
+// AEGIS r3 M2: a floor for every test and hook against a real database on a
+// loaded CI host; tests that need longer set their own.
+const result = spawnSync("vitest", ["run", "--testTimeout=30000", "--hookTimeout=60000"], {
   stdio: "inherit",
   shell: process.platform === "win32",
   env: { ...process.env, LEAD_TEST_EXPECT_VERIFY_FULL: "1" },

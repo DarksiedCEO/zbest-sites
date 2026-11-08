@@ -37,8 +37,10 @@
  *   - `channel_binding=require` is accepted but NOT enforced (the driver has
  *     no channel binding). SCRAM still authenticates the password; use
  *     verify-full if you need protection against interception.
- *   - an explicit remote `sslmode=disable` is honoured as the operator's
- *     choice; without sslmode a remote host gets TLS.
+ *   - an explicit remote `sslmode=disable` parses, but resolveTransport
+ *     (config.ts) refuses it when NODE_ENV=production: the Privacy Policy
+ *     says submissions travel to the database encrypted (AEGIS r2 L5).
+ *     Without sslmode a remote host gets TLS.
  *
  * Remote hosts with no sslmode default to TLS (`require`): every hosted
  * Postgres the design considers (Neon, Supabase, Vercel Marketplace) requires
@@ -73,6 +75,9 @@ const SSL: Record<string, PgSsl> = {
 };
 
 const LOCAL = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
+
+/** A loopback host, where TLS is pointless and off by default. */
+export const isLocalHost = (host: string) => LOCAL.has(host);
 
 export function parsePostgresUrl(raw: string): PgUrlResult {
   let url: URL;
@@ -159,4 +164,32 @@ export function parsePostgresUrl(raw: string): PgUrlResult {
       ...(startup_options ? { startup_options } : {}),
     },
   };
+}
+
+/**
+ * Red team RTS-8: in production a connection to a remote database must be
+ * encrypted AND verify the server's certificate (the Privacy Policy says
+ * submissions travel to the database over encrypted connections).
+ *   - `disable` is refused (AEGIS r2 L5);
+ *   - `allow` / `prefer` are refused: they fall back to plaintext;
+ *   - `require` (and no sslmode, which defaults to it) is upgraded to
+ *     `verify-full`: the driver's `require` sets rejectUnauthorized=false,
+ *     i.e. unverified TLS. Neon's certificates chain to public CAs, so its
+ *     default `?sslmode=require` URL verifies without any change;
+ *   - `sslmode=no-verify` and any `rejectUnauthorized` parameter never parse.
+ * A loopback host is exempt (TLS is pointless there), and nothing changes
+ * outside production.
+ */
+export function productionPg(options: PgOptions, production: boolean): PgUrlResult {
+  if (!production || isLocalHost(options.host)) return { ok: true, options };
+  if (options.ssl === false) return { ok: false, reason: "sslmode-disable-refused-in-production" };
+  if (options.ssl === "prefer") return { ok: false, reason: "sslmode-unverified-refused-in-production" };
+  if (options.ssl === "require") return { ok: true, options: { ...options, ssl: "verify-full" } };
+  return { ok: true, options };
+}
+
+/** parsePostgresUrl, then the production TLS rule. What the app, the purge and the health check connect with. */
+export function resolvePg(raw: string, env: Record<string, string | undefined>): PgUrlResult {
+  const parsed = parsePostgresUrl(raw);
+  return parsed.ok ? productionPg(parsed.options, env.NODE_ENV === "production") : parsed;
 }

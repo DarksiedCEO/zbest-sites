@@ -67,15 +67,16 @@ export function Timeline({ steps }: { steps: { title: string; body: ReactNode }[
             "repeating-linear-gradient(90deg, rgb(139 143 152 / 0.35) 0 1px, transparent 1px 1.5rem)",
         }}
       />
-      <ol
-        ref={listRef}
-        className={[
-          "relative grid gap-stack",
-          // The track: a vertical line at 390, a horizontal one at 1440.
-          "before:absolute before:bottom-2 before:left-[5px] before:top-2 before:w-px before:bg-text-secondary/45",
-          "lg:grid-cols-4 lg:gap-x-8 lg:before:inset-x-0 lg:before:bottom-auto lg:before:left-0 lg:before:top-[5px] lg:before:h-px lg:before:w-auto",
-        ].join(" ")}
-      >
+      {/* The track (a vertical line at 390, a horizontal one at 1440), its
+          filled part and the playhead sit beside the <ol>, not inside it: an
+          <ol> may only hold <li>s, and axe cannot measure text contrast over a
+          pseudo-element's background (AEGIS F5). This div and the <ol> share
+          one box, so every position is unchanged. */}
+      <div className="relative">
+        <span
+          aria-hidden="true"
+          className="absolute bottom-2 left-[5px] top-2 w-px bg-text-secondary/45 lg:inset-x-0 lg:bottom-auto lg:left-0 lg:top-[5px] lg:h-px lg:w-auto"
+        />
         {live ? (
           <>
             {/* Filled track behind the playhead. */}
@@ -98,20 +99,22 @@ export function Timeline({ steps }: { steps: { title: string; body: ReactNode }[
             />
           </>
         ) : null}
-        {steps.map((step, i) => (
-          <Step
-            key={step.title}
-            index={i}
-            step={step}
-            live={live}
-            travel={travel}
-            positions={positions}
-            markerRef={(el) => {
-              markerRefs.current[i] = el;
-            }}
-          />
-        ))}
-      </ol>
+        <ol ref={listRef} className="relative grid gap-stack lg:grid-cols-4 lg:gap-x-8">
+          {steps.map((step, i) => (
+            <Step
+              key={step.title}
+              index={i}
+              step={step}
+              live={live}
+              travel={travel}
+              positions={positions}
+              markerRef={(el) => {
+                markerRefs.current[i] = el;
+              }}
+            />
+          ))}
+        </ol>
+      </div>
     </div>
   );
 }

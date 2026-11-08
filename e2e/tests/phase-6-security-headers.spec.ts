@@ -68,6 +68,8 @@ for (const [app, base, extra] of [
       expect(h["referrer-policy"], p).toBe("strict-origin-when-cross-origin");
       expect(h["permissions-policy"], p).toContain("camera=()");
       expect(h["x-frame-options"], p).toBe("DENY");
+      // poweredByHeader: false (security sweep 2026-10-30, L2).
+      expect(h["x-powered-by"], `${p} x-powered-by`).toBeUndefined();
       await page.evaluate(() => document.fonts.ready);
       // next/font adds "<Family> Fallback" faces that point at system fonts
       // (local(Arial)). They are not fetched, so the CSP cannot affect them,
@@ -91,6 +93,22 @@ for (const [app, base, extra] of [
     expect(consoleCsp).toEqual([]);
   });
 
+  test(`${app}: RTS-9 — malformed URLs and error responses still carry every security header`, async ({ page }) => {
+    // A bad percent-encoding in a dynamic segment used to be a bare 500 with none of them.
+    for (const p of ["/legal/%E0%A4%A", "/legal/%", "/%E0%A4%A", "/nope/%ZZ", "/api/lead/%E0%A4%A"]) {
+      const res = await page.request.get(`${base}${p}`, { failOnStatusCode: false, maxRedirects: 0 });
+      const h = res.headers();
+      expect(res.status(), p).toBeGreaterThanOrEqual(400);
+      expect(h["content-security-policy"], `${p} csp`).toContain("frame-ancestors 'none'");
+      expect(h["strict-transport-security"], p).toBe("max-age=63072000; includeSubDomains");
+      expect(h["x-content-type-options"], p).toBe("nosniff");
+      expect(h["referrer-policy"], p).toBe("strict-origin-when-cross-origin");
+      expect(h["permissions-policy"], p).toContain("camera=()");
+      expect(h["x-frame-options"], p).toBe("DENY");
+      expect(await res.text(), `${p} no stack trace`).not.toMatch(/at \w+ \(|node_modules|\.next\//);
+    }
+  });
+
   test(`${app}: consent banner works under the CSP`, async ({ page }) => {
     const consoleCsp = await watchCsp(page);
     await page.goto(`${base}/`, { waitUntil: "load" });
@@ -105,6 +123,72 @@ for (const [app, base, extra] of [
     expect(await violations(page)).toEqual([]);
     expect(consoleCsp).toEqual([]);
   });
+
+  test(`${app}: Global Privacy Control is honoured as "Reject non-essential" without a banner`, async ({ page }) => {
+    // Privacy sweep 2026-10-30, F9. An earlier "accept" is overridden too.
+    await page.addInitScript(() => {
+      Object.defineProperty(Navigator.prototype, "globalPrivacyControl", { get: () => true, configurable: true });
+      if (!sessionStorage.getItem("seeded")) {
+        sessionStorage.setItem("seeded", "1");
+        localStorage.setItem("zbest-cookie-consent", JSON.stringify({ choice: "accepted-all", at: "2026-01-01T00:00:00.000Z" }));
+      }
+    });
+    await page.goto(`${base}/`, { waitUntil: "load" });
+    const banner = page.locator('[aria-labelledby="cookie-consent-heading"]');
+    await expect
+      .poll(() => page.evaluate(() => window.localStorage.getItem("zbest-cookie-consent")))
+      .toContain('"rejected-non-essential"');
+    await expect(banner).toBeHidden();
+    // Reopened from Cookie Settings, it does not offer "Accept all".
+    await page.goto(`${base}/legal/cookie-policy`, { waitUntil: "load" });
+    await page.getByRole("button", { name: "Change cookie settings" }).click();
+    await expect(banner).toBeVisible();
+    await expect(banner.getByRole("button", { name: "Accept all" })).toHaveCount(0);
+    await expect(banner.locator("[data-gpc-note]")).toBeVisible();
+  });
+
+  const stored = (page: Page) =>
+    page.evaluate(() => JSON.parse(window.localStorage.getItem("zbest-cookie-consent") ?? "null") as Record<string, unknown> | null);
+
+  test(`${app}: RTS-4 — with GPC on, choosing "Reject non-essential" after reopening still records gpc:true`, async ({ page }) => {
+    await page.addInitScript(() => {
+      Object.defineProperty(Navigator.prototype, "globalPrivacyControl", { get: () => true, configurable: true });
+    });
+    await page.goto(`${base}/legal/cookie-policy`, { waitUntil: "load" });
+    await expect.poll(() => stored(page)).toMatchObject({ choice: "rejected-non-essential", gpc: true });
+    const banner = page.locator('[aria-labelledby="cookie-consent-heading"]');
+    await expect(banner).toBeHidden();
+    await page.getByRole("button", { name: "Change cookie settings" }).click();
+    await expect(banner).toBeVisible();
+    await banner.getByRole("button", { name: "Reject non-essential" }).click();
+    await expect(banner).toBeHidden();
+    expect(await stored(page)).toMatchObject({ choice: "rejected-non-essential", gpc: true });
+    // And it stays so across a reload.
+    await page.reload({ waitUntil: "load" });
+    expect(await stored(page)).toMatchObject({ choice: "rejected-non-essential", gpc: true });
+  });
+
+  test(`${app}: RTS-4 — a manual reject stored before GPC was turned on is upgraded to gpc:true`, async ({ page }) => {
+    await page.addInitScript(() => {
+      if (!sessionStorage.getItem("seeded")) {
+        sessionStorage.setItem("seeded", "1");
+        localStorage.setItem("zbest-cookie-consent", JSON.stringify({ choice: "rejected-non-essential", at: "2026-01-01T00:00:00.000Z" }));
+      }
+      Object.defineProperty(Navigator.prototype, "globalPrivacyControl", { get: () => true, configurable: true });
+    });
+    await page.goto(`${base}/`, { waitUntil: "load" });
+    await expect.poll(() => stored(page)).toMatchObject({ choice: "rejected-non-essential", gpc: true });
+    await expect(page.locator('[aria-labelledby="cookie-consent-heading"]')).toBeHidden();
+  });
+
+  test(`${app}: RTS-4 — without GPC a manual choice records no gpc flag`, async ({ page }) => {
+    await page.goto(`${base}/`, { waitUntil: "load" });
+    const banner = page.locator('[aria-labelledby="cookie-consent-heading"]');
+    await banner.getByRole("button", { name: "Reject non-essential" }).click();
+    const record = await stored(page);
+    expect(record).toMatchObject({ choice: "rejected-non-essential" });
+    expect(record).not.toHaveProperty("gpc");
+  });
 }
 
 const FORMS = [
@@ -112,8 +196,7 @@ const FORMS = [
   [ZBM_BASE_URL, "/start"],
   [ZBM_BASE_URL, "/revenue-recovery"],
   [ZBM_BASE_URL, "/search-intelligence"],
-  [ZBC_BASE_URL, "/launch-a-campaign"],
-  [ZBC_BASE_URL, "/become-a-clipper"],
+  // Z Best Clips has no forms until its privacy policy is published (red team RTS-1).
 ] as const;
 
 for (const [base, p] of FORMS) {

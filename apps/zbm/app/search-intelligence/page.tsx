@@ -37,10 +37,15 @@ export const metadata = pageMetadata(SITE, {
   ogImage: "/search-intelligence/opengraph-image",
 });
 
+/**
+ * RTS-5: every tier is PLANNED — backend coverage of each named engine is not
+ * yet verified, so no tier is presented as available today. Change a tier's
+ * status only when the coverage it lists is live.
+ */
 const TIERS = [
-  { name: "Entry", price: "$2,000/mo" },
-  { name: "Growth", price: "$4,500/mo" },
-  { name: "Full Department", price: "$7,500/mo" },
+  { name: "Entry", price: "$2,000/mo", status: "Planned" },
+  { name: "Growth", price: "$4,500/mo", status: "Planned" },
+  { name: "Full Department", price: "$7,500/mo", status: "Planned" },
 ];
 
 const PRICING_ROWS: { label: string; cells: [string, string, string] }[] = [
@@ -109,7 +114,7 @@ const FAQ_ITEMS = [
   {
     question: "How is pricing structured?",
     answer:
-      "Three published tiers — Entry at $2,000/month, Growth at $4,500/month, Full Department at $7,500/month — scaling by engine coverage, content cadence, and whether revenue attribution is included. Above that, scope is custom.",
+      "Three planned tiers — Entry at $2,000/month, Growth at $4,500/month, Full Department at $7,500/month — scaling by engine coverage, content cadence, and whether revenue attribution is included. Above that, scope is custom.",
   },
   {
     question: "Do you offer a free trial?",
@@ -125,7 +130,7 @@ const FAQ_ITEMS = [
 
 export default function SearchIntelligencePage() {
   return (
-    <main>
+    <main id="main">
       <PageHeader aside={<HeroMedia asset="marenvale-website" frame="plate" sizes="(min-width: 1024px) 40vw, calc(100vw - 2.5rem)" />} label="Search Intelligence" title="Ranked isn’t the same as cited.">
         <Lead>
           Google&rsquo;s answer boxes, ChatGPT, Claude, Gemini, and Perplexity are
@@ -139,7 +144,7 @@ export default function SearchIntelligencePage() {
         </CtaRow>
       </PageHeader>
 
-      <PageSection label="What’s included" media={<ProcessDiagram title="Managed work" steps={["Access and crawl audit", "Coverage and citations", "Prioritized fixes", "Reporting"]} />}>
+      <PageSection label="What the planned tiers include" media={<ProcessDiagram title="Managed work" steps={["Access and crawl audit", "Coverage and citations", "Prioritized fixes", "Reporting"]} />}>
         <RuledList
           items={[
             "Continuous backlink crawl with authority and toxicity scored together — one ledger with a keep/watch/disavow flag",
@@ -169,7 +174,11 @@ export default function SearchIntelligencePage() {
         intro={
           <p className="type-body-lead text-text-secondary">
             Full-service AEO/GEO work, not a self-serve monitoring tool. Below $2,000/month
-            in this category is almost always rebranded SEO.
+            in this category is almost always rebranded SEO. These tiers are planned: the
+            engine coverage each one lists is still being built, and what is live is
+            confirmed in writing before any engagement. The audit checks that run today use
+            fixed, written rules, not an AI model, and a person reviews every report before
+            you see it.
           </p>
         }
       >
@@ -185,6 +194,7 @@ export default function SearchIntelligencePage() {
                   <th key={t.name} scope="col" className="py-ledger pr-4 align-bottom font-normal">
                     <span className="type-title block">{t.name}</span>
                     <span className="type-mono block text-accent">{t.price}</span>
+                    <span data-tier-status className="type-label block text-text-secondary">{t.status}</span>
                   </th>
                 ))}
               </tr>
@@ -213,6 +223,7 @@ export default function SearchIntelligencePage() {
               <LedgerRule emphasis />
               <p className="type-title mt-4">{t.name}</p>
               <p className="type-mono text-accent">{t.price}</p>
+              <p data-tier-status className="type-label text-text-secondary">{t.status}</p>
               <dl className="mt-3">
                 {PRICING_ROWS.map((row) => (
                   <div key={row.label} className="border-t border-text-secondary/20 py-3">
@@ -273,7 +284,7 @@ export default function SearchIntelligencePage() {
         <ReadinessCheck illustrations={{ structured_data: <DiagnosticIllustration kind="structure" /> }} />
       </PageSection>
 
-      <PageSection label="Who this is for">
+      <PageSection label="Who this is for" media={<ProcessDiagram title="Who this is for" steps={["Found in AI-generated answers", "Represented accurately", "Not just a results page"]} />}>
         <p className="type-body-lead text-text-primary">
           Businesses that need to be found — and represented accurately — in AI-generated
           answers, not just a traditional results page.

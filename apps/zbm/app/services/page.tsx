@@ -44,7 +44,7 @@ if (ACT_TILES.length !== SERVICE_GROUPS.length) throw new Error("Services hub: e
 
 export default function ServicesPage() {
   return (
-    <main>
+    <main id="main">
       <PageHeader
         label="Services"
         title="Everything you need to be seen, remembered, and paid."

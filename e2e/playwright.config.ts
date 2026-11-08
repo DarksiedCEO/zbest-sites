@@ -71,6 +71,16 @@ const fakeLeads = (
   ZBEST_LEAD_FAKE_OUTBOX: outboxFor(server),
   ZBEST_LEAD_FAKE_ACK: GATE_NONCE,
   LEAD_RATE_LIMIT: rate,
+  // RTS-3's site-wide cap (default 20 a minute) would trip on the suite's own
+  // volume; its behaviour is covered by packages/lead/test/redteam.test.ts.
+  LEAD_GLOBAL_LIMIT_PER_MINUTE: "100000",
+  // AEGIS r2/r3: the per-hour email cap, quarantine (per network and daily)
+  // and storage guard likewise — every e2e post comes from one address
+  // (packages/lead/test/aegis-r2.test.ts and aegis-r3.test.ts cover them).
+  LEAD_EMAIL_LIMIT_PER_HOUR: "1000000",
+  LEAD_QUARANTINE_BLOCK_LIMIT: "900000/600",
+  LEAD_QUARANTINE_AFTER_PER_DAY: "9000000",
+  LEAD_HARD_LIMIT_PER_DAY: "9000000",
   // Off Vercel the route refuses to run without naming the ONE trusted
   // client-address header (AEGIS r2 N1, r3 F1). CAUTION (AEGIS r4 R1): this
   // is a TEST harness, not a deployment pattern. `next start` does NOT append
@@ -98,6 +108,13 @@ const NO_LEAD_TRANSPORT = {
   LEAD_NOTIFY_TO: "",
   LEAD_NOTIFY: "",
   LEAD_RATE_LIMIT: "",
+  LEAD_RATE_LIMIT_NET: "",
+  LEAD_GLOBAL_LIMIT_PER_MINUTE: "",
+  LEAD_EMAIL_LIMIT_PER_HOUR: "",
+  LEAD_QUARANTINE_BLOCK_LIMIT: "",
+  LEAD_QUARANTINE_AFTER_PER_DAY: "",
+  LEAD_HARD_LIMIT_PER_DAY: "",
+  LEAD_FORM_SECRET: "",
   KV_REST_API_URL: "",
   KV_REST_API_TOKEN: "",
   UPSTASH_REDIS_REST_URL: "",
@@ -110,6 +127,8 @@ const serve = (pkg: string, port: number) =>
 
 export default defineConfig({
   testDir: "./tests",
+  // The nightly accessibility extension runs only from a11y-nightly.yml.
+  testIgnore: process.env.A11Y_NIGHTLY ? [] : ["**/*.nightly.spec.ts"],
   globalSetup: "./global-setup.ts",
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
@@ -131,6 +150,16 @@ export default defineConfig({
       name: "mobile-390",
       use: { ...devices["iPhone 14"], viewport: { width: 390, height: 844 } },
     },
+    // Nightly only (a11y-nightly.yml): the accessibility specs on Firefox.
+    ...(process.env.A11Y_NIGHTLY
+      ? [
+          {
+            name: "firefox-1440",
+            testMatch: /a11y(\.nightly)?\.spec\.ts$/,
+            use: { ...devices["Desktop Firefox"], viewport: { width: 1440, height: 900 } },
+          },
+        ]
+      : []),
   ],
   webServer: [
     {
@@ -138,7 +167,15 @@ export default defineConfig({
       url: ZBM_BASE_URL,
       cwd: "../",
       // ZBEST_DEV_ROUTES: build /dev/system for the Phase 2 gate (excluded in production).
-      env: { ZBEST_GATE_NONCE: GATE_NONCE, ZBEST_DEV_ROUTES: "1", ...NO_LEAD_TRANSPORT, ...fakeLeads("zbm", "100000/60") },
+      // ZBEST_ALLOW_LEGAL_PLACEHOLDERS: the gate builds with NODE_ENV=production;
+      // without it the ZBM legal placeholder guard would stop the build.
+      env: {
+        ZBEST_GATE_NONCE: GATE_NONCE,
+        ZBEST_DEV_ROUTES: "1",
+        ZBEST_ALLOW_LEGAL_PLACEHOLDERS: "1",
+        ...NO_LEAD_TRANSPORT,
+        ...fakeLeads("zbm", "100000/60"),
+      },
       // Never adopt a pre-existing server: it may be a stale build, another
       // branch, or not this project at all.
       reuseExistingServer: false,

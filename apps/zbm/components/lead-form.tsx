@@ -1,4 +1,5 @@
 import { LeadForm as SharedLeadForm, type LeadField } from "@zbest/ui/lead";
+import { CollectionNotice } from "./collection-notice";
 import { NOT_SURE, SERVICES } from "@/content/services";
 import { INTAKE_BUDGETS, INTAKE_TIMINGS, type LeadForm as LeadFormName } from "@/lib/lead";
 
@@ -22,11 +23,15 @@ const TIMING_LABELS: Record<(typeof INTAKE_TIMINGS)[number], string> = {
 const BUDGET_OPTIONS = INTAKE_BUDGETS.map((value) => ({ value, label: BUDGET_LABELS[value] }));
 const TIMING_OPTIONS = INTAKE_TIMINGS.map((value) => ({ value, label: TIMING_LABELS[value] }));
 
+/** The "State or territory" select: the service-area rule, on every form. */
+const REGION_FIELD: LeadField = { name: "region", label: "State or territory", kind: "region" };
+
 /** Labels are the §6.1 field names, verbatim, for the Brief's two forms. */
 const FIELDS: Record<LeadFormName, LeadField[]> = {
   contact: [
     { name: "name", label: "Name", autoComplete: "name" },
     { name: "business", label: "Business", autoComplete: "organization" },
+    REGION_FIELD,
     { name: "problem", label: "What are you looking to solve?", kind: "textarea" },
     { name: "reach", label: "Best way to reach you" },
   ],
@@ -34,6 +39,7 @@ const FIELDS: Record<LeadFormName, LeadField[]> = {
     { name: "name", label: "Name", autoComplete: "name" },
     { name: "business", label: "Business", autoComplete: "organization" },
     { name: "website", label: "Website", kind: "url", autoComplete: "url" },
+    REGION_FIELD,
     { name: "reach", label: "Best way to reach you" },
   ],
   // Universal intake (amendment Oct 4, 2026). Options come from the catalog.
@@ -49,6 +55,7 @@ const FIELDS: Record<LeadFormName, LeadField[]> = {
     },
     { name: "name", label: "Name", autoComplete: "name" },
     { name: "business", label: "Business", autoComplete: "organization" },
+    REGION_FIELD,
     { name: "reach", label: "Best way to reach you" },
     { name: "website", label: "Website", kind: "url", autoComplete: "url", optional: true },
     { name: "budget", label: "Budget", kind: "select", options: BUDGET_OPTIONS, optional: true },
@@ -73,5 +80,13 @@ export function LeadForm({
   defaults?: Record<string, string | string[]>;
 }) {
   const fields = FIELDS[form].map((f) => (f.name in defaults ? { ...f, defaultValue: defaults[f.name] } : f));
-  return <SharedLeadForm form={form} fields={fields} submitLabel={submitLabel} />;
+  // Every form gets the notice directly above its submit button.
+  return (
+    <SharedLeadForm
+      form={form}
+      fields={fields}
+      submitLabel={submitLabel}
+      notice={<CollectionNotice />}
+    />
+  );
 }

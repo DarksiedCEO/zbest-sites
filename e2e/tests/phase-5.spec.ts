@@ -3,6 +3,7 @@ import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { ZBM_BASE_URL } from "../playwright.config";
 import { formReady } from "../support/ready";
+import { formTokenHeader } from "../support/form-token";
 
 /**
  * Phase 5 gate — the free assessment chunk (Brief §6.3; Backend Spec v0.3 §11;
@@ -99,13 +100,15 @@ function request(answers: Answers, overrides: Record<string, unknown> = {}) {
     submission_id: crypto.randomUUID(),
     rule_set_version: RULE_SET_VERSION,
     contact: { name: "Test Person", business: "Test Co", website: "example.com", reach: "test@example.com" },
+    // Service area (founder decision 2026-10-30): beside contact, which keeps §11.3's four fields.
+    region: { state: "US-CA" },
     answers: Object.entries(answers).map(([question_id, value]) => ({ question_id, value })),
     ...overrides,
   };
 }
 
 const post = (page: Page, data: unknown) =>
-  page.request.post(`${ZBM_BASE_URL}/api/lead`, { data, failOnStatusCode: false });
+  page.request.post(`${ZBM_BASE_URL}/api/lead`, { headers: formTokenHeader(), data, failOnStatusCode: false });
 
 async function score(page: Page, answers: Answers) {
   const res = await post(page, request(answers));
@@ -139,6 +142,7 @@ async function fillContact(section: Locator) {
   await form.getByLabel("Business", { exact: true }).fill("Test Co");
   await form.getByLabel("Website", { exact: true }).fill("example.com");
   await form.getByLabel("Best way to reach you", { exact: true }).fill("test@example.com");
+  await form.getByLabel("State or territory", { exact: true }).selectOption("US-CA");
 }
 
 async function choose(section: Locator, choices: Record<string, (typeof SCALE)[number]>) {
@@ -291,7 +295,7 @@ test.describe("Free assessment — the form and its result (§11.3, §11.5)", ()
     const section = await openAssessment(page);
     let sent = 0;
     page.on("request", (r) => {
-      if (r.url().endsWith("/api/lead")) sent += 1;
+      if (r.url().endsWith("/api/lead") && r.method() === "POST") sent += 1;
     });
     await fillContact(section);
     await choose(section, { follow_up: "Very true" });
@@ -307,7 +311,7 @@ test.describe("Free assessment — the form and its result (§11.3, §11.5)", ()
     await fillContact(section);
     await choose(section, { ...everyOther("Not true"), conversion: "Very true", trust: "Somewhat true" });
     const [response] = await Promise.all([
-      page.waitForResponse((r) => r.url().endsWith("/api/lead")),
+      page.waitForResponse((r) => r.url().endsWith("/api/lead") && r.request().method() === "POST"),
       section.getByRole("button", { name: "Get an Assessment" }).click(),
     ]);
     expect(response.headers()["x-zbest-lead-transport"]).toBe("fake");

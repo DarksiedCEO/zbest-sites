@@ -1,12 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { spawn, spawnSync } from "node:child_process";
 import { lookup } from "node:dns/promises";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { parsePostgresUrl } from "../src/pg-url";
-import { postgresStore } from "../src/postgres";
+import { postgresPurger, postgresStore } from "../src/postgres";
+import { retentionCutoffs } from "../src/retention";
 import { payloadHash } from "../src/hash";
 import { DeliveryError } from "../src/types";
 
@@ -44,6 +45,8 @@ const connect = (raw: string, extra: postgres.Options<Record<string, never>> = {
   });
 };
 
+const MIGRATIONS = readdirSync(path.join(import.meta.dirname, "..", "sql")).filter((f) => /^\d{3}_.+\.sql$/.test(f)).sort();
+
 describe.skipIf(!url)("postgres store (integration)", () => {
   let sql: postgres.Sql;
 
@@ -52,7 +55,12 @@ describe.skipIf(!url)("postgres store (integration)", () => {
     await sql.unsafe(readFileSync(path.join(import.meta.dirname, "..", "sql", "001_leads.sql"), "utf8"));
     // The migration is idempotent: applying it twice is a no-op.
     await sql.unsafe(readFileSync(path.join(import.meta.dirname, "..", "sql", "001_leads.sql"), "utf8"));
+    // Every later migration, in order (each is idempotent too).
+    for (const file of MIGRATIONS.filter((f) => !f.startsWith("001_"))) {
+      await sql.unsafe(readFileSync(path.join(import.meta.dirname, "..", "sql", file), "utf8"));
+    }
     await sql`TRUNCATE leads`;
+    await sql`TRUNCATE lead_purge_runs`;
     // The Neon-shaped test below connects as a separate, TLS-only SCRAM role.
     await sql.unsafe(
       "DO $$ BEGIN IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'leadscram') THEN GRANT ALL ON leads TO leadscram; END IF; END $$",
@@ -71,16 +79,17 @@ describe.skipIf(!url)("postgres store (integration)", () => {
       form: "start",
       payload: { name: "Ada", services: ["out-of-home"], nested: { a: 1 } },
       payload_hash: payloadHash({ name: "Ada" }),
+      content_hash: randomUUID(),
       services: ["out-of-home", "tv-streaming"],
       source: "bb-i405",
-      ip_hash: "h".repeat(64),
+      service_area: "PR",
       user_agent: "UA",
     };
     const results = await Promise.all([store.insert(record), store.insert(record), store.insert(record)]);
     expect(results.filter((r) => r.inserted)).toHaveLength(1);
-    expect(results.filter((r) => !r.inserted && r.samePayload)).toHaveLength(2);
+    expect(results.filter((r) => !r.inserted && "samePayload" in r && r.samePayload)).toHaveLength(2);
     // Same id, changed content: reported as a conflict, never stored over the first.
-    expect(await store.insert({ ...record, payload: { name: "Edited" }, payload_hash: payloadHash({ name: "Edited" }) })).toEqual({
+    expect(await store.insert({ ...record, payload: { name: "Edited" }, payload_hash: payloadHash({ name: "Edited" }) })).toMatchObject({
       inserted: false,
       samePayload: false,
     });
@@ -92,6 +101,7 @@ describe.skipIf(!url)("postgres store (integration)", () => {
       form: "start",
       services: ["out-of-home", "tv-streaming"],
       source: "bb-i405",
+      service_area: "PR",
       notify_status: "pending",
       payload: { name: "Ada", services: ["out-of-home"], nested: { a: 1 } },
     });
@@ -105,10 +115,122 @@ describe.skipIf(!url)("postgres store (integration)", () => {
   it("the same submission_id in the other app is a different lead (key is per app)", async () => {
     const store = postgresStore(opts(url!));
     const id = randomUUID();
-    const base = { submission_id: id, form: "x", payload: {}, payload_hash: "h1", services: [], source: null, ip_hash: null, user_agent: null };
+    const base = { submission_id: id, form: "x", payload: {}, payload_hash: "h1", content_hash: randomUUID(), services: [], source: null, service_area: "US-CA", user_agent: null };
     expect((await store.insert({ ...base, app: "zbm" })).inserted).toBe(true);
     expect((await store.insert({ ...base, app: "zbc" })).inserted).toBe(true);
     expect((await store.insert({ ...base, app: "zbc" })).inserted).toBe(false);
+  });
+
+  it("RTS-3: the same content under a new submission_id within 24 h is one row; racing copies too; another app is separate", async () => {
+    const store = postgresStore(opts(url!));
+    const content = randomUUID();
+    const rec = (app: "zbm" | "zbc" = "zbm") => ({
+      submission_id: randomUUID(), app, form: "start", payload: { n: content }, payload_hash: content, content_hash: content,
+      services: [], source: null, service_area: "US-CA", user_agent: null,
+    });
+    const results = await Promise.all([store.insert(rec()), store.insert(rec()), store.insert(rec())]);
+    expect(results.filter((r) => r.inserted)).toHaveLength(1);
+    expect(results.filter((r) => "duplicateOf" in r)).toHaveLength(2);
+    expect(await store.insert(rec("zbc"))).toMatchObject({ inserted: true });
+    const rows = await sql`SELECT app, content_hash FROM leads WHERE content_hash = ${content} ORDER BY app`;
+    expect(rows.map((r) => r.app)).toEqual(["zbc", "zbm"]);
+    // Older than the window: no longer a duplicate.
+    await sql`UPDATE leads SET created_at = now() - interval '25 hours' WHERE content_hash = ${content}`;
+    expect(await store.insert(rec())).toMatchObject({ inserted: true });
+  });
+
+  it("CH-9: a lock on the leads table fails the insert fast (lock/statement timeout), never hangs", async () => {
+    const store = postgresStore(opts(url!), { statementTimeoutMs: 1_000 });
+    const locker = connect(url!);
+    let release!: () => void;
+    const held = new Promise<void>((r) => (release = r));
+    let locked!: () => void;
+    const isLocked = new Promise<void>((r) => (locked = r));
+    const lock = locker.begin(async (tx) => {
+      await tx`LOCK TABLE leads IN ACCESS EXCLUSIVE MODE`;
+      locked();
+      await held;
+    });
+    await isLocked;
+    const started = Date.now();
+    const error = await store
+      .insert({
+        submission_id: randomUUID(), app: "zbm", form: "x", payload: {}, payload_hash: "h", content_hash: randomUUID(),
+        services: [], source: null, service_area: "US-CA", user_agent: null,
+      })
+      .catch((e: unknown) => e);
+    const took = Date.now() - started;
+    release();
+    await lock;
+    await locker.end();
+    expect(error).toBeInstanceOf(DeliveryError);
+    expect(["55P03", "57014"]).toContain((error as DeliveryError).detail);
+    expect(took).toBeLessThan(4_000);
+  });
+
+  it("CH-8: the outbox — failed and stale pending rows are claimed once (lease), backoff and grace respected; a duplicate reports its email state", async () => {
+    const store = postgresStore(opts(url!));
+    const app = "zbc" as const; // its own app, so other tests' rows do not interfere
+    await sql`DELETE FROM leads WHERE app = 'zbc'`;
+    const row = (id = randomUUID()) => ({
+      submission_id: id, app, form: "start", payload: { n: id }, payload_hash: id, content_hash: id,
+      services: [], source: null, service_area: "US-CA", user_agent: null,
+    });
+    const failed = row();
+    const freshPending = row();
+    const stalePending = row();
+    const backedOff = row();
+    const sent = row();
+    for (const r of [failed, freshPending, stalePending, backedOff, sent]) expect((await store.insert(r)).inserted).toBe(true);
+    await store.setNotifyStatus(app, failed.submission_id, "failed");
+    await store.setNotifyStatus(app, backedOff.submission_id, "failed", new Date(Date.now() + 3_600_000));
+    await store.setNotifyStatus(app, sent.submission_id, "sent");
+    await sql`UPDATE leads SET created_at = now() - interval '10 minutes' WHERE submission_id = ${stalePending.submission_id}::uuid`;
+
+    const dup = await store.insert(failed);
+    expect(dup).toMatchObject({ inserted: false, samePayload: true, stored: { notify_status: "failed" } });
+
+    const claimOpts = { pendingBefore: new Date(Date.now() - 5 * 60_000), createdAfter: new Date(Date.now() - 3 * 86_400_000), maxAttempts: 10, limit: 50 };
+    // Two claims on SEPARATE connections (distinct options → distinct clients), so the lease is really raced.
+    const store2 = postgresStore({ ...opts(url!), connect_timeout: 42 });
+    const [a, b] = await Promise.all([store.claimUnsent(app, claimOpts), store2.claimUnsent(app, claimOpts)]);
+    const claimed = [...a, ...b].map((r) => r.submission_id).sort();
+    expect(claimed).toEqual([failed.submission_id, stalePending.submission_id].sort());
+    expect([...a, ...b].find((r) => r.submission_id === failed.submission_id)?.notify_attempts).toBe(1);
+    // Leased: a third run finds nothing.
+    expect(await store.claimUnsent(app, claimOpts)).toEqual([]);
+
+    const purger = postgresPurger(opts(url!));
+    const state = () => purger.leadState(app, { unsentBefore: new Date(Date.now() + 60_000), retryAfter: new Date(Date.now() - 3 * 86_400_000) });
+    expect((await state()).unsent).toBe(4);
+    await store.setNotifyStatus(app, failed.submission_id, "sent");
+    expect((await state()).unsent).toBe(3);
+    await sql`DELETE FROM leads WHERE app = 'zbc'`;
+  });
+
+  it("AEGIS F1/F3/F4, r3 H1: deferred leads are batched once for a digest and count as backlog; a content duplicate returns the stored copy; the schema check sees every column", async () => {
+    const store = postgresStore(opts(url!));
+    const purger = postgresPurger(opts(url!));
+    await sql`DELETE FROM leads WHERE app = 'zbc'`;
+    const id = randomUUID();
+    const content = randomUUID();
+    const rec = { submission_id: id, app: "zbc" as const, form: "start", payload: { n: 1 }, payload_hash: "p", content_hash: content, services: [], source: null, service_area: "US-CA", user_agent: null };
+    expect(await store.insert(rec)).toMatchObject({ inserted: true });
+    await store.setNotifyStatus("zbc", id, "failed");
+    const dup = await store.insert({ ...rec, submission_id: randomUUID() });
+    expect(dup).toMatchObject({ inserted: false, duplicateOf: "content", original: { submission_id: id, notify_status: "failed", payload: { n: 1 } } });
+
+    await store.setNotifyStatus("zbc", id, "deferred");
+    expect((await purger.leadState("zbc", { unsentBefore: new Date(0), retryAfter: new Date(0) })).digestPending).toBe(1);
+    // Two claims on SEPARATE connections (distinct options → distinct clients).
+    const other = postgresStore({ ...opts(url!), connect_timeout: 41 });
+    const seal = () => "h";
+    const [a, b] = await Promise.all([store.formBatch("zbc", "digest", 10, seal), other.formBatch("zbc", "digest", 10, seal)]);
+    expect([...(a?.leads ?? []), ...(b?.leads ?? [])].map((r) => r.submission_id)).toEqual([id]);
+    // The formed batch is leased whole: no other run can claim it now.
+    expect(await other.claimBatch("zbc", "digest")).toBeNull();
+    expect(await purger.missingColumns()).toEqual([]);
+    await sql`DELETE FROM leads WHERE app = 'zbc'`;
   });
 
   it("the table rejects an unknown app, and the error surfaces as a SQLSTATE only", async () => {
@@ -120,9 +242,10 @@ describe.skipIf(!url)("postgres store (integration)", () => {
         form: "x",
         payload: { secret: "PII-VALUE" },
         payload_hash: "h",
+        content_hash: randomUUID(),
         services: [],
         source: null,
-        ip_hash: null,
+        service_area: "US-CA",
         user_agent: null,
       })
       .catch((e: unknown) => e);
@@ -140,14 +263,74 @@ describe.skipIf(!url)("postgres store (integration)", () => {
         form: "x",
         payload: {},
         payload_hash: "h",
+        content_hash: randomUUID(),
         services: [],
         source: null,
-        ip_hash: null,
+        service_area: "US-CA",
         user_agent: null,
       })
       .catch((e: unknown) => e);
     expect(error).toBeInstanceOf(DeliveryError);
   }, 15_000);
+
+  it("retention purge: deletes only this app's rows older than the cutoff; blanks old user agents; idempotent", async () => {
+    const now = new Date("2026-10-30T12:00:00.000Z");
+    const day = 86_400_000;
+    const row = async (app: "zbm" | "zbc", ageDays: number, ua: string | null) => {
+      const id = randomUUID();
+      const created = new Date(now.getTime() - ageDays * day).toISOString();
+      await sql`
+        INSERT INTO leads (submission_id, app, form, payload, payload_hash, user_agent, created_at)
+        VALUES (${id}::uuid, ${app}, 'purge-test', '{}'::jsonb, 'h', ${ua}, ${created}::timestamptz)`;
+      return id;
+    };
+    await sql`DELETE FROM leads WHERE form = 'purge-test'`;
+    const oldZbm = await row("zbm", 731, "UA-old");
+    const edgeZbm = await row("zbm", 729.99, "UA-edge"); // inside 730 days: kept, UA blanked
+    const recentZbm = await row("zbm", 10, "UA-recent"); // kept, UA kept
+    const midZbm = await row("zbm", 91, "UA-mid"); // kept, UA blanked
+    const oldZbc = await row("zbc", 900, "UA-zbc"); // other app: untouched by the zbm run
+    // An ip_hash written by a pre-hardening deployment after 002 ran: cleared on the next purge (AEGIS H-L1).
+    await sql`UPDATE leads SET ip_hash = 'legacy-hash' WHERE submission_id IN (${recentZbm}::uuid, ${oldZbc}::uuid)`;
+
+    const purger = postgresPurger(opts(url!));
+    const cutoffs = retentionCutoffs(now, { leadDays: 730, uaDays: 90 });
+    expect(await purger.purge("zbm", cutoffs, now)).toEqual({ deleted: 1, uaCleared: 2, ipHashCleared: 1 });
+    // The ledger records the successful run, in the same transaction.
+    expect(await purger.lastSuccess("zbm")).toEqual(now);
+    expect(await purger.lastSuccess("zbc")).toBeNull();
+    const later = new Date(now.getTime() + 86_400_000);
+    expect(await purger.purge("zbm", cutoffs, later)).toEqual({ deleted: 0, uaCleared: 0, ipHashCleared: 0 });
+    expect(await purger.lastSuccess("zbm")).toEqual(later);
+
+    const hashes = await sql`SELECT submission_id::text AS id, ip_hash FROM leads WHERE form = 'purge-test' AND ip_hash IS NOT NULL`;
+    expect(hashes.map((h) => h.id)).toEqual([oldZbc]); // zbm cleared; zbc is the other app's run
+    const left = await sql`SELECT submission_id::text AS id, user_agent FROM leads WHERE form = 'purge-test' ORDER BY created_at`;
+    expect(Object.fromEntries(left.map((r) => [r.id, r.user_agent]))).toEqual({
+      [oldZbc]: "UA-zbc",
+      [edgeZbm]: null,
+      [midZbm]: null,
+      [recentZbm]: "UA-recent",
+    });
+    expect(left.map((r) => r.id)).not.toContain(oldZbm);
+    await sql`DELETE FROM leads WHERE form = 'purge-test'`;
+  });
+
+  it("004: the table itself refuses anything outside the service area (defence in depth)", async () => {
+    const insert = (area: string | null) =>
+      sql`INSERT INTO leads (submission_id, app, form, payload, payload_hash, service_area)
+          VALUES (${randomUUID()}::uuid, 'zbm', 'region-test', '{}'::jsonb, 'h', ${area})`;
+    for (const bad of ["outside", "CA", "US-PR", "US-GU", "US-VI", "US-AS", "US-MP", "UM", "GB", "us-ca", "vi", ""]) {
+      await expect(insert(bad), bad).rejects.toMatchObject({ code: "23514" });
+    }
+    for (const ok of ["US-CA", "US-WY", "US-DC", "PR", "GU", "VI", "AS", "MP", null]) await insert(ok);
+    await sql`DELETE FROM leads WHERE form = 'region-test'`;
+  });
+
+  it("002 cleared ip_hash and the app no longer writes it", async () => {
+    const [{ n }] = (await sql`SELECT count(*)::int AS n FROM leads WHERE ip_hash IS NOT NULL`) as unknown as [{ n: number }];
+    expect(n).toBe(0);
+  });
 });
 
 describe.skipIf(!neonShaped)("postgres store with a Neon-shaped URL (TLS + SCRAM + channel_binding)", () => {
@@ -162,12 +345,13 @@ describe.skipIf(!neonShaped)("postgres store with a Neon-shaped URL (TLS + SCRAM
       form: "clipper",
       payload: { name: "TLS" },
       payload_hash: "h",
+      content_hash: randomUUID(),
       services: [],
       source: null,
-      ip_hash: null,
+      service_area: "US-CA",
       user_agent: null,
     });
-    expect(result).toEqual({ inserted: true });
+    expect(result).toMatchObject({ inserted: true });
     const sql = connect(url!);
     const [row] = await sql`SELECT form FROM leads WHERE app = 'zbc' AND submission_id = ${id}`;
     await sql.end();
@@ -212,15 +396,58 @@ describe.skipIf(!url)("migrate script (integration)", () => {
     expect(first.status, first.stderr).toBe(0);
     expect(first.stdout).toContain("applied 001_leads.sql");
     expect(first.stdout).toContain("schema ok; unique key ok; round-trip insert ok (rolled back)");
+    expect(first.stdout).toContain("service area check ok (56 codes accepted, 14 near-misses refused; rolled back)");
 
     const second = run(target);
     expect(second.status, second.stderr).toBe(0);
-    expect(second.stdout).toContain("skip 001_leads.sql (already applied)");
+    for (const f of MIGRATIONS) expect(second.stdout).toContain(`skip ${f} (already applied)`);
 
     const db = connect(target);
-    expect(await db`SELECT version FROM schema_migrations`).toEqual([{ version: "001" }]);
+    expect(await db`SELECT version FROM schema_migrations ORDER BY version`).toEqual(MIGRATIONS.map((f) => ({ version: f.slice(0, 3) })));
     expect(await db`SELECT count(*)::int AS n FROM leads`).toEqual([{ n: 0 }]);
     await db.end();
+  }, 60_000);
+
+  it("R-M1: a database that already ran the 53-code 004 is fixed by 005, and VI/AS/MP then store", async () => {
+    // 001-004 exactly as 004 was first committed (53 codes), recorded as applied.
+    const sqlDir = path.join(import.meta.dirname, "..", "sql");
+    const target = await prepared(
+      "leads_migrate_r_m1",
+      ["002_retention.sql", "003_purge_runs.sql", "004_region.sql"].map((f) => readFileSync(path.join(sqlDir, f), "utf8")).join("\n") +
+        "\nINSERT INTO schema_migrations (version) VALUES ('002'), ('003'), ('004');",
+    );
+    const db = connect(target);
+    await expect(
+      db`INSERT INTO leads (submission_id, app, form, payload, payload_hash, service_area) VALUES (${randomUUID()}::uuid, 'zbm', 'x', '{}'::jsonb, 'h', 'VI')`,
+    ).rejects.toMatchObject({ code: "23514" });
+    const result = run(target);
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain("skip 004_region.sql (already applied)");
+    expect(result.stdout).toContain("applied 005_region_territories.sql");
+    expect(result.stdout).toContain("service area check ok (56 codes accepted");
+    for (const code of ["VI", "AS", "MP"]) {
+      await db`INSERT INTO leads (submission_id, app, form, payload, payload_hash, service_area) VALUES (${randomUUID()}::uuid, 'zbm', 'x', '{}'::jsonb, 'h', ${code})`;
+    }
+    await db.end();
+  });
+
+  it("R-M1: a service-area CHECK that drifted from the app's set fails the run, naming the codes", async () => {
+    const sql = admin();
+    await sql.unsafe("DROP DATABASE IF EXISTS leads_migrate_drift");
+    await sql.unsafe("CREATE DATABASE leads_migrate_drift");
+    await sql.end();
+    const target = dbUrl("leads_migrate_drift");
+    expect(run(target).status).toBe(0);
+    const db = connect(target);
+    // Someone narrows the constraint by hand (drops Guam, lets 'outside' in): every migration is already recorded.
+    await db.unsafe(`ALTER TABLE leads DROP CONSTRAINT leads_service_area_check;
+      ALTER TABLE leads ADD CONSTRAINT leads_service_area_check CHECK (service_area IS NULL OR service_area <> 'GU')`);
+    await db.end();
+    const result = run(target);
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain("leads_service_area_check does not match the app's 56 service areas; refuses: GU; accepts:");
+    expect(result.stderr).toContain('"outside"');
+    expect(result.stderr).toContain("Nothing was changed");
   });
 
   it("an incompatible pre-existing leads table is caught, not trusted", async () => {
@@ -495,9 +722,10 @@ describe.skipIf(!neonShaped)("TLS modes and startup options (integration)", () =
         form: "tls-check",
         payload: {},
         payload_hash: "h",
+        content_hash: randomUUID(),
         services: [],
         source: null,
-        ip_hash: null,
+        service_area: "US-CA",
         user_agent: null,
       })
       .then(

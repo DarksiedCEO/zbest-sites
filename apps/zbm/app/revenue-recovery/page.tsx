@@ -17,6 +17,7 @@ import { LeakLedger } from "@/components/leak-ledger";
 import { REVENUE_RECOVERY_FAQ } from "@/content/faq";
 import {
   AUDIT_DELIVERABLE,
+  AUTOMATED_CHECKS,
   DEFINITION,
   ENGAGEMENTS,
   INDUSTRY_PATTERNS,
@@ -28,7 +29,7 @@ import { SITE } from "@/lib/site";
 export const metadata = pageMetadata(SITE, {
   title: "Revenue Recovery",
   description:
-    "An audit-first approach that finds where your existing traffic and campaigns are losing conversions, fixes those leaks, then scales what’s proven to work.",
+    "Find where revenue is being lost. Start with a free, rule-based self-assessment; the paid analysis reads your Shopify orders for stacked discount codes and labels every figure with how it was measured.",
   path: "/revenue-recovery",
   ogImage: "/revenue-recovery/opengraph-image",
 });
@@ -54,7 +55,7 @@ export const metadata = pageMetadata(SITE, {
  */
 export default function RevenueRecoveryPage() {
   return (
-    <main>
+    <main id="main">
       <PageHeader
         label="Revenue Recovery"
         title="Find out where your revenue is going."
@@ -64,8 +65,9 @@ export default function RevenueRecoveryPage() {
       >
         <Lead>
           Most businesses aren&rsquo;t short on traffic. They&rsquo;re losing the traffic
-          they already paid for — at the phone, the form, the follow-up. We audit first,
-          show you the leak with real numbers, fix it, then scale what&rsquo;s proven.
+          they already paid for — at the phone, the follow-up, the checkout. We measure first,
+          show you each figure with how it was obtained, fix what&rsquo;s leaking, then scale
+          what&rsquo;s proven.
         </Lead>
         <Body>{DEFINITION}</Body>
         <div className="flex flex-col gap-4">
@@ -81,10 +83,16 @@ export default function RevenueRecoveryPage() {
       <PageSection label="Where revenue leaks" media={<LeakLedger leaks={WHERE_REVENUE_LEAKS} />}>
         <ol className="space-y-8">
           {WHERE_REVENUE_LEAKS.map((title, i) => {
-            const images: (StoryAssetId | null)[] = [null, "rr-broken-form", "rr-no-follow-up", "rr-slow-page", "rr-wrong-page", null];
+            // Keyed by leak, not position: each image must show the leak it sits
+            // under (RTS-5: no image of a leak the paid analysis doesn't check).
+            const images: Partial<Record<string, StoryAssetId>> = {
+              "Follow-up that dies after one touch": "rr-no-follow-up",
+              "Ad traffic landing on the wrong page": "rr-wrong-page",
+            };
+            const image = images[title];
             return <li key={title} className="border-t border-text-secondary/30 pt-5">
               <h3 className="type-title mb-4"><span className="type-mono text-accent mr-3">{String(i + 1).padStart(2, "0")}</span>{title}</h3>
-              {images[i] ? <StoryImage asset={images[i]!} /> : null}
+              {image ? <StoryImage asset={image} /> : null}
             </li>;
           })}
         </ol>
@@ -107,6 +115,27 @@ export default function RevenueRecoveryPage() {
         intro={<Lead>{AUDIT_DELIVERABLE.intro}</Lead>}
       >
         <LedgerList items={AUDIT_DELIVERABLE.parts} />
+      </PageSection>
+
+      {/* RTS-5: only what the backend runs today is listed as live (content/revenue-recovery.ts). */}
+      <PageSection id="automated-checks" media={<ProcessDiagram title="The automated check" steps={["Read-only Shopify orders", "Fixed, written rules", "Stacked-discount finding", "Planned checks: NOT COVERED"]} />} label={AUTOMATED_CHECKS.label} intro={<Lead>{AUTOMATED_CHECKS.intro}</Lead>}>
+        <ul className="border-t border-text-secondary/45">
+          {AUTOMATED_CHECKS.live.map((check) => (
+            <li key={check.title} data-check-status="live" className="grid gap-2 border-b border-text-secondary/20 py-ledger sm:grid-cols-[minmax(0,17rem)_1fr]">
+              <div>
+                <h3 className="type-title">{check.title}</h3>
+                <p className="type-label mt-1 text-accent">Live</p>
+              </div>
+              <p className="type-body text-text-secondary">{check.body}</p>
+            </li>
+          ))}
+          {AUTOMATED_CHECKS.coming.map((title) => (
+            <li key={title} data-check-status="coming" className="grid gap-2 border-b border-text-secondary/20 py-ledger sm:grid-cols-[minmax(0,17rem)_1fr]">
+              <h3 className="type-title text-text-secondary">{title}</h3>
+              <p className="type-label text-text-secondary">Coming — reported as NOT COVERED until it runs</p>
+            </li>
+          ))}
+        </ul>
       </PageSection>
 
       <PageSection media={<ProcessDiagram title="Engagement phases" steps={["Assessment", "Audit", "Implementation", "Program"]} />} label={ENGAGEMENTS.label} title={ENGAGEMENTS.title} intro={<Lead>{ENGAGEMENTS.intro}</Lead>}>

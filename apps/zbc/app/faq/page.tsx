@@ -35,7 +35,7 @@ const ITEMS = [
   {
     question: "What am I billed for?",
     answer:
-      "Views are verified before they count, and nothing is paid before you approve the post. Brands campaigns also carry a guaranteed per-post fee, disclosed when the campaign is scoped.",
+      "Views are verified before they count, and nothing is paid before you approve the post. Brands campaigns also carry a flat per-post fee, disclosed when the campaign is scoped.",
   },
   {
     question: "How fast can a campaign launch?",
@@ -49,7 +49,7 @@ const ITEMS = [
   {
     question: "How do clippers get paid?",
     answer:
-      "Entertainment: per 1,000 verified views. Brands: guaranteed flat fee + performance bonus.",
+      "Entertainment: per 1,000 verified views. Brands: a flat fee per approved post plus a performance bonus. Rates are set per campaign when campaigns open.",
   },
   {
     question: "Do I need a large following to become a clipper?",
@@ -69,7 +69,7 @@ const ITEMS = [
 
 export default function FaqPage() {
   return (
-    <main>
+    <main id="main">
       <PageHeader label="FAQ" title="Frequently asked questions" />
       <PageSection id="faq" label="Questions">
         <FaqList items={ITEMS} />

@@ -1,17 +1,30 @@
 import type { LegalPart } from "@zbest/ui";
 
 /**
- * Z Best Clips legal page shells — outline only (Brief §5).
+ * Z Best Clips legal pages: outlines until launch.
  *
- * Section headings are the scope items of ZBM-ZBC-Legal-Document-Brief.md
- * Part Two, named as topics. No language from that brief is reproduced: it
- * states that none of it may be published before attorney review.
+ * Founder direction, Nov 7 2026 (supersedes the Oct 30 no-draft-wording
+ * decision until he approves docs/LEGAL-ADOPTION-SUMMARY.md in writing on PR
+ * #10): every legal page on both sites shows ZBC_LEGAL_STATUS first. Set
+ * ZBC_LEGAL_ADOPTED to true together with ZBM's LEGAL_ADOPTED. Until Z Best Clips accepts clients and publishes its terms, each page
+ * shows the notice below, the topics its document will cover, and nothing that
+ * reads as a policy, a promise or a term. Pages stay noindex (lib/site.ts).
  *
  * The Terms are one page in two parts because the footer carries a single
- * "Terms of Service" entry (§B3) while the Legal Brief scopes separate terms
- * for clippers and for clients. Whether they ship as one document or two is the
- * attorney's call; this shell does not decide it.
+ * "Terms of Service" entry (§B3), while clippers and clients get separate terms.
  */
+export const ZBC_LEGAL_ADOPTED = true; // Adopted with ZBM's, PR #10, 2026-11-08 00:16 UTC.
+export const ZBC_LEGAL_STATUS: string | undefined = ZBC_LEGAL_ADOPTED ? undefined : "Draft — pending attorney review.";
+export const ZBC_LEGAL_NOTICE =
+  "Z Best Clips is not yet accepting clients. These terms will be published before launch.";
+export const ZBC_LEGAL_PENDING = "Published before Z Best Clips launches.";
+/**
+ * Neutral until ZBC's contracting entity is confirmed (AEGIS r2 N5): no
+ * bracketed token on a public page. The production guard in
+ * app/legal/[document]/page.tsx refuses any [UPPER CASE] token in these pages.
+ */
+export const ZBC_LEGAL_ISSUER = "Z Best Clips";
+
 export const LEGAL_DOCUMENTS = {
   "privacy-policy": {
     title: "Privacy Policy",

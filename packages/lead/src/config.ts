@@ -3,12 +3,13 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fakeNotifier, fakeStore } from "./fake";
 import { TRUSTED_PROXY_HEADERS, VERCEL_IP_SOURCE, hmacIp, ipSourceFor, type IpSource } from "./ip";
-import { parsePostgresUrl } from "./pg-url";
+import { resolvePg } from "./pg-url";
+import { fakeFormTokenSecret, formTokens, type FormTokens } from "./form-token";
 import type { LeadLogger } from "./log";
 import { postgresStore } from "./postgres";
 import { memoryLimiter, parseRateLimit, restLimiter, DEFAULT_RATE_LIMIT, type RateLimitSpec } from "./rate-limit";
 import { resendNotifier } from "./resend";
-import type { LeadNotifier, LeadStore, RateLimiter } from "./types";
+import type { LeadNotifier, LeadStore, NotifyOutbox, RateLimiter } from "./types";
 
 /**
  * Which implementation sits behind each port, decided by env and nothing else.
@@ -30,7 +31,12 @@ export type Transport = {
   store: LeadStore;
   /** null only when LEAD_NOTIFY=disabled was set on purpose. */
   notifier: LeadNotifier | null;
+  /** Keyed HMAC of a client address (LEAD_IP_HASH_SECRET). Rate-limit keys only. */
   hashIp: (ip: string) => string;
+  /** Issues and checks the form token every POST must carry (RTS-3). */
+  formTokens: FormTokens;
+  /** The unsent-email outbox the retry cron reads (CH-8); the same store. */
+  outbox?: NotifyOutbox;
 };
 
 export type TransportConfig = { ok: true; transport: Transport } | { ok: false; missing: string[] };
@@ -145,25 +151,35 @@ function resolveTransportUnsafe(env: Env): TransportConfig {
     const notify = resolveNotifyMode(env, missing);
     if (missing.length) return { ok: false, missing };
     const dir = set(env, "ZBEST_LEAD_FAKE_OUTBOX");
+    const store = fakeStore(dir);
     return {
       ok: true,
       transport: {
         mode: "fake",
-        store: fakeStore(dir),
+        store,
+        outbox: store,
         notifier: notify === "disabled" ? null : fakeNotifier(dir, ["founder@fake.invalid"]),
         hashIp: hmacIp("fake-transport-not-a-secret"),
+        // Derived from the gate's per-run nonce, so the gate can mint tokens for its direct posts.
+        formTokens: formTokens(fakeFormTokenSecret(set(env, "ZBEST_GATE_NONCE"))),
       },
     };
   }
   if (transport !== "") return { ok: false, missing: ["ZBEST_LEAD_TRANSPORT:only-fake-recognised"] };
 
   const url = set(env, "POSTGRES_URL");
-  const pg = url ? parsePostgresUrl(url) : null;
+  // AEGIS r2 L5, red team RTS-8: in production a remote database must be
+  // reached over TLS that verifies its certificate (pg-url.ts productionPg).
+  const pg = url ? resolvePg(url, env) : null;
   if (!pg) missing.push("POSTGRES_URL");
   else if (!pg.ok) missing.push(`POSTGRES_URL:${pg.reason}`);
 
   const secret = set(env, "LEAD_IP_HASH_SECRET");
   if (secret.length < 16) missing.push("LEAD_IP_HASH_SECRET:min-16-chars");
+  // RTS-3: the form-token key. Its own secret when set; otherwise derived
+  // from the IP-hash secret under a different label (form-token.ts).
+  const formSecret = set(env, "LEAD_FORM_SECRET");
+  if (formSecret && formSecret.length < 16) missing.push("LEAD_FORM_SECRET:min-16-chars");
 
   const notify = resolveNotifyMode(env, missing);
   let notifier: LeadNotifier | null = null;
@@ -178,9 +194,17 @@ function resolveTransportUnsafe(env: Env): TransportConfig {
   }
 
   if (missing.length || !pg?.ok) return { ok: false, missing };
+  const store = postgresStore(pg.options);
   return {
     ok: true,
-    transport: { mode: "live", store: postgresStore(pg.options), notifier, hashIp: hmacIp(secret) },
+    transport: {
+      mode: "live",
+      store,
+      outbox: store,
+      notifier,
+      hashIp: hmacIp(secret),
+      formTokens: formTokens(formSecret || secret),
+    },
   };
 }
 
@@ -247,12 +271,77 @@ export function resolvePolicy(env: Env): RequestPolicy {
 
 const limiters = new Map<string, RateLimiter>();
 
+/**
+ * Lead caps (RTS-3; AEGIS F1, r2 H1/M5). The per-address and per-/48
+ * buckets are charged before validation, per source. EVERY site-wide
+ * counter is charged only after the insert, for a NEWLY stored lead, so
+ * duplicates never count, and none of them refuses a lead — except the
+ * storage guard, which exists only to keep the table from being flooded:
+ *   - emailMinute / emailHour: past either, the lead is stored and its
+ *     email deferred to the digest;
+ *   - quarantine: past it (per day), the lead is stored flagged
+ *     `quarantined`, its text cut to 2 KB, and deferred;
+ *   - hard: past it (per day), new submissions are refused with 503
+ *     `storage_guard` until the window ends.
+ * Attacker cost of each is in docs/LEAD-ROUTE-DESIGN.md.
+ */
 export type Limiters = {
-  /** Per client address, per app. There is no other bucket (AEGIS r3 F2). */
   perIp: RateLimiter;
+  /** Per IPv6 /48, per app (red team RTS-3). IPv4 clients have no /48 bucket. */
+  perNet: RateLimiter;
+  /** Per-lead founder emails per minute (LEAD_GLOBAL_LIMIT_PER_MINUTE, default 20). */
+  global: RateLimiter;
+  /** Per-lead founder emails per hour (LEAD_EMAIL_LIMIT_PER_HOUR, default 20; r2 M5). */
+  emailHour: RateLimiter;
+  /** Newly stored leads per source network (IPv4 /24, IPv6 /48) before quarantine (LEAD_QUARANTINE_BLOCK_LIMIT, default 12/600). */
+  quarantineBlock: RateLimiter;
+  /** Newly stored leads per day from networks under their own limit, before quarantine (LEAD_QUARANTINE_AFTER_PER_DAY, default 50,000). */
+  quarantine: RateLimiter;
+  /** Newly stored leads per day before the storage guard refuses (LEAD_HARD_LIMIT_PER_DAY, default 100000). */
+  hard: RateLimiter;
+  /** The storage guard's state for this app and limiter set: refuse until this time (ms). */
+  guard: { until: number };
   spec: RateLimitSpec;
+  netSpec: RateLimitSpec;
+  globalSpec: RateLimitSpec;
+  emailHourSpec: RateLimitSpec;
+  quarantineBlockSpec: RateLimitSpec;
+  quarantineSpec: RateLimitSpec;
+  hardSpec: RateLimitSpec;
   problem?: string;
 };
+
+/** Default /48 bucket: three times the per-address default over the same window. */
+export const DEFAULT_NET_RATE_LIMIT: RateLimitSpec = { limit: 24, windowSec: 600 };
+export const DEFAULT_GLOBAL_LIMIT_PER_MINUTE = 20;
+export const DEFAULT_EMAIL_LIMIT_PER_HOUR = 20;
+/** AEGIS r3 M1: about 1,700 leads a day per network at most before quarantine; the per-address limit is 8 per 10 minutes. */
+export const DEFAULT_QUARANTINE_BLOCK_LIMIT: RateLimitSpec = { limit: 12, windowSec: 600 };
+/** AEGIS r3 M1: from networks under their own limit; tripping it takes about 30 networks sending flat out for a day. */
+export const DEFAULT_QUARANTINE_AFTER_PER_DAY = 50_000;
+export const DEFAULT_HARD_LIMIT_PER_DAY = 100_000;
+
+/** A whole number from 1 to `max`, or the default; a malformed value is a problem, never a guess. */
+function count(env: Env, name: string, fallback: number, max: number, problems: string[]): number {
+  const raw = set(env, name);
+  if (raw === "") return fallback;
+  const n = /^\d{1,7}$/.test(raw) ? Number(raw) : NaN;
+  if (n >= 1 && n <= max) return n;
+  problems.push(`${name}:expected-1-to-${max}`);
+  return fallback;
+}
+
+/** The site-wide caps, also read by /api/health (retention.ts). */
+export function resolveCaps(env: Env, problems: string[] = []) {
+  return {
+    perMinute: count(env, "LEAD_GLOBAL_LIMIT_PER_MINUTE", DEFAULT_GLOBAL_LIMIT_PER_MINUTE, 100_000, problems),
+    perHour: count(env, "LEAD_EMAIL_LIMIT_PER_HOUR", DEFAULT_EMAIL_LIMIT_PER_HOUR, 1_000_000, problems),
+    quarantineAfter: count(env, "LEAD_QUARANTINE_AFTER_PER_DAY", DEFAULT_QUARANTINE_AFTER_PER_DAY, 10_000_000, problems),
+    hardLimit: count(env, "LEAD_HARD_LIMIT_PER_DAY", DEFAULT_HARD_LIMIT_PER_DAY, 10_000_000, problems),
+  };
+}
+
+const guards = new Map<string, { until: number }>();
 
 function buildLimiter(spec: RateLimitSpec, env: Env, logger: LeadLogger, tag: string): RateLimiter {
   const restUrl = set(env, "KV_REST_API_URL") || set(env, "UPSTASH_REDIS_REST_URL");
@@ -285,12 +374,47 @@ function buildLimiter(spec: RateLimitSpec, env: Env, logger: LeadLogger, tag: st
  * server instance's memory: on Vercel that is per serverless instance, NOT a
  * global cap. A global cap needs KV — a launch decision (design note §5).
  */
-export function resolveLimiter(env: Env, logger: LeadLogger): Limiters {
+export function resolveLimiter(env: Env, logger: LeadLogger, namespace = ""): Limiters {
+  const problems: string[] = [];
   const parsed = parseRateLimit(env.LEAD_RATE_LIMIT);
+  if (!parsed) problems.push("LEAD_RATE_LIMIT:expected-count/seconds");
   const spec = parsed ?? DEFAULT_RATE_LIMIT;
+
+  const netRaw = env.LEAD_RATE_LIMIT_NET;
+  const netParsed = netRaw === undefined || netRaw.trim() === "" ? DEFAULT_NET_RATE_LIMIT : parseRateLimit(netRaw);
+  if (!netParsed) problems.push("LEAD_RATE_LIMIT_NET:expected-count/seconds");
+  const netSpec = netParsed ?? DEFAULT_NET_RATE_LIMIT;
+
+  const blockRaw = env.LEAD_QUARANTINE_BLOCK_LIMIT;
+  const blockParsed = blockRaw === undefined || blockRaw.trim() === "" ? DEFAULT_QUARANTINE_BLOCK_LIMIT : parseRateLimit(blockRaw);
+  if (!blockParsed) problems.push("LEAD_QUARANTINE_BLOCK_LIMIT:expected-count/seconds");
+  const quarantineBlockSpec = blockParsed ?? DEFAULT_QUARANTINE_BLOCK_LIMIT;
+
+  const caps = resolveCaps(env, problems);
+  const globalSpec = { limit: caps.perMinute, windowSec: 60 };
+  const emailHourSpec = { limit: caps.perHour, windowSec: 3600 };
+  const quarantineSpec = { limit: caps.quarantineAfter, windowSec: 86_400 };
+  const hardSpec = { limit: caps.hardLimit, windowSec: 86_400 };
+  const guardKey = `${namespace}|${hardSpec.limit}`;
+  let guard = guards.get(guardKey);
+  if (!guard) guards.set(guardKey, (guard = { until: 0 }));
+
   return {
-    perIp: buildLimiter(spec, env, logger, "ip"),
+    perIp: buildLimiter(spec, env, logger, `${namespace}ip`),
+    perNet: buildLimiter(netSpec, env, logger, `${namespace}net`),
+    global: buildLimiter(globalSpec, env, logger, `${namespace}global`),
+    emailHour: buildLimiter(emailHourSpec, env, logger, `${namespace}email-hour`),
+    quarantineBlock: buildLimiter(quarantineBlockSpec, env, logger, `${namespace}quarantine-net`),
+    quarantine: buildLimiter(quarantineSpec, env, logger, `${namespace}quarantine`),
+    hard: buildLimiter(hardSpec, env, logger, `${namespace}hard`),
+    guard,
     spec,
-    problem: parsed ? undefined : "LEAD_RATE_LIMIT:expected-count/seconds",
+    netSpec,
+    globalSpec,
+    emailHourSpec,
+    quarantineBlockSpec,
+    quarantineSpec,
+    hardSpec,
+    problem: problems.length ? problems.join(",") : undefined,
   };
 }

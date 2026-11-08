@@ -3,6 +3,7 @@ import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { ZBM_BASE_URL } from "../playwright.config";
 import { formReady } from "../support/ready";
+import { formTokenHeader } from "../support/form-token";
 
 /**
  * Phase 5 gate — AI Visibility Readiness Check, build steps 1 and 3 (Backend
@@ -202,13 +203,15 @@ function readinessRequest(answers: ReadinessAnswers, overrides: Record<string, u
     submission_id: crypto.randomUUID(),
     rule_set_version: VISIBILITY_RULE_SET_VERSION,
     contact: { name: "Test Person", business: "Test Co", website: "example.com", reach: "test@example.com" },
+    // Service area (founder decision 2026-10-30): beside contact, which keeps §11.3's four fields.
+    region: { state: "US-CA" },
     answers: Object.entries(answers).map(([question_id, value]) => ({ question_id, value })),
     ...overrides,
   };
 }
 
 const postReadiness = (page: Page, data: unknown) =>
-  page.request.post(`${ZBM_BASE_URL}/api/lead`, { data, failOnStatusCode: false });
+  page.request.post(`${ZBM_BASE_URL}/api/lead`, { headers: formTokenHeader(), data, failOnStatusCode: false });
 
 async function check(page: Page, answers: ReadinessAnswers) {
   const response = await postReadiness(page, readinessRequest(answers));
@@ -364,6 +367,7 @@ test.describe("Readiness check — the form, the result and §12.7 routing", () 
     await form.getByLabel("Business", { exact: true }).fill("Test Co");
     await form.getByLabel("Website", { exact: true }).fill("example.com");
     await form.getByLabel("Best way to reach you", { exact: true }).fill("test@example.com");
+    await form.getByLabel("State or territory", { exact: true }).selectOption("US-CA");
     for (const [id, value] of Object.entries(answers)) {
       await section
         .locator(`[data-readiness-question="${id}"]`)
@@ -377,6 +381,8 @@ test.describe("Readiness check — the form, the result and §12.7 routing", () 
   test("validates with the shared schema before sending — nothing reaches the route", async ({ page }) => {
     const sent: string[] = [];
     await page.route("**/api/lead", (route) => {
+      // The form token GET (RTS-3) goes through untouched.
+      if (route.request().method() !== "POST") return route.continue();
       sent.push(route.request().url());
       return route.abort();
     });

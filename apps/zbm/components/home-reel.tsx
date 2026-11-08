@@ -185,7 +185,7 @@ function ReelTile({
             {tile.marker ? (
               <span
                 aria-hidden="true"
-                className="type-mono absolute right-1.5 top-1.5 z-10 bg-black/70 px-1.5 py-0.5 text-[0.6rem] text-text-primary"
+                className="type-mono absolute right-1.5 top-1.5 z-10 bg-black px-1.5 py-0.5 text-[0.6rem] text-text-primary"
               >
                 {tile.marker}
               </span>

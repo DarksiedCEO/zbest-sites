@@ -1,4 +1,4 @@
-import { createHash, createHmac } from "node:crypto";
+import { createHmac } from "node:crypto";
 import { isIP } from "node:net";
 
 /**
@@ -33,8 +33,21 @@ export function ipSourceFor(header: (typeof TRUSTED_PROXY_HEADERS)[number], hops
 
 export const VERCEL_IP_SOURCE: IpSource = { header: "x-vercel-forwarded-for", hop: "only" };
 
-/** A normalised client address: `address` for the HMAC, `key` for the rate limit. */
-export type ClientAddress = { address: string; key: string };
+/**
+ * A normalised client address: `key` (port-free, IPv6 by /64) is what the
+ * rate limit HMACs. `net` (IPv6 only) is its /48, a second bucket (red team
+ * RTS-3: one cheap /48 allocation holds 65,536 /64s).
+ */
+export type ClientAddress = { address: string; key: string; net?: string };
+
+/**
+ * AEGIS r3 M1: the source network a quarantine counter is kept per — the
+ * IPv6 /48 (`net`), or the IPv4 /24. A flood from one allocation trips it
+ * without touching leads from anywhere else.
+ */
+export function networkBlock(ip: ClientAddress): string {
+  return ip.net ?? `v4/24:${ip.address.split(".").slice(0, 3).join(".")}`;
+}
 
 /**
  * AEGIS r4 R2: one client, one key.
@@ -74,7 +87,7 @@ export function normalizeIp(raw: string): ClientAddress | null {
     const embedded = embeddedIpv4(groups);
     if (embedded) return { address: embedded, key: `v4:${embedded}` };
     const address = groups.join(":");
-    return { address, key: `v6/64:${groups.slice(0, 4).join(":")}` };
+    return { address, key: `v6/64:${groups.slice(0, 4).join(":")}`, net: `v6/48:${groups.slice(0, 3).join(":")}` };
   }
   return null;
 }
@@ -125,9 +138,10 @@ export function clientIp(headers: Headers, source: IpSource | null): ClientAddre
   return value ? normalizeIp(value) : null;
 }
 
-/** Brief §6.2 `ip_hash`: HMAC-SHA256 so the stored value cannot be reversed by a lookup table. */
+/**
+ * HMAC-SHA256 with LEAD_IP_HASH_SECRET, so the value cannot be reversed by a
+ * lookup table. Used for the rate-limit key (truncated), which is the only
+ * place a derivative of the client address goes.
+ */
 export const hmacIp = (secret: string) => (ip: string) =>
   createHmac("sha256", secret).update(ip).digest("hex");
-
-/** Rate-limit keys only (never stored): a plain hash so no raw IP leaves the process. */
-export const plainIpKey = (ip: string) => createHash("sha256").update(ip).digest("hex").slice(0, 32);

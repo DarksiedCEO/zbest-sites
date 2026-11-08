@@ -8,7 +8,7 @@ import { SITE } from "@/lib/site";
 export const metadata = pageMetadata(SITE, {
   title: "Out-of-Home",
   description:
-    "Billboards, transit displays, and physical placements, planned across Lamar, Clear Channel, OUTFRONT, and regional operators.",
+    "Billboards, transit displays, and physical placements, planned across major out-of-home networks and regional operators.",
   path: "/out-of-home",
   ogImage: "/out-of-home/opengraph-image",
 });
@@ -32,7 +32,7 @@ export const metadata = pageMetadata(SITE, {
  */
 export default function OutOfHomePage() {
   return (
-    <main>
+    <main id="main">
       <PageHeader label="Out-of-Home" title="Presence you can’t scroll past.">
         <Lead>
           Billboards, transit displays, and physical placements that put your brand in
@@ -40,9 +40,9 @@ export default function OutOfHomePage() {
           button, no algorithm deciding whether it&rsquo;s shown.
         </Lead>
         <Lead>
-          We&rsquo;re not tied to one operator&rsquo;s inventory. We plan across
-          Lamar, Clear Channel, OUTFRONT, and regional operators to find the strongest fit
-          for your market and budget.
+          We&rsquo;re not tied to one operator&rsquo;s inventory. We plan across major
+          out-of-home networks and regional operators to find the strongest fit for your
+          market and budget.
         </Lead>
         <CtaRow>
           <ButtonLink href={startHref("out-of-home")}>Start a Project</ButtonLink>
@@ -72,6 +72,8 @@ export default function OutOfHomePage() {
             Clear Channel Outdoor &amp; Kantar, Jul 2025
           </Cite>
         </p>
+        {/* RTS-5: a citation is not a relationship. */}
+        <p className="type-small text-text-secondary">Z Best Media is not affiliated with Clear Channel Outdoor or Kantar.</p>
       </PageSection>
 
       <PageSection label="What’s included" media={<StoryImage asset="ooh-work-planning" />}>

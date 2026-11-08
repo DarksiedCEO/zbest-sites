@@ -1,3 +1,4 @@
+import { neutralizeCell } from "./text";
 import type { LeadApp, LeadEmail, LeadRecord } from "./types";
 
 /**
@@ -40,9 +41,14 @@ const LINE_BREAK = /\r\n|[\n\r\u000B\u000C\u0085\u2028\u2029]/;
  * visitor uses. No character class to keep growing.
  */
 export function quoteVisitorBlock(payload: Record<string, unknown>): string[] {
-  return Object.entries(payload)
-    .flatMap(([key, value]) => `${key}: ${render(value)}`.split(LINE_BREAK))
-    .map((line) => `> ${line}`);
+  return Object.entries(payload).flatMap(([key, value]) => {
+    // Red team RTS-10: each line of a value is neutralised as a spreadsheet
+    // cell would be (a leading = + - @ TAB CR gets a ' prefix) and loses its
+    // bidi controls, so a pasted or exported line is never a formula and text
+    // cannot reorder itself on screen. Keys are the app's own schema names.
+    const [first = "", ...rest] = render(value).split(LINE_BREAK).map(neutralizeCell);
+    return [`${key}: ${first}`, ...rest].map((line) => `> ${line}`);
+  });
 }
 
 /** A reply goes straight to the visitor when they gave an email address. */
@@ -54,7 +60,26 @@ function replyAddress(payload: Record<string, unknown>): string | undefined {
   return undefined;
 }
 
-export function leadEmail(record: LeadRecord, receivedAt: Date): LeadEmail {
+/**
+ * Keys sorted at every depth (AEGIS r2 M2): Postgres jsonb does not keep the
+ * submitted key order, so an email built from the request and one built from
+ * the stored row must not differ by order — retries under one idempotency key
+ * must carry a byte-identical body.
+ */
+function sortDeep(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(sortDeep);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.keys(value as Record<string, unknown>)
+        .sort()
+        .map((k) => [k, sortDeep((value as Record<string, unknown>)[k])]),
+    );
+  }
+  return value;
+}
+
+export function leadEmail(unsorted: LeadRecord, receivedAt: Date): LeadEmail {
+  const record = { ...unsorted, payload: sortDeep(unsorted.payload) as Record<string, unknown> };
   const parts = [`New lead — ${BRAND[record.app]}`, record.form];
   if (record.services.length) parts.push(record.services.join(", "));
   if (record.source) parts.push(`src:${record.source}`);
@@ -64,6 +89,8 @@ export function leadEmail(record: LeadRecord, receivedAt: Date): LeadEmail {
     `Submission: ${record.submission_id}`,
     `Received: ${receivedAt.toISOString()}`,
     `Source tag: ${record.source ?? "—"}`,
+    // An enum code, validated server-side: never visitor free text.
+    `Region: ${record.service_area}`,
     ...(record.services.length ? [`Services: ${record.services.join(", ")}`] : []),
     "",
     // Everything between the fences was typed by the visitor and is

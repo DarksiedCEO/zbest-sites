@@ -27,12 +27,44 @@ export function parseRateLimit(raw: string | undefined): RateLimitSpec | null {
   return { limit, windowSec };
 }
 
-export function memoryLimiter(spec: RateLimitSpec, now: () => number = Date.now, maxKeys = 50_000): RateLimiter {
+export type MemoryLimiter = RateLimiter & {
+  /** Buckets currently held (for tests and diagnostics). */
+  size(): number;
+  /** Stops the expiry timer (tests). */
+  stop(): void;
+};
+
+export function memoryLimiter(spec: RateLimitSpec, now: () => number = Date.now, maxKeys = 50_000): MemoryLimiter {
   const buckets = new Map<string, { tokens: number; at: number }>();
-  const refillPerMs = spec.limit / (spec.windowSec * 1000);
+  const windowMs = spec.windowSec * 1000;
+  const refillPerMs = spec.limit / windowMs;
+  /**
+   * Expiry (privacy sweep 2026-10-30, F7): a bucket untouched for a whole
+   * window has refilled completely, so it is indistinguishable from a new
+   * one and holding it only keeps a derivative of someone's address in
+   * memory. The map is in least-recently-used order, so expired buckets are
+   * all at the front: drop them until the first live one.
+   */
+  const expire = (t: number) => {
+    for (const [key, bucket] of buckets) {
+      if (t - bucket.at < windowMs) break;
+      buckets.delete(key);
+    }
+  };
+  /**
+   * Red team RTS-8: expiry also runs on a timer, so the last bucket an idle
+   * instance saw is gone within a window plus at most a minute, as the
+   * Privacy Policy says ("about 10 minutes"), not whenever the next request
+   * happens to arrive. unref(): the timer never keeps a process alive.
+   */
+  const sweep = setInterval(() => expire(now()), Math.min(windowMs, 60_000));
+  (sweep as { unref?: () => void }).unref?.();
   return {
+    size: () => buckets.size,
+    stop: () => clearInterval(sweep),
     async hit(key: string): Promise<RateDecision> {
       const t = now();
+      expire(t);
       const bucket = buckets.get(key) ?? { tokens: spec.limit, at: t };
       // Least-recently-used order: re-inserting moves this key to the end.
       buckets.delete(key);
