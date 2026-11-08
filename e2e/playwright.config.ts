@@ -110,6 +110,8 @@ const serve = (pkg: string, port: number) =>
 
 export default defineConfig({
   testDir: "./tests",
+  // The nightly accessibility extension runs only from a11y-nightly.yml.
+  testIgnore: process.env.A11Y_NIGHTLY ? [] : ["**/*.nightly.spec.ts"],
   globalSetup: "./global-setup.ts",
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
@@ -131,6 +133,16 @@ export default defineConfig({
       name: "mobile-390",
       use: { ...devices["iPhone 14"], viewport: { width: 390, height: 844 } },
     },
+    // Nightly only (a11y-nightly.yml): the accessibility specs on Firefox.
+    ...(process.env.A11Y_NIGHTLY
+      ? [
+          {
+            name: "firefox-1440",
+            testMatch: /a11y(\.nightly)?\.spec\.ts$/,
+            use: { ...devices["Desktop Firefox"], viewport: { width: 1440, height: 900 } },
+          },
+        ]
+      : []),
   ],
   webServer: [
     {
@@ -138,7 +150,15 @@ export default defineConfig({
       url: ZBM_BASE_URL,
       cwd: "../",
       // ZBEST_DEV_ROUTES: build /dev/system for the Phase 2 gate (excluded in production).
-      env: { ZBEST_GATE_NONCE: GATE_NONCE, ZBEST_DEV_ROUTES: "1", ...NO_LEAD_TRANSPORT, ...fakeLeads("zbm", "100000/60") },
+      // ZBEST_ALLOW_LEGAL_PLACEHOLDERS: the gate builds with NODE_ENV=production;
+      // without it the ZBM legal placeholder guard would stop the build.
+      env: {
+        ZBEST_GATE_NONCE: GATE_NONCE,
+        ZBEST_DEV_ROUTES: "1",
+        ZBEST_ALLOW_LEGAL_PLACEHOLDERS: "1",
+        ...NO_LEAD_TRANSPORT,
+        ...fakeLeads("zbm", "100000/60"),
+      },
       // Never adopt a pre-existing server: it may be a stale build, another
       // branch, or not this project at all.
       reuseExistingServer: false,

@@ -21,7 +21,7 @@ export const metadata = pageMetadata(SITE, {
  */
 export default function AboutPage() {
   return (
-    <main>
+    <main id="main">
       <PageHeader aside={<HeroMedia asset="zbc-clipper-phone" caption="Concept editing workflow" frame="plate" sizes="(min-width: 1024px) 40vw, calc(100vw - 2.5rem)" />} label="About" title="We come from advertising. Now we’re building the next version of it." />
 
       <PageSection id="story" media={<ProcessDiagram title="Short-form distribution" steps={["Source material", "Create and post", "Submission review", "Verified reporting"]} />} label="Where we come from">

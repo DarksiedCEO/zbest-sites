@@ -4,6 +4,7 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
+      "env": ["VERCEL_ENV", "ZBEST_ALLOW_LEGAL_PLACEHOLDERS"],
       "outputs": [".next/**", "!.next/cache/**"]
     },
     "dev": {

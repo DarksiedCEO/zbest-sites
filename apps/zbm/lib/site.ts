@@ -51,6 +51,9 @@ export const NAV_CTA = { label: "Start a Project", href: "/start" };
  * §A3. Blog joins Resources with the first post; Work joins Company with the
  * first named client. Neither is here until then.
  */
+/** Build-time flag for the reserved "Your Privacy Choices" footer link. */
+const PRIVACY_CHOICES = process.env.NEXT_PUBLIC_PRIVACY_CHOICES === "1";
+
 export const FOOTER_COLUMNS: FooterColumn[] = [
   {
     heading: "Services",
@@ -74,7 +77,14 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
     links: [
       { label: "Privacy Policy", href: "/legal/privacy-policy" },
       { label: "Terms of Service", href: "/legal/terms-of-service" },
+      { label: "Refunds and Cancellation", href: "/legal/refunds" },
       { label: "Cookie Settings", href: "/legal/cookie-policy" },
+      { label: "Accessibility Statement", href: "/legal/accessibility" },
+      // Reserved slot (privacy sweep 2026-10-30, F9): CCPA's "Your Privacy
+      // Choices" link is needed only if the site ever sells or shares
+      // personal information. Off unless NEXT_PUBLIC_PRIVACY_CHOICES=1 at
+      // build time; the target anchor belongs to the Privacy Policy.
+      ...(PRIVACY_CHOICES ? [{ label: "Your Privacy Choices", href: "/legal/privacy-policy#your-privacy-choices" }] : []),
     ],
   },
 ];
@@ -93,9 +103,9 @@ type Route = {
  * listed URL and fails on anything but a 200, so flipping `built` early is
  * caught.
  *
- * Legal shells are built but NOT indexable: they are placeholders marked "Not
- * yet in effect" (§5), and a search result must not present one as the
- * company's policy. They become indexable with attorney-approved text (§8).
+ * Legal pages are built but NOT indexable. Since Andre's Oct 30 2026 decision
+ * they carry real, in-effect text (lib/legal.ts); they stay noindex until the
+ * bracketed placeholders are filled, then flipping `indexable` is his call.
  */
 export const ROUTES: Route[] = [
   { path: "/", built: true, indexable: true },
@@ -112,6 +122,8 @@ export const ROUTES: Route[] = [
   { path: "/legal/privacy-policy", built: true, indexable: false },
   { path: "/legal/terms-of-service", built: true, indexable: false },
   { path: "/legal/cookie-policy", built: true, indexable: false },
+  { path: "/legal/accessibility", built: true, indexable: false },
+  { path: "/legal/refunds", built: true, indexable: false },
 ];
 
 /*

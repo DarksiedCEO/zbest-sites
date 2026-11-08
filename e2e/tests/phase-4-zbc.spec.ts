@@ -250,22 +250,22 @@ test.describe("How It Works (§B4, served at /)", () => {
       const card = cards.nth(i);
       const [title, views, clips, platforms, accent] = expected[i]!;
       await expect(card.getByRole("heading", { level: 3 })).toHaveText(title);
-      // Final values are exposed on the Counter's aria-label (captures run reduced-motion).
-      await expect(card.locator("[aria-label]").nth(0)).toHaveAttribute("aria-label", views);
-      await expect(card.locator("[aria-label]").nth(1)).toHaveAttribute("aria-label", clips);
+      // Final values are exposed as the Counter's visually hidden text (captures run reduced-motion).
+      await expect(card.locator("[data-counter] > .sr-only").nth(0)).toHaveText(views);
+      await expect(card.locator("[data-counter] > .sr-only").nth(1)).toHaveText(clips);
       await expect(card).toContainText(platforms);
       await expect(card).toContainText("Illustrative example — not a client result");
       expect(await card.locator("> div").evaluate((el) => getComputedStyle(el).borderLeftColor)).toBe(accent);
     }
     // No unbadged figure anywhere else in the section.
-    await expect(page.locator("#examples [aria-label]")).toHaveCount(6);
+    await expect(page.locator("#examples [data-counter]")).toHaveCount(6);
   });
 
   test("view counters tick once on entry, and not at all with reduced motion", async ({ page }) => {
     await presetConsent(page);
     await page.emulateMedia({ reducedMotion: "no-preference" });
     await page.goto(`${ZBC_BASE_URL}/`, { waitUntil: "domcontentloaded" });
-    const views = page.locator("[data-example-card]").first().locator("[aria-label] > [aria-hidden]").first();
+    const views = page.locator("[data-example-card]").first().locator("[data-counter] > [aria-hidden]").first();
     await expect(views).toHaveText("0");
     await views.scrollIntoViewIfNeeded();
     await expect(views).toHaveText("1,240,000", { timeout: 5000 });
@@ -338,7 +338,7 @@ test.describe("Become a Clipper (§B4)", () => {
     const form = section.locator('form[data-lead-form="clipper"]');
     await formReady(form);
     await expect(form).not.toContainText("Stub");
-    for (const label of ["Name", "Email", "Primary platform"]) {
+    for (const label of ["Name", "Email", "State or territory", "Primary platform"]) {
       await expect(form.getByLabel(label, { exact: true })).toBeVisible();
     }
     await expect(form.getByLabel(/Profile link/)).toBeVisible();
@@ -350,6 +350,7 @@ test.describe("Become a Clipper (§B4)", () => {
     await form.getByLabel("Name", { exact: true }).fill("Test Clipper");
     await form.getByLabel("Email", { exact: true }).fill("clipper@example.com");
     await form.getByLabel("Primary platform", { exact: true }).selectOption("tiktok");
+    await form.getByLabel("State or territory", { exact: true }).selectOption("US-NY");
     const [response] = await Promise.all([
       page.waitForResponse((r) => r.url().endsWith("/api/lead")),
       form.getByRole("button", { name: "Join the clipper list" }).click(),
@@ -361,6 +362,7 @@ test.describe("Become a Clipper (§B4)", () => {
       email: "clipper@example.com",
       platform: "tiktok",
       profile: "",
+      state: "US-NY",
     });
     await expect(section.locator('[data-lead-result="accepted"]')).toContainText("Received");
   });
@@ -381,7 +383,7 @@ test.describe("Launch a Campaign (§B4)", () => {
     const form = page.locator('form[data-lead-form="campaign"]');
     await formReady(form);
     await expect(form).not.toContainText("Stub");
-    for (const label of ["Name", "Organization", "What are you promoting?", "Entertainment / Brands", "Best way to reach you"]) {
+    for (const label of ["Name", "Organization", "State or territory", "What are you promoting?", "Entertainment / Brands", "Best way to reach you"]) {
       await expect(form.getByLabel(label, { exact: true })).toBeVisible();
     }
     await expect(form.getByLabel(/Budget range/)).toBeVisible();
@@ -396,6 +398,8 @@ test.describe("Launch a Campaign (§B4)", () => {
     await expect(form.getByText("Choose Entertainment or Brands.")).toBeVisible();
 
     await form.getByLabel("Entertainment / Brands", { exact: true }).selectOption("entertainment");
+    // Service area: a territory is served too.
+    await form.getByLabel("State or territory", { exact: true }).selectOption("PR");
     const [response] = await Promise.all([
       page.waitForResponse((r) => r.url().endsWith("/api/lead")),
       form.getByRole("button", { name: "Launch a Campaign" }).click(),
@@ -416,14 +420,14 @@ test.describe("Lead route (§6.2, ZBC)", () => {
     const badFocus = await post(page, {
       form: "campaign",
       submission_id: id,
-      fields: { name: "A", organization: "B", promoting: "C", focus: "sports", reach: "D" },
+      fields: { name: "A", organization: "B", promoting: "C", focus: "sports", reach: "D", state: "US-CA" },
     });
     expect(badFocus.status()).toBe(422);
     expect(Object.keys((await badFocus.json()).error.fields)).toEqual(["focus"]);
     const badPlatform = await post(page, {
       form: "clipper",
       submission_id: id,
-      fields: { name: "A", email: "a@example.com", platform: "vine" },
+      fields: { name: "A", email: "a@example.com", platform: "vine", state: "US-CA" },
     });
     expect(badPlatform.status()).toBe(422);
     expect(Object.keys((await badPlatform.json()).error.fields)).toEqual(["platform"]);
@@ -433,7 +437,7 @@ test.describe("Lead route (§6.2, ZBC)", () => {
     const ok = await post(page, {
       form: "clipper",
       submission_id: id,
-      fields: { name: "A", email: "a@example.com", platform: "youtube-shorts", profile: "youtube.com/@a" },
+      fields: { name: "A", email: "a@example.com", platform: "youtube-shorts", profile: "youtube.com/@a", state: "US-CA" },
     });
     expect(ok.status()).toBe(200);
     expect(await ok.json()).toEqual({ ok: true, submission_id: id });

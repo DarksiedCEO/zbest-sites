@@ -125,7 +125,7 @@ const FAQ_ITEMS = [
 
 export default function SearchIntelligencePage() {
   return (
-    <main>
+    <main id="main">
       <PageHeader aside={<HeroMedia asset="marenvale-website" frame="plate" sizes="(min-width: 1024px) 40vw, calc(100vw - 2.5rem)" />} label="Search Intelligence" title="Ranked isn’t the same as cited.">
         <Lead>
           Google&rsquo;s answer boxes, ChatGPT, Claude, Gemini, and Perplexity are
@@ -273,7 +273,7 @@ export default function SearchIntelligencePage() {
         <ReadinessCheck illustrations={{ structured_data: <DiagnosticIllustration kind="structure" /> }} />
       </PageSection>
 
-      <PageSection label="Who this is for">
+      <PageSection label="Who this is for" media={<ProcessDiagram title="Who this is for" steps={["Found in AI-generated answers", "Represented accurately", "Not just a results page"]} />}>
         <p className="type-body-lead text-text-primary">
           Businesses that need to be found — and represented accurately — in AI-generated
           answers, not just a traditional results page.

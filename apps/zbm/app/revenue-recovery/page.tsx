@@ -54,7 +54,7 @@ export const metadata = pageMetadata(SITE, {
  */
 export default function RevenueRecoveryPage() {
   return (
-    <main>
+    <main id="main">
       <PageHeader
         label="Revenue Recovery"
         title="Find out where your revenue is going."

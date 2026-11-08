@@ -184,8 +184,12 @@ function Clip({
         }
         overlay={
           <div className="absolute inset-x-0 bottom-0 z-10 bg-linear-to-t from-black/85 to-transparent px-2 pb-2 pt-6">
+            {/* The label sits on its own opaque chip so its contrast is measurable
+                (and fixed) over any frame of the clip, not just the gradient. */}
             <p className="type-mono text-[0.65rem] leading-tight text-text-primary">
-              <span className="text-accent">{String(index + 1).padStart(2, "0")}</span> {clip.hook}
+              <span data-clip-label className="bg-black px-1 py-px box-decoration-clone">
+                <span className="text-accent">{String(index + 1).padStart(2, "0")}</span> {clip.hook}
+              </span>
             </p>
             <span aria-hidden="true" className="relative mt-1.5 block h-px bg-text-primary/25">
               {live ? (

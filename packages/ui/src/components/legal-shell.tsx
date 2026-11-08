@@ -1,56 +1,61 @@
 import type { ReactNode } from "react";
 import { LedgerRule } from "./ledger-rule";
-
-/** The exact banner wording Brief §5 requires on every legal page shell. */
-export const LEGAL_DRAFT_BANNER = "Draft — pending attorney review. Not yet in effect.";
+import { LegalStatus } from "./legal-document";
 
 export type LegalPart = {
   /** Only for documents with more than one audience, e.g. ZBC's two Terms. */
   heading?: string;
-  /** Section headings only — the scope an attorney fills, never the language. */
+  /** Section headings only: what the published document will cover. */
   sections: string[];
 };
 
 /**
- * Legal page shell (Brief §5; scope from ZBM-ZBC-Legal-Document-Brief.md).
+ * Legal page outline for a site whose terms are not published yet (Z Best
+ * Clips, until launch). It shows the structure of each document and a notice
+ * the app supplies; it never reads as a policy, a promise or a term.
  *
- * The Legal Document Brief is explicit that none of its language may be
- * published, so a shell carries STRUCTURE only: section headings naming what
- * the attorney-drafted document must cover, each with a marked placeholder
- * where the text will go. Nothing here reads as a policy, a promise or a term.
+ * Founder decision, Oct 30 2026: no review-status or draft wording on either
+ * site. Every visible sentence comes from the app (`notice`, `pendingText`,
+ * `issuerText`), so this shared module carries none of its own.
  *
- * The contracting entity is deliberately a placeholder too — the Legal Brief's
- * cross-cutting note 2 leaves it for the attorney to confirm.
- *
- * The banner is first in <main>, above the title, so it cannot be scrolled past
- * on the way to the content.
+ * The notice is first in <main>, above the title, so it cannot be scrolled
+ * past on the way to the content.
  */
 export function LegalShell({
   title,
   site,
   parts,
+  notice,
+  pendingText,
+  issuerText,
+  status,
   children,
 }: {
   title: string;
   site: string;
   parts: LegalPart[];
+  /** Shown first on the page, e.g. that the site is not accepting clients yet. */
+  notice: string;
+  /** Shown under each section heading in place of text. */
+  pendingText: string;
+  /** The issuer line; plain text, never a bracketed token. */
+  issuerText: string;
+  /** The documents' status (e.g. a draft notice), shown above the notice while set. */
+  status?: string;
   /** Page-specific controls, e.g. Cookie Settings on the Cookie Policy. */
   children?: ReactNode;
 }) {
   let n = 0;
   return (
-    <main className="mx-auto max-w-[90rem] px-gutter py-section lg:px-gutter-wide">
+    <main id="main" className="mx-auto max-w-[90rem] px-gutter py-section lg:px-gutter-wide">
+      {status ? <LegalStatus text={status} /> : null}
       <div
         role="note"
-        aria-label="Legal draft notice"
-        data-legal-draft-banner
-        className="border border-accent bg-panel px-5 py-4"
+        aria-label="Legal page notice"
+        data-legal-notice
+        className={`border border-accent bg-panel px-5 py-4${status ? " mt-4" : ""}`}
       >
-        <p className="type-label text-accent">{LEGAL_DRAFT_BANNER}</p>
-        <p className="type-small mt-2 max-w-prose text-text-secondary">
-          This page is a placeholder outline. The text of each section has not
-          been written or approved.
-        </p>
+        <p className="type-label text-accent">{notice}</p>
       </div>
 
       <header className="mt-stack max-w-3xl">
@@ -58,8 +63,8 @@ export function LegalShell({
         <h1 className="type-headline mt-3">{title}</h1>
         <p className="type-small mt-4 text-text-secondary">
           Issued by:{" "}
-          <span data-placeholder className="type-mono text-text-primary">
-            [Legal entity — pending attorney confirmation]
+          <span data-legal-issuer className="text-text-primary">
+            {issuerText}
           </span>
         </p>
       </header>
@@ -83,12 +88,17 @@ export function LegalShell({
                         {String(n).padStart(2, "0")}
                       </span>
                       <div>
-                        <h3 className="type-body font-semibold">{heading}</h3>
+                        {/* h2 when the part has no heading of its own, so the outline never skips h1 → h3 (WCAG 1.3.1). */}
+                        {part.heading ? (
+                          <h3 className="type-body font-semibold">{heading}</h3>
+                        ) : (
+                          <h2 className="type-body font-semibold">{heading}</h2>
+                        )}
                         <p
                           data-placeholder
                           className="type-small mt-1.5 text-text-secondary"
                         >
-                          [Placeholder — attorney-drafted text pending.]
+                          {pendingText}
                         </p>
                       </div>
                     </div>

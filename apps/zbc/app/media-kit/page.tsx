@@ -25,7 +25,7 @@ export const metadata = pageMetadata(SITE, {
  */
 export default function MediaKitPage() {
   return (
-    <main>
+    <main id="main">
       <PageHeader aside={<HeroMedia asset="zbc-clipper-phone" caption="Concept editing workflow" frame="plate" sizes="(min-width: 1024px) 40vw, calc(100vw - 2.5rem)" />} label="Media Kit" title="Z Best Clips — press kit." />
 
       <PageSection id="boilerplate" media={<ProcessDiagram title="Content distribution" steps={["Source material", "Create and post", "Submission review", "Verified reporting"]} />} label="Boilerplate">

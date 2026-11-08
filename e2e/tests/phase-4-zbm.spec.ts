@@ -216,7 +216,7 @@ test.describe("Home (§A4)", () => {
   test("hero stat block shows non-outcome facts only, no counter claim", async ({ page }) => {
     await visit(page, byPath("/"));
     const rows = await page.evaluate(() =>
-      [...document.querySelectorAll("main header dl > div > div")].map((row) => [
+      [...document.querySelectorAll("main header dl > div")].map((row) => [
         row.querySelector("dt")?.textContent?.trim(),
         row.querySelector("dd")?.textContent?.trim(),
       ]),
@@ -230,7 +230,7 @@ test.describe("Home (§A4)", () => {
     // Founder ruling Sep 17: no founding-year claim anywhere on the page.
     expect(await mainText(page)).not.toMatch(/2011|Est\./);
     // The Counter is not wired to a claim until a verified figure exists (§6.3).
-    expect(await page.locator("main [aria-label] > [aria-hidden='true']").count()).toBe(0);
+    expect(await page.locator("main [data-counter]").count()).toBe(0);
   });
 
   test("How we work carries one process, capitalized, promising only priority and confidence", async ({ page }) => {
@@ -441,7 +441,7 @@ test.describe("Revenue Recovery (§A4, filtered live carry-over)", () => {
     await formReady(form);
     await expect(form).toContainText("This form scores your answers against a fixed set of rules.");
     await expect(form).not.toContainText("Stub");
-    for (const label of ["Name", "Business", "Website", "Best way to reach you"]) {
+    for (const label of ["Name", "Business", "Website", "State or territory", "Best way to reach you"]) {
       await expect(form.getByLabel(label, { exact: true })).toBeVisible();
     }
 
@@ -459,6 +459,7 @@ test.describe("Revenue Recovery (§A4, filtered live carry-over)", () => {
     await expect(form.getByText("Enter a website address, like example.com.")).toBeVisible();
 
     await form.getByLabel("Website", { exact: true }).fill("example.com");
+    await form.getByLabel("State or territory", { exact: true }).selectOption("US-CA");
     // Phase 5: the eight questions must be answered before the route is reached.
     for (const question of await form.locator("[data-assessment-question]").all()) {
       await question.getByRole("radio", { name: "Somewhat true", exact: true }).check();
@@ -484,7 +485,7 @@ test.describe("Lead route (§6.2)", () => {
     const res = await post(page, {
       form: "contact",
       submission_id: id,
-      fields: { name: "A", business: "B", problem: "C", reach: "D" },
+      fields: { name: "A", business: "B", problem: "C", reach: "D", state: "US-CA" },
     });
     expect(res.status()).toBe(200);
     expect(res.headers()["x-zbest-lead-stub"]).toBeUndefined();
@@ -500,7 +501,8 @@ test.describe("Lead route (§6.2)", () => {
     const body = await res.json();
     expect(body.ok).toBe(false);
     expect(body.error.code).toBe("validation");
-    expect(Object.keys(body.error.fields).sort()).toEqual(["business", "problem", "reach"]);
+    // "state": the service-area field every form now carries (founder decision 2026-10-30).
+    expect(Object.keys(body.error.fields).sort()).toEqual(["business", "problem", "reach", "state"]);
   });
 
   test("malformed envelope, unknown form and missing submission_id are rejected", async ({ page }) => {
@@ -560,13 +562,14 @@ test.describe("About and Contact (§A4)", () => {
     await visit(page, byPath("/contact"));
     const form = page.locator('form[data-lead-form="contact"]');
     await formReady(form);
-    for (const label of ["Name", "Business", "What are you looking to solve?", "Best way to reach you"]) {
+    for (const label of ["Name", "Business", "State or territory", "What are you looking to solve?", "Best way to reach you"]) {
       await expect(form.getByLabel(label, { exact: true })).toBeVisible();
     }
     await form.getByLabel("Name", { exact: true }).fill("Test Person");
     await form.getByLabel("Business", { exact: true }).fill("Test Co");
     await form.getByLabel("What are you looking to solve?", { exact: true }).fill("Calls go unanswered.");
     await form.getByLabel("Best way to reach you", { exact: true }).fill("test@example.com");
+    await form.getByLabel("State or territory", { exact: true }).selectOption("US-CA");
     const [response] = await Promise.all([
       page.waitForResponse((r) => r.url().endsWith("/api/lead")),
       form.getByRole("button", { name: "Send" }).click(),

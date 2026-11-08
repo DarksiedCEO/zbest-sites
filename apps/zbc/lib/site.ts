@@ -81,8 +81,8 @@ type Route = {
  * when built AND indexable; the gate requests every listed URL and fails on
  * anything but a 200.
  *
- * Legal shells are built but NOT indexable: placeholders marked "Not yet in
- * effect" (§5) must not surface in search as the company's terms.
+ * Legal pages are built but NOT indexable: they are outlines until Z Best Clips
+ * publishes its terms, and must not surface in search as the company's terms.
  */
 export const ROUTES: Route[] = [
   // How It Works (founder decision, Phase 4: "/" serves it).

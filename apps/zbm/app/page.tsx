@@ -25,7 +25,7 @@ export const metadata = pageMetadata(SITE, { path: "/" });
 
 export default function HomePage() {
   return (
-    <main>
+    <main id="main">
       {/*
         Section 1 — Hero, and the page's showpiece (FD-VISUAL-01 §5 "The reel"):
         the claim holds left while concept work assembles right. Claim first at 390.
