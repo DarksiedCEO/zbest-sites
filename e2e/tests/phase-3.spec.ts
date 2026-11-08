@@ -22,7 +22,43 @@ import { ZBC_BASE_URL, ZBM_BASE_URL } from "../playwright.config";
 const SNAPSHOT_DIR = path.join(import.meta.dirname, "..", "snapshots", "phase-3");
 const REPO_ROOT = path.join(import.meta.dirname, "..", "..");
 const CONSENT_KEY = "zbest-cookie-consent";
-const LEGAL_BANNER = "Draft — pending attorney review. Not yet in effect.";
+/**
+ * Founder decision, Oct 30 2026: neither site may carry review-status or draft
+ * wording about its legal documents. ZBC shows this notice until launch.
+ *
+ * Founder direction, Nov 7 2026: until he approves the adoption summary in
+ * writing on PR #10, every legal page shows exactly LEGAL_DRAFT_STATUS, first
+ * in <main> ([data-legal-status]); nothing else on the page, in metadata or in
+ * the cookie banner may carry status wording. Mirrors LEGAL_ADOPTED in
+ * apps/{zbm,zbc}/lib/legal.ts: flip both together.
+ */
+const STATUS_WORDING = /pending attorney|attorney review|not yet in effect|not legal advice|\bdraft\b/i;
+const LEGAL_ADOPTED = true;
+const LEGAL_DRAFT_STATUS = "Draft — pending attorney review.";
+
+/**
+ * Checks the legal page's status line (present and first while not adopted,
+ * absent once adopted) and returns <main>'s text without it, for the
+ * no-other-status-wording checks.
+ */
+async function legalPageText(page: Page): Promise<string> {
+  const status = page.locator("[data-legal-status]");
+  if (LEGAL_ADOPTED) {
+    expect(await status.count()).toBe(0);
+  } else {
+    await expect(status).toHaveCount(1);
+    await expect(status).toHaveText(LEGAL_DRAFT_STATUS);
+    await expect(status).toBeInViewport();
+    const first = await page.evaluate(() => document.querySelector("main")?.firstElementChild?.hasAttribute("data-legal-status") ?? false);
+    expect(first).toBe(true);
+  }
+  return page.evaluate(() => {
+    const main = document.querySelector("main")!.cloneNode(true) as HTMLElement;
+    main.querySelector("[data-legal-status]")?.remove();
+    return main.textContent ?? "";
+  });
+}
+const ZBC_LEGAL_NOTICE = "Z Best Clips is not yet accepting clients. These terms will be published before launch.";
 
 const LEGAL = [
   { path: "/legal/privacy-policy", title: "Privacy Policy", slug: "legal-privacy-policy" },
@@ -62,7 +98,8 @@ const APPS = [
       },
       { heading: "Company", links: ["About", "Start a Project", "Contact"] },
       { heading: "Resources", links: ["FAQ"] },
-      { heading: "Legal", links: ["Privacy Policy", "Terms of Service", "Cookie Settings"] },
+      // Accessibility Statement added with the in-effect legal set (Oct 30 2026).
+      { heading: "Legal", links: ["Privacy Policy", "Terms of Service", "Refunds and Cancellation", "Cookie Settings", "Accessibility Statement"] },
     ],
     // §A3: "Z Best Clips (→ zbestclips.com)"; own domain per §1.1.
     crossLink: { label: "Z Best Clips", href: "https://zbestclips.com" },
@@ -273,22 +310,85 @@ for (const app of APPS) {
       }
     });
 
-    for (const doc of LEGAL) {
-      test(`${doc.path} — shell carries the §5 banner and placeholders only`, async ({ page }) => {
+    // Z Best Media's documents are IN EFFECT (founder decision Oct 30 2026,
+    // CLAUDE.md): real text, no draft banner. Z Best Clips keeps the shells.
+    for (const doc of app.slug === "zbm" ? LEGAL : []) {
+      test(`${doc.path} — in-effect document: draft line until adopted, real sections, dated`, async ({ page }) => {
+        await presetConsent(page);
+        const response = await page.goto(`${app.baseUrl}${doc.path}`, { waitUntil: "domcontentloaded" });
+        expect(response?.status()).toBe(200);
+
+        await expect(page.locator("[data-legal-document]")).toBeVisible();
+        expect(await page.locator("[data-legal-notice]").count()).toBe(0);
+        const text = await legalPageText(page);
+        expect(text).not.toMatch(STATUS_WORDING);
+        expect(await head(page, 'meta[name="description"]')).not.toMatch(STATUS_WORDING);
+
+        await expect(page.getByRole("heading", { level: 1 })).toHaveText(doc.title);
+        // Real sections with real text, each reachable from the contents list.
+        const sections = page.locator("main section[id] h2");
+        expect(await sections.count()).toBeGreaterThanOrEqual(5);
+        const toc = page.getByRole("navigation", { name: `${doc.title} contents` });
+        expect(await toc.getByRole("link").count()).toBe(await sections.count());
+        expect(text.length).toBeGreaterThan(2500);
+
+        // Issuer and effective date are stated up front.
+        // The issuer is ZBM's own legal name (a token until it is filled).
+        await expect(page.locator("[data-legal-issuer]")).not.toBeEmpty();
+        await expect(page.locator("[data-legal-effective]")).toBeVisible();
+
+        // Anything unfilled is visibly marked, never passed off as text; only
+        // known tokens may appear. A production build refuses to ship any.
+        const tokens = await page.locator("main [data-placeholder]").allInnerTexts();
+        for (const t of tokens) expect(t).toMatch(/^\[[A-Z0-9][A-Z0-9 ,.'’/&—()-]*\]$/);
+
+        // Legal Brief cross-cutting note 2: no unconfirmed entity name.
+        expect(text).not.toMatch(/silverback|pussycat/i);
+        // Search Intelligence stays unlinked and unnamed (Brief §A4).
+        expect(text).not.toMatch(/search intelligence|visibility readiness/i);
+        expect(await page.locator('main a[href*="search-intelligence"]').count()).toBe(0);
+
+        // Still noindex until the placeholders are filled (lib/site.ts).
+        expect(await head(page, 'meta[name="robots"]')).toMatch(/noindex/);
+      });
+    }
+
+    // ZBM-only in-effect pages beyond the three every site has (AEGIS r2 L10).
+    for (const doc of app.slug === "zbm"
+      ? [
+          { path: "/legal/refunds", title: "Refund and Cancellation Policy" },
+          { path: "/legal/accessibility", title: "Accessibility Statement" },
+        ]
+      : []) {
+      test(`${doc.path} — draft line until adopted, no other status wording`, async ({ page }) => {
+        await presetConsent(page);
+        const response = await page.goto(`${app.baseUrl}${doc.path}`, { waitUntil: "domcontentloaded" });
+        expect(response?.status()).toBe(200);
+        await expect(page.locator("[data-legal-document]")).toBeVisible();
+        await expect(page.getByRole("heading", { level: 1 })).toHaveText(doc.title);
+        expect(await page.locator("[data-legal-notice]").count()).toBe(0);
+        expect(await legalPageText(page)).not.toMatch(STATUS_WORDING);
+        expect(await head(page, 'meta[name="description"]')).not.toMatch(STATUS_WORDING);
+        expect(await head(page, 'meta[name="robots"]')).toMatch(/noindex/);
+      });
+    }
+
+    for (const doc of app.slug === "zbm" ? [] : LEGAL) {
+      test(`${doc.path} — outline carries the not-yet-accepting-clients notice, draft line until adopted`, async ({ page }) => {
         await presetConsent(page);
         const response = await page.goto(`${app.baseUrl}${doc.path}`, {
           waitUntil: "domcontentloaded",
         });
         expect(response?.status()).toBe(200);
 
-        const banner = page.locator("[data-legal-draft-banner]");
+        const banner = page.locator("[data-legal-notice]");
         await expect(banner).toBeVisible();
-        await expect(banner).toContainText(LEGAL_BANNER);
+        await expect(banner).toHaveText(ZBC_LEGAL_NOTICE);
         // Above the fold and ahead of the title — it cannot be scrolled past
         // on the way to the content.
         await expect(banner).toBeInViewport();
         const bannerFirst = await page.evaluate(() => {
-          const b = document.querySelector("[data-legal-draft-banner]");
+          const b = document.querySelector("[data-legal-notice]");
           const h1 = document.querySelector("main h1");
           return !!b && !!h1 && !!(b.compareDocumentPosition(h1) & Node.DOCUMENT_POSITION_FOLLOWING);
         });
@@ -304,14 +404,17 @@ for (const app of APPS) {
         }));
         expect(counts.sections).toBeGreaterThanOrEqual(3);
         expect(counts.placeholders).toBe(counts.sections);
-        await expect(page.getByText("[Legal entity — pending attorney confirmation]")).toBeVisible();
+        // Neutral issuer, never a bracketed token on a public page (AEGIS r2 N5).
+        await expect(page.locator("[data-legal-issuer]")).toHaveText("Z Best Clips");
+        expect(await page.locator("main").innerText()).not.toMatch(/\[[A-Z]/);
 
-        // Legal Brief cross-cutting note 2 leaves the contracting entity to the
-        // attorney; no name from that note may appear on a shell.
-        const text = await page.locator("main").innerText();
+        // The contracting entity is unconfirmed; no candidate name appears.
+        const text = await legalPageText(page);
         expect(text).not.toMatch(/silverback|pussycat/i);
+        expect(text).not.toMatch(STATUS_WORDING);
+        expect(await head(page, 'meta[name="description"]')).not.toMatch(STATUS_WORDING);
 
-        // Draft text must not be indexed as the company's policy.
+        // An outline must not be indexed as the company's terms.
         expect(await head(page, 'meta[name="robots"]')).toMatch(/noindex/);
       });
     }
@@ -437,6 +540,20 @@ for (const app of APPS) {
       const policyHref = await dialog.getByRole("link", { name: "Cookie Policy" }).getAttribute("href");
       expect((await page.request.get(`${app.baseUrl}${policyHref}`)).status()).toBe(200);
 
+      // The Cookie Policy promises "equal prominence": Reject and Accept look
+      // the same — same box, colors, border, type and padding.
+      const look = (name: string) =>
+        dialog.getByRole("button", { name, exact: true }).evaluate((el) => {
+          const c = getComputedStyle(el);
+          const r = el.getBoundingClientRect();
+          return {
+            background: c.backgroundColor, color: c.color, border: `${c.borderTopWidth} ${c.borderTopStyle} ${c.borderTopColor}`,
+            font: `${c.fontSize} ${c.fontWeight} ${c.fontFamily}`, padding: c.padding, decoration: c.textDecorationLine,
+            height: Math.round(r.height),
+          };
+        });
+      expect(await look("Accept all")).toEqual(await look("Reject non-essential"));
+
       await dialog.getByRole("button", { name: "Reject non-essential" }).click();
       await expect(dialog).toBeHidden();
 
@@ -446,6 +563,19 @@ for (const app of APPS) {
 
       await page.getByRole("button", { name: "Change cookie settings" }).click();
       await expect(dialog).toBeVisible();
+
+      // The banner's detail says what each site really stores; neither carries
+      // review-status wording (founder decision Oct 30 2026).
+      await dialog.getByRole("button", { name: "What we store" }).click();
+      const detail = dialog.locator("#cookie-consent-detail");
+      if (app.slug === "zbm") {
+        await expect(detail).toContainText("Not used on this site.");
+        await expect(dialog).toContainText("doesn’t use analytics or advertising cookies");
+      } else {
+        await expect(detail).toContainText(ZBC_LEGAL_NOTICE);
+        await expect(detail).toContainText("Not used on this site.");
+      }
+      expect(await dialog.innerText()).not.toMatch(STATUS_WORDING);
       await dialog.getByRole("button", { name: "Accept all" }).click();
       expect(await page.evaluate((k) => window.localStorage.getItem(k), CONSENT_KEY)).toContain(
         "accepted-all",
@@ -486,7 +616,11 @@ test.describe("Z Best Clips — Entertainment/Brands color-coded system", () => 
 
       // The consent banner lives in the root layout, outside <main>.
       const dialog = page.getByRole("dialog", { name: "Cookies on this site" });
-      expect(await bg(dialog.getByRole("button", { name: "Accept all" }))).toBe(f.accent);
+      // Accept and Reject look the same (equal prominence); both carry the focus
+      // colour in their border.
+      for (const name of ["Accept all", "Reject non-essential"]) {
+        expect(await dialog.getByRole("button", { name }).evaluate((el) => getComputedStyle(el).borderTopColor)).toBe(f.accent);
+      }
       await dialog.getByRole("button", { name: "Reject non-essential" }).click();
 
       // Nav CTA (root layout) and the dropdown entries, each in its own color.

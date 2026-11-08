@@ -150,7 +150,15 @@ export default defineConfig({
       url: ZBM_BASE_URL,
       cwd: "../",
       // ZBEST_DEV_ROUTES: build /dev/system for the Phase 2 gate (excluded in production).
-      env: { ZBEST_GATE_NONCE: GATE_NONCE, ZBEST_DEV_ROUTES: "1", ...NO_LEAD_TRANSPORT, ...fakeLeads("zbm", "100000/60") },
+      // ZBEST_ALLOW_LEGAL_PLACEHOLDERS: the gate builds with NODE_ENV=production;
+      // without it the ZBM legal placeholder guard would stop the build.
+      env: {
+        ZBEST_GATE_NONCE: GATE_NONCE,
+        ZBEST_DEV_ROUTES: "1",
+        ZBEST_ALLOW_LEGAL_PLACEHOLDERS: "1",
+        ...NO_LEAD_TRANSPORT,
+        ...fakeLeads("zbm", "100000/60"),
+      },
       // Never adopt a pre-existing server: it may be a stale build, another
       // branch, or not this project at all.
       reuseExistingServer: false,

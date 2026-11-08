@@ -1,4 +1,5 @@
 import { LeadForm as SharedLeadForm, type LeadField } from "@zbest/ui/lead";
+import { CollectionNotice } from "./collection-notice";
 import { NOT_SURE, SERVICES } from "@/content/services";
 import { INTAKE_BUDGETS, INTAKE_TIMINGS, type LeadForm as LeadFormName } from "@/lib/lead";
 
@@ -79,5 +80,13 @@ export function LeadForm({
   defaults?: Record<string, string | string[]>;
 }) {
   const fields = FIELDS[form].map((f) => (f.name in defaults ? { ...f, defaultValue: defaults[f.name] } : f));
-  return <SharedLeadForm form={form} fields={fields} submitLabel={submitLabel} />;
+  // Every form gets the notice directly above its submit button.
+  return (
+    <SharedLeadForm
+      form={form}
+      fields={fields}
+      submitLabel={submitLabel}
+      notice={<CollectionNotice />}
+    />
+  );
 }

@@ -1,6 +1,7 @@
 import { CookieConsent, Footer, MediaFrame, Nav, SkipLink, siteMetadata } from "@zbest/ui";
 import { GateNonce } from "@zbest/ui/gate";
 import { zbmFontVariables } from "@zbest/ui/fonts/zbm";
+import { CONSENT_CATEGORIES, CONSENT_SUMMARY } from "@/lib/legal";
 import { FOOTER_COLUMNS, NAV_CTA, NAV_ITEMS, SITE } from "@/lib/site";
 import "./globals.css";
 
@@ -21,7 +22,7 @@ export default function RootLayout({
         <Nav brandName={SITE.name} items={NAV_ITEMS} cta={NAV_CTA} />
         {children}
         <Footer media={<div className="max-w-sm"><MediaFrame asset="saltgrove-brand-system" frame="plate" sizes="(min-width: 480px) 320px, calc(100vw - 2.5rem)" /></div>} brandName={SITE.name} columns={FOOTER_COLUMNS} />
-        <CookieConsent />
+        <CookieConsent summary={CONSENT_SUMMARY} categories={CONSENT_CATEGORIES} />
       </body>
     </html>
   );

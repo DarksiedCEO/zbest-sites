@@ -117,6 +117,8 @@ export const ZBM_ROUTES = [
   "/legal/privacy-policy",
   "/legal/terms-of-service",
   "/legal/cookie-policy",
+  "/legal/refunds",
+  "/legal/accessibility",
   "/this-page-does-not-exist",
 ];
 export const ZBC_ROUTES = [
