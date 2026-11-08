@@ -13,7 +13,7 @@ import type { LegalPart } from "@zbest/ui";
  * The Terms are one page in two parts because the footer carries a single
  * "Terms of Service" entry (§B3), while clippers and clients get separate terms.
  */
-export const ZBC_LEGAL_ADOPTED = false;
+export const ZBC_LEGAL_ADOPTED = true; // Adopted with ZBM's, PR #10, 2026-11-08 00:16 UTC.
 export const ZBC_LEGAL_STATUS: string | undefined = ZBC_LEGAL_ADOPTED ? undefined : "Draft — pending attorney review.";
 export const ZBC_LEGAL_NOTICE =
   "Z Best Clips is not yet accepting clients. These terms will be published before launch.";

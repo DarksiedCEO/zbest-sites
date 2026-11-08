@@ -48,15 +48,15 @@ import { legalDocumentStrings, legalPlaceholders, type ConsentCategory, type InE
  * LEGAL_DRAFT_STATUS first in <main>. After that approval, set LEGAL_ADOPTED to
  * true in the same change on both sites (apps/zbm and apps/zbc lib/legal.ts).
  */
-export const LEGAL_ADOPTED = false;
+export const LEGAL_ADOPTED = true; // Adopted by the founder on PR #10, 2026-11-08 00:16 UTC.
 export const LEGAL_DRAFT_STATUS = "Draft — pending attorney review.";
 /** What the page shows as its status: the draft line until adopted, else nothing. */
 export const LEGAL_STATUS: string | undefined = LEGAL_ADOPTED ? undefined : LEGAL_DRAFT_STATUS;
 
 /** Shown on every document. Replace both tokens when the documents go live. */
-export const LEGAL_ISSUER = "[LEGAL ENTITY NAME]";
-export const LEGAL_EFFECTIVE_DATE = "[EFFECTIVE DATE]";
-export const LEGAL_LAST_UPDATED = "[EFFECTIVE DATE]";
+export const LEGAL_ISSUER = "Z Best Media";
+export const LEGAL_EFFECTIVE_DATE = "November 9, 2026";
+export const LEGAL_LAST_UPDATED = "November 9, 2026";
 
 const PRIVACY_EMAIL = "privacy@zbestmedia.com";
 const LEGAL_EMAIL = "legalnotice@zbestmedia.com";

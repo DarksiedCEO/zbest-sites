@@ -14,3 +14,9 @@
 - Refund Policy: no longer cites an MSA, SOWs, Stripe, or the SEO audit and Revenue Recovery packages, none of which exist. It states minimum promises for any signed client agreement. `legal-zbm.spec.ts` guards against their return.
 - Terms: removed "media buying" (founder ruling: no media-buy claims) and the MSA/SOW example.
 - Privacy: names Neon as the database host and says assessment results are stored.
+
+## Adopted (2026-11-08)
+- The founder adopted the policies on PR #10: comment posted 2026-11-08 00:16 UTC, relayed by the reviewer session at his explicit instruction.
+- `LEGAL_ADOPTED` and `ZBC_LEGAL_ADOPTED` are now true, so the draft line is off on both sites.
+- Issuer: "Z Best Media". Effective and last-updated date: November 9, 2026.
+- The mailing address is still `[BUSINESS MAILING ADDRESS]` ("to follow"). A ZBM production build refuses to finish until it is filled.

@@ -19,10 +19,10 @@ be updated in the same commit as each accessibility fix. Service area: the
 United States, including DC and all U.S. territories (PR, GU, VI, AS, MP).
 Text lives in apps/zbm/lib/legal.ts and must match what the code collects,
 stores, sends and sets in the browser: change it in the same commit as any
-such code change. Until the founder approves docs/LEGAL-ADOPTION-SUMMARY.md in
-writing on PR #10, every legal page on both sites shows "Draft — pending
-attorney review." first (LEGAL_ADOPTED=false; docs/BRIEF-AMENDMENT-2026-11-07-
-legal-draft-line.md); no other status wording anywhere. Bracketed
+such code change. The founder adopted the policies (docs/LEGAL-ADOPTION-SUMMARY.md)
+on PR #10 on 2026-11-08, so LEGAL_ADOPTED is true and the draft line is off
+(docs/BRIEF-AMENDMENT-2026-11-07-legal-draft-line.md); no status wording
+anywhere. Bracketed
 [UPPER CASE] tokens are unfilled facts; any production build fails while any
 remain (exempt: Vercel preview, and the e2e gate via
 ZBEST_ALLOW_LEGAL_PLACEHOLDERS=1).
