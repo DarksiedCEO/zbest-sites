@@ -12,6 +12,17 @@
  *      one rolled-back insert per served code must succeed, and each of a
  *      set of near-miss codes must be refused (AEGIS R-M1). This catches a
  *      database still on 004's 53 codes, a missing constraint, or drift.
+ *   5. the notify-status CHECK accepts every status in src/notify-status.ts
+ *      and refuses near-misses (AEGIS r4 L4: e.g. 007 re-run by hand after
+ *      008 would drop 'expired_reported', and the app would then fail 23514);
+ *   6. the notify-status and notify-delivery CHECKs are exactly the plain
+ *      value lists the migrations write, with the app's values (AEGIS r5 N7,
+ *      r6 R6-6); no other CHECK on leads mentions a notify_ column; every
+ *      delivery value is accepted by a rolled-back insert and near-misses are
+ *      refused; lead_delivery_checks has exactly the app's columns and types;
+ *   7. the notify columns' nullability and defaults, lead_delivery_checks and
+ *      lead_acks column by column (no extra columns), no triggers on the lead
+ *      tables, and the acknowledgement index (AEGIS r7 R7-4);
  * All of it runs in ONE transaction under a transaction-scoped advisory lock,
  * so concurrent runs serialise and a failed run changes nothing.
  *
@@ -47,6 +58,12 @@ const SERVICE_CODES = (await loadTs("region.ts")).SERVICE_AREAS.map((a) => a.val
  * territories, other US-administered areas we do not serve, foreign codes,
  * case and whitespace variants, and the empty string.
  */
+/** Every notify_status the app writes (AEGIS r4 L4), and values the CHECK must refuse. */
+const statusModule = await loadTs("notify-status.ts");
+const NOTIFY_STATUSES = [...statusModule.NOTIFY_STATUSES];
+const NOTIFY_DELIVERY_VALUES = [...statusModule.NOTIFY_DELIVERY_VALUES];
+const REFUSED_STATUSES = ["", "SENT", "expired", "unknown", " sent"];
+
 const REFUSED_CODES = ["outside", "US-PR", "US-GU", "US-VI", "US-AS", "US-MP", "UM", "US-UM", "CA", "GB", "us-ca", "vi", " US-CA", ""];
 
 /** The columns 001 creates: what a pre-existing table must already have. */
@@ -66,8 +83,33 @@ const BASE = {
   created_at: "timestamp with time zone",
 };
 
-/** After every migration: exactly what the app writes (004 adds the service area). */
-const EXPECTED = { ...BASE, service_area: "text" };
+/** After every migration: exactly what the app writes (004 service area, 006 content hash, 007 notify outbox, 008 batch hash, 009 delivery check, 010 re-send cap, 011 acknowledgement, 012 history and recovery cap). */
+const EXPECTED = {
+  ...BASE,
+  service_area: "text",
+  content_hash: "text",
+  notify_attempts: "integer",
+  notify_next_at: "timestamp with time zone",
+  notify_first_attempt_at: "timestamp with time zone",
+  notify_body_hash: "text",
+  notify_batch: "text",
+  notify_batch_at: "timestamp with time zone",
+  notify_batch_hash: "text",
+  quarantined: "boolean",
+  notify_email_id: "text",
+  notify_delivery: "text",
+  notify_undelivered_at: "timestamp with time zone",
+  notify_outcome_unknown: "boolean",
+  notify_resends: "integer",
+  notify_checked_at: "timestamp with time zone",
+  notify_abandoned_at: "timestamp with time zone",
+  notify_unverifiable_at: "timestamp with time zone",
+  notify_ack_at: "timestamp with time zone",
+  notify_ack_by: "text",
+  notify_lookup_failures: "integer",
+  notify_recoveries: "integer",
+  notify_recovered_at: "timestamp with time zone",
+};
 
 /**
  * Which URL to migrate with (AEGIS r3 F3). A transaction-mode pooler
@@ -156,7 +198,10 @@ try {
     // EXISTS; check it BEFORE applying anything, so the report names the
     // mismatch instead of a later DDL error masking it (AEGIS r2 N5).
     const [existing] = await tx`SELECT to_regclass('leads') IS NOT NULL AS present`;
-    if (!done.has("001") && existing?.present) await checkColumns(tx, BASE);
+    // Also when 001 is recorded (CH-8 review): a later migration's DDL that
+    // names a missing 001 column (007's partial index) must not mask the
+    // report with a bare SQLSTATE.
+    if (existing?.present) await checkColumns(tx, BASE);
     // The file-name regex is what makes the first three characters a version.
     for (const file of readdirSync(dir).filter((f) => /^\d{3}_.+\.sql$/.test(f)).sort()) {
       const version = file.slice(0, 3);
@@ -250,6 +295,170 @@ try {
       );
     }
     lines.push(`service area check ok (${SERVICE_CODES.length} codes accepted, ${REFUSED_CODES.length} near-misses refused; rolled back)`);
+
+    // 5. The notify-status CHECK accepts every status the app writes (AEGIS r4 L4).
+    const tryStatus = (status) =>
+      tx
+        .savepoint(async (sp) => {
+          await sp`
+            INSERT INTO leads (submission_id, app, form, payload, payload_hash, notify_status)
+            VALUES (${crypto.randomUUID()}::uuid, 'zbm', 'migrate-check', '{}'::jsonb, 'migrate-hash', ${status})`;
+          throw Object.assign(new Error("rollback"), { code: ROLLBACK_OK });
+        })
+        .then(
+          () => "stored",
+          (error) => {
+            if (error?.code === ROLLBACK_OK) return "accepted";
+            if (error?.code === "23514") return "refused";
+            throw error;
+          },
+        );
+    const statusMissing = [];
+    for (const status of NOTIFY_STATUSES) if ((await tryStatus(status)) !== "accepted") statusMissing.push(status);
+    const statusLeaked = [];
+    for (const status of REFUSED_STATUSES) if ((await tryStatus(status)) !== "refused") statusLeaked.push(JSON.stringify(status));
+    if (statusMissing.length || statusLeaked.length) {
+      throw new CheckFailed(
+        "leads_notify_status_check does not match the app's notify statuses" +
+          (statusMissing.length ? `; refuses: ${statusMissing.join(", ")}` : "") +
+          (statusLeaked.length ? `; accepts: ${statusLeaked.join(", ")}` : "") +
+          ". Run sql/008_notify_batches.sql (or fix the constraint) before launch.",
+      );
+    }
+    lines.push(`notify status check ok (${NOTIFY_STATUSES.length} statuses accepted, ${REFUSED_STATUSES.length} near-misses refused; rolled back)`);
+
+    // 6. AEGIS r5 N7, r6 R6-6: both CHECKs allow EXACTLY the app's values,
+    //    in exactly the shape the migrations write (a strict match, so an
+    //    added OR, a function call or any other term fails), no other CHECK
+    //    on leads mentions a notify_ column, and every delivery value is
+    //    accepted by a real (rolled-back) insert while near-misses are refused.
+    const checksOnLeads = (
+      await tx`
+        SELECT conname, pg_get_constraintdef(oid) AS def FROM pg_constraint
+        WHERE conrelid = 'leads'::regclass AND contype = 'c'`
+    ).map((r) => ({ name: String(r.conname), def: String(r.def) }));
+    const defs = Object.fromEntries(checksOnLeads.map((c) => [c.name, c.def]));
+    const LIST = "((?:'[a-z_]+'::text)(?:, '[a-z_]+'::text)*)";
+    const SHAPES = {
+      leads_notify_status_check: new RegExp(`^CHECK \\(\\(notify_status = ANY \\(ARRAY\\[${LIST}\\]\\)\\)\\)$`),
+      leads_notify_delivery_check: new RegExp(`^CHECK \\(\\(\\(notify_delivery IS NULL\\) OR \\(notify_delivery = ANY \\(ARRAY\\[${LIST}\\]\\)\\)\\)\\)$`),
+    };
+    const exact = (name, expected) => {
+      const def = defs[name];
+      if (!def) throw new CheckFailed(`${name} is missing. Run the migrations (or fix the constraint) before launch.`);
+      const m = SHAPES[name].exec(def);
+      if (!m) throw new CheckFailed(`${name} is not the plain value list the migrations write (found: ${def.slice(0, 300)}). Fix the constraint before launch.`);
+      const allowed = new Set([...m[1].matchAll(/'([a-z_]+)'::text/g)].map((x) => x[1]));
+      const missing = expected.filter((v) => !allowed.has(v));
+      const extra = [...allowed].filter((v) => !expected.includes(v));
+      if (missing.length || extra.length) {
+        throw new CheckFailed(
+          `${name} does not allow exactly the app's values` +
+            (missing.length ? `; missing: ${missing.join(", ")}` : "") +
+            (extra.length ? `; extra: ${extra.map((v) => JSON.stringify(v)).join(", ")}` : "") +
+            ". Fix the constraint before launch.",
+        );
+      }
+    };
+    exact("leads_notify_status_check", NOTIFY_STATUSES);
+    exact("leads_notify_delivery_check", NOTIFY_DELIVERY_VALUES);
+    const strays = checksOnLeads.filter((c) => !(c.name in SHAPES) && /\bnotify_/.test(c.def)).map((c) => c.name);
+    if (strays.length) throw new CheckFailed(`other CHECK constraints on the notify columns would refuse what the app writes: ${strays.join(", ")}. Remove them before launch.`);
+    const tryDelivery = (value) =>
+      tx
+        .savepoint(async (sp) => {
+          await sp`
+            INSERT INTO leads (submission_id, app, form, payload, payload_hash, notify_status, notify_delivery)
+            VALUES (${crypto.randomUUID()}::uuid, 'zbm', 'migrate-check', '{}'::jsonb, 'migrate-hash', 'sent', ${value})`;
+          throw Object.assign(new Error("rollback"), { code: ROLLBACK_OK });
+        })
+        .then(
+          () => "stored",
+          (error) => {
+            if (error?.code === ROLLBACK_OK) return "accepted";
+            if (error?.code === "23514") return "refused";
+            throw error;
+          },
+        );
+    const deliveryMissing = [];
+    for (const v of [...NOTIFY_DELIVERY_VALUES, null]) if ((await tryDelivery(v)) !== "accepted") deliveryMissing.push(String(v));
+    const deliveryLeaked = [];
+    for (const v of ["", "Delivered", "bogus", " delivered"]) if ((await tryDelivery(v)) !== "refused") deliveryLeaked.push(JSON.stringify(v));
+    if (deliveryMissing.length || deliveryLeaked.length) {
+      throw new CheckFailed(
+        "leads_notify_delivery_check does not behave as the app needs" +
+          (deliveryMissing.length ? `; refuses: ${deliveryMissing.join(", ")}` : "") +
+          (deliveryLeaked.length ? `; accepts: ${deliveryLeaked.join(", ")}` : "") +
+          ". Fix the constraint before launch.",
+      );
+    }
+    // AEGIS r7 R7-4: the notify columns' nullability and defaults (a
+    // nullable counter without a default would turn NULL + 1 into NULL and
+    // silently undo the caps), the side tables column by column with no
+    // extra columns, no triggers anywhere, and the acknowledgement index.
+    const MUST_DEFAULT = ["notify_attempts", "notify_outcome_unknown", "notify_resends", "notify_lookup_failures", "notify_recoveries", "quarantined"];
+    const leadsMeta = Object.fromEntries(
+      (
+        await tx`
+          SELECT column_name, is_nullable, column_default FROM information_schema.columns
+          WHERE table_schema = current_schema() AND table_name = 'leads'`
+      ).map((c) => [c.column_name, c]),
+    );
+    const badMeta = [];
+    for (const name of Object.keys(EXPECTED).filter((n) => n.startsWith("notify_") || n === "quarantined")) {
+      const c = leadsMeta[name];
+      if (!c) continue; // reported by the column check
+      if (MUST_DEFAULT.includes(name)) {
+        if (c.is_nullable !== "NO" || c.column_default === null) badMeta.push(`${name} (must be NOT NULL with a default)`);
+      } else if (name !== "notify_status" && c.is_nullable !== "YES") badMeta.push(`${name} (must allow NULL)`);
+    }
+    if (badMeta.length) throw new CheckFailed(`leads columns differ from what the app expects: ${badMeta.join(", ")}. Fix the schema before launch.`);
+    const SIDE_TABLES = {
+      lead_delivery_checks: {
+        app: ["text", "NO"],
+        last_success_at: ["timestamp with time zone", "YES"],
+        failing_since: ["timestamp with time zone", "YES"],
+        last_error: ["text", "YES"],
+        updated_at: ["timestamp with time zone", "NO"],
+      },
+      lead_acks: {
+        id: ["bigint", "NO"],
+        app: ["text", "NO"],
+        acked_at: ["timestamp with time zone", "NO"],
+        actor: ["text", "NO"],
+        ip_hash: ["text", "YES"],
+        through: ["timestamp with time zone", "YES"],
+        submission_ids: ["ARRAY", "NO"],
+        acknowledged: ["integer", "NO"],
+      },
+    };
+    for (const [table, expected] of Object.entries(SIDE_TABLES)) {
+      const actual = Object.fromEntries(
+        (
+          await tx`
+            SELECT column_name, data_type, is_nullable FROM information_schema.columns
+            WHERE table_schema = current_schema() AND table_name = ${table}`
+        ).map((c) => [c.column_name, [c.data_type, c.is_nullable]]),
+      );
+      if (!Object.keys(actual).length) throw new CheckFailed(`${table} table is missing. Fix the schema before launch.`);
+      const wrong = Object.entries(expected).filter(([n, [t, nul]]) => actual[n]?.[0] !== t || actual[n]?.[1] !== nul).map(([n]) => n);
+      const extra = Object.keys(actual).filter((n) => !(n in expected));
+      if (wrong.length || extra.length) {
+        throw new CheckFailed(
+          `${table} does not match the app` + (wrong.length ? `: ${wrong.join(", ")}` : "") + (extra.length ? `; extra columns: ${extra.join(", ")}` : "") + ". Fix the schema before launch.",
+        );
+      }
+    }
+    const triggers = (
+      await tx`
+        SELECT c.relname || '.' || t.tgname AS name FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE NOT t.tgisinternal AND n.nspname = current_schema() AND c.relname IN ('leads', 'lead_delivery_checks', 'lead_acks')`
+    ).map((r) => r.name);
+    if (triggers.length) throw new CheckFailed(`triggers on the lead tables could block what the app writes: ${triggers.join(", ")}. Remove them before launch.`);
+    const [unackedIdx] = await tx`SELECT to_regclass('leads_app_unacked_idx') IS NOT NULL AS present`;
+    if (!unackedIdx?.present) throw new CheckFailed("index leads_app_unacked_idx is missing (sql/011). Fix the schema before launch.");
+    lines.push(`notify constraints exact (${NOTIFY_STATUSES.length} statuses, ${NOTIFY_DELIVERY_VALUES.length} delivery values; rolled back); delivery check table ok`);
     return lines;
   });
   for (const line of report) console.log(line);

@@ -11,7 +11,7 @@ The complete original canvas is preserved in every slot. No source edits, displa
 | `rr-no-follow-up.png` | `zbm:/revenue-recovery` | Follow-up that dies after one touch | 1672 × 941 | `ab0fd8494c7cc9a2dc46f48d1852e5ed645cc5de2f9141b840246baad6bd2df1` |
 | `rr-slow-page.png` | `zbm:/websites` | How it fits with the rest of what we do | 1122 × 1402 | `059204da3cbdf3fe531d39847c56033659f867888f7da3ab6254ee283ca56b25` |
 | `rr-wrong-page.png` | `zbm:/revenue-recovery` | Ad traffic landing on the wrong page | 1671 × 941 | `40854a3ed3b3f3a2ad361f3370da75a56c0f0bdf175c4afa27e3998b855df2ae` |
-| `rr-leak-report.png` | `zbm:/revenue-recovery` | The Audit Deliverable | 1672 × 941 | `361dd2eb67e157e17d01ff5101ac468304bed1a12d48e9eaaaf946b0d1dbca92` |
+| `rr-leak-report.png` | `zbm:/revenue-recovery` | The Report | 1672 × 941 | `361dd2eb67e157e17d01ff5101ac468304bed1a12d48e9eaaaf946b0d1dbca92` |
 | `da-problem-wasted-spend.png` | `zbm:/digital-advertising` | hero/problem | 1672 × 941 | `849a497ed0610f018cffe91036fd73cbe14b8d7356d6fffb7bb3396b2c6b990e` |
 | `da-work-campaign.png` | `zbm:/digital-advertising` | What’s included | 1671 × 941 | `8f84cef008969433b5eb9e9124ba2a7b3ddbe4af032a74b07beeccc7c5ab925b` |
 | `da-result-lead.png` | `zbm:/digital-advertising` | How it fits with the rest of what we do | 1122 × 1402 | `fca904d9bc10c508f1a3cd3189d3ffa624a31d74c53910fd302b0633fd73481f` |
@@ -42,5 +42,7 @@ The complete original canvas is preserved in every slot. No source edits, displa
 | `zbc-ent-fans.png` | `zbc:/entertainment` | How it works | 1072 × 1467 | `e3b04ebcf6381ed17b3bde42ca6fec840b1e81987759a9359af96b4c2c616eb7` |
 | `zbc-brands-filming.png` | `zbc:/brands` | How it works | 1071 × 1468 | `c2e93f80ed809968797f5b5103e7c8ebc11378c6c7ab2f09d5680371162fbf8d` |
 | `zbc-clipper-paid.png` | `zbc:/become-a-clipper` | Payouts | 1071 × 1469 | `a43162fda95a681534ff365d746577d9dc356e55bb721763fc9a7d66507af3a7` |
+
+`rr-leak-report` stays where it was; its section is now headed "The Report" (renamed by #14 to match the SOW), so its inventory label follows.
 
 **Placement change (founder decision, 2026-11-07):** `rr-broken-form` and `rr-slow-page` moved from Revenue Recovery to the Websites page, under "How it fits with the rest of what we do". The Revenue Recovery copy rule (RTS-5, PR #14) keeps "forms that break on mobile" and "slow pages" off that page, because the paid analysis doesn't check either. Websites is where those problems are fixed. The images, their bytes, canvases, Concept badges and alt text are unchanged.

@@ -1,7 +1,8 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import type { Env } from "./config";
 import { consoleLogger, type LeadLogger } from "./log";
-import { parsePostgresUrl } from "./pg-url";
+import { resolveCaps } from "./config";
+import { resolvePg } from "./pg-url";
 import { postgresPurger } from "./postgres";
 import type { LeadApp } from "./types";
 
@@ -68,6 +69,38 @@ export interface LeadPurger {
 /** Reads the last successful purge (sql/003_purge_runs.sql). */
 export interface PurgeLedger {
   lastSuccess(app: LeadApp): Promise<Date | null>;
+  /** Leads created before `before` whose founder email has not gone out (CH-8), plus any deferred lead (AEGIS F1). Legacy seam. */
+  unsentOlderThan?(app: LeadApp, before: Date): Promise<number>;
+  /** Email and cap state for health (AEGIS r2 H1/M1/M3). */
+  leadState?(
+    app: LeadApp,
+    window: { unsentBefore: Date; retryAfter: Date },
+  ): Promise<{ unsent: number; digestPending: number; quarantined24h: number; stored24h: number; expiredUnreported?: number; undelivered24h?: number; abandonedUnacked?: number; unverifiableUnacked?: number; unconfirmedOld?: number }>;
+  /** The delivery check's own state (AEGIS r5 N2/N3). */
+  deliveryCheckState?(app: LeadApp): Promise<{ unauthorized: boolean; failingSince: Date | null }>;
+  /** Bytes the lead tables occupy (pg_total_relation_size; AEGIS r3 M4). */
+  dbBytes?(): Promise<number>;
+  /** Columns the app writes that the database lacks (AEGIS F4: migrations 004/006/007/008 not applied). */
+  missingColumns?(): Promise<string[]>;
+}
+
+/** How old an unsent founder email may get before /api/health is degraded (CH-8). */
+export const DEFAULT_NOTIFY_ALERT_MINUTES = 60;
+/** Leads older than this are not retried one by one (AEGIS r2 M3). */
+export const DEFAULT_NOTIFY_RETRY_DAYS = 3;
+export function notifyRetryDays(env: Env): number {
+  const raw = (env.LEAD_NOTIFY_RETRY_DAYS ?? "").trim();
+  return /^\d{1,3}$/.test(raw) && Number(raw) >= 1 && Number(raw) <= 30 ? Number(raw) : DEFAULT_NOTIFY_RETRY_DAYS;
+}
+
+/** AEGIS r3 M4: the storage budget for the lead tables (Neon's free tier is 0.5 GB). */
+export const DEFAULT_LEAD_DB_BUDGET_MB = 400;
+/** Health degrades, with an error-level alert, at this share of the budget. */
+export const DB_BUDGET_ALERT_RATIO = 0.6;
+export function leadDbBudgetMb(env: Env): number | null {
+  const raw = (env.LEAD_DB_BUDGET_MB ?? "").trim();
+  if (raw === "") return DEFAULT_LEAD_DB_BUDGET_MB;
+  return /^\d{1,7}$/.test(raw) && Number(raw) >= 1 ? Number(raw) : null;
 }
 
 /** A purge older than this is overdue: two missed daily runs. */
@@ -111,7 +144,7 @@ export async function handlePurge(request: Request, opts: HandlePurgeOptions): P
     const missing = retention.ok ? [] : [...retention.problems];
     if (!purger) {
       const url = (env.POSTGRES_URL ?? "").trim();
-      const pg = url ? parsePostgresUrl(url) : null;
+      const pg = url ? resolvePg(url, env) : null;
       if (!pg) missing.push("POSTGRES_URL");
       else if (!pg.ok) missing.push(`POSTGRES_URL:${pg.reason}`);
       else if (!missing.length) purger = postgresPurger(pg.options);
@@ -150,7 +183,46 @@ export type PurgeHealth =
   /** Last success older than PURGE_OVERDUE_HOURS. */
   | "overdue"
   /** The ledger could not be read. */
-  | "unknown";
+  | "unknown"
+  /** A lead's founder email has not gone out for longer than LEAD_NOTIFY_ALERT_MINUTES, however old the lead (CH-8, AEGIS r4 M1), or the email cap tripped (AEGIS F1). */
+  | "notify_backlog"
+  /** The database lacks columns this code writes: a migration was not run (AEGIS F4). */
+  | "schema_outdated"
+  /** A lead was quarantined in the last 24 h: the daily quarantine threshold tripped (AEGIS r2 H1). */
+  | "quarantined"
+  /** The storage guard is refusing new leads: LEAD_HARD_LIMIT_PER_DAY newly stored in 24 h (AEGIS r2 H1). */
+  | "storage_guard"
+  /** Leads too old to retry whose count email Resend has not accepted yet (AEGIS r3 M3). */
+  | "notify_expired"
+  /** The lead tables use 60% or more of LEAD_DB_BUDGET_MB (default 400; AEGIS r3 M4). */
+  | "db_budget"
+  /**
+   * Resend reported an accepted lead email as not delivered (bounced,
+   * complained, suppressed, failed) or never confirmed it, in the last 24 h
+   * (AEGIS r4 M2). If the founder inbox is on Resend's suppression list,
+   * remove it there (docs/LEAD-ROUTE-DESIGN.md §8).
+   */
+  | "delivery_failed"
+  /** Delivery lookups have been failing (not 401/403) for over DELIVERY_CHECK_FAILING_HOURS (AEGIS r5 N3). */
+  | "delivery_check_failing"
+  /**
+   * The delivery check cannot run — Resend refused the lookup as
+   * unauthorized (a sending-only API key; delivery checks need a Full access
+   * key) — or an accepted email came back without a usable id and is not yet
+   * acknowledged (AEGIS r5 N2/N4, r6 R6-7). A WARNING (200) while nothing is
+   * waiting; a 503 when leads are unsent or emails unconfirmed past
+   * LEAD_NOTIFY_ALERT_MINUTES (AEGIS r6 R6-2).
+   */
+  | "delivery_unverifiable"
+  /**
+   * A lead's email could not be delivered after every re-send (AEGIS r6
+   * R6-1). Degraded until acknowledged (POST /api/cron/ack-undelivered);
+   * never cleared by time.
+   */
+  | "leads_undelivered";
+
+/** Lookups failing for longer than this degrade health (AEGIS r5 N3). */
+export const DELIVERY_CHECK_FAILING_HOURS = 6;
 
 export type HealthOptions = {
   app: LeadApp;
@@ -165,7 +237,8 @@ export type HealthOptions = {
 
 /** One computed status per app per instance, reused for HEALTH_CACHE_MS. */
 export const HEALTH_CACHE_MS = 60_000;
-type HealthResult = { status: PurgeHealth; ageHours?: number };
+/** `warning`: reported and logged at warn, but /api/health still answers 200 (AEGIS r5 N2, r6 R6-2). */
+type HealthResult = { status: PurgeHealth; ageHours?: number; warning?: boolean };
 const healthCache = new Map<LeadApp, { at: number; result: Promise<HealthResult> }>();
 
 /** Test seam: forget cached statuses. */
@@ -175,10 +248,11 @@ export function resetHealthCache() {
 
 /**
  * Whether the retention promise is actually being kept for this app. Every
- * status but "ok" is DEGRADED and is logged at error level, so a log alert
- * or an uptime check on /api/health catches a purge that stopped.
+ * status but "ok" and a result marked `warning` is DEGRADED and is logged at error
+ * level, so a log alert or an uptime check on /api/health catches a purge
+ * that stopped. A warning is logged at warn level and answered 200.
  */
-export async function purgeHealth(opts: HealthOptions): Promise<{ status: PurgeHealth; ageHours?: number }> {
+export async function purgeHealth(opts: HealthOptions): Promise<HealthResult> {
   const log = opts.logger ?? consoleLogger;
   const env = opts.env ?? process.env;
   const app = opts.app;
@@ -189,12 +263,38 @@ export async function purgeHealth(opts: HealthOptions): Promise<{ status: PurgeH
   if ((env.CRON_SECRET ?? "").trim().length < 16) return degraded("cron_secret_missing", "CRON_SECRET:min-16-chars");
   const retention = resolveRetention(env);
   if (!retention.ok) return degraded("misconfigured", retention.problems.join(","));
+  const budgetMb = leadDbBudgetMb(env);
+  if (budgetMb === null) return degraded("misconfigured", "LEAD_DB_BUDGET_MB:whole-megabytes");
   let ledger = opts.ledger;
   if (!ledger) {
     const url = (env.POSTGRES_URL ?? "").trim();
-    const pg = url ? parsePostgresUrl(url) : null;
+    const pg = url ? resolvePg(url, env) : null;
     if (!pg || !pg.ok) return degraded("misconfigured", pg ? `POSTGRES_URL:${pg.reason}` : "POSTGRES_URL");
     ledger = postgresPurger(pg.options);
+  }
+  if (ledger.missingColumns) {
+    let missing: string[];
+    try {
+      missing = await ledger.missingColumns();
+    } catch {
+      return degraded("unknown");
+    }
+    // Column names are ours (a fixed list), safe to log.
+    if (missing.length) return degraded("schema_outdated", missing.join(","));
+  }
+  if (ledger.dbBytes) {
+    // AEGIS r3 M4: before the database fills, while there is time to act.
+    let bytes: number;
+    try {
+      bytes = await ledger.dbBytes();
+    } catch {
+      return degraded("unknown");
+    }
+    const usedMb = bytes / (1024 * 1024);
+    if (usedMb >= budgetMb * DB_BUDGET_ALERT_RATIO) {
+      log("error", "lead_db_budget", { app, used_mb: Math.round(usedMb), budget_mb: budgetMb });
+      return degraded("db_budget");
+    }
   }
   let last: Date | null;
   try {
@@ -203,14 +303,63 @@ export async function purgeHealth(opts: HealthOptions): Promise<{ status: PurgeH
     return degraded("unknown");
   }
   if (!last) return degraded("never_run");
-  const ageHours = Math.floor(((opts.now ?? (() => new Date()))().getTime() - last.getTime()) / 3_600_000);
+  const nowMs = (opts.now ?? (() => new Date()))().getTime();
+  const ageHours = Math.floor((nowMs - last.getTime()) / 3_600_000);
   if (ageHours > PURGE_OVERDUE_HOURS) return degraded("overdue", undefined, ageHours);
+  const raw = (env.LEAD_NOTIFY_ALERT_MINUTES ?? "").trim();
+  const minutes = /^\d{1,5}$/.test(raw) && Number(raw) >= 1 ? Number(raw) : DEFAULT_NOTIFY_ALERT_MINUTES;
+  if (ledger.leadState) {
+    let state: Awaited<ReturnType<NonNullable<PurgeLedger["leadState"]>>>;
+    try {
+      state = await ledger.leadState(app, {
+        unsentBefore: new Date(nowMs - minutes * 60_000),
+        retryAfter: new Date(nowMs - notifyRetryDays(env) * 86_400_000),
+      });
+    } catch {
+      return degraded("unknown");
+    }
+    // Every cap or guard trip degrades health (AEGIS r2 H1(c)).
+    if (state.stored24h >= resolveCaps(env).hardLimit) return degraded("storage_guard");
+    // AEGIS r6 R6-1: a lead whose email could not be delivered after every
+    // re-send keeps health degraded until the founder acknowledges it.
+    if ((state.abandonedUnacked ?? 0) > 0) return degraded("leads_undelivered");
+    if ((state.undelivered24h ?? 0) > 0) return degraded("delivery_failed");
+    if (state.quarantined24h > 0) return degraded("quarantined");
+    if ((state.expiredUnreported ?? 0) > 0) return degraded("notify_expired");
+    if (state.digestPending > 0 || state.unsent > 0) return degraded("notify_backlog");
+    let check: { unauthorized: boolean; failingSince: Date | null } = { unauthorized: false, failingSince: null };
+    if (ledger.deliveryCheckState) {
+      try {
+        check = await ledger.deliveryCheckState(app);
+      } catch {
+        return degraded("unknown");
+      }
+    }
+    if (check.failingSince && nowMs - check.failingSince.getTime() > DELIVERY_CHECK_FAILING_HOURS * 3_600_000) return degraded("delivery_check_failing");
+    if (check.unauthorized || (state.unverifiableUnacked ?? 0) > 0) {
+      // AEGIS r6 R6-2: a warning only while nothing is waiting; with leads
+      // unsent or emails unconfirmed past the alert age it is a 503, so a
+      // monitor that checks only the status code still alerts.
+      if (state.unsent > 0 || (state.unconfirmedOld ?? 0) > 0) return degraded("delivery_unverifiable");
+      log("warn", "purge_degraded", { app, status: "delivery_unverifiable" });
+      return { status: "delivery_unverifiable", ageHours, warning: true };
+    }
+  } else if (ledger.unsentOlderThan) {
+    let unsent: number;
+    try {
+      unsent = await ledger.unsentOlderThan(app, new Date(nowMs - minutes * 60_000));
+    } catch {
+      return degraded("unknown");
+    }
+    if (unsent > 0) return degraded("notify_backlog");
+  }
   return { status: "ok", ageHours };
 }
 
 /**
- * GET /api/health: 200 when the retention purge is healthy, 503 when
- * degraded, so any uptime monitor alerts on it. The body is minimal,
+ * GET /api/health: 200 when the retention purge is healthy (or only a
+ * warning such as delivery_unverifiable applies), 503 when degraded, so any
+ * uptime monitor alerts on it. The body is minimal,
  * `{"ok":bool,"status":"<code>"}`: no ages, counts or config values.
  *
  * Public, so it must not be a lever on the database (AEGIS H-M2): each
@@ -229,7 +378,7 @@ export async function handleHealth(_request: Request, opts: HealthOptions): Prom
     if (ttl > 0) healthCache.set(opts.app, entry);
   }
   const purge = await entry.result;
-  const ok = purge.status === "ok";
+  const ok = purge.status === "ok" || purge.warning === true;
   return Response.json(
     { ok, status: purge.status },
     { status: ok ? 200 : 503, headers: { "Cache-Control": `public, max-age=0, s-maxage=${Math.round(HEALTH_CACHE_MS / 1000)}` } },

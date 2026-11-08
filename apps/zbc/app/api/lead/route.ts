@@ -1,44 +1,27 @@
-import { handleLead, type ParsedLead } from "@zbest/lead";
-import { REGION } from "@zbest/lead/region";
-import { LEAD_ENVELOPE, LEAD_FIELDS } from "@/lib/lead";
-
 /**
- * Lead route handler (Brief §6.2; docs/LEAD-ROUTE-DESIGN.md), Z Best Clips.
+ * Lead route, Z Best Clips — CLOSED (red team 2026-10-30, RTS-1).
  *
- * This file only VALIDATES, with this app's §6.1 schemas (campaign, clipper).
- * Where a lead goes — rate limit, store, founder email, idempotency,
- * fail-closed config — is the shared @zbest/lead pipeline, the same one Z Best
- * Media uses. Rows carry app = 'zbc', so ZBC leads stay separable (ZBC is its
- * own entity).
+ * ZBC has not launched and its Privacy Policy is not published, so it must
+ * not collect personal data. Every request is refused with 410 Gone and
+ * nothing is read, stored or sent; the pages show a not-accepting message and
+ * an email address instead of forms (components/not-accepting.tsx).
+ *
+ * To reopen: publish ZBC's Privacy Policy with a notice at collection (18+),
+ * restore the §6.1 forms and their zod contract (git history: lib/lead.ts,
+ * components/lead-form.tsx), and route POST through @zbest/lead's handleLead
+ * with app "zbc" again — the shared pipeline already supports it.
  */
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function parse(json: unknown): ParsedLead {
-  const envelope = LEAD_ENVELOPE.safeParse(json);
-  if (!envelope.success) return { kind: "bad_request" };
-  const { form, submission_id, fields, company_url } = envelope.data;
-  const body = { ok: true, submission_id };
+const gone = () =>
+  Response.json({ ok: false, error: { code: "not_accepting" } }, { status: 410, headers: { "Cache-Control": "no-store" } });
 
-  // Honeypot: answer exactly like a success so a bot learns nothing.
-  if (company_url) return { kind: "honeypot", form, body };
-
-  // The form's own fields, and the shared service-area fields beside them.
-  const parsed = LEAD_FIELDS[form].safeParse(fields);
-  const region = REGION.safeParse(fields);
-  if (!parsed.success || !region.success) {
-    const errors: Record<string, string> = {};
-    for (const issue of [...(parsed.error?.issues ?? []), ...(region.error?.issues ?? [])]) {
-      const key = String(issue.path[0] ?? "form");
-      errors[key] ??= issue.message;
-    }
-    return { kind: "reject", status: 422, body: { ok: false, error: { code: "validation", fields: errors } } };
-  }
-
-  return { kind: "lead", form, submission_id, region: region.data, payload: parsed.data as Record<string, unknown>, body };
+export function POST() {
+  return gone();
 }
 
-export function POST(request: Request) {
-  return handleLead(request, { app: "zbc", parse });
+export function GET() {
+  return gone();
 }

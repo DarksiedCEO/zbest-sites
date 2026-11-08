@@ -3,6 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 import path from "node:path";
 import { captureFullPage } from "../capture";
 import { ZBM_BASE_URL } from "../playwright.config";
+import { formTokenHeader } from "../support/form-token";
 
 /**
  * Phase 4 gate — Z Best Media chunk (Brief §3.4, §A4). Pages in brief order:
@@ -224,7 +225,8 @@ test.describe("Home (§A4)", () => {
     expect(rows).toEqual([
       // Amended Oct 4, 2026: the full-service catalog replaced "Disciplines | 4".
       // Founder copy ruling Oct 30, 2026: the "Services | 10" row is removed.
-      ["Platforms we plan across", "Google · Meta · TikTok · Lamar · Clear Channel · OUTFRONT"],
+      // RTS-5: no out-of-home operator named as if we had a relationship.
+      ["Platforms we plan across", "Google · Meta · TikTok · major out-of-home networks"],
       ["Standard", "Audit first. Evidence. Then scale."],
     ]);
     // Founder ruling Sep 17: no founding-year claim anywhere on the page.
@@ -233,14 +235,15 @@ test.describe("Home (§A4)", () => {
     expect(await page.locator("main [data-counter]").count()).toBe(0);
   });
 
-  test("How we work carries one process, capitalized, promising only priority and confidence", async ({ page }) => {
+  test("How we work carries one process, capitalized, promising only what the SOW delivers", async ({ page }) => {
     await visit(page, byPath("/"));
     const bodies = await page
       .locator("#how-we-work li p.type-body")
       .evaluateAll((els) => els.map((el) => el.textContent?.trim() ?? ""));
     expect(bodies).toEqual([
       "A free look at where you’re likely losing revenue.",
-      "A paid, full diagnostic. Every finding comes with a priority and a confidence label.",
+      // SOW (Revenue Recovery Analysis) §1.2, §3.2: one measured check, every figure labelled.
+      "A paid analysis of your Shopify orders. Every figure is labelled with how it was measured.",
       "Conversion repaired before a dollar more goes into spend.",
       "Once it’s proven, we run the media: digital, TV, radio, out-of-home, social, clips.",
     ]);
@@ -279,11 +282,11 @@ test.describe("Home (§A4)", () => {
   test("featured Revenue Recovery carries the six leaks, the decision-10 assessment CTA and its fixture label", async ({ page }) => {
     await visit(page, byPath("/"));
     const section = page.locator("#revenue-recovery");
+    // No page-speed or mobile-form leak (no such check exists; SOW §1.5–§1.6).
     for (const leak of [
       "Missed and unreturned calls",
-      "Forms that break on mobile",
       "Follow-up that dies after one touch",
-      "Pages that load too slowly to convert",
+      "Discount codes stacking past what you intended",
       "Ad traffic landing on the wrong page",
       "No retargeting on the people who almost bought",
     ]) {
@@ -358,10 +361,10 @@ test.describe("Revenue Recovery (§A4, filtered live carry-over)", () => {
     const text = await mainText(page);
     for (const phrase of [
       "Revenue Recovery is the process of identifying and fixing",
-      "Eight ways revenue leaks, and what fixing each one looks like.",
+      "Eight common ways revenue leaks — a general guide, not a list of what the paid analysis checks.",
       "Traffic Leak", "Conversion Leak", "Trust Leak", "Offer Leak",
       "Follow-Up Leak", "Tracking Leak", "Creative Leak", "Visibility Leak",
-      "Typical leak patterns we often find during diagnostic reviews.",
+      "Leak patterns common in each industry — general guidance, not findings from our analysis.",
       "See what you receive before you ever submit.",
       "One path. Start free, pay only for the deep dive.",
       "every fix tied to the leak it closes",
@@ -385,6 +388,13 @@ test.describe("Revenue Recovery (§A4, filtered live carry-over)", () => {
       "Priced against recovered revenue",
       "dollars it recovers",
       "tied to recovered revenue",
+      // SOW §3.2 is the deliverable: none of these is in it.
+      "Leak Severity Matrix",
+      "Executive Summary",
+      "Priority Roadmap",
+      "strategy session",
+      "full diagnostic",
+      "diagnostic reviews",
     ]) {
       expect(text, gone).not.toContain(gone);
     }
@@ -465,7 +475,7 @@ test.describe("Revenue Recovery (§A4, filtered live carry-over)", () => {
       await question.getByRole("radio", { name: "Somewhat true", exact: true }).check();
     }
     const [response] = await Promise.all([
-      page.waitForResponse((r) => r.url().endsWith("/api/lead")),
+      page.waitForResponse((r) => r.url().endsWith("/api/lead") && r.request().method() === "POST"),
       form.getByRole("button", { name: "Get an Assessment" }).click(),
     ]);
     expect(response.status()).toBe(200);
@@ -478,7 +488,7 @@ test.describe("Revenue Recovery (§A4, filtered live carry-over)", () => {
 
 test.describe("Lead route (§6.2)", () => {
   const post = (page: Page, data: unknown) =>
-    page.request.post(`${ZBM_BASE_URL}/api/lead`, { data, failOnStatusCode: false });
+    page.request.post(`${ZBM_BASE_URL}/api/lead`, { headers: formTokenHeader(), data, failOnStatusCode: false });
   const id = "5f0c2b8e-4f7a-4c1e-9d7b-0f5d3a2b1c9e";
 
   test("valid contact submission is acknowledged", async ({ page }) => {
@@ -509,7 +519,7 @@ test.describe("Lead route (§6.2)", () => {
     expect((await post(page, { form: "contact", fields: {} })).status()).toBe(400);
     expect((await post(page, { form: "newsletter", submission_id: id, fields: {} })).status()).toBe(400);
     const raw = await page.request.post(`${ZBM_BASE_URL}/api/lead`, {
-      headers: { "Content-Type": "application/json" },
+      headers: { ...formTokenHeader(), "Content-Type": "application/json" },
       data: "{not json",
       failOnStatusCode: false,
     });
@@ -571,7 +581,7 @@ test.describe("About and Contact (§A4)", () => {
     await form.getByLabel("Best way to reach you", { exact: true }).fill("test@example.com");
     await form.getByLabel("State or territory", { exact: true }).selectOption("US-CA");
     const [response] = await Promise.all([
-      page.waitForResponse((r) => r.url().endsWith("/api/lead")),
+      page.waitForResponse((r) => r.url().endsWith("/api/lead") && r.request().method() === "POST"),
       form.getByRole("button", { name: "Send" }).click(),
     ]);
     expect(response.status()).toBe(200);
@@ -635,6 +645,73 @@ test.describe("Copy revision (founder rulings, Sep 17 — audit at 1fc360f)", ()
     expect(text).toContain("Cross-operator sourcing — the right board, not the operator we happen to know");
     expect(text).not.toMatch(/plan and buy|bought across/);
     expect(await head(page, 'meta[name="description"]')).not.toMatch(/bought across/);
+  });
+
+  test("RTS-5: no OOH operator is named as a partner; a cited study says we are not affiliated", async ({ page }) => {
+    for (const p of ["/", "/out-of-home", "/faq"]) {
+      await visit(page, byPath(p));
+      const text = await mainText(page);
+      expect(text, p).not.toMatch(/Lamar|OUTFRONT/);
+      if (p === "/out-of-home") {
+        expect(text).toContain("We plan across major out-of-home networks");
+        // The Kantar study is a citation, not a relationship.
+        expect(text).toContain("Z Best Media is not affiliated with Clear Channel Outdoor or Kantar.");
+        expect(await head(page, 'meta[name="description"]')).not.toMatch(/Lamar|Clear Channel|OUTFRONT/);
+      } else {
+        expect(text, p).not.toMatch(/Clear Channel/);
+      }
+    }
+  });
+
+  test("RTS-5: Revenue Recovery lists only the check the backend runs today; the rest are marked coming", async ({ page }) => {
+    await visit(page, byPath("/revenue-recovery"));
+    const checks = page.locator("#automated-checks");
+    await expect(checks.locator('[data-check-status="live"] h3')).toHaveText(["Stacked discount codes"]);
+    await expect(checks.locator('[data-check-status="coming"] h3')).toHaveText([
+      "Affiliate commission on coupon-driven orders",
+      "Abandoned carts without a recovery flow",
+      "Subscription renewals never triggered",
+      "Orders invisible to server-side attribution",
+      "Cross-channel attribution gaps",
+      "Platform integration gaps",
+      "Contract pricing drift",
+    ]);
+    await expect(checks.locator('[data-check-status="coming"]').first()).toContainText("NOT COVERED");
+    // SOW §1.7: rule-based, not an AI model; no manual store review beyond the order data.
+    await expect(checks).toContainText("fixed, written rules");
+    await expect(checks).toContainText("We don’t review your store manually beyond the order data.");
+    const report = page.locator("#audit");
+    await expect(report).toContainText("not an AI model");
+    await expect(report).toContainText("A person at Z Best Media writes the explanations and recommendations");
+    await expect(report.locator("h3")).toHaveText([
+      "What was read",
+      "Checks run and not covered",
+      "Findings, each with its evidence class",
+      "Assumptions, stated",
+      "Yearly projection, labelled as an estimate",
+      "Recommendations, written by a person",
+      "Walkthrough call",
+    ]);
+    const text = await mainText(page);
+    expect(text).not.toMatch(/slow|load fast|page speed|core web vitals|mobile form|break on mobile|AI agents?|8 leak|eight leak types/i);
+    await page.goto(`${ZBM_BASE_URL}/websites`, { waitUntil: "domcontentloaded" });
+    expect(await mainText(page)).not.toMatch(/slow load|broken mobile form|load fast|fast on (a phone|mobile)/i);
+    expect(await head(page, 'meta[name="description"]')).not.toMatch(/fast on mobile/i);
+  });
+
+  test("RTS-5: Search Intelligence tiers are marked planned", async ({ page }) => {
+    await visit(page, byPath("/search-intelligence"));
+    const pricing = page.locator("#pricing");
+    // textContent: the label is upper-cased by CSS only.
+    const statuses = await pricing.locator("[data-tier-status]:visible").allTextContents();
+    expect(statuses.length).toBe(3);
+    for (const s of statuses) expect(s.trim()).toBe("Planned");
+    await expect(pricing).toContainText("planned");
+    // SEO SOW §2.6, §8.2: rule-based checks, a person reviews every report, no page-speed metrics.
+    await expect(pricing).toContainText("fixed, written rules, not an AI model");
+    await expect(pricing).toContainText("a person reviews every report");
+    expect(await mainText(page)).not.toMatch(/page speed|load time|core web vitals/i);
+    expect(await mainText(page)).not.toContain("Three published tiers");
   });
 
   test("Search Intelligence drops the competitor-admission clause", async ({ page }) => {

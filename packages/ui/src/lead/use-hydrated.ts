@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { primeFormToken } from "./contract";
 
 /**
  * True once React has hydrated this component (AEGIS r5 N1). Until then the
@@ -6,10 +7,18 @@ import { useEffect, useState } from "react";
  * submit would post the page itself and lose the lead silently. Lead forms
  * keep their submit button disabled — labelled NOT_READY_LABEL — until this
  * is true, and mark the form `data-ready="true"` when it is.
+ *
+ * Every lead form calls this, so it is also where the page's form token
+ * (RTS-3, contract.ts) is fetched on load and kept fresh while it stays open.
  */
 export function useHydrated(): boolean {
   const [hydrated, setHydrated] = useState(false);
-  useEffect(() => setHydrated(true), []);
+  useEffect(() => {
+    setHydrated(true);
+    void primeFormToken();
+    const refresh = setInterval(() => void primeFormToken(), 15 * 60 * 1000);
+    return () => clearInterval(refresh);
+  }, []);
   return hydrated;
 }
 

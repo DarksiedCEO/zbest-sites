@@ -43,10 +43,10 @@ import type { LedgerItem } from "@/components/page";
  * hero ledger (components/leak-ledger.tsx), so the three cannot drift.
  */
 export const WHERE_REVENUE_LEAKS = [
+  // Matches the SOWs (source of truth): only leaks the service actually looks for.
   "Missed and unreturned calls",
-  "Forms that break on mobile",
   "Follow-up that dies after one touch",
-  "Pages that load too slowly to convert",
+  "Discount codes stacking past what you intended",
   "Ad traffic landing on the wrong page",
   "No retargeting on the people who almost bought",
 ] as const;
@@ -58,7 +58,8 @@ export const DEFINITION =
 /** live 320–417 */
 export const LEAK_LIBRARY = {
   title: "Revenue Leak Library",
-  intro: "Eight ways revenue leaks, and what fixing each one looks like.",
+  // SOW source of truth (scratchpad/legal/zbm-sow-revenue-recovery-v1.md §1.5): a general guide only.
+  intro: "Eight common ways revenue leaks — a general guide, not a list of what the paid analysis checks.",
   leaks: [
     ["Traffic Leak", "Your business is not getting enough qualified visitors from search, ads, referrals, or social channels.", "Low qualified traffic or weak lead volume.", "Improve acquisition channels, targeting, offers, and visibility."],
     ["Conversion Leak", "Visitors arrive, but too few take the next step.", "High visits with low form fills, calls, or bookings.", "Tighten the CTA, simplify the path, and remove hesitation points."],
@@ -81,7 +82,7 @@ export const LEAK_LIBRARY = {
 /** live 238–317 */
 export const INDUSTRY_PATTERNS = {
   title: "Industry Leak Patterns",
-  intro: "Typical leak patterns we often find during diagnostic reviews.",
+  intro: "Leak patterns common in each industry — general guidance, not findings from our analysis.",
   patterns: [
     ["Home Services", "Follow-Up Leak", "Leads arrive, but call handling and handoff are inconsistent.", "Speed-to-contact, trust signals, and clearer next-step offers."],
     ["HVAC", "Offer Leak", "Seasonal demand exists, but the landing experience does not convert urgency into booked jobs.", "Sharper offer framing, financing clarity, and booking-first conversion paths."],
@@ -99,18 +100,60 @@ export const INDUSTRY_PATTERNS = {
   })) satisfies LedgerItem[],
 };
 
-/** live 455–513 */
+/**
+ * Red team RTS-5 (2026-10-30): what the backend checks automatically TODAY.
+ * Must match the Revenue Recovery Analysis SOW (§1.2, §1.5, §1.7, §3.2, §10),
+ * which is the source of truth: one automated check, rule-based (no AI
+ * model), planned checks reported as NOT COVERED, no manual store review
+ * beyond the order data, explanations and recommendations written by a
+ * person who reviews the whole report.
+ * Source of truth: DarksiedCEO/zbm-zbc main,
+ * services/detection-py/src/store_connector/translate.py AGENT_COVERAGE —
+ * on a connected Shopify store only discount-misuse-v1 runs; every other
+ * agent reports "not covered" (no data source is connected). Titles are the
+ * report's own (src/rr_report.py AGENT_TITLES). Move a check to `live` only
+ * when AGENT_COVERAGE marks it covered.
+ */
+export const AUTOMATED_CHECKS = {
+  label: "What we check automatically today",
+  intro:
+    "When you give us read-only access to your Shopify store, one check runs on your own order records: discount-code stacking, calculated by our software with fixed, written rules — not an AI model. The other checks are planned; until they exist, the report lists them as NOT COVERED, with the reason. We don’t review your store manually beyond the order data.",
+  live: [
+    {
+      title: "Stacked discount codes",
+      body: "Orders where more than one discount code was applied, and how far the stacked discount went past what the single most valuable code would have given on its own.",
+    },
+  ],
+  coming: [
+    "Affiliate commission on coupon-driven orders",
+    "Abandoned carts without a recovery flow",
+    "Subscription renewals never triggered",
+    "Orders invisible to server-side attribution",
+    "Cross-channel attribution gaps",
+    "Platform integration gaps",
+    "Contract pricing drift",
+  ],
+};
+
+/**
+ * live 455–513, REWRITTEN Oct 30 2026 to the Revenue Recovery Analysis SOW
+ * §3 (the source of truth): its Report holds exactly these parts. The old
+ * Executive Summary / Leak Severity Matrix / Priority Roadmap are not SOW
+ * deliverables and are gone.
+ */
 export const AUDIT_DELIVERABLE = {
-  label: "The Audit Deliverable",
+  label: "The Report",
   title: "See what you receive before you ever submit.",
   intro:
-    "Executive summary, a prioritized leak report with an owner and priority against every action, an explicit confidence label, and the uncertainties we could not resolve — stated, not hidden. We report what we can evidence. We do not guess at dollar figures; we show the priority, confidence, and uncertainty behind each finding so you know what to fix first.",
+    "One written report, sent to you as a file by email or secure link, from read-only access to your Shopify orders. The stacked-discount figures are calculated by our software with fixed, written rules — not an AI model. A person at Z Best Media writes the explanations and recommendations and reviews the whole report before it reaches you. We never change anything in your store, and we never read your customers’ names, emails, phone numbers or addresses.",
   parts: [
-    { title: "Executive Summary", body: "A concise view of the biggest revenue leaks, business impact, and what to fix first." },
-    { title: "Leak Severity Matrix", body: "A structured read on which issues are critical, high, moderate, or low impact." },
-    { title: "Priority Roadmap", body: "A practical recovery sequence that moves from diagnosis into rebuild and optimization." },
-    { title: "Confidence & Uncertainty", body: "Every finding carries an explicit confidence label, and anything we could not verify from the evidence is listed as an open question rather than quietly dropped." },
-    { title: "Written Report", body: "Delivered as a clear written report you can share with your team and act on immediately." },
+    { title: "What was read", body: "The period measured, how many orders were read and analysed, and every reason an order was left out, with counts." },
+    { title: "Checks run and not covered", body: "Which checks ran, and which are NOT COVERED and why — a check that did not run is never shown as a clean result." },
+    { title: "Findings, each with its evidence class", body: "Every figure is labelled with its evidence class — OBSERVED (exact arithmetic on your recorded orders) or ESTIMATED (true only if a stated assumption holds) — with its cause and method. Today’s stacked-discount figures are ESTIMATED. No overall score and no grand total." },
+    { title: "Assumptions, stated", body: "For stacked discounts: the excess counts as lost revenue only if you intend at most one discount code per order. Your store’s own settings allowed each stacked order." },
+    { title: "Yearly projection, labelled as an estimate", body: "Where at least 14 days were measured: the period’s figure extended to a year, labelled ESTIMATED with low confidence, with its basis written out." },
+    { title: "Recommendations, written by a person", body: "What you might change, written by a person at Z Best Media from the findings. What to change in your store is your decision." },
+    { title: "Walkthrough call", body: "On request within 30 days of delivery, one video call of up to 60 minutes to walk you through the report." },
   ] satisfies LedgerItem[],
 };
 
@@ -126,7 +169,7 @@ export const ENGAGEMENTS = {
   label: "How Engagements Work",
   title: "One path. Start free, pay only for the deep dive.",
   intro:
-    "Start free. Pay for the deep-dive Audit™ only when you want the full prioritized picture and a live strategy session. Implementation and the ongoing Program™ are scoped personally from your Leak Report — never sold off a menu.",
+    "Start free. Pay for the Audit™ — the Revenue Recovery Analysis of your Shopify orders — when you want the measured picture, with a walkthrough call on request. Implementation and the ongoing Program™ are scoped personally from your report — never sold off a menu.",
   phases: [
     {
       title: "Revenue Recovery Assessment™",
@@ -142,12 +185,12 @@ export const ENGAGEMENTS = {
       title: "Revenue Recovery Audit™",
       body: "Phase 2 — Diagnose",
       detail:
-        "The paid investigation: a reviewed evidence-grounded Assessment, a prioritized Revenue Leak Report with recommended fixes, an owner and priority against every action, an explicit confidence label, the uncertainties we could not resolve stated plainly, and a live strategy session with a human.",
+        "The paid analysis: read-only access to your Shopify orders, discount-code stacking measured with fixed, written rules, every figure labelled OBSERVED or ESTIMATED with its assumptions, recommendations written by a person, and a walkthrough call on request.",
     },
     {
       title: "Revenue Recovery Implementation",
       body: "Phase 3 — Recover",
-      detail: "A fixed-scope project built from your Leak Report — every fix tied to the leak it closes.",
+      detail: "A fixed-scope project built from your report — every fix tied to the leak it closes.",
     },
     {
       title: "Revenue Recovery Program™",

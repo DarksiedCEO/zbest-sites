@@ -50,6 +50,10 @@ export function Nav({
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const headerRef = useRef<HTMLElement>(null);
+  // Hydration marker (AEGIS r2 L4): before it, the menu buttons have no
+  // handlers yet, so a click does nothing. Tests wait for it before clicking.
+  const [ready, setReady] = useState(false);
+  useEffect(() => setReady(true), []);
 
   // Reset during render rather than in an effect, so the page that was just
   // navigated to never paints with the previous page's menu still open.
@@ -92,6 +96,7 @@ export function Nav({
   return (
     <header
       ref={headerRef}
+      data-nav-ready={ready ? "true" : undefined}
       className={`sticky top-0 z-50 border-b border-text-secondary/20 bg-base ${className}`}
     >
       <nav

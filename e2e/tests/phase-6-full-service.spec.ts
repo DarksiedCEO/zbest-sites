@@ -3,6 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { ZBM_BASE_URL } from "../playwright.config";
+import { formTokenHeader } from "../support/form-token";
 
 /**
  * Phase 6 gate — full-service catalog (founder direction Oct 4, 2026;
@@ -245,7 +246,7 @@ test.describe("/start — universal intake", () => {
     await form(page).getByLabel("Best way to reach you", { exact: true }).fill("test@example.com");
     await formReady(form(page));
     const [response] = await Promise.all([
-      page.waitForResponse((r) => r.url().endsWith("/api/lead")),
+      page.waitForResponse((r) => r.url().endsWith("/api/lead") && r.request().method() === "POST"),
       form(page).getByRole("button", { name: "Send" }).click(),
     ]);
     expect(response.status()).toBe(422);
@@ -269,7 +270,7 @@ test.describe("/start — universal intake", () => {
     await form(page).getByLabel("State or territory", { exact: true }).selectOption("US-CA");
     await formReady(form(page));
     const [response] = await Promise.all([
-      page.waitForResponse((r) => r.url().endsWith("/api/lead")),
+      page.waitForResponse((r) => r.url().endsWith("/api/lead") && r.request().method() === "POST"),
       form(page).getByRole("button", { name: "Send" }).click(),
     ]);
     expect(response.status()).toBe(200);
@@ -288,6 +289,7 @@ test.describe("/start — universal intake", () => {
 test.describe("/start — server contract on the lead route", () => {
   const post = (page: Page, fields: Record<string, string>) =>
     page.request.post(`${ZBM_BASE_URL}/api/lead`, {
+      headers: formTokenHeader(),
       data: { form: "start", submission_id: ID, fields },
       failOnStatusCode: false,
     });
@@ -359,6 +361,9 @@ test("the Services menu reaches every service at this viewport", async ({ page }
   await presetConsent(page);
   await page.goto(`${ZBM_BASE_URL}/`, { waitUntil: "domcontentloaded" });
   const header = page.getByRole("banner");
+  // AEGIS r2 L4: the flake was a click before hydration (no handler yet, so
+  // the menu never opened). Wait for the nav's own ready marker first.
+  await expect(header).toHaveAttribute("data-nav-ready", "true");
   // Scoped to the Services list itself, so a top-level link with the same
   // href (Revenue Recovery, Z Best Clips) cannot satisfy the check.
   let menu;

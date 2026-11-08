@@ -4,7 +4,7 @@ import { leadEmail } from "../src/email";
 import { handleLead } from "../src/pipeline";
 import { memoryLimiter } from "../src/rate-limit";
 import { OUTSIDE, REGION, REGION_COPY, SERVICE_AREAS, regionServed } from "../src/region";
-import { captureLogger, readJsonl, tempOutbox, toyParse } from "./helpers";
+import { captureLogger, readJsonl, tempOutbox, tokenHeader, toyParse } from "./helpers";
 
 /** Service area (founder decisions 2026-10-30: the 50 US states, DC, and PR, GU, VI, AS, MP). */
 
@@ -19,7 +19,7 @@ const env = (dir: string) => ({
 const post = (fields: Record<string, string>, id = randomUUID()) =>
   new Request("http://www.zbestmedia.com/api/lead", {
     method: "POST",
-    headers: { "content-type": "application/json", host: "www.zbestmedia.com", "x-forwarded-for": "198.51.100.9" },
+    headers: { "content-type": "application/json", host: "www.zbestmedia.com", "x-forwarded-for": "198.51.100.9", ...tokenHeader() },
     body: JSON.stringify({ form: "start", submission_id: id, fields: { name: "Ada", business: "B", reach: "ada@example.com", ...fields } }),
   });
 const opts = (dir = tempOutbox(), limit = 100) => ({
@@ -88,7 +88,7 @@ describe("pipeline: 'Outside these areas' is declined politely; nothing is store
       const res = await handleLead(
         new Request("http://www.zbestmedia.com/api/lead", {
           method: "POST",
-          headers: { "content-type": "application/json", host: "www.zbestmedia.com", "x-forwarded-for": "198.51.100.9" },
+          headers: { "content-type": "application/json", host: "www.zbestmedia.com", "x-forwarded-for": "198.51.100.9", ...tokenHeader() },
           body: JSON.stringify({ form: "start", submission_id: randomUUID(), fields: { name: "Ada", ...fields, ...(Object.keys(fields).length ? {} : { state: "" }) } }),
         }),
         opts(dir),
@@ -123,7 +123,7 @@ describe("pipeline: 'Outside these areas' is declined politely; nothing is store
 
   it("leadEmail prints the area code", () => {
     const email = leadEmail(
-      { submission_id: randomUUID(), app: "zbc", form: "clipper", payload: {}, payload_hash: "h", services: [], source: null, service_area: "GU", user_agent: null },
+      { submission_id: randomUUID(), app: "zbc", form: "clipper", payload: {}, payload_hash: "h", content_hash: "c",services: [], source: null, service_area: "GU", user_agent: null },
       new Date(0),
     );
     expect(email.text).toContain("\nRegion: GU\n");

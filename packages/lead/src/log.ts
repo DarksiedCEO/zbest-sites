@@ -22,6 +22,9 @@ const ALLOWED = [
   "ua_cleared",
   "ip_hash_cleared",
   "days",
+  // Database storage, in whole megabytes (AEGIS r3 M4).
+  "used_mb",
+  "budget_mb",
 ] as const;
 
 export type LogFields = Partial<Record<(typeof ALLOWED)[number], string | number>>;

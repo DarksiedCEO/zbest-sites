@@ -112,7 +112,8 @@ function Result({ result, ref }: { ref?: Ref<HTMLDivElement>; result: FreeAssess
             won’t invent one.
           </p>
           <p className="type-body mt-3 text-text-secondary">
-            If something still isn’t working, the Audit is the full diagnostic. Or just talk to us.
+            If something still isn’t working, just talk to us. If you sell on Shopify, the paid analysis
+            measures discount-code stacking in your own orders.
           </p>
         </div>
       )}

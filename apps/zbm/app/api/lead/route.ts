@@ -1,4 +1,4 @@
-import { handleLead, type ParsedLead } from "@zbest/lead";
+import { handleFormToken, handleLead, type ParsedLead } from "@zbest/lead";
 import { REGION } from "@zbest/lead/region";
 import { ASSESSMENT_REQUEST, fieldErrors } from "@/lib/assessment/contract";
 import { RULE_SET_HASH } from "@/lib/assessment/hash";
@@ -177,4 +177,9 @@ function parse(json: unknown): ParsedLead {
 
 export function POST(request: Request) {
   return handleLead(request, { app: "zbm", parse });
+}
+
+/** The form token every POST must carry (RTS-3), fetched by each form when its page loads. */
+export function GET(request: Request) {
+  return handleFormToken(request, { app: "zbm" });
 }

@@ -16,9 +16,16 @@ import { legalDocumentStrings, legalPlaceholders, type ConsentCategory, type InE
  *   - what is stored:  packages/lead/sql/001_leads.sql, 002_retention.sql,
  *                      003_region.sql, src/pipeline.ts
  *   - retention:       packages/lead/src/retention.ts + /api/cron/purge-leads
- *                      (730 days rows, 90 days user agent: the env defaults)
+ *                      (730 days rows, 90 days user agent: the env defaults;
+ *                      "within 3 days" in the Resend row is LEAD_NOTIFY_RETRY_DAYS)
  *   - IP handling:     packages/lead/src/ip.ts (no IP or IP hash stored with a
- *                      lead; rate-limit key is the keyed HMAC, ~10-minute life)
+ *                      lead; rate-limit keys are keyed HMACs of the address and,
+ *                      for IPv6, its /48; the quarantine counter (AEGIS r3 M1)
+ *                      is a keyed HMAC of the IPv4 /24 or IPv6 /48; all
+ *                      ~10-minute life at the defaults, swept on a timer)
+ *   - abuse controls:  form token (src/form-token.ts: no personal data, not
+ *                      stored), content fingerprint (src/hash.ts contentHash,
+ *                      sql/006_content_dedupe.sql), global per-minute cap
  *   - service area:    packages/lead/src/region.ts (one state or territory code)
  *
  * MERGE-ORDER DEPENDENCY: these statements describe the lead pipeline from
@@ -30,7 +37,12 @@ import { legalDocumentStrings, legalPlaceholders, type ConsentCategory, type InE
  * applied, the daily /api/cron/purge-leads running (/api/health reports a
  * stopped purge), and LEAD_RETENTION_DAYS / LEAD_UA_RETENTION_DAYS left at
  * their defaults (730 / 90).
- *   - email:           packages/lead/src/resend.ts, src/email.ts
+ *   - email:           packages/lead/src/resend.ts, src/email.ts, src/notify.ts
+ *                      (individual or summary emails; body hashes stored with
+ *                      the row: sql/007_notify_outbox.sql to 010_delivery_check_state.sql;
+ *                      provider email id and delivery checks: src/notify.ts
+ *                      checkDeliveries: 4 re-sends, then again once emails
+ *                      are delivered; sql/011 acknowledgement)
  *   - browser storage: packages/ui/src/components/cookie-consent.tsx
  *   - no analytics, no ad pixels, self-hosted fonts, CSP 'self':
  *                      packages/ui/src/security-headers.ts, src/fonts/*
@@ -75,7 +87,7 @@ const privacyPolicy: InEffectLegalDocument = {
   summary: [
     "We collect what you type into our forms — your name, your business, how to reach you, and your answers — so we can reply and, for the free assessment, show you a result.",
     "We don’t sell or share your personal information for advertising. The site has no analytics, no advertising pixels and no third-party tracking scripts.",
-    "We don’t store your IP address, or any code made from it, with what you send us. To stop spam, a keyed one-way code made from it is kept for about 10 minutes. Our hosting provider’s request logs record IP addresses for a short period.",
+    "We don’t store your IP address, or any code made from it, with what you send us. To stop spam, keyed one-way codes made from it and from its network block are kept for about 10 minutes. Our hosting provider’s request logs record IP addresses for a short period.",
     "A small number of service providers help us run the site and deliver your message to us. They may use your information only to do that work for us.",
     `You can ask to see, correct or delete your information at any time by emailing ${PRIVACY_EMAIL}. We give these rights to everyone, wherever you live.`,
   ],
@@ -88,7 +100,7 @@ const privacyPolicy: InEffectLegalDocument = {
           p: `This policy is issued by ${LEGAL_ISSUER} (“Z Best Media”, “we”, “us”). It covers personal information we collect through our website at zbestmedia.com (the “site”), including its contact form, project intake form and free assessment tools.`,
         },
         {
-          p: "It does not cover information we receive while doing paid work for a client. That information is governed by the contract with that client. It also does not cover Z Best Clips (zbestclips.com), which is a separate website with its own policies.",
+          p: "It does not cover information we receive while doing paid work for a client. That information is governed by the contract with that client. It also does not cover Z Best Clips (zbestclips.com), a separate website. Z Best Clips is not yet operating: it accepts no clients or clippers and collects no personal data through its site, and it will publish its own privacy policy before it does.",
         },
         {
           p: "We are a business-to-business advertising agency. Most people who contact us do so on behalf of a business. We still treat what you tell us about yourself — your name, email address or phone number — as personal information and protect it as described here.",
@@ -132,9 +144,12 @@ const privacyPolicy: InEffectLegalDocument = {
         { p: "Information collected automatically when you submit a form. With each submission we also record:" },
         {
           list: [
-            "Nothing about your IP address is stored with your submission. To limit how often forms can be sent, a keyed one-way code (an HMAC-SHA-256 hash) made from your IP address is held for about 10 minutes and then discarded.",
+            "Nothing about your IP address is stored with your submission. To limit how often forms can be sent, a keyed one-way code (an HMAC-SHA-256 hash) made from your IP address — and a second one made from the network block it belongs to (the first three parts of an IPv4 address, or the first 48 bits of an IPv6 address) — is held for about 10 minutes and then discarded.",
             "Your browser’s user-agent string (it names your browser and operating system), shortened to 500 characters and deleted automatically after 90 days, so we can investigate spam and fix problems that affect particular browsers.",
             "The date and time of the submission, and a random submission ID your browser creates so a double-click doesn’t send the same form twice.",
+            "A one-way fingerprint (a SHA-256 hash) of what you entered, stored with your submission and deleted with it, so the same message sent again within 24 hours reaches us once.",
+            "For each notification email about your submission that we send to ourselves: a one-way fingerprint (a SHA-256 hash) of the email, when it was sent, our email-delivery provider’s ID for it, what the provider reported about its delivery, how many times it was re-sent and, if it could not be delivered, when we reviewed that, stored with your submission and deleted with it. We use them to avoid sending ourselves the same email twice and to check that it arrived. If the provider reports that an email was not delivered, or still reports it as not yet delivered two days after it was sent, we send it again later, up to four times — over about four days when our retry system runs hourly, and longer when it runs less often — and then up to five more times, at least a day apart, once our emails are being delivered again; if we can’t tell whether an earlier email arrived, the new one is marked as a possible duplicate.",
+            "Whether your submission arrived while an unusually large number of submissions were coming from the same network or from everywhere at once. Such a submission is kept in full and reaches us in a summary email, marked so we check it before replying.",
             "If you reached the intake form from one of our campaign links, the short campaign tag in that link (for example from a billboard or an ad), so we know which campaign brought you. It identifies the campaign, not you.",
           ],
         },
@@ -178,10 +193,10 @@ const privacyPolicy: InEffectLegalDocument = {
             head: ["Provider type", "What they do for us", "What they receive"],
             rows: [
               ["Website hosting (Vercel)", "Serves the site, runs the code that receives form submissions, and keeps short-lived request logs.", "Your requests to the site, including your IP address, browser details and the page addresses you visit, and the content of any form you submit."],
-              ["Database hosting (Neon)", "Stores form submissions.", "The form contents, the state or territory you chose, user-agent string, campaign tag, submission ID and time listed under “What we collect”. No IP address."],
-              ["Email delivery (Resend)", "Delivers each new submission to our inbox as an email.", "The content of your submission."],
+              ["Database hosting (Neon)", "Stores form submissions.", "The form contents, the state or territory you chose, user-agent string, campaign tag, submission ID, time, content fingerprint, notification-email records and burst flag listed under “What we collect”. No IP address."],
+              ["Email delivery (Resend)", "Delivers each new submission to our inbox as an email: on its own, or in a summary email together with other submissions when many arrive at once or its own email could not be sent. We also ask it whether our emails were delivered. If a submission has still not been emailed to us when our retry system first gets to it more than 3 days after it was sent (for example after an outage of that system), it is reported to us only as a count, and its content stays in our database until it is deleted on the normal schedule.", "The content of your submission (a count email contains none)."],
               ["Business email (our email provider)", "Holds the notification emails and our correspondence with you.", "The content of your submission and any emails you exchange with us."],
-              ["Rate-limit store (if enabled)", "Counts submissions per source to stop floods of spam.", "Only a keyed, one-way hash of your IP address, kept for about 10 minutes to limit abuse."],
+              ["Rate-limit store (if enabled)", "Counts submissions per source to stop floods of spam.", "Only keyed, one-way hashes of your IP address and of its network block, kept for about 10 minutes to limit abuse."],
             ],
           },
         },
@@ -218,7 +233,8 @@ const privacyPolicy: InEffectLegalDocument = {
                 "Notification emails about your submission",
                 "We delete them from our inbox by hand on the same 24-month schedule. Our email-delivery provider keeps its own copy under its retention terms.",
               ],
-              ["Rate-limit counters", "A keyed, one-way hash of your IP address, kept for about 10 minutes to limit abuse."],
+              ["Rate-limit counters", "Keyed, one-way hashes of your IP address and of its network block, kept for about 10 minutes to limit abuse."],
+              ["Our record of reviewing undelivered notification emails", "If we review notification emails that could not be delivered, we keep a record of when we did and the random submission IDs involved, so we can show they were checked. It holds nothing you entered and is kept after your submission is deleted."],
               ["Request logs at our hosting provider (IP address, browser details, page address)", "Available to us for no more than 30 days, depending on our hosting plan, then deleted from our view. The provider handles its own operational records under its privacy policy."],
               ["Your cookie-banner choice", "Stored only in your own browser until you clear it. We never receive it."],
               ["Records of privacy requests", "24 months, to show we handled them as the law requires."],
@@ -238,7 +254,7 @@ const privacyPolicy: InEffectLegalDocument = {
         { p: "Wherever you live, you can ask us to:" },
         {
           list: [
-            "Tell you what personal information we have about you, where it came from, why we have it and who we’ve disclosed it to, and give you a copy in a portable format.",
+            "Tell you what personal information we have about you, where it came from, why we have it and who we’ve disclosed it to, and give you a copy in a portable format: on request, we prepare it by hand and send it to you by email as a common machine-readable file (such as JSON or CSV).",
             "Correct information that is inaccurate.",
             "Delete your information, subject to the narrow exceptions the law allows (for example, if we need it to complete a transaction you asked for or to comply with a legal obligation).",
             "Stop contacting you.",
@@ -312,7 +328,7 @@ const privacyPolicy: InEffectLegalDocument = {
       heading: "Do Not Track and Global Privacy Control",
       blocks: [
         {
-          p: "Some browsers send a “Do Not Track” (DNT) or Global Privacy Control (GPC) signal. Our site does not track you across other websites over time, does not allow other companies to do so through our site, and does not sell or share personal information, so there is nothing for these signals to switch off today. If your browser sends Global Privacy Control, our cookie banner records “Reject non-essential” for you automatically, doesn’t ask, and doesn’t offer “Accept all”.",
+          p: "Some browsers send a “Do Not Track” (DNT) or Global Privacy Control (GPC) signal. Our site does not track you across other websites over time, does not allow other companies to do so through our site, and does not sell or share personal information, so there is nothing for these signals to switch off today. If your browser sends Global Privacy Control, our cookie banner records “Reject non-essential” for you automatically and doesn’t show itself unless you open Cookie Settings; it never offers “Accept all” to that browser.",
         },
         {
           p: "If we ever add an advertising or analytics tool that would sell or share personal information, we will treat a GPC signal as a valid request to opt out of selling and sharing for that browser, and we will update this policy before the tool goes live.",
@@ -337,8 +353,8 @@ const privacyPolicy: InEffectLegalDocument = {
             "The site is served only over encrypted HTTPS connections, and browsers are told to refuse unencrypted connections to it (HSTS).",
             "A strict content security policy allows the site to load scripts, styles, fonts and images only from our own domain.",
             "Our database stores no IP addresses, and our application logs record event codes and IDs, never form contents, IP addresses or email addresses.",
-            "Form submissions are sent to the database over encrypted connections, and access to them is limited to the people at Z Best Media who need it to respond to you.",
-            "Forms are protected against automated abuse with rate limits and spam traps.",
+            "Form submissions are sent to the database over encrypted connections that verify the database’s identity, and access to them is limited to the people at Z Best Media who need it to respond to you.",
+            "Forms are protected against automated abuse with rate limits, a time-limited form token (it holds no information about you) and spam traps.",
           ],
         },
         {
@@ -515,7 +531,7 @@ const termsOfService: InEffectLegalDocument = {
       heading: "Other websites",
       blocks: [
         {
-          p: "The site links to other websites, including Z Best Clips (zbestclips.com), which has its own terms and policies. We aren’t responsible for other websites’ content or practices, and a link isn’t an endorsement.",
+          p: "The site links to other websites, including Z Best Clips (zbestclips.com), which is not yet operating and will publish its own terms and policies before it launches. We aren’t responsible for other websites’ content or practices, and a link isn’t an endorsement.",
         },
       ],
     },
@@ -657,7 +673,7 @@ const cookiePolicy: InEffectLegalDocument = {
                 "Local storage (not a cookie)",
                 "Z Best Media (first party)",
                 "Strictly necessary. Remembers your choice on the cookie banner so it isn’t shown on every page.",
-                "Your choice (“accepted-all” or “rejected-non-essential”), the time it was made, and whether your browser’s Global Privacy Control signal made it for you.",
+                "Your choice (“accepted-all” or “rejected-non-essential”), the time it was made, and, when your browser sends Global Privacy Control, a flag saying that signal made it for you — also after you reopen Cookie Settings, and for an earlier choice once the signal is turned on.",
                 "Until you clear your browser’s site data. It is never sent to us.",
               ],
             ],
@@ -697,7 +713,7 @@ const cookiePolicy: InEffectLegalDocument = {
           p: "The cookie banner lets you “Accept all” or “Reject non-essential”, with equal prominence. Because the site has no non-essential cookies today, both choices currently lead to the same experience; we record your choice so it is ready to apply if that ever changes. You can change it at any time with the “Change cookie settings” button on this page, or through “Cookie Settings” in the site footer.",
         },
         {
-          p: "If we ever add an optional analytics or advertising tool, we will update this policy before it goes live, keep it switched off unless you accept it, and ask you again — an earlier “Accept all”, given before the tool existed, won’t count as consent to it. If your browser sends Global Privacy Control, we record “Reject non-essential” for you automatically and don’t show the banner; that will also count as a request to opt out of any selling or sharing of personal information.",
+          p: "If we ever add an optional analytics or advertising tool, we will update this policy before it goes live, keep it switched off unless you accept it, and ask you again — an earlier “Accept all”, given before the tool existed, won’t count as consent to it. If your browser sends Global Privacy Control, we record “Reject non-essential” for you automatically and don’t show the banner unless you open Cookie Settings, where “Accept all” isn’t offered and any choice is recorded as “Reject non-essential” made by Global Privacy Control; that will also count as a request to opt out of any selling or sharing of personal information.",
         },
         {
           p: "You can also use your browser’s settings to block cookies or clear site data. Clearing site data for zbestmedia.com removes your banner choice, and the banner will ask again on your next visit. Blocking storage entirely won’t stop the site from working; the banner may just appear more often.",

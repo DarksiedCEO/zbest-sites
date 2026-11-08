@@ -1,8 +1,8 @@
-import { formReady } from "../support/ready";
 import { expect, test, type Page } from "@playwright/test";
 import path from "node:path";
 import { captureFullPage } from "../capture";
 import { ZBC_BASE_URL } from "../playwright.config";
+import { formTokenHeader } from "../support/form-token";
 
 /**
  * Phase 4 gate — Z Best Clips chunk (Brief §3.4, §B4). Pages in brief order:
@@ -322,49 +322,42 @@ test.describe("Become a Clipper (§B4)", () => {
     expect(await cards.nth(0).evaluate((el) => getComputedStyle(el).borderLeftColor)).toBe(ENT);
     expect(await cards.nth(1).evaluate((el) => getComputedStyle(el).borderLeftColor)).toBe(BRAND);
     const rates = page.locator("[data-starting-rates]");
-    await expect(rates).toContainText("$50–100 guaranteed flat fee per approved post");
-    await expect(rates).toContainText("$3–5 per 1,000 views bonus");
+    await expect(rates).toContainText("$50–100 flat fee per approved post");
+    await expect(rates).toContainText("$3–5 per 1,000 verified views bonus");
+    // RTS-6: no guaranteed pay; rates are set per campaign.
+    await expect(rates).toContainText("Rates are set per campaign when campaigns open");
+    expect(await mainText(page)).not.toMatch(/guarantee/i);
   });
 
-  test("Browse Active Campaigns opens the labeled waitlist form, which posts to the lead route", async ({ page }) => {
+  test("RTS-6/AEGIS F5: every paid clip is disclosed in the clip itself plus the platform label and #ad (16 CFR Part 255)", async ({ page }) => {
+    await visit(page, byPath("/become-a-clipper"));
+    const rule = page.locator("#disclosure [data-disclosure-rule]");
+    // AEGIS F5 (FTC Disclosures 101): in the clip itself, plus the platform label and #ad.
+    await expect(rule).toContainText("in the clip itself — on screen, and out loud too if you speak in it");
+    await expect(rule).toContainText("paid-partnership label");
+    await expect(rule).toContainText("#ad near the start of the caption");
+    await expect(rule).toContainText("The platform label alone isn’t enough.");
+    await expect(rule).toContainText("16 CFR Part 255");
+    // No promise of a backend enforcement step that is not verified.
+    await expect(rule).not.toContainText("not approved or paid");
+  });
+
+  test("RTS-1: until ZBC's privacy policy is published, the waitlist is a message and an email link — no form, nothing posted", async ({ page }) => {
+    const posts: string[] = [];
+    page.on("request", (r) => {
+      if (r.method() === "POST") posts.push(r.url());
+    });
     await visit(page, byPath("/become-a-clipper"));
     const cta = page.locator("main header").getByRole("link", { name: "Browse Active Campaigns" });
     await expect(cta).toHaveAttribute("href", "#waitlist");
     await expect(page.locator("main header [data-fixture-note]")).toContainText("No campaigns are open yet");
     const section = page.locator("#waitlist");
-    await expect(section.getByRole("heading", { level: 2 })).toHaveText(
-      "Join the clipper list — we’ll notify you when the first campaigns open.",
-    );
-    const form = section.locator('form[data-lead-form="clipper"]');
-    await formReady(form);
-    await expect(form).not.toContainText("Stub");
-    for (const label of ["Name", "Email", "State or territory", "Primary platform"]) {
-      await expect(form.getByLabel(label, { exact: true })).toBeVisible();
-    }
-    await expect(form.getByLabel(/Profile link/)).toBeVisible();
-
-    await form.getByRole("button", { name: "Join the clipper list" }).click();
-    await expect(form.getByText("Enter a valid email address.")).toBeVisible();
-    await expect(form.getByText("Choose your primary platform.")).toBeVisible();
-
-    await form.getByLabel("Name", { exact: true }).fill("Test Clipper");
-    await form.getByLabel("Email", { exact: true }).fill("clipper@example.com");
-    await form.getByLabel("Primary platform", { exact: true }).selectOption("tiktok");
-    await form.getByLabel("State or territory", { exact: true }).selectOption("US-NY");
-    const [response] = await Promise.all([
-      page.waitForResponse((r) => r.url().endsWith("/api/lead")),
-      form.getByRole("button", { name: "Join the clipper list" }).click(),
-    ]);
-    expect(response.status()).toBe(200);
-    expect(response.headers()["x-zbest-lead-transport"]).toBe("fake");
-    expect(response.request().postDataJSON().fields).toEqual({
-      name: "Test Clipper",
-      email: "clipper@example.com",
-      platform: "tiktok",
-      profile: "",
-      state: "US-NY",
-    });
-    await expect(section.locator('[data-lead-result="accepted"]')).toContainText("Received");
+    await expect(section.locator("[data-not-accepting]")).toContainText("Z Best Clips is not yet accepting clients or clippers.");
+    const mail = section.getByRole("link", { name: "hello@zbestmedia.com" });
+    await expect(mail).toHaveAttribute("href", "mailto:hello@zbestmedia.com");
+    await expect(page.locator("main form")).toHaveCount(0);
+    await expect(page.locator("main input, main textarea, main select")).toHaveCount(0);
+    expect(posts).toEqual([]);
   });
 });
 
@@ -376,74 +369,34 @@ test.describe("Launch a Campaign (§B4)", () => {
     );
   });
 
-  test("four steps, both ways to start, and a form with the §6.1 fields posting to the lead route", async ({ page }) => {
+  test("four steps, both ways to start, and (RTS-1) the not-accepting message with an email link instead of a form", async ({ page }) => {
     await visit(page, byPath("/launch-a-campaign"));
     await expect(page.locator("#what-happens h3")).toHaveCount(4);
     await expect(page.locator("#start").getByRole("link", { name: "See How It Works" })).toHaveAttribute("href", "/");
-    const form = page.locator('form[data-lead-form="campaign"]');
-    await formReady(form);
-    await expect(form).not.toContainText("Stub");
-    for (const label of ["Name", "Organization", "State or territory", "What are you promoting?", "Entertainment / Brands", "Best way to reach you"]) {
-      await expect(form.getByLabel(label, { exact: true })).toBeVisible();
-    }
-    await expect(form.getByLabel(/Budget range/)).toBeVisible();
-    const focusOptions = await form.getByLabel("Entertainment / Brands", { exact: true }).locator("option").allTextContents();
-    expect(focusOptions).toEqual(["Choose one", "Entertainment", "Brands"]);
-
-    await form.getByLabel("Name", { exact: true }).fill("Test Person");
-    await form.getByLabel("Organization", { exact: true }).fill("Test Label");
-    await form.getByLabel("What are you promoting?", { exact: true }).fill("A single release.");
-    await form.getByLabel("Best way to reach you", { exact: true }).fill("test@example.com");
-    await form.getByRole("button", { name: "Launch a Campaign" }).click();
-    await expect(form.getByText("Choose Entertainment or Brands.")).toBeVisible();
-
-    await form.getByLabel("Entertainment / Brands", { exact: true }).selectOption("entertainment");
-    // Service area: a territory is served too.
-    await form.getByLabel("State or territory", { exact: true }).selectOption("PR");
-    const [response] = await Promise.all([
-      page.waitForResponse((r) => r.url().endsWith("/api/lead")),
-      form.getByRole("button", { name: "Launch a Campaign" }).click(),
-    ]);
-    expect(response.status()).toBe(200);
-    expect(response.headers()["x-zbest-lead-transport"]).toBe("fake");
-    await expect(page.locator('[data-lead-result="accepted"]')).toContainText("we have your details");
+    await expect(page.locator("#start").getByRole("link", { name: "Email us" })).toHaveAttribute("href", "#campaign-form");
+    const section = page.locator("#campaign-form");
+    await expect(section.locator("[data-not-accepting]")).toContainText("Z Best Clips is not yet accepting clients or clippers.");
+    await expect(section.getByRole("link", { name: "hello@zbestmedia.com" })).toHaveAttribute("href", "mailto:hello@zbestmedia.com");
+    await expect(page.locator("main form")).toHaveCount(0);
   });
 });
 
-test.describe("Lead route (§6.2, ZBC)", () => {
-  const id = "5f0c2b8e-4f7a-4c1e-9d7b-0f5d3a2b1c9e";
-  const post = (page: Page, data: unknown) =>
-    page.request.post(`${ZBC_BASE_URL}/api/lead`, { data, failOnStatusCode: false });
-
-  test("rejects ZBM's form names and unknown focus or platform values", async ({ page }) => {
-    expect((await post(page, { form: "contact", submission_id: id, fields: {} })).status()).toBe(400);
-    const badFocus = await post(page, {
-      form: "campaign",
-      submission_id: id,
-      fields: { name: "A", organization: "B", promoting: "C", focus: "sports", reach: "D", state: "US-CA" },
-    });
-    expect(badFocus.status()).toBe(422);
-    expect(Object.keys((await badFocus.json()).error.fields)).toEqual(["focus"]);
-    const badPlatform = await post(page, {
-      form: "clipper",
-      submission_id: id,
-      fields: { name: "A", email: "a@example.com", platform: "vine", state: "US-CA" },
-    });
-    expect(badPlatform.status()).toBe(422);
-    expect(Object.keys((await badPlatform.json()).error.fields)).toEqual(["platform"]);
-  });
-
-  test("valid submissions and a filled honeypot are acknowledged", async ({ page }) => {
-    const ok = await post(page, {
-      form: "clipper",
-      submission_id: id,
-      fields: { name: "A", email: "a@example.com", platform: "youtube-shorts", profile: "youtube.com/@a", state: "US-CA" },
-    });
-    expect(ok.status()).toBe(200);
-    expect(await ok.json()).toEqual({ ok: true, submission_id: id });
-    expect(ok.headers()["x-zbest-lead-stub"]).toBeUndefined();
-    const bot = await post(page, { form: "campaign", submission_id: id, fields: {}, company_url: "x" });
-    expect(bot.status()).toBe(200);
+test.describe("Lead route (§6.2, ZBC) — closed until ZBC publishes its privacy policy (RTS-1)", () => {
+  test("every POST and the token GET are 410 not_accepting; nothing is stored or sent", async ({ page }) => {
+    const id = "5f0c2b8e-4f7a-4c1e-9d7b-0f5d3a2b1c9e";
+    for (const data of [
+      { form: "clipper", submission_id: id, fields: { name: "A", email: "a@example.com", platform: "youtube-shorts", state: "US-CA" } },
+      { form: "campaign", submission_id: id, fields: { name: "A", organization: "B", promoting: "C", focus: "brands", reach: "D", state: "US-CA" } },
+      { form: "campaign", submission_id: id, fields: {}, company_url: "x" },
+      "not json",
+    ]) {
+      const res = await page.request.post(`${ZBC_BASE_URL}/api/lead`, { headers: formTokenHeader(), data, failOnStatusCode: false });
+      expect(res.status()).toBe(410);
+      expect(await res.json()).toEqual({ ok: false, error: { code: "not_accepting" } });
+      expect(res.headers()["cache-control"]).toBe("no-store");
+    }
+    const get = await page.request.get(`${ZBC_BASE_URL}/api/lead`, { failOnStatusCode: false });
+    expect(get.status()).toBe(410);
   });
 });
 
@@ -484,7 +437,7 @@ test.describe("Copy revision (ZBC gate CONDITIONAL at c35ee1d — founder ruling
     expect(desc).not.toMatch(/[Hh]undreds of/);
   });
 
-  test("nothing claims creators are paid only on views — Brands carry a guaranteed per-post fee", async ({ page }) => {
+  test("nothing claims creators are paid only on views — Brands carry a per-post fee (never 'guaranteed', RTS-6)", async ({ page }) => {
     for (const path of ["/pricing", "/faq"]) {
       await visit(page, byPath(path));
       const text = await mainText(page);
@@ -547,8 +500,19 @@ test.describe("Copy revision (ZBC gate CONDITIONAL at c35ee1d — founder ruling
   });
 });
 
+test.describe("AEGIS r2 M4 — clip review is described as the backend does it", () => {
+  test("no page says a person reviews every submission; review is against written rules, borderline to a person", async ({ page }) => {
+    for (const p of ["/", "/media-kit"]) {
+      await visit(page, byPath(p));
+      const text = await mainText(page);
+      expect(text, p).not.toMatch(/reviewed by a person before it counts|until a human reviews it/i);
+      expect(text, p).toContain("anything borderline goes to a person");
+    }
+  });
+});
+
 test.describe("Media Kit (§B4)", () => {
-  test("facts as ledger rows, assets on request, press address a labeled non-link placeholder", async ({ page }) => {
+  test("facts as ledger rows, assets on request, press contact a real address (RTS-11: no placeholder)", async ({ page }) => {
     await visit(page, byPath("/media-kit"));
     const rows = await page.evaluate(() =>
       [...document.querySelectorAll("#facts dt")].map((dt) => dt.textContent?.trim()),
@@ -556,10 +520,9 @@ test.describe("Media Kit (§B4)", () => {
     expect(rows).toEqual(["Parent", "Launched", "Models", "Platforms", "Payout basis"]);
     await expect(page.locator("#assets")).toContainText("Assets available on request.");
     const press = page.locator("#press");
-    await expect(press).toContainText("press@zbestclips.com");
-    await expect(press.locator("[data-fixture-note]")).toContainText("Placeholder");
-    // The mailbox does not exist, so nothing may offer to send mail to it.
-    expect(await page.locator('a[href^="mailto:"]').count()).toBe(0);
+    await expect(press.getByRole("link", { name: "hello@zbestmedia.com" })).toHaveAttribute("href", "mailto:hello@zbestmedia.com");
+    await expect(press).not.toContainText("press@zbestclips.com");
+    expect(await mainText(page)).not.toMatch(/placeholder|does not exist|guarantee/i);
     // Company voice: no founder name (§B4).
     expect(await mainText(page)).not.toMatch(/Zack/);
   });
@@ -571,10 +534,15 @@ test.describe("FAQ (§B4)", () => {
     const buttons = page.locator("#faq button[aria-expanded]");
     await expect(buttons).toHaveCount(10);
     const paid = page.locator("#faq button", { hasText: "How do clippers get paid?" });
+    // A click before hydration does nothing (the same race as AEGIS r2 L4): wait for the FAQ's ready marker.
+    await expect(page.locator("#faq [data-faq-ready]")).toHaveAttribute("data-faq-ready", "true");
     await paid.click();
     await expect(paid).toHaveAttribute("aria-expanded", "true");
     const panel = page.locator(`#${await paid.getAttribute("aria-controls")}`);
-    await expect(panel).toHaveText("Entertainment: per 1,000 verified views. Brands: guaranteed flat fee + performance bonus.");
+    await expect(panel).toHaveText(
+      "Entertainment: per 1,000 verified views. Brands: a flat fee per approved post plus a performance bonus. Rates are set per campaign when campaigns open.",
+    );
+    expect(await mainText(page)).not.toMatch(/guarantee/i);
   });
 });
 

@@ -68,7 +68,8 @@ export default function HowItWorksPage() {
               },
               {
                 title: "Every Submission Reviewed",
-                body: "Nothing counts until a human reviews it against guidelines. Rule-breaking posts rejected and never billed.",
+                // AEGIS r2 M4: as the backend does it (zbm-zbc creative-py clip_review: pass / reject / human_review).
+                body: "Nothing counts until it passes review against the campaign’s written rules; anything borderline goes to a person. Rule-breaking posts rejected and never billed.",
               },
               {
                 title: "Verified Reporting",
