@@ -33,7 +33,7 @@ const CONSENT_KEY = "zbest-cookie-consent";
  * apps/{zbm,zbc}/lib/legal.ts: flip both together.
  */
 const STATUS_WORDING = /pending attorney|attorney review|not yet in effect|not legal advice|\bdraft\b/i;
-const LEGAL_ADOPTED = false;
+const LEGAL_ADOPTED = true;
 const LEGAL_DRAFT_STATUS = "Draft — pending attorney review.";
 
 /**
